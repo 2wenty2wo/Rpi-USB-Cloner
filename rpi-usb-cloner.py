@@ -5,6 +5,7 @@ import datetime
 import subprocess
 import RPi.GPIO as GPIO
 import os
+from mount import *
 import sys
 
 from digitalio import DigitalInOut, Direction, Pull
@@ -75,6 +76,12 @@ index = 0
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
+devices = list_media_devices()
+
+for device in devices:
+            draw.text((x - 11, top + 0), (get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB" + " " + (get_vendor(device)) + " " + (get_model(device)), font=font, fill=255)
+            mount(device)
+            
 def basemenu():
             disp.fill(0)
             disp.show()
