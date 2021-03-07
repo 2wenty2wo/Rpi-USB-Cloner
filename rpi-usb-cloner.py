@@ -67,6 +67,7 @@ bottom = height-padding
 # Load default font.
 font = ImageFont.load_default()
 fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
+fontdisks = ImageFont.truetype("slkscr.ttf", 8)
 fontmain = ImageFont.load_default()
 
 # Get drawing object to draw on image.
@@ -75,16 +76,19 @@ index = 0
 
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
-
-devices = list_media_devices()
-
-for device in devices:
-            draw.text((x - 11, top + 0), (get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB" + " " + (get_vendor(device)) + " " + (get_model(device)), font=font, fill=255)
-            mount(device)
             
 def basemenu():
             disp.fill(0)
             disp.show()
+            devices = list_media_devices()
+            for device in devices:
+                        if is_removable(device):
+                                    draw.text((x - 11, top + 0), (get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
+                                    draw.text((x - 11, top + 8), (get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
+                        else:
+                                    disp.fill(0)
+                                    disp.show()
+                                    basemenu()
             draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
             draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
             draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)
