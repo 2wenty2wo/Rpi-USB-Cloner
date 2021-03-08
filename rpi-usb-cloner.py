@@ -67,6 +67,7 @@ bottom = height-padding
 # Load default font.
 font = ImageFont.load_default()
 fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
+fontinsert = ImageFont.truetype("slkscr.ttf", 16)
 fontdisks = ImageFont.truetype("slkscr.ttf", 8)
 fontmain = ImageFont.load_default()
 
@@ -80,18 +81,20 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 def basemenu():
             disp.fill(0)
             disp.show()
-            devices = list_media_devices()
-            for device in devices:
-                        if is_removable(device):
-                                    draw.text((x - 11, top + 0), (get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
-                                    draw.text((x - 11, top + 8), (get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
-                        else:
-                                    disp.fill(0)
-                                    disp.show()
-                                    basemenu()
-            draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
-            draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
-            draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)
+            devices = list_media_devices()  #This is mount.py stuff.
+            seconditem = 0  # This was to ensure the second USB drive info displayed after and not over the top of the first drives info. Got a better way? Please help.
+            if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
+                        draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
+                        draw.text((x, top + 30), "INSERT USB", font=fontinsert, fill=255)
+            else:  # If USB is connected.
+                        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+                        for device in devices:  # This is mount.py stuff.
+                                    draw.text((x - 11, top + 2 + seconditem),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
+                                    draw.text((x - 11, top + 10 + seconditem),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
+                                    seconditem = 20
+                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
+                        draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
+                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)                        
             disp.image(image)
             disp.show()
             index = 0
@@ -109,6 +112,7 @@ ve = 32
 vf = 40
 vg = 48
 
+# Currently broken.
 def menuselect():
     if index == (va):
         status()
@@ -159,7 +163,7 @@ try:
         if button_U.value: # button is released
             filler = (0)
         else: # button is pressed:
-            basemenu()
+            # basemenu()
             # draw.text((x-8, index),       "*", fill=0)
             # index = (index-8)
             # draw.text((x-8, index),       "*", fill=1)
@@ -264,14 +268,14 @@ try:
         if button_D.value: # button is released
             filler = (0)
         else: # button is pressed:
-            basemenu()
+            # basemenu()
             #draw.rectangle((0, 0, width, height), outline=0, fill=0)
             #draw.text((x-8, top),       "*", fill=0)
             #draw.text((x-8, index),       "*", fill=0)
             #index = (index +8)
             #draw.text((x-8, index),       "*", fill=1)
             #disp.image(image)
-            disp.show()
+            #disp.show()
             print("button down")
             lcdstart = datetime.now()
             run_once = 0
@@ -298,5 +302,6 @@ try:
         else:
             filler=(0)
 
+# Not sure if required?
 except KeyboardInterrupt:
     GPIO.cleanup()
