@@ -119,18 +119,17 @@ vc = 3
 
 # Currently broken. Same as above.
 def menuselect():
-    if index == (va):
-        copy()
-    if index == (vb):
-        view()
-    if index == (vc):
-        erase()
-
-    else:
-        # Display image.
-        disp.image(image)
-        disp.show()
-        time.sleep(.01)
+            if index == (va):
+                        copy()
+            if index == (vb):
+                        view()
+            if index == (vc):
+                        erase()
+            else:
+                        # Display image.
+                        disp.image(image)
+                        disp.show()
+                        time.sleep(.01)
 
 global run_once
 run_once = 0
@@ -157,156 +156,150 @@ def erase():
             draw.text((x, top + 30), "ERASE", font=fontinsert, fill=255)
 
 def sleepdisplay():  # put the display to sleep to reduce power
-    global run_once
-    disp.fill(0)
-    disp.show()
-    draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    disp.image(image)
-    disp.show()
-    run_once = 1
+            global run_once
+            disp.fill(0)
+            disp.show()
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            disp.image(image)
+            disp.show()
+            run_once = 1
 
 # Button Commands
 try:
-    while 1:
-        # Sleep Stuff
-        time.sleep(0.1)
-        lcdtmp = lcdstart + timedelta(seconds=30)
-        if (datetime.now() > lcdtmp):
-            if run_once == 0:
-               sleepdisplay()
-        time.sleep(0.1)
-        # Sleep Stuff
-        if button_U.value: # button is released
-            filler = (0)
-        else: # button is pressed:
-            # basemenu()
-            # draw.text((x-8, index),       "*", fill=0)
-            # index = (index-8)
-            # draw.text((x-8, index),       "*", fill=1)
-            disp.image(image)
-            disp.show()
-            print("button up")
-            lcdstart = datetime.now()
-            run_once = 0
-        if button_L.value: # button is released
-            latindex = (latindex)
-        else: # button is pressed:
-            #basemenu()
-            if index == (3):
-                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=0)  # Deselect Erase
-                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=1)  # Erase White
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
-                index = 2
-                disp.image(image)
-                disp.show()
-                print("VIEW")
-                lcdstart = datetime.now()
-                run_once = 0
-            elif index == (2):
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
-                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
-                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
-                index = 1
-                disp.image(image)
-                disp.show()
-                print("COPY")
-                lcdstart = datetime.now()
-                run_once = 0
-            elif index == (1):
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
-                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
-                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
-                index = 1
-                disp.image(image)
-                disp.show()
-                print("COPY")
-                lcdstart = datetime.now()
-                run_once = 0
-            else:
-                # Display image.
-                disp.image(image)
-                disp.show()
-                time.sleep(.01)
-        if button_R.value: # button is released
-            filler =(0)
-        else: # button is pressed:
-            #basemenu()
-            if index == (0):
-                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1) #Select Copy
-                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0) #Copy Black
-                index = 1
-                disp.image(image)
-                disp.show()
-                print("COPY")
-                lcdstart = datetime.now()
-                run_once = 0
-            elif index == (1):
-                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=0) #Deselect Copy
-                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=1) #Copy White
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
-                index = 2
-                disp.image(image)
-                disp.show()
-                print("VIEW")
-                lcdstart = datetime.now()
-                run_once = 0
-            elif index == (2):
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
-                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
-                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
-                index = 3
-                disp.image(image)
-                disp.show()
-                print("ERASE")
-                lcdstart = datetime.now()
-                run_once = 0
-            elif index == (3):
-                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
-                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
-                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
-                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
-                index = 3
-                disp.image(image)
-                disp.show()
-                print("END OF MENU")
-                lcdstart = datetime.now()
-                run_once = 0
-            else:
-                # Display image.
-                disp.image(image)
-                disp.show()
-                time.sleep(.01)
-        if button_D.value: # button is released
-            filler = (0)
-        else: # button is pressed:
-                    print("button down")
-        if button_C.value: # button is released
-            filler = (0)
-        else: # button is pressed:
-            filler = (0)
-            print("button c")
-        if button_A.value: # button is released
-            filler = (0)
-        else: # button is pressed:
-            disp.fill(0)
-            disp.show()
-            print("button a")
-            basemenu()
-            disp.show()
-        if button_B.value: # button is released
-            filler = (0)
-        else: # button is pressed:
-            menuselect ()
-        if not button_A.value and not button_B.value and not button_C.value:
-            catImage = Image.open('happycat_oled_64.ppm').convert('1')
-            disp.image(catImage)
-        else:
-            filler=(0)
+            while 1:
+                        # Sleep Stuff
+                        time.sleep(0.1)
+                        lcdtmp = lcdstart + timedelta(seconds=30)
+                        if (datetime.now() > lcdtmp):
+                                    if run_once == 0:
+                                                sleepdisplay()
+                                    time.sleep(0.1)
+                        # Sleep Stuff
+                        if button_U.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    disp.image(image)
+                                    disp.show()
+                                    print("button up")
+                                    lcdstart = datetime.now()
+                                    run_once = 0
+                        if button_L.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    if index == (3):
+                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=0)  # Deselect Erase
+                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=1)  # Erase White
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
+                                                index = 2
+                                                disp.image(image)
+                                                disp.show()
+                                                print("VIEW")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    elif index == (2):
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
+                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
+                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
+                                                index = 1
+                                                disp.image(image)
+                                                disp.show()
+                                                print("COPY")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    elif index == (1):
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
+                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
+                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
+                                                index = 1
+                                                disp.image(image)
+                                                disp.show()
+                                                print("COPY")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    else:
+                                                # Display image.
+                                                disp.image(image)
+                                                disp.show()
+                                                time.sleep(.01)
+                        if button_R.value: # button is released
+                                    filler =(0)
+                        else: # button is pressed:
+                                    if index == (0):
+                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1) #Select Copy
+                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0) #Copy Black
+                                                index = 1
+                                                disp.image(image)
+                                                disp.show()
+                                                print("COPY")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    elif index == (1):
+                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=0) #Deselect Copy
+                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=1) #Copy White
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
+                                                index = 2
+                                                disp.image(image)
+                                                disp.show()
+                                                print("VIEW")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    elif index == (2):
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
+                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
+                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
+                                                index = 3
+                                                disp.image(image)
+                                                disp.show()
+                                                print("ERASE")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    elif index == (3):
+                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
+                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
+                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
+                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
+                                                index = 3
+                                                disp.image(image)
+                                                disp.show()
+                                                print("END OF MENU")
+                                                lcdstart = datetime.now()
+                                                run_once = 0
+                                    else:
+                                                # Display image.
+                                                disp.image(image)
+                                                disp.show()
+                                                time.sleep(.01)
+                        if button_D.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    print("button down")
+                        if button_C.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    filler = (0)
+                                    print("button c")
+                        if button_A.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    disp.fill(0)
+                                    disp.show()
+                                    print("button a")
+                                    basemenu()
+                                    disp.show()
+                        if button_B.value: # button is released
+                                    filler = (0)
+                        else: # button is pressed:
+                                    menuselect ()
+                        if not button_A.value and not button_B.value and not button_C.value:
+                                    catImage = Image.open('happycat_oled_64.ppm').convert('1')
+                                    disp.image(catImage)
+                        else:
+                                    filler=(0)
 
 # Not sure if required?
 except KeyboardInterrupt:
