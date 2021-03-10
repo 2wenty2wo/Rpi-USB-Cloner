@@ -79,6 +79,35 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
 usb = 0
 
+def basemenu():
+            disp.fill(0)
+            disp.show()
+            devices = list_media_devices()  #This is mount.py stuff.
+            seconditem = 0  # This was to ensure the second USB drive info displayed after and not over the top of the first drives info. Got a better way? Please help.
+            if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
+                        disp.fill(0)
+                        # draw.rectangle((0,0,width,height), outline=0, fill=0)
+                        # splash1 = Image.open('usb.png').convert('1') 
+                        # disp.image(splash1)                      
+                        draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
+                        draw.text((x, top + 30), "INSERT USB", font=fontinsert, fill=255)
+                        usb = 0
+            else:  # If USB is connected.
+                        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+                        for device in devices:  # This is mount.py stuff.
+                                    draw.text((x - 11, top + 2 + seconditem),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
+                                    draw.text((x - 11, top + 10 + seconditem),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
+                                    seconditem = 20  # This is to get the second USB info drawn lower down the screen to stop overlap.
+                        usb = 1
+                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
+                        draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
+                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)                     
+            disp.image(image)
+            disp.show()
+            index = 0
+
+basemenu()  # Run Base Menu at script start            
+
 #set up a bit of a grid for mapping menu choices.
 index = 0
 latindex = 0
@@ -354,32 +383,3 @@ try:
                                     menuselect ()
 except KeyboardInterrupt:
             GPIO.cleanup()
-
-def basemenu():
-            disp.fill(0)
-            disp.show()
-            devices = list_media_devices()  #This is mount.py stuff.
-            seconditem = 0  # This was to ensure the second USB drive info displayed after and not over the top of the first drives info. Got a better way? Please help.
-            if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
-                        disp.fill(0)
-                        # draw.rectangle((0,0,width,height), outline=0, fill=0)
-                        # splash1 = Image.open('usb.png').convert('1') 
-                        # disp.image(splash1)                      
-                        draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
-                        draw.text((x, top + 30), "INSERT USB", font=fontinsert, fill=255)
-                        usb = 0
-            else:  # If USB is connected.
-                        draw.rectangle((0, 0, width, height), outline=0, fill=0)
-                        for device in devices:  # This is mount.py stuff.
-                                    draw.text((x - 11, top + 2 + seconditem),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
-                                    draw.text((x - 11, top + 10 + seconditem),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
-                                    seconditem = 20  # This is to get the second USB info drawn lower down the screen to stop overlap.
-                        usb = 1
-                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
-                        draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
-                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)                     
-            disp.image(image)
-            disp.show()
-            index = 0
-
-basemenu()  # Run Base Menu at script start    
