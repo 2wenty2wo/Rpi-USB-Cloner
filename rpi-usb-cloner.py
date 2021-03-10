@@ -139,10 +139,37 @@ run_once = 0
 lcdstart = datetime.now()
 
 def copy():
-            draw.rectangle((0,0,width,height), outline=0, fill=0)
             disp.fill(0)
             disp.show()
-            draw.text((x, top + 30), "COPY", font=fontinsert, fill=255)
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            draw.text((x, top), "CLONE SDA to SDB?", font=fontdisks, fill=255)
+            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=255)
+            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=255)
+            disp.image(image)
+            disp.show()
+            index = 5             
+            try:
+                        while 1:                                              
+                                    if button_R.value: # button is released
+                                                filler =(0)
+                                    else: # button is pressed:
+                                                if index == (5):
+                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
+                                                            #draw.rectangle((x + 23, 48, 39, 60), outline=0, fill=1) #Select No
+                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
+                                                            index = 6
+                                                            disp.image(image)
+                                                            disp.show()
+                                                            print("NO")
+                                                            lcdstart = datetime.now()
+                                                            run_once = 0
+                                                else:
+                                                            # Display image.
+                                                            disp.image(image)
+                                                            disp.show()
+                                                            time.sleep(.01)
+            except KeyboardInterrupt:
+                GPIO.cleanup()            
 
 def view():
             draw.rectangle((0,0,width,height), outline=0, fill=0)
