@@ -116,7 +116,6 @@ filler = 0
 va = 1
 vb = 2
 vc = 3
-=
 
 # Currently broken. Same as above.
 def menuselect():
