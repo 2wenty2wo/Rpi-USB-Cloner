@@ -19,7 +19,6 @@ i2c = busio.I2C(board.SCL, board.SDA)
 # Create the SSD1306 OLED class.
 disp = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c)
 
-
 # Input pins:
 button_A = DigitalInOut(board.D5)
 button_A.direction = Direction.INPUT
@@ -87,7 +86,7 @@ def basemenu():
             seconditem = 0  # This was to ensure the second USB drive info displayed after and not over the top of the first drives info. Got a better way? Please help.
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
                         disp.fill(0)
-                        draw.rectangle((0,0,width,height), outline=0, fill=0)
+                        # draw.rectangle((0,0,width,height), outline=0, fill=0)
                         # splash1 = Image.open('usb.png').convert('1') 
                         # disp.image(splash1)                      
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
@@ -98,44 +97,35 @@ def basemenu():
                         for device in devices:  # This is mount.py stuff.
                                     draw.text((x - 11, top + 2 + seconditem),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
                                     draw.text((x - 11, top + 10 + seconditem),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
-                                    seconditem = 20
+                                    seconditem = 20  # This is to get the second USB info drawn lower down the screen to stop overlap.
                         usb = 1
-                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
+                        # draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
+                        # draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
                         draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
-                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)
+                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)                                   
             disp.image(image)
             disp.show()
             index = 0
 
-basemenu()
+basemenu()  # Run Base Menu at script start            
 
-#set up a bit of a grid for mapping menu choices, each "V" variable is a   horizontal line
-#each latindex is
+#set up a bit of a grid for mapping menu choices.
 index = 0
 latindex = 0
 filler = 0
-va = 0
-vb = 8
-vc = 16
-vd = 24
-ve = 32
-vf = 40
-vg = 48
+va = 1
+vb = 2
+vc = 3
+=
 
-# Currently broken.
+# Currently broken. Same as above.
 def menuselect():
     if index == (va):
-        status()
+        copy()
     if index == (vb):
-        beaconsettings()
+        view()
     if index == (vc):
-        beaconstatus()
-    if index == (vd):
-        closedisplay()
-    if index == (ve):
-        reboot()
-    if index == (vf):
-        shutdown()
+        erase()
 
     else:
         # Display image.
@@ -149,6 +139,24 @@ run_once = 0
 #setup the  go to sleep timer
 lcdstart = datetime.now()
 
+def copy():
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            disp.fill(0)
+            disp.show()
+            draw.text((x, top + 30), "COPY", font=fontinsert, fill=255)
+
+def view():
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            disp.fill(0)
+            disp.show()
+            draw.text((x, top + 30), "VIEW", font=fontinsert, fill=255)
+
+def erase():
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            disp.fill(0)
+            disp.show()
+            draw.text((x, top + 30), "ERASE", font=fontinsert, fill=255)
+
 def sleepdisplay():  # put the display to sleep to reduce power
     global run_once
     disp.fill(0)
@@ -158,6 +166,7 @@ def sleepdisplay():  # put the display to sleep to reduce power
     disp.show()
     run_once = 1
 
+# Button Commands
 try:
     while 1:
         # Sleep Stuff
@@ -192,7 +201,7 @@ try:
                 index = 2
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("VIEW")
                 lcdstart = datetime.now()
                 run_once = 0
             elif index == (2):
@@ -203,7 +212,7 @@ try:
                 index = 1
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("COPY")
                 lcdstart = datetime.now()
                 run_once = 0
             elif index == (1):
@@ -214,7 +223,7 @@ try:
                 index = 1
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("COPY")
                 lcdstart = datetime.now()
                 run_once = 0
             else:
@@ -232,7 +241,7 @@ try:
                 index = 1
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("COPY")
                 lcdstart = datetime.now()
                 run_once = 0
             elif index == (1):
@@ -243,7 +252,7 @@ try:
                 index = 2
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("VIEW")
                 lcdstart = datetime.now()
                 run_once = 0
             elif index == (2):
@@ -254,7 +263,7 @@ try:
                 index = 3
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("ERASE")
                 lcdstart = datetime.now()
                 run_once = 0
             elif index == (3):
@@ -265,7 +274,7 @@ try:
                 index = 3
                 disp.image(image)
                 disp.show()
-                print("button right")
+                print("END OF MENU")
                 lcdstart = datetime.now()
                 run_once = 0
             else:
