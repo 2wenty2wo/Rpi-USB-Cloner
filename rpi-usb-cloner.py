@@ -101,6 +101,7 @@ def basemenu():
                         usb = 1
                         # draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
                         # draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
+                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
                         draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
                         draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)                                   
             disp.image(image)
