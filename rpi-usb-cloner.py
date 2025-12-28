@@ -577,8 +577,8 @@ def clone_partclone(source, target):
             target_node = resolve_device_node(target)
             source_name = os.path.basename(source_node)
             target_name = os.path.basename(target_node)
-            source_device = source if isinstance(source, dict) else get_device_by_name(source_name)
-            target_device = target if isinstance(target, dict) else get_device_by_name(target_name)
+            source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
+            target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
             if not source_device or not target_device:
                         clone_dd(source_node, target_node, total_bytes=source.get("size") if isinstance(source, dict) else None)
                         return
