@@ -126,10 +126,18 @@ def render_menu(menu, draw, width, height, fonts):
             if menu.content_top is not None:
                         current_y = menu.content_top
 
+            items_font = menu.items_font or fonts["items"]
+            line_height = 8
+            try:
+                        bbox = items_font.getbbox("Ag")
+                        line_height = max(bbox[3] - bbox[1], line_height)
+            except AttributeError:
+                        if hasattr(items_font, "getmetrics"):
+                                    ascent, descent = items_font.getmetrics()
+                                    line_height = max(ascent + descent, line_height)
+
             for item_index, item in enumerate(menu.items):
                         lines = item.lines
-                        items_font = menu.items_font or fonts["items"]
-                        line_height = 8
                         row_height = max(len(lines), 1) * line_height + 4
                         row_top = current_y
                         is_selected = item_index == menu.selected_index
