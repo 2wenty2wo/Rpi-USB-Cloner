@@ -83,6 +83,8 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 usb = 0
 
 def basemenu():
+            global lcdstart
+            global run_once
             disp.fill(0)
             disp.show()
             devices = list_media_devices()  #This is mount.py stuff.
@@ -107,6 +109,8 @@ def basemenu():
                         draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)
             disp.image(image)
             disp.show()
+            lcdstart = datetime.now()
+            run_once = 0
             index = 0
 
 basemenu()  # Run Base Menu at script start
