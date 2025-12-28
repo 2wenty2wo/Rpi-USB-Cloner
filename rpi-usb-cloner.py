@@ -82,6 +82,7 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
 usb = 0
 ENABLE_SLEEP = False
+USB_REFRESH_INTERVAL = 2.0
 
 def basemenu():
             global lcdstart
@@ -189,6 +190,16 @@ def list_usb_disks():
                         if tran == "usb" or rm == 1:
                                     devices.append(device)
             return devices
+
+def get_usb_snapshot():
+            try:
+                        devices = list_media_devices()
+            except Exception:
+                        return []
+            return sorted(get_device_name(device) for device in devices)
+
+last_usb_check = time.time()
+last_seen_devices = get_usb_snapshot()
 
 def get_children(device):
             return device.get("children", []) or []
@@ -330,7 +341,6 @@ def copy():
                                                             disp.image(image)
                                                             disp.show()
                                                             print("NO" + str(index))
-                                                            lcdstart = datetime.now()
                                                             run_once = 0
                                                 if index == (6):
                                                             draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
@@ -501,6 +511,12 @@ try:
             while 1:
                         # Sleep Stuff
                         time.sleep(0.1)
+                        if time.time() - last_usb_check >= USB_REFRESH_INTERVAL:
+                                    current_devices = get_usb_snapshot()
+                                    if current_devices != last_seen_devices:
+                                                basemenu()
+                                                last_seen_devices = current_devices
+                                    last_usb_check = time.time()
                         if ENABLE_SLEEP:
                                     lcdtmp = lcdstart + timedelta(seconds=30)
                                     if (datetime.now() > lcdtmp):
