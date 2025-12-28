@@ -1087,10 +1087,8 @@ def select_clone_mode():
                                     return None
                         current_B = button_B.value
                         if prev_states["B"] and not current_B:
-                                    return None
-                        current_C = button_C.value
-                        if prev_states["C"] and not current_C:
                                     return modes[selected_index]
+                        current_C = button_C.value
                         prev_states["U"] = current_U
                         prev_states["D"] = current_D
                         prev_states["L"] = current_L
@@ -1148,10 +1146,8 @@ def select_erase_mode():
                                     return None
                         current_B = button_B.value
                         if prev_states["B"] and not current_B:
-                                    return None
-                        current_C = button_C.value
-                        if prev_states["C"] and not current_C:
                                     return modes[selected_index]
+                        current_C = button_C.value
                         prev_states["U"] = current_U
                         prev_states["D"] = current_D
                         prev_states["L"] = current_L
