@@ -353,6 +353,55 @@ def human_size(size_bytes):
                         size /= 1024.0
             return f"{size:.1f}PB"
 
+def format_device_label(device):
+            if isinstance(device, dict):
+                        name = device.get("name") or ""
+                        size_label = human_size(device.get("size"))
+            else:
+                        name = str(device or "")
+                        size_label = ""
+            if size_label:
+                        size_label = re.sub(r"\.0([A-Z])", r"\1", size_label)
+                        return f"{name} {size_label}".strip()
+            return name
+
+def format_eta(seconds):
+            if seconds is None:
+                        return None
+            seconds = int(seconds)
+            if seconds < 0:
+                        return None
+            hours, remainder = divmod(seconds, 3600)
+            minutes, secs = divmod(remainder, 60)
+            if hours:
+                        return f"{hours:d}:{minutes:02d}:{secs:02d}"
+            return f"{minutes:02d}:{secs:02d}"
+
+def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, eta):
+            lines = []
+            if title:
+                        lines.append(title)
+            if device:
+                        lines.append(device)
+            if mode:
+                        lines.append(f"Mode {mode}")
+            if bytes_copied is not None:
+                        percent = ""
+                        if total_bytes:
+                                    percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                        written_line = f"Wrote {human_size(bytes_copied)}"
+                        if percent:
+                                    written_line = f"{written_line} {percent}"
+                        lines.append(written_line)
+            else:
+                        lines.append("Working...")
+            if rate:
+                        rate_line = f"{human_size(rate)}/s"
+                        if eta:
+                                    rate_line = f"{rate_line} ETA {eta}"
+                        lines.append(rate_line)
+            return lines[:6]
+
 def run_command(command, check=True):
             log_debug(f"Running command: {' '.join(command)}")
             try:
@@ -490,11 +539,15 @@ def pick_source_target():
                         target = devices[1]
             return source, target
 
-def run_progress_command(command, total_bytes=None, title="WORKING"):
-            display_lines([title, "Starting..."])
+def run_progress_command(command, total_bytes=None, title="WORKING", device_label=None, mode_label=None):
+            display_lines(format_progress_lines(title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None))
             log_debug(f"Starting command: {' '.join(command)}")
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             last_update = time.time()
+            last_bytes = None
+            last_time = None
+            last_rate = None
+            last_eta = None
             while True:
                         line = process.stderr.readline()
                         if line:
@@ -502,15 +555,29 @@ def run_progress_command(command, total_bytes=None, title="WORKING"):
                                     match = re.search(r"(\d+)\s+bytes", line)
                                     if match:
                                                 bytes_copied = int(match.group(1))
-                                                percent = ""
-                                                if total_bytes:
-                                                            percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
-                                                display_lines([title, f"{human_size(bytes_copied)} {percent}".strip()])
+                                                now = time.time()
+                                                rate = None
+                                                eta = None
+                                                if last_bytes is not None and last_time is not None:
+                                                            delta_bytes = bytes_copied - last_bytes
+                                                            delta_time = now - last_time
+                                                            if delta_bytes >= 0 and delta_time > 0:
+                                                                        rate = delta_bytes / delta_time
+                                                if rate and total_bytes and bytes_copied <= total_bytes:
+                                                            eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                                                            eta = format_eta(eta_seconds)
+                                                display_lines(format_progress_lines(title, device_label, mode_label, bytes_copied, total_bytes, rate, eta))
                                                 last_update = time.time()
+                                                last_bytes = bytes_copied
+                                                last_time = now
+                                                if rate:
+                                                            last_rate = rate
+                                                if eta:
+                                                            last_eta = eta
                         if process.poll() is not None:
                                     break
                         if time.time() - last_update > 5:
-                                    display_lines([title, "Working..."])
+                                    display_lines(format_progress_lines(title, device_label, mode_label, last_bytes, total_bytes, last_rate, last_eta))
                                     last_update = time.time()
             if process.returncode != 0:
                         error_output = process.stderr.read().strip()
@@ -801,6 +868,8 @@ def erase_device(target, mode):
             target_node = f"/dev/{target.get('name')}"
             unmount_device(target)
             mode = (mode or "").lower()
+            device_label = format_device_label(target)
+            mode_label = mode.upper() if mode else None
             if mode == "secure":
                         shred_path = shutil.which("shred")
                         if not shred_path:
@@ -810,7 +879,9 @@ def erase_device(target, mode):
                         return run_progress_command(
                                     [shred_path, "-v", "-n", "1", "-z", target_node],
                                     total_bytes=target.get("size"),
-                                    title="ERASING"
+                                    title="ERASING",
+                                    device_label=device_label,
+                                    mode_label=mode_label,
                         )
             if mode == "discard":
                         discard_path = shutil.which("blkdiscard")
@@ -818,7 +889,12 @@ def erase_device(target, mode):
                                     display_lines(["ERROR", "no discard"])
                                     log_debug("Erase failed: blkdiscard not available")
                                     return False
-                        return run_progress_command([discard_path, target_node], title="ERASING")
+                        return run_progress_command(
+                                    [discard_path, target_node],
+                                    title="ERASING",
+                                    device_label=device_label,
+                                    mode_label=mode_label,
+                        )
             if mode == "zero":
                         dd_path = shutil.which("dd")
                         if not dd_path:
@@ -828,7 +904,9 @@ def erase_device(target, mode):
                         return run_progress_command(
                                     [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
                                     total_bytes=target.get("size"),
-                                    title="ERASING"
+                                    title="ERASING",
+                                    device_label=device_label,
+                                    mode_label=mode_label,
                         )
             if mode != "quick":
                         display_lines(["ERROR", "unknown mode"])
@@ -844,7 +922,12 @@ def erase_device(target, mode):
                         display_lines(["ERROR", "no dd tool"])
                         log_debug("Erase failed: dd not available")
                         return False
-            if not run_progress_command([wipefs_path, "-a", target_node], title="ERASING"):
+            if not run_progress_command(
+                        [wipefs_path, "-a", target_node],
+                        title="ERASING",
+                        device_label=device_label,
+                        mode_label=mode_label,
+            ):
                         return False
             size_bytes = target.get("size") or 0
             bytes_per_mib = 1024 * 1024
@@ -854,7 +937,9 @@ def erase_device(target, mode):
             if not run_progress_command(
                         [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", "status=progress", "conv=fsync"],
                         total_bytes=wipe_bytes,
-                        title="ERASING"
+                        title="ERASING",
+                        device_label=device_label,
+                        mode_label=mode_label,
             ):
                         return False
             if size_mib > wipe_mib:
@@ -862,7 +947,9 @@ def erase_device(target, mode):
                         return run_progress_command(
                                     [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", f"seek={seek_mib}", "status=progress", "conv=fsync"],
                                     total_bytes=wipe_bytes,
-                                    title="ERASING"
+                                    title="ERASING",
+                                    device_label=device_label,
+                                    mode_label=mode_label,
                         )
             return True
 
