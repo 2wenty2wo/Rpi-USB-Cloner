@@ -586,7 +586,7 @@ def copy():
                                     disp.image(image)
                                     disp.show()
             except KeyboardInterrupt:
-                        GPIO.cleanup()
+                        raise
 
 def view():
             view_devices()
@@ -683,7 +683,7 @@ def erase():
                                     disp.image(image)
                                     disp.show()
             except KeyboardInterrupt:
-                        GPIO.cleanup()
+                        raise
 
 def sleepdisplay():  # put the display to sleep to reduce power
             global run_once
@@ -694,7 +694,14 @@ def sleepdisplay():  # put the display to sleep to reduce power
             disp.show()
             run_once = 1
 
+def cleanup(clear_display=True):
+            if clear_display:
+                        disp.fill(0)
+                        disp.show()
+            GPIO.cleanup()
+
 # Button Commands
+error_displayed = False
 try:
             while 1:
                         # Sleep Stuff
@@ -814,17 +821,19 @@ try:
                         else: # button is pressed:
                                     menuselect ()
 except KeyboardInterrupt:
-            GPIO.cleanup()
-
+            pass
 except Exception as e:
-    # This will print the type of exception and error message to the terminal
-    print(f"An error occurred: {type(e).__name__}")
-    print(str(e))
+            # This will print the type of exception and error message to the terminal
+            print(f"An error occurred: {type(e).__name__}")
+            print(str(e))
 
-    # This will display a simple error message on the OLED screen
-    disp.fill(0)
-    disp.show()
-    draw.rectangle((0,0,width,height), outline=0, fill=0)
-    draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
-    disp.image(image)
-    disp.show()
+            # This will display a simple error message on the OLED screen
+            error_displayed = True
+            disp.fill(0)
+            disp.show()
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
+            disp.image(image)
+            disp.show()
+finally:
+            cleanup(clear_display=not error_displayed)
