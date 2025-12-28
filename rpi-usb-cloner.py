@@ -694,12 +694,14 @@ def sleepdisplay():  # put the display to sleep to reduce power
             disp.show()
             run_once = 1
 
-def cleanup():
-            disp.fill(0)
-            disp.show()
+def cleanup(clear_display=True):
+            if clear_display:
+                        disp.fill(0)
+                        disp.show()
             GPIO.cleanup()
 
 # Button Commands
+error_displayed = False
 try:
             while 1:
                         # Sleep Stuff
@@ -826,6 +828,7 @@ except Exception as e:
             print(str(e))
 
             # This will display a simple error message on the OLED screen
+            error_displayed = True
             disp.fill(0)
             disp.show()
             draw.rectangle((0,0,width,height), outline=0, fill=0)
@@ -833,4 +836,4 @@ except Exception as e:
             disp.image(image)
             disp.show()
 finally:
-            cleanup()
+            cleanup(clear_display=not error_displayed)
