@@ -500,8 +500,8 @@ def sleepdisplay():  # put the display to sleep to reduce power
 try:
             while 1:
                         # Sleep Stuff
+                        time.sleep(0.1)
                         if ENABLE_SLEEP:
-                                    time.sleep(0.1)
                                     lcdtmp = lcdstart + timedelta(seconds=30)
                                     if (datetime.now() > lcdtmp):
                                                 if run_once == 0:
