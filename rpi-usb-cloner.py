@@ -581,7 +581,7 @@ try:
                                     if index == (3):
                                                 draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=0)  # Deselect Erase
                                                 draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=1)  # Erase White
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=1) #Select View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
                                                 index = 2
                                                 disp.image(image)
@@ -590,7 +590,7 @@ try:
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0)  # Deselect View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
                                                 draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
                                                 draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
@@ -601,7 +601,7 @@ try:
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (1):
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0)  # Deselect View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0)  # Deselect View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
                                                 draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
                                                 draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
@@ -631,7 +631,7 @@ try:
                                     elif index == (1):
                                                 draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=0) #Deselect Copy
                                                 draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=1) #Copy White
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=1) #Select View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=1) #Select View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
                                                 index = 2
                                                 disp.image(image)
@@ -640,7 +640,7 @@ try:
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0) #Deselect View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
                                                 draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
                                                 draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
@@ -651,7 +651,7 @@ try:
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (3):
-                                                draw.rectangle((x + 66, 48, 40, 60), outline=0, fill=0) #Deselect View
+                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0) #Deselect View
                                                 draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
                                                 draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
                                                 draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
