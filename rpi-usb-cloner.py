@@ -637,8 +637,12 @@ def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
                         raise RuntimeError("dd or sha256sum not found")
             log_debug(f"Computing sha256 for {device_node}")
             display_lines([title, "Starting..."])
+            dd_cmd = [dd_path, f"if={device_node}", "bs=4M", "status=progress"]
+            if total_bytes:
+                        total_bytes = int(total_bytes)
+                        dd_cmd.extend([f"count={total_bytes}", "iflag=count_bytes"])
             dd_proc = subprocess.Popen(
-                        [dd_path, f"if={device_node}", "bs=4M", "status=progress"],
+                        dd_cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
