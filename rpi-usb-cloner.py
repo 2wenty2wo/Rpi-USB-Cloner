@@ -183,16 +183,14 @@ def basemenu():
             devices = list_media_devices()  #This is mount.py stuff.
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
                         disp.fill(0)
-                        # draw.rectangle((0,0,width,height), outline=0, fill=0)
-                        # splash1 = Image.open('usb.png').convert('1')
-                        # disp.image(splash1)
-                        menu = Menu(
-                                    items=[MenuItem(["INSERT USB"])],
-                                    selected_index=0,
-                                    content_top=top + 30,
-                                    items_font=fontinsert,
-                        )
-                        render_menu(menu, draw, width, height, fonts)
+                        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+                        text = "INSERT USB"
+                        text_bbox = draw.textbbox((0, 0), text, font=fontinsert)
+                        text_width = text_bbox[2] - text_bbox[0]
+                        text_height = text_bbox[3] - text_bbox[1]
+                        text_x = (width - text_width) // 2
+                        text_y = (height - text_height) // 2
+                        draw.text((text_x, text_y), text, font=fontinsert, fill=255)
                         usb = 0
                         usb_list_index = 0
             else:  # If USB is connected.
