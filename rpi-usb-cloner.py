@@ -24,10 +24,59 @@ parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
 parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
 args = parser.parse_args()
 DEBUG = args.debug
+CLONE_MODE = os.environ.get("CLONE_MODE", "raw").lower()
 
 def log_debug(message):
             if DEBUG:
                         print(f"[DEBUG] {message}")
+
+def resolve_device_node(device):
+            if isinstance(device, str):
+                        return device if device.startswith("/dev/") else f"/dev/{device}"
+            return f"/dev/{device.get('name')}"
+
+def run_checked_command(command, input_text=None):
+            log_debug(f"Running command: {' '.join(command)}")
+            result = subprocess.run(
+                        command,
+                        input=input_text,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                        stderr = result.stderr.strip()
+                        stdout = result.stdout.strip()
+                        message = stderr or stdout or "Command failed"
+                        raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
+            return result.stdout
+
+def copy_partition_table(src, dst):
+            src_node = resolve_device_node(src)
+            dst_node = resolve_device_node(dst)
+            sfdisk_path = shutil.which("sfdisk")
+            if not sfdisk_path:
+                        raise RuntimeError("sfdisk not found")
+            dump_output = run_checked_command([sfdisk_path, "--dump", src_node])
+            label = None
+            for line in dump_output.splitlines():
+                        if line.startswith("label:"):
+                                    label = line.split(":", 1)[1].strip().lower()
+                                    break
+            if not label:
+                        raise RuntimeError("Unable to detect partition table label")
+            if label == "gpt":
+                        sgdisk_path = shutil.which("sgdisk")
+                        if not sgdisk_path:
+                                    raise RuntimeError("sgdisk not found for GPT replicate")
+                        run_checked_command([sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node])
+                        log_debug(f"GPT partition table replicated from {src_node} to {dst_node}")
+                        return
+            if label in ("dos", "mbr", "msdos"):
+                        run_checked_command([sfdisk_path, dst_node], input_text=dump_output)
+                        log_debug(f"MBR partition table cloned from {src_node} to {dst_node}")
+                        return
+            raise RuntimeError(f"Unsupported partition table label: {label}")
 
 # Create the I2C interface.
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -447,6 +496,8 @@ def run_progress_command(command, total_bytes=None, title="WORKING"):
             return True
 
 def clone_device(source, target):
+            if CLONE_MODE == "smart":
+                        return clone_device_smart(source, target)
             source_node = f"/dev/{source.get('name')}"
             target_node = f"/dev/{target.get('name')}"
             unmount_device(target)
@@ -461,6 +512,64 @@ def clone_device(source, target):
                         total_bytes=total,
                         title="CLONING"
             )
+
+def clone_device_smart(source, target):
+            source_node = f"/dev/{source.get('name')}"
+            target_node = f"/dev/{target.get('name')}"
+            unmount_device(target)
+            try:
+                        display_lines(["CLONING", "Copy table"])
+                        copy_partition_table(source, target)
+            except RuntimeError as error:
+                        display_lines(["FAILED", "Partition tbl"])
+                        log_debug(f"Partition table copy failed: {error}")
+                        return False
+            partclone_tools = {
+                        "ext2": "partclone.ext2",
+                        "ext3": "partclone.ext3",
+                        "ext4": "partclone.ext4",
+                        "vfat": "partclone.fat",
+                        "fat16": "partclone.fat",
+                        "fat32": "partclone.fat",
+                        "ntfs": "partclone.ntfs",
+                        "exfat": "partclone.exfat",
+                        "xfs": "partclone.xfs",
+                        "btrfs": "partclone.btrfs",
+            }
+            fallback_tool = "partclone.dd"
+            source_parts = [child for child in get_children(source) if child.get("type") == "part"]
+            if not source_parts:
+                        display_lines(["FAILED", "No partitions"])
+                        log_debug("Smart clone failed: no source partitions found")
+                        return False
+            for index, part in enumerate(source_parts, start=1):
+                        src_part = f"/dev/{part.get('name')}"
+                        dst_part = src_part.replace(source.get("name"), target.get("name"), 1)
+                        fstype = (part.get("fstype") or "").lower()
+                        tool = partclone_tools.get(fstype, fallback_tool)
+                        tool_path = shutil.which(tool)
+                        if not tool_path and tool != fallback_tool:
+                                    tool_path = shutil.which(fallback_tool)
+                                    tool = fallback_tool
+                        if not tool_path:
+                                    display_lines(["ERROR", "partclone missing"])
+                                    log_debug(f"Smart clone failed: {tool} not found for {src_part}")
+                                    return False
+                        display_lines([f"PART {index}/{len(source_parts)}", tool])
+                        result = subprocess.run(
+                                    [tool_path, "-s", src_part, "-o", dst_part, "-f"],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True,
+                        )
+                        if result.returncode != 0:
+                                    message = result.stderr.strip() or result.stdout.strip() or "partclone failed"
+                                    display_lines(["FAILED", message[:20]])
+                                    log_debug(f"Smart clone failed ({src_part} -> {dst_part}): {message}")
+                                    return False
+            display_lines(["CLONING", "Complete"])
+            log_debug(f"Smart clone completed from {source_node} to {target_node}")
+            return True
 
 def erase_device(target):
             target_node = f"/dev/{target.get('name')}"
