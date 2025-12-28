@@ -662,8 +662,19 @@ def erase():
                                                 return
                                     current_B = button_B.value
                                     if prev_states["B"] and not current_B:
-                                                basemenu()
-                                                return
+                                                if confirm_selection == CONFIRM_YES:
+                                                            display_lines(["ERASE", "Starting..."])
+                                                            if erase_device(target):
+                                                                        display_lines(["ERASE", "Done"])
+                                                            else:
+                                                                        log_debug("Erase failed")
+                                                                        display_lines(["ERASE", "Failed"])
+                                                            time.sleep(1)
+                                                            basemenu()
+                                                            return
+                                                elif confirm_selection == CONFIRM_NO:
+                                                            basemenu()
+                                                            return
                                     current_C = button_C.value
                                     if prev_states["C"] and not current_C:
                                                 if confirm_selection == CONFIRM_YES:
