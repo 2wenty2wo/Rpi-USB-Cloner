@@ -5,6 +5,9 @@ import datetime
 import subprocess
 import RPi.GPIO as GPIO
 import os
+import json
+import shutil
+import re
 from mount import *
 import sys
 
@@ -140,11 +143,171 @@ run_once = 0
 lcdstart = datetime.now()
 
 # Copy USB Screen
+def display_lines(lines, font=fontdisks):
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            y = top
+            for line in lines[:6]:
+                        draw.text((x - 11, y), line, font=font, fill=255)
+                        y += 10
+            disp.image(image)
+            disp.show()
+
+def human_size(size_bytes):
+            if size_bytes is None:
+                        return "0B"
+            size = float(size_bytes)
+            for unit in ["B", "KB", "MB", "GB", "TB"]:
+                        if size < 1024.0:
+                                    return f"{size:.1f}{unit}"
+                        size /= 1024.0
+            return f"{size:.1f}PB"
+
+def run_command(command, check=True):
+            return subprocess.run(command, check=check, text=True, capture_output=True)
+
+def get_block_devices():
+            try:
+                        result = run_command(["lsblk", "-J", "-b", "-o", "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL"])
+                        data = json.loads(result.stdout)
+                        return data.get("blockdevices", [])
+            except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
+                        display_lines(["LSBLK ERROR", str(error)])
+                        return []
+
+def list_usb_disks():
+            devices = []
+            for device in get_block_devices():
+                        if device.get("type") != "disk":
+                                    continue
+                        tran = device.get("tran")
+                        rm = device.get("rm")
+                        if tran == "usb" or rm == 1:
+                                    devices.append(device)
+            return devices
+
+def get_children(device):
+            return device.get("children", []) or []
+
+def unmount_device(device):
+            mountpoint = device.get("mountpoint")
+            if mountpoint:
+                        try:
+                                    run_command(["umount", mountpoint], check=False)
+                        except subprocess.CalledProcessError:
+                                    pass
+            for child in get_children(device):
+                        mountpoint = child.get("mountpoint")
+                        if mountpoint:
+                                    try:
+                                                run_command(["umount", mountpoint], check=False)
+                                    except subprocess.CalledProcessError:
+                                                pass
+
+def pick_source_target():
+            devices = list_usb_disks()
+            if len(devices) < 2:
+                        return None, None
+            devices = sorted(devices, key=lambda d: d.get("name", ""))
+            source = devices[0]
+            target = devices[1]
+            return source, target
+
+def run_progress_command(command, total_bytes=None, title="WORKING"):
+            display_lines([title, "Starting..."])
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            last_update = time.time()
+            while True:
+                        line = process.stderr.readline()
+                        if line:
+                                    match = re.search(r"(\d+)\s+bytes", line)
+                                    if match:
+                                                bytes_copied = int(match.group(1))
+                                                percent = ""
+                                                if total_bytes:
+                                                            percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                                                display_lines([title, f"{human_size(bytes_copied)} {percent}".strip()])
+                                                last_update = time.time()
+                        if process.poll() is not None:
+                                    break
+                        if time.time() - last_update > 5:
+                                    display_lines([title, "Working..."])
+                                    last_update = time.time()
+            if process.returncode != 0:
+                        error_output = process.stderr.read().strip()
+                        message = error_output.splitlines()[-1] if error_output else "Command failed"
+                        display_lines(["FAILED", message[:20]])
+                        return False
+            display_lines([title, "Complete"])
+            return True
+
+def clone_device(source, target):
+            source_node = f"/dev/{source.get('name')}"
+            target_node = f"/dev/{target.get('name')}"
+            unmount_device(target)
+            total = source.get("size")
+            dd_path = shutil.which("dd")
+            if not dd_path:
+                        display_lines(["ERROR", "dd not found"])
+                        return False
+            return run_progress_command(
+                        [dd_path, f"if={source_node}", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
+                        total_bytes=total,
+                        title="CLONING"
+            )
+
+def erase_device(target):
+            target_node = f"/dev/{target.get('name')}"
+            unmount_device(target)
+            shred_path = shutil.which("shred")
+            if shred_path:
+                        return run_progress_command(
+                                    [shred_path, "-v", "-n", "1", "-z", target_node],
+                                    total_bytes=target.get("size"),
+                                    title="ERASING"
+                        )
+            dd_path = shutil.which("dd")
+            if not dd_path:
+                        display_lines(["ERROR", "no wipe tool"])
+                        return False
+            return run_progress_command(
+                        [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
+                        total_bytes=target.get("size"),
+                        title="ERASING"
+            )
+
+def view_devices():
+            devices = list_usb_disks()
+            if not devices:
+                        display_lines(["NO USB", "Insert device"])
+                        return
+            lines = []
+            for device in devices:
+                        name = device.get("name")
+                        size = human_size(device.get("size"))
+                        model = (device.get("model") or "").strip()
+                        line = f"{name} {size}"
+                        if model:
+                                    line = f"{line} {model[:6]}"
+                        lines.append(line)
+                        for child in get_children(device):
+                                    fstype = child.get("fstype") or "raw"
+                                    mountpoint = child.get("mountpoint") or "-"
+                                    lines.append(f"{child.get('name')} {fstype} {mountpoint[:10]}")
+            display_lines(lines)
+
 def copy():
             disp.fill(0)
             disp.show()
             draw.rectangle((0,0,width,height), outline=0, fill=0)
-            draw.text((x, top), "CLONE SDA to SDB?", font=fontdisks, fill=255)
+            source, target = pick_source_target()
+            if not source or not target:
+                        display_lines(["COPY", "Need 2 USBs"])
+                        time.sleep(1)
+                        basemenu()
+                        return
+            source_name = source.get("name")
+            target_name = target.get("name")
+            draw.text((x, top), f"CLONE {source_name} to {target_name}?", font=fontdisks, fill=255)
             draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=255)
             draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=255)
             disp.image(image)
@@ -226,20 +389,98 @@ def copy():
                                                 print("Button A")
                                                 basemenu()
                                                 disp.show()
+                                    if button_C.value: # button is released
+                                                filler = (0)
+                                    else: # button is pressed:
+                                                if index == (7):
+                                                            display_lines(["COPY", "Starting..."])
+                                                            if clone_device(source, target):
+                                                                        display_lines(["COPY", "Done"])
+                                                            else:
+                                                                        display_lines(["COPY", "Failed"])
+                                                            time.sleep(1)
+                                                            basemenu()
+                                                elif index == (6):
+                                                            basemenu()
             except KeyboardInterrupt:
                         GPIO.cleanup()
 
 def view():
-            draw.rectangle((0,0,width,height), outline=0, fill=0)
-            disp.fill(0)
-            disp.show()
-            draw.text((x, top + 30), "VIEW", font=fontinsert, fill=255)
+            view_devices()
+            time.sleep(2)
+            basemenu()
 
 def erase():
-            draw.rectangle((0,0,width,height), outline=0, fill=0)
             disp.fill(0)
             disp.show()
-            draw.text((x, top + 30), "ERASE", font=fontinsert, fill=255)
+            target_devices = list_usb_disks()
+            if not target_devices:
+                        display_lines(["ERASE", "No USB found"])
+                        time.sleep(1)
+                        basemenu()
+                        return
+            target = sorted(target_devices, key=lambda d: d.get("name", ""))[-1]
+            target_name = target.get("name")
+            draw.rectangle((0,0,width,height), outline=0, fill=0)
+            draw.text((x, top), f"ERASE {target_name}?", font=fontdisks, fill=255)
+            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=255)
+            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=255)
+            disp.image(image)
+            disp.show()
+            index = 5
+            try:
+                        while 1:
+                                    if button_R.value: # button is released
+                                                filler =(0)
+                                    else: # button is pressed:
+                                                if index == (5):
+                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
+                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
+                                                            index = 6
+                                                            disp.image(image)
+                                                            disp.show()
+                                                if index == (6):
+                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
+                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=1) #No White
+                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=1) #Select Yes
+                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=0) #Yes Black
+                                                            index = 7
+                                                            disp.image(image)
+                                                            disp.show()
+                                    if button_L.value: # button is released
+                                                filler =(0)
+                                    else: # button is pressed:
+                                                if index == (7):
+                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=0) #Deselect Yes
+                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=1) #Yes White
+                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
+                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
+                                                            index = 6
+                                                            disp.image(image)
+                                                            disp.show()
+                                    if button_A.value: # button is released
+                                                filler = (0)
+                                    else: # button is pressed:
+                                                basemenu()
+                                    if button_B.value: # button is released
+                                                filler = (0)
+                                    else: # button is pressed:
+                                                basemenu()
+                                    if button_C.value: # button is released
+                                                filler = (0)
+                                    else: # button is pressed:
+                                                if index == (7):
+                                                            display_lines(["ERASE", "Starting..."])
+                                                            if erase_device(target):
+                                                                        display_lines(["ERASE", "Done"])
+                                                            else:
+                                                                        display_lines(["ERASE", "Failed"])
+                                                            time.sleep(1)
+                                                            basemenu()
+                                                elif index == (6):
+                                                            basemenu()
+            except KeyboardInterrupt:
+                        GPIO.cleanup()
 
 def sleepdisplay():  # put the display to sleep to reduce power
             global run_once
