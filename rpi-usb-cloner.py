@@ -511,35 +511,56 @@ def run_progress_command(command, total_bytes=None, title="WORKING"):
             log_debug("Command completed successfully")
             return True
 
-def clone_device(source, target):
-            if CLONE_MODE == "smart":
-                        return clone_device_smart(source, target)
-            source_node = f"/dev/{source.get('name')}"
-            target_node = f"/dev/{target.get('name')}"
-            unmount_device(target)
-            total = source.get("size")
+def parse_progress(stderr_output, total_bytes=None, title="WORKING"):
+            if not stderr_output:
+                        return
+            for line in stderr_output.splitlines():
+                        log_debug(f"stderr: {line.strip()}")
+                        bytes_match = re.search(r"(\d+)\s+bytes", line)
+                        percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
+                        if bytes_match:
+                                    bytes_copied = int(bytes_match.group(1))
+                                    percent = ""
+                                    if total_bytes:
+                                                percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                                    elif percent_match:
+                                                percent = f"{percent_match.group(1)}%"
+                                    display_lines([title, f"{human_size(bytes_copied)} {percent}".strip()])
+                                    continue
+                        if percent_match and not total_bytes:
+                                    display_lines([title, f"{percent_match.group(1)}%"])
+
+def run_checked_with_progress(command, total_bytes=None, title="WORKING", stdout_target=None):
+            display_lines([title, "Starting..."])
+            log_debug(f"Running command: {' '.join(command)}")
+            result = subprocess.run(
+                        command,
+                        stdout=stdout_target or subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+            )
+            parse_progress(result.stderr, total_bytes=total_bytes, title=title)
+            if result.returncode != 0:
+                        stderr = result.stderr.strip()
+                        stdout = result.stdout.strip() if result.stdout else ""
+                        message = stderr or stdout or "Command failed"
+                        raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
+            display_lines([title, "Complete"])
+            return result
+
+def clone_dd(src, dst, total_bytes=None, title="CLONING"):
             dd_path = shutil.which("dd")
             if not dd_path:
-                        display_lines(["ERROR", "dd not found"])
-                        log_debug("Clone failed: dd not found")
-                        return False
-            return run_progress_command(
-                        [dd_path, f"if={source_node}", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
-                        total_bytes=total,
-                        title="CLONING"
+                        raise RuntimeError("dd not found")
+            src_node = resolve_device_node(src)
+            dst_node = resolve_device_node(dst)
+            run_checked_with_progress(
+                        [dd_path, f"if={src_node}", f"of={dst_node}", "bs=4M", "status=progress", "conv=fsync"],
+                        total_bytes=total_bytes,
+                        title=title,
             )
 
-def clone_device_smart(source, target):
-            source_node = f"/dev/{source.get('name')}"
-            target_node = f"/dev/{target.get('name')}"
-            unmount_device(target)
-            try:
-                        display_lines(["CLONING", "Copy table"])
-                        copy_partition_table(source, target)
-            except RuntimeError as error:
-                        display_lines(["FAILED", "Partition tbl"])
-                        log_debug(f"Partition table copy failed: {error}")
-                        return False
+def clone_partclone(source, target):
             partclone_tools = {
                         "ext2": "partclone.ext2",
                         "ext3": "partclone.ext3",
@@ -552,21 +573,26 @@ def clone_device_smart(source, target):
                         "xfs": "partclone.xfs",
                         "btrfs": "partclone.btrfs",
             }
-            fallback_tool = "partclone.dd"
-            source_parts = [child for child in get_children(source) if child.get("type") == "part"]
+            source_node = resolve_device_node(source)
+            target_node = resolve_device_node(target)
+            source_name = os.path.basename(source_node)
+            target_name = os.path.basename(target_node)
+            source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
+            target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+            if not source_device or not target_device:
+                        clone_dd(source_node, target_node, total_bytes=source.get("size") if isinstance(source, dict) else None)
+                        return
+            source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
             if not source_parts:
-                        display_lines(["FAILED", "No partitions"])
-                        log_debug("Smart clone failed: no source partitions found")
-                        return False
-            target_device = get_device_by_name(target.get("name")) or target
+                        clone_dd(source_node, target_node, total_bytes=source_device.get("size"))
+                        return
             target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
             target_parts_by_number = {}
             for child in target_parts:
                         part_number = get_partition_number(child.get("name"))
                         if part_number is None:
                                     continue
-                        if part_number not in target_parts_by_number:
-                                    target_parts_by_number[part_number] = child
+                        target_parts_by_number.setdefault(part_number, child)
             for index, part in enumerate(source_parts, start=1):
                         src_part = f"/dev/{part.get('name')}"
                         part_number = get_partition_number(part.get("name"))
@@ -578,31 +604,51 @@ def clone_device_smart(source, target):
                         if not dst_part and index - 1 < len(target_parts):
                                     dst_part = f"/dev/{target_parts[index - 1].get('name')}"
                         if not dst_part:
-                                    display_lines(["FAILED", "Part mapping"])
-                                    log_debug(f"Smart clone failed: unable to map {src_part} to target partition")
-                                    return False
+                                    raise RuntimeError(f"Unable to map {src_part} to target partition")
                         fstype = (part.get("fstype") or "").lower()
-                        tool = partclone_tools.get(fstype, fallback_tool)
-                        tool_path = shutil.which(tool)
-                        if not tool_path and tool != fallback_tool:
-                                    tool_path = shutil.which(fallback_tool)
-                                    tool = fallback_tool
+                        tool = partclone_tools.get(fstype)
+                        tool_path = shutil.which(tool) if tool else None
                         if not tool_path:
-                                    display_lines(["ERROR", "partclone missing"])
-                                    log_debug(f"Smart clone failed: {tool} not found for {src_part}")
-                                    return False
+                                    clone_dd(src_part, dst_part, total_bytes=part.get("size"), title=f"DD {index}/{len(source_parts)}")
+                                    continue
                         display_lines([f"PART {index}/{len(source_parts)}", tool])
-                        result = subprocess.run(
-                                    [tool_path, "-s", src_part, "-o", dst_part, "-f"],
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    text=True,
-                        )
-                        if result.returncode != 0:
-                                    message = result.stderr.strip() or result.stdout.strip() or "partclone failed"
-                                    display_lines(["FAILED", message[:20]])
-                                    log_debug(f"Smart clone failed ({src_part} -> {dst_part}): {message}")
-                                    return False
+                        with open(dst_part, "wb") as dst_handle:
+                                    run_checked_with_progress(
+                                                [tool_path, "-s", src_part, "-o", "-", "-f"],
+                                                total_bytes=part.get("size"),
+                                                title=f"PART {index}/{len(source_parts)}",
+                                                stdout_target=dst_handle,
+                                    )
+
+def clone_device(source, target):
+            if CLONE_MODE == "smart":
+                        return clone_device_smart(source, target)
+            unmount_device(target)
+            try:
+                        clone_dd(source, target, total_bytes=source.get("size"), title="CLONING")
+            except RuntimeError as error:
+                        display_lines(["FAILED", str(error)[:20]])
+                        log_debug(f"Clone failed: {error}")
+                        return False
+            return True
+
+def clone_device_smart(source, target):
+            source_node = f"/dev/{source.get('name')}"
+            target_node = f"/dev/{target.get('name')}"
+            unmount_device(target)
+            try:
+                        display_lines(["CLONING", "Copy table"])
+                        copy_partition_table(source, target)
+            except RuntimeError as error:
+                        display_lines(["FAILED", "Partition tbl"])
+                        log_debug(f"Partition table copy failed: {error}")
+                        return False
+            try:
+                        clone_partclone(source, target)
+            except RuntimeError as error:
+                        display_lines(["FAILED", str(error)[:20]])
+                        log_debug(f"Smart clone failed ({source_node} -> {target_node}): {error}")
+                        return False
             display_lines(["CLONING", "Complete"])
             log_debug(f"Smart clone completed from {source_node} to {target_node}")
             return True
