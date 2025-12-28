@@ -1233,18 +1233,14 @@ def copy():
                                                             disp.image(image)
                                                             disp.show()
                                                             time.sleep(.01)
-                                    current_B = button_B.value
-                                    if prev_states["B"] and not current_B:
-                                                log_debug("Copy menu: Button B pressed")
-                                                basemenu()
-                                                return
                                     current_A = button_A.value
                                     if prev_states["A"] and not current_A:
                                                 log_debug("Copy menu: Button A pressed")
                                                 basemenu()
                                                 return
-                                    current_C = button_C.value
-                                    if prev_states["C"] and not current_C:
+                                    current_B = button_B.value
+                                    if prev_states["B"] and not current_B:
+                                                log_debug("Copy menu: Button B pressed")
                                                 if confirm_selection == CONFIRM_YES:
                                                             display_lines(["COPY", "Starting..."])
                                                             mode = select_clone_mode()
@@ -1263,6 +1259,9 @@ def copy():
                                                 elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
+                                    current_C = button_C.value
+                                    if prev_states["C"] and not current_C:
+                                                log_debug("Copy menu: Button C pressed (ignored)")
                                     prev_states["R"] = current_R
                                     prev_states["L"] = current_L
                                     prev_states["B"] = current_B
@@ -1362,21 +1361,7 @@ def erase():
                                                             return
                                     current_C = button_C.value
                                     if prev_states["C"] and not current_C:
-                                                if confirm_selection == CONFIRM_YES:
-                                                            if not ensure_root_for_erase():
-                                                                        return
-                                                            display_lines(["ERASE", "Starting..."])
-                                                            if erase_device(target, mode):
-                                                                        display_lines(["ERASE", "Done"])
-                                                            else:
-                                                                        log_debug("Erase failed")
-                                                                        display_lines(["ERASE", "Failed"])
-                                                            time.sleep(1)
-                                                            basemenu()
-                                                            return
-                                                elif confirm_selection == CONFIRM_NO:
-                                                            basemenu()
-                                                            return
+                                                log_debug("Erase menu: Button C pressed (ignored)")
                                     prev_states["R"] = current_R
                                     prev_states["L"] = current_L
                                     prev_states["A"] = current_A
