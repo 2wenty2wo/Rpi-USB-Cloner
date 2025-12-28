@@ -92,7 +92,15 @@ fonts = {
 
 # Get drawing object to draw on image.
 draw = ImageDraw.Draw(image)
-index = 0
+MENU_COPY = 0
+MENU_VIEW = 1
+MENU_ERASE = 2
+MENU_NONE = -1
+
+CONFIRM_NO = 0
+CONFIRM_YES = 1
+
+index = MENU_NONE
 
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -197,8 +205,8 @@ def basemenu():
                                     ]))
                         usb = 1
                         footer_selected = None
-                        if index in (1, 2, 3):
-                                    footer_selected = index - 1
+                        if index in (MENU_COPY, MENU_VIEW, MENU_ERASE):
+                                    footer_selected = index
                         menu = Menu(
                                     items=menu_items,
                                     selected_index=usb_list_index,
@@ -211,31 +219,25 @@ def basemenu():
             disp.show()
             lcdstart = datetime.now()
             run_once = 0
-            if index not in (1, 2, 3):
-                        index = 0
+            if index not in (MENU_COPY, MENU_VIEW, MENU_ERASE):
+                        index = MENU_NONE
             log_debug("Base menu drawn")
 
 basemenu()  # Run Base Menu at script start
 
 #set up a bit of a grid for mapping menu choices.
-index = 0
+index = MENU_NONE
 latindex = 0
 filler = 0
-va = 1
-vb = 2
-vc = 3
-vd = 6
 
 # Menu Selection
 def menuselect():
-            if index == (va):
+            if index == MENU_COPY:
                         copy()
-            if index == (vb):
+            if index == MENU_VIEW:
                         view()
-            if index == (vc):
+            if index == MENU_ERASE:
                         erase()
-            if index == (vd):
-                        basemenu()
             else:
                         # Display image.
                         disp.image(image)
@@ -478,22 +480,23 @@ def copy():
                         footer=["NO", "YES"],
                         footer_positions=[x + 24, x + 52],
             )
+            confirm_selection = CONFIRM_NO
+            menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
-            index = 5
             try:
                         while 1:
                                     if button_R.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
-                                                if index == (5):
-                                                            index = 6
-                                                            log_debug(f"Copy menu selection changed: index={index} (NO)")
+                                                if confirm_selection == CONFIRM_NO:
+                                                            confirm_selection = CONFIRM_YES
+                                                            log_debug("Copy menu selection changed: YES")
                                                             run_once = 0
-                                                if index == (6):
-                                                            index = 7
-                                                            log_debug(f"Copy menu selection changed: index={index} (YES)")
+                                                elif confirm_selection == CONFIRM_YES:
+                                                            confirm_selection = CONFIRM_YES
+                                                            log_debug("Copy menu selection changed: YES")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
                                                 else:
@@ -504,9 +507,9 @@ def copy():
                                     if button_L.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
-                                                if index == (7):
-                                                            index = 6
-                                                            log_debug(f"Copy menu selection changed: index={index} (NO)")
+                                                if confirm_selection == CONFIRM_YES:
+                                                            confirm_selection = CONFIRM_NO
+                                                            log_debug("Copy menu selection changed: NO")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
                                                 #if index == (5):
@@ -546,7 +549,7 @@ def copy():
                                     if button_C.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
-                                                if index == (7):
+                                                if confirm_selection == CONFIRM_YES:
                                                             display_lines(["COPY", "Starting..."])
                                                             if clone_device(source, target):
                                                                         display_lines(["COPY", "Done"])
@@ -556,13 +559,10 @@ def copy():
                                                             time.sleep(1)
                                                             basemenu()
                                                             return
-                                                elif index == (6):
+                                                elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
-                                    footer_selected = None
-                                    if index in (6, 7):
-                                                footer_selected = index - 6
-                                    menu.footer_selected_index = footer_selected
+                                    menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
                                     disp.image(image)
                                     disp.show()
@@ -601,27 +601,28 @@ def erase():
                         footer=["NO", "YES"],
                         footer_positions=[x + 24, x + 52],
             )
+            confirm_selection = CONFIRM_NO
+            menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
-            index = 5
             try:
                         while 1:
                                     if button_R.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
-                                                if index == (5):
-                                                            index = 6
-                                                            log_debug(f"Erase menu selection changed: index={index} (NO)")
-                                                if index == (6):
-                                                            index = 7
-                                                            log_debug(f"Erase menu selection changed: index={index} (YES)")
+                                                if confirm_selection == CONFIRM_NO:
+                                                            confirm_selection = CONFIRM_YES
+                                                            log_debug("Erase menu selection changed: YES")
+                                                elif confirm_selection == CONFIRM_YES:
+                                                            confirm_selection = CONFIRM_YES
+                                                            log_debug("Erase menu selection changed: YES")
                                     if button_L.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
-                                                if index == (7):
-                                                            index = 6
-                                                            log_debug(f"Erase menu selection changed: index={index} (NO)")
+                                                if confirm_selection == CONFIRM_YES:
+                                                            confirm_selection = CONFIRM_NO
+                                                            log_debug("Erase menu selection changed: NO")
                                     if button_A.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
@@ -635,7 +636,7 @@ def erase():
                                     if button_C.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
-                                                if index == (7):
+                                                if confirm_selection == CONFIRM_YES:
                                                             display_lines(["ERASE", "Starting..."])
                                                             if erase_device(target):
                                                                         display_lines(["ERASE", "Done"])
@@ -645,13 +646,10 @@ def erase():
                                                             time.sleep(1)
                                                             basemenu()
                                                             return
-                                                elif index == (6):
+                                                elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
-                                    footer_selected = None
-                                    if index in (6, 7):
-                                                footer_selected = index - 6
-                                    menu.footer_selected_index = footer_selected
+                                    menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
                                     disp.image(image)
                                     disp.show()
@@ -704,21 +702,21 @@ try:
                         if button_L.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
-                                    if index == (3):
-                                                index = 2
-                                                log_debug("Menu selection changed: index=2 (VIEW)")
+                                    if index == MENU_ERASE:
+                                                index = MENU_VIEW
+                                                log_debug("Menu selection changed: index=1 (VIEW)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
-                                    elif index == (2):
-                                                index = 1
-                                                log_debug("Menu selection changed: index=1 (COPY)")
+                                    elif index == MENU_VIEW:
+                                                index = MENU_COPY
+                                                log_debug("Menu selection changed: index=0 (COPY)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
-                                    elif index == (1):
-                                                index = 1
-                                                log_debug("Menu selection changed: index=1 (COPY)")
+                                    elif index == MENU_COPY:
+                                                index = MENU_COPY
+                                                log_debug("Menu selection changed: index=0 (COPY)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
@@ -730,27 +728,27 @@ try:
                         if button_R.value: # button is released
                                     filler =(0)
                         else: # button is pressed:
-                                    if index == (0):
-                                                index = 1
-                                                log_debug("Menu selection changed: index=1 (COPY)")
+                                    if index == MENU_NONE:
+                                                index = MENU_COPY
+                                                log_debug("Menu selection changed: index=0 (COPY)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
-                                    elif index == (1):
-                                                index = 2
-                                                log_debug("Menu selection changed: index=2 (VIEW)")
+                                    elif index == MENU_COPY:
+                                                index = MENU_VIEW
+                                                log_debug("Menu selection changed: index=1 (VIEW)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
-                                    elif index == (2):
-                                                index = 3
-                                                log_debug("Menu selection changed: index=3 (ERASE)")
+                                    elif index == MENU_VIEW:
+                                                index = MENU_ERASE
+                                                log_debug("Menu selection changed: index=2 (ERASE)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
-                                    elif index == (3):
-                                                index = 3
-                                                log_debug("Menu selection changed: index=3 (END OF MENU)")
+                                    elif index == MENU_ERASE:
+                                                index = MENU_ERASE
+                                                log_debug("Menu selection changed: index=2 (END OF MENU)")
                                                 basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
