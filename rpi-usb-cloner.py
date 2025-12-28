@@ -847,8 +847,9 @@ def erase_device(target, mode):
             if not run_progress_command([wipefs_path, "-a", target_node], title="ERASING"):
                         return False
             size_bytes = target.get("size") or 0
-            wipe_mib = QUICK_WIPE_MIB
             bytes_per_mib = 1024 * 1024
+            size_mib = size_bytes // bytes_per_mib if size_bytes else 0
+            wipe_mib = min(QUICK_WIPE_MIB, size_mib) if size_mib else QUICK_WIPE_MIB
             wipe_bytes = wipe_mib * bytes_per_mib
             if not run_progress_command(
                         [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", "status=progress", "conv=fsync"],
@@ -856,15 +857,13 @@ def erase_device(target, mode):
                         title="ERASING"
             ):
                         return False
-            if size_bytes:
-                        size_mib = size_bytes // bytes_per_mib
-                        if size_mib > wipe_mib:
-                                    seek_mib = size_mib - wipe_mib
-                                    return run_progress_command(
-                                                [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", f"seek={seek_mib}", "status=progress", "conv=fsync"],
-                                                total_bytes=wipe_bytes,
-                                                title="ERASING"
-                                    )
+            if size_mib > wipe_mib:
+                        seek_mib = size_mib - wipe_mib
+                        return run_progress_command(
+                                    [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", f"seek={seek_mib}", "status=progress", "conv=fsync"],
+                                    total_bytes=wipe_bytes,
+                                    title="ERASING"
+                        )
             return True
 
 def view_devices():
