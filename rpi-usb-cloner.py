@@ -164,6 +164,7 @@ MENU_NONE = -1
 
 CONFIRM_NO = 0
 CONFIRM_YES = 1
+QUICK_WIPE_MIB = 32
 
 index = MENU_NONE
 
@@ -796,26 +797,75 @@ def clone_device_smart(source, target):
             log_debug(f"Smart clone completed from {source_node} to {target_node}")
             return True
 
-def erase_device(target):
+def erase_device(target, mode):
             target_node = f"/dev/{target.get('name')}"
             unmount_device(target)
-            shred_path = shutil.which("shred")
-            if shred_path:
+            mode = (mode or "").lower()
+            if mode == "secure":
+                        shred_path = shutil.which("shred")
+                        if not shred_path:
+                                    display_lines(["ERROR", "no shred tool"])
+                                    log_debug("Erase failed: shred not available")
+                                    return False
                         return run_progress_command(
                                     [shred_path, "-v", "-n", "1", "-z", target_node],
                                     total_bytes=target.get("size"),
                                     title="ERASING"
                         )
+            if mode == "discard":
+                        discard_path = shutil.which("blkdiscard")
+                        if not discard_path:
+                                    display_lines(["ERROR", "no discard"])
+                                    log_debug("Erase failed: blkdiscard not available")
+                                    return False
+                        return run_progress_command([discard_path, target_node], title="ERASING")
+            if mode == "zero":
+                        dd_path = shutil.which("dd")
+                        if not dd_path:
+                                    display_lines(["ERROR", "no dd tool"])
+                                    log_debug("Erase failed: dd not available")
+                                    return False
+                        return run_progress_command(
+                                    [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
+                                    total_bytes=target.get("size"),
+                                    title="ERASING"
+                        )
+            if mode != "quick":
+                        display_lines(["ERROR", "unknown mode"])
+                        log_debug(f"Erase failed: unknown mode {mode}")
+                        return False
+            wipefs_path = shutil.which("wipefs")
+            if not wipefs_path:
+                        display_lines(["ERROR", "no wipefs"])
+                        log_debug("Erase failed: wipefs not available")
+                        return False
             dd_path = shutil.which("dd")
             if not dd_path:
-                        display_lines(["ERROR", "no wipe tool"])
-                        log_debug("Erase failed: no wipe tool available")
+                        display_lines(["ERROR", "no dd tool"])
+                        log_debug("Erase failed: dd not available")
                         return False
-            return run_progress_command(
-                        [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
-                        total_bytes=target.get("size"),
+            if not run_progress_command([wipefs_path, "-a", target_node], title="ERASING"):
+                        return False
+            size_bytes = target.get("size") or 0
+            wipe_mib = QUICK_WIPE_MIB
+            bytes_per_mib = 1024 * 1024
+            wipe_bytes = wipe_mib * bytes_per_mib
+            if not run_progress_command(
+                        [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", "status=progress", "conv=fsync"],
+                        total_bytes=wipe_bytes,
                         title="ERASING"
-            )
+            ):
+                        return False
+            if size_bytes:
+                        size_mib = size_bytes // bytes_per_mib
+                        if size_mib > wipe_mib:
+                                    seek_mib = size_mib - wipe_mib
+                                    return run_progress_command(
+                                                [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", f"seek={seek_mib}", "status=progress", "conv=fsync"],
+                                                total_bytes=wipe_bytes,
+                                                title="ERASING"
+                                    )
+            return True
 
 def view_devices():
             devices = list_usb_disks()
@@ -873,6 +923,67 @@ def select_clone_mode():
                         if prev_states["D"] and not current_D:
                                     selected_index = min(len(modes) - 1, selected_index + 1)
                                     log_debug(f"Clone mode selection changed: {modes[selected_index]}")
+                        current_L = button_L.value
+                        if prev_states["L"] and not current_L:
+                                    selected_index = max(0, selected_index - 1)
+                        current_R = button_R.value
+                        if prev_states["R"] and not current_R:
+                                    selected_index = min(len(modes) - 1, selected_index + 1)
+                        current_A = button_A.value
+                        if prev_states["A"] and not current_A:
+                                    return None
+                        current_B = button_B.value
+                        if prev_states["B"] and not current_B:
+                                    return None
+                        current_C = button_C.value
+                        if prev_states["C"] and not current_C:
+                                    return modes[selected_index]
+                        prev_states["U"] = current_U
+                        prev_states["D"] = current_D
+                        prev_states["L"] = current_L
+                        prev_states["R"] = current_R
+                        prev_states["A"] = current_A
+                        prev_states["B"] = current_B
+                        prev_states["C"] = current_C
+                        menu.selected_index = selected_index
+                        render_menu(menu, draw, width, height, fonts)
+                        disp.image(image)
+                        disp.show()
+                        time.sleep(0.05)
+
+def select_erase_mode():
+            modes = ["quick", "zero", "discard", "secure"]
+            selected_index = 0
+            menu_items = [MenuItem([mode.upper()]) for mode in modes]
+            menu = Menu(
+                        items=menu_items,
+                        selected_index=selected_index,
+                        title="ERASE MODE",
+                        footer=["BACK", "OK"],
+                        footer_positions=[x + 12, x + 63],
+            )
+            render_menu(menu, draw, width, height, fonts)
+            disp.image(image)
+            disp.show()
+            wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
+            prev_states = {
+                        "U": button_U.value,
+                        "D": button_D.value,
+                        "L": button_L.value,
+                        "R": button_R.value,
+                        "A": button_A.value,
+                        "B": button_B.value,
+                        "C": button_C.value,
+            }
+            while True:
+                        current_U = button_U.value
+                        if prev_states["U"] and not current_U:
+                                    selected_index = max(0, selected_index - 1)
+                                    log_debug(f"Erase mode selection changed: {modes[selected_index]}")
+                        current_D = button_D.value
+                        if prev_states["D"] and not current_D:
+                                    selected_index = min(len(modes) - 1, selected_index + 1)
+                                    log_debug(f"Erase mode selection changed: {modes[selected_index]}")
                         current_L = button_L.value
                         if prev_states["L"] and not current_L:
                                     selected_index = max(0, selected_index - 1)
@@ -1050,7 +1161,11 @@ def erase():
             if not target:
                         target = target_devices[-1]
             target_name = target.get("name")
-            title = f"ERASE {target_name}?"
+            mode = select_erase_mode()
+            if not mode:
+                        basemenu()
+                        return
+            title = f"ERASE {target_name} {mode.upper()}?"
             menu = Menu(
                         items=[],
                         title=title,
@@ -1095,7 +1210,7 @@ def erase():
                                                             if not ensure_root_for_erase():
                                                                         return
                                                             display_lines(["ERASE", "Starting..."])
-                                                            if erase_device(target):
+                                                            if erase_device(target, mode):
                                                                         display_lines(["ERASE", "Done"])
                                                             else:
                                                                         log_debug("Erase failed")
@@ -1112,7 +1227,7 @@ def erase():
                                                             if not ensure_root_for_erase():
                                                                         return
                                                             display_lines(["ERASE", "Starting..."])
-                                                            if erase_device(target):
+                                                            if erase_device(target, mode):
                                                                         display_lines(["ERASE", "Done"])
                                                             else:
                                                                         log_debug("Erase failed")
