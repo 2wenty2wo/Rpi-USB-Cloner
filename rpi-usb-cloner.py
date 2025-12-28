@@ -93,14 +93,15 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 usb = 0
 ENABLE_SLEEP = False
 USB_REFRESH_INTERVAL = 2.0
+usb_list_index = 0
 
 def basemenu():
             global lcdstart
             global run_once
+            global usb_list_index
             disp.fill(0)
             disp.show()
             devices = list_media_devices()  #This is mount.py stuff.
-            seconditem = 0  # This was to ensure the second USB drive info displayed after and not over the top of the first drives info. Got a better way? Please help.
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
                         disp.fill(0)
                         # draw.rectangle((0,0,width,height), outline=0, fill=0)
@@ -109,12 +110,21 @@ def basemenu():
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
                         draw.text((x, top + 30), "INSERT USB", font=fontinsert, fill=255)
                         usb = 0
+                        usb_list_index = 0
             else:  # If USB is connected.
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)
-                        for device in devices:  # This is mount.py stuff.
-                                    draw.text((x - 11, top + 2 + seconditem),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=255)
-                                    draw.text((x - 11, top + 10 + seconditem),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=255)
-                                    seconditem = 20  # This is to get the second USB info drawn lower down the screen to stop overlap.
+                        if usb_list_index >= len(devices):
+                                    usb_list_index = max(len(devices) - 1, 0)
+                        for device_index, device in enumerate(devices):  # This is mount.py stuff.
+                                    row_offset = device_index * 20
+                                    row_top = top + 2 + row_offset
+                                    is_selected = device_index == usb_list_index
+                                    text_color = 0 if is_selected else 255
+                                    if is_selected:
+                                                draw.rectangle((0, row_top - 1, width, row_top + 17), outline=0, fill=1)
+                                                draw.text((x - 13, row_top), ">", font=fontdisks, fill=0)
+                                    draw.text((x - 11, row_top),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=text_color)
+                                    draw.text((x - 11, row_top + 8),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=text_color)
                         usb = 1
                         draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
                         draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
@@ -218,6 +228,16 @@ def list_usb_disks():
                                     devices.append(device)
             return devices
 
+def get_selected_usb_name():
+            global usb_list_index
+            devices = list_media_devices()
+            if not devices:
+                        return None
+            if usb_list_index >= len(devices):
+                        usb_list_index = max(len(devices) - 1, 0)
+            device = devices[usb_list_index]
+            return get_device_name(device)
+
 def get_usb_snapshot():
             try:
                         devices = list_media_devices()
@@ -254,8 +274,22 @@ def pick_source_target():
             if len(devices) < 2:
                         return None, None
             devices = sorted(devices, key=lambda d: d.get("name", ""))
-            source = devices[0]
-            target = devices[1]
+            selected_name = get_selected_usb_name()
+            selected = None
+            if selected_name:
+                        for device in devices:
+                                    if device.get("name") == selected_name:
+                                                selected = device
+                                                break
+            if selected:
+                        remaining = [device for device in devices if device.get("name") != selected_name]
+                        if not remaining:
+                                    return None, None
+                        source = selected
+                        target = remaining[0]
+            else:
+                        source = devices[0]
+                        target = devices[1]
             return source, target
 
 def run_progress_command(command, total_bytes=None, title="WORKING"):
@@ -471,7 +505,16 @@ def erase():
                         time.sleep(1)
                         basemenu()
                         return
-            target = sorted(target_devices, key=lambda d: d.get("name", ""))[-1]
+            target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
+            selected_name = get_selected_usb_name()
+            target = None
+            if selected_name:
+                        for device in target_devices:
+                                    if device.get("name") == selected_name:
+                                                target = device
+                                                break
+            if not target:
+                        target = target_devices[-1]
             target_name = target.get("name")
             draw.rectangle((0,0,width,height), outline=0, fill=0)
             draw.text((x, top), f"ERASE {target_name}?", font=fontdisks, fill=255)
@@ -570,9 +613,15 @@ try:
                         if button_U.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
+                                    log_debug("Button UP pressed")
+                                    devices = list_media_devices()
+                                    if devices:
+                                                previous_index = usb_list_index
+                                                usb_list_index = max(usb_list_index - 1, 0)
+                                                if usb_list_index != previous_index:
+                                                            basemenu()
                                     disp.image(image)
                                     disp.show()
-                                    log_debug("Button UP pressed")
                                     lcdstart = datetime.now()
                                     run_once = 0
                         if button_L.value: # button is released
@@ -670,6 +719,12 @@ try:
                                     filler = (0)
                         else: # button is pressed:
                                     log_debug("Button DOWN pressed")
+                                    devices = list_media_devices()
+                                    if devices:
+                                                previous_index = usb_list_index
+                                                usb_list_index = min(usb_list_index + 1, len(devices) - 1)
+                                                if usb_list_index != previous_index:
+                                                            basemenu()
                         if button_C.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
