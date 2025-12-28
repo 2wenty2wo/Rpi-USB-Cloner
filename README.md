@@ -4,7 +4,13 @@
 
 ## Installation & Usage
 
-### 1) Install dependencies and prepare the Pi
+### 1) Clone the repository
+```sh
+git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
+cd Rpi-USB-Cloner
+```
+
+### 2) Install dependencies and prepare the Pi
 1. Flash Raspberry Pi OS (Lite is fine) to your microSD and boot the Pi Zero.
 2. Update packages:
    ```sh
@@ -34,28 +40,28 @@
      python3 -m pip install adafruit-blinka adafruit-circuitpython-ssd1306 pillow mount.py --break-system-packages
      ```
 
-### 2) Hardware setup
+### 3) Hardware setup
 1. Attach the Adafruit OLED Bonnet to the Pi Zero GPIO header.
 2. Attach the Zero4U USB Hub to the Pi Zero (per the Zero4U instructions).
 3. Connect power and boot the Pi.
 
-### 3) Start the cloner script
+### 4) Start the cloner script
 From the repo directory:
 ```sh
 python3 rpi-usb-cloner.py
 ```
 
-### 4) Stop the running process
+### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
 
-### 5) Restart the process
+### 6) Restart the process
 1. Stop it (Ctrl+C).
 2. Start it again:
    ```sh
    python3 rpi-usb-cloner.py
    ```
 
-### 6) Update the software
+### 7) Update the software
 From the repo directory:
 ```sh
 git pull
