@@ -198,6 +198,9 @@ def get_usb_snapshot():
                         return []
             return sorted(get_device_name(device) for device in devices)
 
+last_usb_check = time.time()
+last_seen_devices = get_usb_snapshot()
+
 def get_children(device):
             return device.get("children", []) or []
 
@@ -338,9 +341,6 @@ def copy():
                                                             disp.image(image)
                                                             disp.show()
                                                             print("NO" + str(index))
-lcdstart = datetime.now()
-last_usb_check = time.time()
-last_seen_devices = get_usb_snapshot()
                                                             run_once = 0
                                                 if index == (6):
                                                             draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
