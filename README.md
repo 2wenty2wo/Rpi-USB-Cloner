@@ -24,7 +24,7 @@ cd Rpi-USB-Cloner
    *Interface Options → I2C → Enable, then reboot.*
 4. Install Python and build tools:
    ```sh
-   sudo apt install -y python3 python3-pip python3-dev python3-venv git
+   sudo apt install -y python3 python3-pip python3-dev python3-venv git libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g
    ```
 5. Install Python libraries used by the script (Bookworm enforces PEP 668):
    - **Option A (recommended for isolation):** use a virtual environment.
@@ -32,18 +32,20 @@ cd Rpi-USB-Cloner
      python3 -m venv .venv
      source .venv/bin/activate
      python3 -m pip install --upgrade pip
-     python3 -m pip install adafruit-blinka adafruit-circuitpython-ssd1306 pillow mount.py
+     python3 -m pip install adafruit-blinka adafruit-circuitpython-ssd1306 pillow
+     python3 -m pip install --user --break-system-packages ./mount.py
      ```
    - **Option B (single-use device):** install into system Python with the PEP 668 override.
      ```sh
+     sudo python3 -m pip install --break-system-packages adafruit-blinka
+     sudo python3 -m pip install --break-system-packages pillow
+     sudo python3 -m pip install --break-system-packages adafruit-circuitpython-ssd1306
      python3 -m pip install --upgrade pip --break-system-packages
-     python3 -m pip install adafruit-blinka adafruit-circuitpython-ssd1306 pillow mount.py --break-system-packages
+     python3 -m pip install --user --break-system-packages ./mount.py
      ```
-   - **If `pip install mount.py` fails (mount.py is not on PyPI):** install it manually.
+   - **Before running the mount.py command above, clone it locally so `./mount.py` exists:**
      ```sh
      git clone https://github.com/MrVallentin/mount.py
-     sudo python3 mount.py/setup.py install
-     rm -rf mount.py
      ```
 
 ### 3) Hardware setup
