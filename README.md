@@ -56,12 +56,13 @@ cd Rpi-USB-Cloner
 ### 4) Start the cloner script
 From the repo directory:
 ```sh
-python3 rpi-usb-cloner.py
+sudo python3 rpi-usb-cloner.py
 ```
 To enable verbose debug logging:
 ```sh
-python3 rpi-usb-cloner.py --debug
+sudo python3 rpi-usb-cloner.py --debug
 ```
+The erase workflow requires root permissions; if you start without `sudo`, the OLED will prompt you to run as root.
 
 ### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
