@@ -271,6 +271,14 @@ def display_lines(lines, font=fontdisks):
             disp.image(image)
             disp.show()
 
+def ensure_root_for_erase():
+            if os.geteuid() != 0:
+                        display_lines(["Run as root"])
+                        time.sleep(1)
+                        basemenu()
+                        return False
+            return True
+
 def wait_for_buttons_release(buttons, poll_delay=0.05):
             while any(not button.value for button in buttons):
                         time.sleep(poll_delay)
@@ -663,6 +671,8 @@ def erase():
                                     current_B = button_B.value
                                     if prev_states["B"] and not current_B:
                                                 if confirm_selection == CONFIRM_YES:
+                                                            if not ensure_root_for_erase():
+                                                                        return
                                                             display_lines(["ERASE", "Starting..."])
                                                             if erase_device(target):
                                                                         display_lines(["ERASE", "Done"])
@@ -678,6 +688,8 @@ def erase():
                                     current_C = button_C.value
                                     if prev_states["C"] and not current_C:
                                                 if confirm_selection == CONFIRM_YES:
+                                                            if not ensure_root_for_erase():
+                                                                        return
                                                             display_lines(["ERASE", "Starting..."])
                                                             if erase_device(target):
                                                                         display_lines(["ERASE", "Done"])
