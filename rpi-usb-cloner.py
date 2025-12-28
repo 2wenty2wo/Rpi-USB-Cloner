@@ -24,7 +24,17 @@ parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
 parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
 args = parser.parse_args()
 DEBUG = args.debug
-CLONE_MODE = os.environ.get("CLONE_MODE", "raw").lower()
+CLONE_MODE = os.environ.get("CLONE_MODE", "smart").lower()
+
+def normalize_clone_mode(mode):
+            if not mode:
+                        return "smart"
+            mode = mode.lower()
+            if mode == "raw":
+                        return "exact"
+            if mode in ("smart", "exact", "verify"):
+                        return mode
+            return "smart"
 
 def log_debug(message):
             if DEBUG:
@@ -620,9 +630,142 @@ def clone_partclone(source, target):
                                                 stdout_target=dst_handle,
                                     )
 
-def clone_device(source, target):
-            if CLONE_MODE == "smart":
-                        return clone_device_smart(source, target)
+def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
+            dd_path = shutil.which("dd")
+            sha_path = shutil.which("sha256sum")
+            if not dd_path or not sha_path:
+                        raise RuntimeError("dd or sha256sum not found")
+            log_debug(f"Computing sha256 for {device_node}")
+            display_lines([title, "Starting..."])
+            dd_cmd = [dd_path, f"if={device_node}", "bs=4M", "status=progress"]
+            if total_bytes:
+                        total_bytes = int(total_bytes)
+                        dd_cmd.extend([f"count={total_bytes}", "iflag=count_bytes"])
+            dd_proc = subprocess.Popen(
+                        dd_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+            )
+            sha_proc = subprocess.Popen(
+                        [sha_path],
+                        stdin=dd_proc.stdout,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+            )
+            if dd_proc.stdout:
+                        dd_proc.stdout.close()
+            last_update = time.time()
+            while True:
+                        line = dd_proc.stderr.readline()
+                        if line:
+                                    log_debug(f"dd: {line.strip()}")
+                                    match = re.search(r"(\d+)\s+bytes", line)
+                                    if match:
+                                                bytes_copied = int(match.group(1))
+                                                percent = ""
+                                                if total_bytes:
+                                                            percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                                                display_lines([title, f"{human_size(bytes_copied)} {percent}".strip()])
+                                                last_update = time.time()
+                        if dd_proc.poll() is not None:
+                                    break
+                        if time.time() - last_update > 5:
+                                    display_lines([title, "Working..."])
+                                    last_update = time.time()
+            dd_proc.wait()
+            sha_out, sha_err = sha_proc.communicate()
+            if dd_proc.returncode != 0:
+                        error_output = dd_proc.stderr.read().strip()
+                        message = error_output.splitlines()[-1] if error_output else "dd failed"
+                        raise RuntimeError(message)
+            if sha_proc.returncode != 0:
+                        message = sha_err.strip() or "sha256sum failed"
+                        raise RuntimeError(message)
+            checksum = sha_out.split()[0] if sha_out else ""
+            display_lines([title, "Complete"])
+            log_debug(f"sha256 for {device_node}: {checksum}")
+            return checksum
+
+def verify_clone(source, target):
+            source_node = resolve_device_node(source)
+            target_node = resolve_device_node(target)
+            source_name = os.path.basename(source_node)
+            target_name = os.path.basename(target_node)
+            source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
+            target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+            if not source_device or not target_device:
+                        return verify_clone_device(source_node, target_node, source.get("size") if isinstance(source, dict) else None)
+            source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
+            if not source_parts:
+                        return verify_clone_device(source_node, target_node, source_device.get("size"))
+            target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+            target_parts_by_number = {}
+            for child in target_parts:
+                        part_number = get_partition_number(child.get("name"))
+                        if part_number is None:
+                                    continue
+                        target_parts_by_number.setdefault(part_number, child)
+            total_parts = len(source_parts)
+            for index, part in enumerate(source_parts, start=1):
+                        src_part = f"/dev/{part.get('name')}"
+                        part_number = get_partition_number(part.get("name"))
+                        dst_part = None
+                        if part_number is not None:
+                                    target_part = target_parts_by_number.get(part_number)
+                                    if target_part:
+                                                dst_part = f"/dev/{target_part.get('name')}"
+                        if not dst_part and index - 1 < len(target_parts):
+                                    dst_part = f"/dev/{target_parts[index - 1].get('name')}"
+                        if not dst_part:
+                                    display_lines(["VERIFY", "No target part"])
+                                    log_debug(f"Verify failed: no target partition for {src_part}")
+                                    return False
+                        print(f"Verifying {src_part} -> {dst_part}")
+                        try:
+                                    src_hash = compute_sha256(src_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} SRC")
+                                    dst_hash = compute_sha256(dst_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} DST")
+                        except RuntimeError as error:
+                                    display_lines(["VERIFY", "Error"])
+                                    log_debug(f"Verify failed ({src_part} -> {dst_part}): {error}")
+                                    return False
+                        if src_hash != dst_hash:
+                                    display_lines(["VERIFY", "Mismatch"])
+                                    log_debug(f"Verify mismatch for {src_part} -> {dst_part}")
+                                    print(f"Verify failed: {src_part} -> {dst_part}")
+                                    return False
+            display_lines(["VERIFY", "Complete"])
+            print("Verify complete: all partitions match")
+            return True
+
+def verify_clone_device(source_node, target_node, total_bytes=None):
+            print(f"Verifying {source_node} -> {target_node}")
+            try:
+                        src_hash = compute_sha256(source_node, total_bytes=total_bytes, title="VERIFY SRC")
+                        dst_hash = compute_sha256(target_node, total_bytes=total_bytes, title="VERIFY DST")
+            except RuntimeError as error:
+                        display_lines(["VERIFY", "Error"])
+                        log_debug(f"Verify failed: {error}")
+                        return False
+            if src_hash != dst_hash:
+                        display_lines(["VERIFY", "Mismatch"])
+                        log_debug(f"Verify mismatch for {source_node} -> {target_node}")
+                        print("Verify failed: checksum mismatch")
+                        return False
+            display_lines(["VERIFY", "Complete"])
+            print("Verify complete: checksums match")
+            return True
+
+def clone_device(source, target, mode=None):
+            mode = normalize_clone_mode(mode or CLONE_MODE)
+            if mode in ("smart", "verify"):
+                        success = clone_device_smart(source, target)
+                        if not success:
+                                    return False
+                        if mode == "verify":
+                                    return verify_clone(source, target)
+                        return True
             unmount_device(target)
             try:
                         clone_dd(source, target, total_bytes=source.get("size"), title="CLONING")
@@ -693,6 +836,70 @@ def view_devices():
                                     mountpoint = child.get("mountpoint") or "-"
                                     lines.append(f"{child.get('name')} {fstype} {mountpoint[:10]}")
             display_lines(lines)
+
+def select_clone_mode():
+            modes = ["smart", "exact", "verify"]
+            selected_mode = normalize_clone_mode(CLONE_MODE)
+            if selected_mode not in modes:
+                        selected_mode = "smart"
+            selected_index = modes.index(selected_mode)
+            menu_items = [MenuItem([mode.upper()]) for mode in modes]
+            menu = Menu(
+                        items=menu_items,
+                        selected_index=selected_index,
+                        title="CLONE MODE",
+                        footer=["BACK", "OK"],
+                        footer_positions=[x + 12, x + 63],
+            )
+            render_menu(menu, draw, width, height, fonts)
+            disp.image(image)
+            disp.show()
+            wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
+            prev_states = {
+                        "U": button_U.value,
+                        "D": button_D.value,
+                        "L": button_L.value,
+                        "R": button_R.value,
+                        "A": button_A.value,
+                        "B": button_B.value,
+                        "C": button_C.value,
+            }
+            while True:
+                        current_U = button_U.value
+                        if prev_states["U"] and not current_U:
+                                    selected_index = max(0, selected_index - 1)
+                                    log_debug(f"Clone mode selection changed: {modes[selected_index]}")
+                        current_D = button_D.value
+                        if prev_states["D"] and not current_D:
+                                    selected_index = min(len(modes) - 1, selected_index + 1)
+                                    log_debug(f"Clone mode selection changed: {modes[selected_index]}")
+                        current_L = button_L.value
+                        if prev_states["L"] and not current_L:
+                                    selected_index = max(0, selected_index - 1)
+                        current_R = button_R.value
+                        if prev_states["R"] and not current_R:
+                                    selected_index = min(len(modes) - 1, selected_index + 1)
+                        current_A = button_A.value
+                        if prev_states["A"] and not current_A:
+                                    return None
+                        current_B = button_B.value
+                        if prev_states["B"] and not current_B:
+                                    return None
+                        current_C = button_C.value
+                        if prev_states["C"] and not current_C:
+                                    return modes[selected_index]
+                        prev_states["U"] = current_U
+                        prev_states["D"] = current_D
+                        prev_states["L"] = current_L
+                        prev_states["R"] = current_R
+                        prev_states["A"] = current_A
+                        prev_states["B"] = current_B
+                        prev_states["C"] = current_C
+                        menu.selected_index = selected_index
+                        render_menu(menu, draw, width, height, fonts)
+                        disp.image(image)
+                        disp.show()
+                        time.sleep(0.05)
 
 def copy():
             global index
@@ -788,7 +995,12 @@ def copy():
                                     if prev_states["C"] and not current_C:
                                                 if confirm_selection == CONFIRM_YES:
                                                             display_lines(["COPY", "Starting..."])
-                                                            if clone_device(source, target):
+                                                            mode = select_clone_mode()
+                                                            if not mode:
+                                                                        basemenu()
+                                                                        return
+                                                            display_lines(["COPY", mode.upper()])
+                                                            if clone_device(source, target, mode=mode):
                                                                         display_lines(["COPY", "Done"])
                                                             else:
                                                                         log_debug("Copy failed")
