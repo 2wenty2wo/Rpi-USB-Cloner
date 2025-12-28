@@ -189,6 +189,12 @@ def get_children(device):
             return device.get("children", []) or []
 
 def unmount_device(device):
+            mountpoint = device.get("mountpoint")
+            if mountpoint:
+                        try:
+                                    run_command(["umount", mountpoint], check=False)
+                        except subprocess.CalledProcessError:
+                                    pass
             for child in get_children(device):
                         mountpoint = child.get("mountpoint")
                         if mountpoint:
