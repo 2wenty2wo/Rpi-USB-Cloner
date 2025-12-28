@@ -10,12 +10,22 @@ import shutil
 import re
 from mount import *
 import sys
+import argparse
 
 from digitalio import DigitalInOut, Direction, Pull
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 from datetime import datetime, timedelta
 from time import sleep, strftime, localtime
+
+parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
+parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
+args = parser.parse_args()
+DEBUG = args.debug
+
+def log_debug(message):
+            if DEBUG:
+                        print(f"[DEBUG] {message}")
 
 # Create the I2C interface.
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -114,6 +124,7 @@ def basemenu():
             lcdstart = datetime.now()
             run_once = 0
             index = 0
+            log_debug("Base menu drawn; index reset to 0")
 
 basemenu()  # Run Base Menu at script start
 
@@ -169,7 +180,22 @@ def human_size(size_bytes):
             return f"{size:.1f}PB"
 
 def run_command(command, check=True):
-            return subprocess.run(command, check=check, text=True, capture_output=True)
+            log_debug(f"Running command: {' '.join(command)}")
+            try:
+                        result = subprocess.run(command, check=check, text=True, capture_output=True)
+            except subprocess.CalledProcessError as error:
+                        log_debug(f"Command failed: {' '.join(command)}")
+                        if error.stdout:
+                                    log_debug(f"stdout: {error.stdout.strip()}")
+                        if error.stderr:
+                                    log_debug(f"stderr: {error.stderr.strip()}")
+                        raise
+            if result.stdout:
+                        log_debug(f"stdout: {result.stdout.strip()}")
+            if result.stderr:
+                        log_debug(f"stderr: {result.stderr.strip()}")
+            log_debug(f"Command completed with return code {result.returncode}")
+            return result
 
 def get_block_devices():
             try:
@@ -178,6 +204,7 @@ def get_block_devices():
                         return data.get("blockdevices", [])
             except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
                         display_lines(["LSBLK ERROR", str(error)])
+                        log_debug(f"lsblk failed: {error}")
                         return []
 
 def list_usb_disks():
@@ -194,9 +221,12 @@ def list_usb_disks():
 def get_usb_snapshot():
             try:
                         devices = list_media_devices()
-            except Exception:
+            except Exception as error:
+                        log_debug(f"Failed to list media devices: {error}")
                         return []
-            return sorted(get_device_name(device) for device in devices)
+            snapshot = sorted(get_device_name(device) for device in devices)
+            log_debug(f"USB snapshot: {snapshot}")
+            return snapshot
 
 last_usb_check = time.time()
 last_seen_devices = get_usb_snapshot()
@@ -230,11 +260,13 @@ def pick_source_target():
 
 def run_progress_command(command, total_bytes=None, title="WORKING"):
             display_lines([title, "Starting..."])
+            log_debug(f"Starting command: {' '.join(command)}")
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             last_update = time.time()
             while True:
                         line = process.stderr.readline()
                         if line:
+                                    log_debug(f"stderr: {line.strip()}")
                                     match = re.search(r"(\d+)\s+bytes", line)
                                     if match:
                                                 bytes_copied = int(match.group(1))
@@ -252,8 +284,10 @@ def run_progress_command(command, total_bytes=None, title="WORKING"):
                         error_output = process.stderr.read().strip()
                         message = error_output.splitlines()[-1] if error_output else "Command failed"
                         display_lines(["FAILED", message[:20]])
+                        log_debug(f"Command failed with code {process.returncode}: {message}")
                         return False
             display_lines([title, "Complete"])
+            log_debug("Command completed successfully")
             return True
 
 def clone_device(source, target):
@@ -264,6 +298,7 @@ def clone_device(source, target):
             dd_path = shutil.which("dd")
             if not dd_path:
                         display_lines(["ERROR", "dd not found"])
+                        log_debug("Clone failed: dd not found")
                         return False
             return run_progress_command(
                         [dd_path, f"if={source_node}", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
@@ -284,6 +319,7 @@ def erase_device(target):
             dd_path = shutil.which("dd")
             if not dd_path:
                         display_lines(["ERROR", "no wipe tool"])
+                        log_debug("Erase failed: no wipe tool available")
                         return False
             return run_progress_command(
                         [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
@@ -340,7 +376,7 @@ def copy():
                                                             index = 6
                                                             disp.image(image)
                                                             disp.show()
-                                                            print("NO" + str(index))
+                                                            log_debug(f"Copy menu selection changed: index={index} (NO)")
                                                             run_once = 0
                                                 if index == (6):
                                                             draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
@@ -350,7 +386,7 @@ def copy():
                                                             index = 7
                                                             disp.image(image)
                                                             disp.show()
-                                                            print("YES" + str(index))
+                                                            log_debug(f"Copy menu selection changed: index={index} (YES)")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
                                                 else:
@@ -369,7 +405,7 @@ def copy():
                                                             index = 6
                                                             disp.image(image)
                                                             disp.show()
-                                                            print("NO" + str(index))
+                                                            log_debug(f"Copy menu selection changed: index={index} (NO)")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
                                                 #if index == (5):
@@ -393,7 +429,7 @@ def copy():
                                     else: # button is pressed:
                                                 disp.fill(0)
                                                 disp.show()
-                                                print("Button B")
+                                                log_debug("Copy menu: Button B pressed")
                                                 basemenu()
                                                 disp.show()
                                     if button_A.value: # button is released
@@ -401,7 +437,7 @@ def copy():
                                     else: # button is pressed:
                                                 disp.fill(0)
                                                 disp.show()
-                                                print("Button A")
+                                                log_debug("Copy menu: Button A pressed")
                                                 basemenu()
                                                 disp.show()
                                     if button_C.value: # button is released
@@ -412,6 +448,7 @@ def copy():
                                                             if clone_device(source, target):
                                                                         display_lines(["COPY", "Done"])
                                                             else:
+                                                                        log_debug("Copy failed")
                                                                         display_lines(["COPY", "Failed"])
                                                             time.sleep(1)
                                                             basemenu()
@@ -454,6 +491,7 @@ def erase():
                                                             index = 6
                                                             disp.image(image)
                                                             disp.show()
+                                                            log_debug(f"Erase menu selection changed: index={index} (NO)")
                                                 if index == (6):
                                                             draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
                                                             draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=1) #No White
@@ -462,6 +500,7 @@ def erase():
                                                             index = 7
                                                             disp.image(image)
                                                             disp.show()
+                                                            log_debug(f"Erase menu selection changed: index={index} (YES)")
                                     if button_L.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
@@ -473,6 +512,7 @@ def erase():
                                                             index = 6
                                                             disp.image(image)
                                                             disp.show()
+                                                            log_debug(f"Erase menu selection changed: index={index} (NO)")
                                     if button_A.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
@@ -489,6 +529,7 @@ def erase():
                                                             if erase_device(target):
                                                                         display_lines(["ERASE", "Done"])
                                                             else:
+                                                                        log_debug("Erase failed")
                                                                         display_lines(["ERASE", "Failed"])
                                                             time.sleep(1)
                                                             basemenu()
@@ -512,8 +553,10 @@ try:
                         # Sleep Stuff
                         time.sleep(0.1)
                         if time.time() - last_usb_check >= USB_REFRESH_INTERVAL:
+                                    log_debug(f"Checking USB devices (interval {USB_REFRESH_INTERVAL}s)")
                                     current_devices = get_usb_snapshot()
                                     if current_devices != last_seen_devices:
+                                                log_debug(f"USB devices changed: {last_seen_devices} -> {current_devices}")
                                                 basemenu()
                                                 last_seen_devices = current_devices
                                     last_usb_check = time.time()
@@ -529,7 +572,7 @@ try:
                         else: # button is pressed:
                                     disp.image(image)
                                     disp.show()
-                                    print("button up")
+                                    log_debug("Button UP pressed")
                                     lcdstart = datetime.now()
                                     run_once = 0
                         if button_L.value: # button is released
@@ -543,7 +586,7 @@ try:
                                                 index = 2
                                                 disp.image(image)
                                                 disp.show()
-                                                print("VIEW")
+                                                log_debug("Menu selection changed: index=2 (VIEW)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
@@ -554,7 +597,7 @@ try:
                                                 index = 1
                                                 disp.image(image)
                                                 disp.show()
-                                                print("COPY")
+                                                log_debug("Menu selection changed: index=1 (COPY)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (1):
@@ -565,7 +608,7 @@ try:
                                                 index = 1
                                                 disp.image(image)
                                                 disp.show()
-                                                print("COPY")
+                                                log_debug("Menu selection changed: index=1 (COPY)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     else:
@@ -582,7 +625,7 @@ try:
                                                 index = 1
                                                 disp.image(image)
                                                 disp.show()
-                                                print("COPY")
+                                                log_debug("Menu selection changed: index=1 (COPY)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (1):
@@ -593,7 +636,7 @@ try:
                                                 index = 2
                                                 disp.image(image)
                                                 disp.show()
-                                                print("VIEW")
+                                                log_debug("Menu selection changed: index=2 (VIEW)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
@@ -604,7 +647,7 @@ try:
                                                 index = 3
                                                 disp.image(image)
                                                 disp.show()
-                                                print("ERASE")
+                                                log_debug("Menu selection changed: index=3 (ERASE)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (3):
@@ -615,7 +658,7 @@ try:
                                                 index = 3
                                                 disp.image(image)
                                                 disp.show()
-                                                print("END OF MENU")
+                                                log_debug("Menu selection changed: index=3 (END OF MENU)")
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     else:
@@ -626,18 +669,18 @@ try:
                         if button_D.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
-                                    print("button down")
+                                    log_debug("Button DOWN pressed")
                         if button_C.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     filler = (0)
-                                    print("button c")
+                                    log_debug("Button C pressed")
                         if button_A.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     disp.fill(0)
                                     disp.show()
-                                    print("button a")
+                                    log_debug("Button A pressed")
                                     basemenu()
                                     disp.show()
                         if button_B.value: # button is released

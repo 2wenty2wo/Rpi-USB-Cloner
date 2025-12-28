@@ -58,6 +58,10 @@ From the repo directory:
 ```sh
 python3 rpi-usb-cloner.py
 ```
+To enable verbose debug logging:
+```sh
+python3 rpi-usb-cloner.py --debug
+```
 
 ### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
