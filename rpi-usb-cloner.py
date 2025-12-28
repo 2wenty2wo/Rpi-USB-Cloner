@@ -228,6 +228,16 @@ def list_usb_disks():
                                     devices.append(device)
             return devices
 
+def get_selected_usb_name():
+            global usb_list_index
+            devices = list_media_devices()
+            if not devices:
+                        return None
+            if usb_list_index >= len(devices):
+                        usb_list_index = max(len(devices) - 1, 0)
+            device = devices[usb_list_index]
+            return get_device_name(device)
+
 def get_usb_snapshot():
             try:
                         devices = list_media_devices()
@@ -264,8 +274,22 @@ def pick_source_target():
             if len(devices) < 2:
                         return None, None
             devices = sorted(devices, key=lambda d: d.get("name", ""))
-            source = devices[0]
-            target = devices[1]
+            selected_name = get_selected_usb_name()
+            selected = None
+            if selected_name:
+                        for device in devices:
+                                    if device.get("name") == selected_name:
+                                                selected = device
+                                                break
+            if selected:
+                        remaining = [device for device in devices if device.get("name") != selected_name]
+                        if not remaining:
+                                    return None, None
+                        source = selected
+                        target = remaining[0]
+            else:
+                        source = devices[0]
+                        target = devices[1]
             return source, target
 
 def run_progress_command(command, total_bytes=None, title="WORKING"):
@@ -481,7 +505,16 @@ def erase():
                         time.sleep(1)
                         basemenu()
                         return
-            target = sorted(target_devices, key=lambda d: d.get("name", ""))[-1]
+            target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
+            selected_name = get_selected_usb_name()
+            target = None
+            if selected_name:
+                        for device in target_devices:
+                                    if device.get("name") == selected_name:
+                                                target = device
+                                                break
+            if not target:
+                        target = target_devices[-1]
             target_name = target.get("name")
             draw.rectangle((0,0,width,height), outline=0, fill=0)
             draw.text((x, top), f"ERASE {target_name}?", font=fontdisks, fill=255)
