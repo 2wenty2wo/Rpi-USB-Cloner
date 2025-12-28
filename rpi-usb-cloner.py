@@ -375,6 +375,22 @@ ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 def get_children(device):
             return device.get("children", []) or []
 
+def get_partition_number(name):
+            if not name:
+                        return None
+            match = re.search(r"(?:p)?(\d+)$", name)
+            if not match:
+                        return None
+            return int(match.group(1))
+
+def get_device_by_name(name):
+            if not name:
+                        return None
+            for device in get_block_devices():
+                        if device.get("name") == name:
+                                    return device
+            return None
+
 def has_root_mountpoint(device):
             mountpoint = device.get("mountpoint")
             if mountpoint in ROOT_MOUNTPOINTS:
@@ -542,9 +558,29 @@ def clone_device_smart(source, target):
                         display_lines(["FAILED", "No partitions"])
                         log_debug("Smart clone failed: no source partitions found")
                         return False
+            target_device = get_device_by_name(target.get("name")) or target
+            target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+            target_parts_by_number = {}
+            for child in target_parts:
+                        part_number = get_partition_number(child.get("name"))
+                        if part_number is None:
+                                    continue
+                        if part_number not in target_parts_by_number:
+                                    target_parts_by_number[part_number] = child
             for index, part in enumerate(source_parts, start=1):
                         src_part = f"/dev/{part.get('name')}"
-                        dst_part = src_part.replace(source.get("name"), target.get("name"), 1)
+                        part_number = get_partition_number(part.get("name"))
+                        dst_part = None
+                        if part_number is not None:
+                                    target_part = target_parts_by_number.get(part_number)
+                                    if target_part:
+                                                dst_part = f"/dev/{target_part.get('name')}"
+                        if not dst_part and index - 1 < len(target_parts):
+                                    dst_part = f"/dev/{target_parts[index - 1].get('name')}"
+                        if not dst_part:
+                                    display_lines(["FAILED", "Part mapping"])
+                                    log_debug(f"Smart clone failed: unable to map {src_part} to target partition")
+                                    return False
                         fstype = (part.get("fstype") or "").lower()
                         tool = partclone_tools.get(fstype, fallback_tool)
                         tool_path = shutil.which(tool)
