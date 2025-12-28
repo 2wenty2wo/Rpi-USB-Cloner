@@ -99,6 +99,7 @@ def basemenu():
             global lcdstart
             global run_once
             global usb_list_index
+            global index
             disp.fill(0)
             disp.show()
             devices = list_media_devices()  #This is mount.py stuff.
