@@ -463,8 +463,10 @@ def view_devices():
             display_lines(lines)
 
 def copy():
+            global index
             disp.fill(0)
             disp.show()
+            index = MENU_NONE
             source, target = pick_source_target()
             if not source or not target:
                         display_lines(["COPY", "Need 2 USBs"])
@@ -575,8 +577,10 @@ def view():
             basemenu()
 
 def erase():
+            global index
             disp.fill(0)
             disp.show()
+            index = MENU_NONE
             target_devices = list_usb_disks()
             if not target_devices:
                         display_lines(["ERASE", "No USB found"])
