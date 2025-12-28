@@ -39,6 +39,12 @@ cd Rpi-USB-Cloner
      python3 -m pip install --upgrade pip --break-system-packages
      python3 -m pip install adafruit-blinka adafruit-circuitpython-ssd1306 pillow mount.py --break-system-packages
      ```
+   - **If `pip install mount.py` fails (mount.py is not on PyPI):** install it manually.
+     ```sh
+     git clone https://github.com/MrVallentin/mount.py
+     sudo python3 mount.py/setup.py install
+     rm -rf mount.py
+     ```
 
 ### 3) Hardware setup
 1. Attach the Adafruit OLED Bonnet to the Pi Zero GPIO header.
@@ -68,6 +74,7 @@ git pull
 python3 -m pip install --upgrade adafruit-blinka adafruit-circuitpython-ssd1306 pillow mount.py
 ```
 If you used Option B above, append `--break-system-packages` to the pip command.
+If the `mount.py` pip install fails, reinstall it manually using the steps in the installation section above.
 
   USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
   
