@@ -109,6 +109,7 @@ usb = 0
 ENABLE_SLEEP = False
 USB_REFRESH_INTERVAL = 2.0
 usb_list_index = 0
+VISIBLE_ROWS = 3
 
 @dataclass
 class MenuItem:
@@ -204,12 +205,18 @@ def basemenu():
                                                 (get_vendor(device)) + " " + (get_model(device)),
                                     ]))
                         usb = 1
+                        start_index = max(0, usb_list_index - 1)
+                        max_start = max(len(menu_items) - VISIBLE_ROWS, 0)
+                        if start_index > max_start:
+                                    start_index = max_start
+                        visible_items = menu_items[start_index:start_index + VISIBLE_ROWS]
+                        visible_selected_index = usb_list_index - start_index
                         footer_selected = None
                         if index in (MENU_COPY, MENU_VIEW, MENU_ERASE):
                                     footer_selected = index
                         menu = Menu(
-                                    items=menu_items,
-                                    selected_index=usb_list_index,
+                                    items=visible_items,
+                                    selected_index=visible_selected_index,
                                     footer=["COPY", "VIEW", "ERASE"],
                                     footer_selected_index=footer_selected,
                                     footer_positions=[x - 11, x + 32, x + 71],
