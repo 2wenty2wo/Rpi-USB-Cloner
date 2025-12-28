@@ -265,6 +265,10 @@ def display_lines(lines, font=fontdisks):
             disp.image(image)
             disp.show()
 
+def wait_for_buttons_release(buttons, poll_delay=0.05):
+            while any(not button.value for button in buttons):
+                        time.sleep(poll_delay)
+
 def human_size(size_bytes):
             if size_bytes is None:
                         return "0B"
@@ -492,11 +496,18 @@ def copy():
             render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
+            wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
+            prev_states = {
+                        "L": button_L.value,
+                        "R": button_R.value,
+                        "A": button_A.value,
+                        "B": button_B.value,
+                        "C": button_C.value,
+            }
             try:
                         while 1:
-                                    if button_R.value: # button is released
-                                                filler =(0)
-                                    else: # button is pressed:
+                                    current_R = button_R.value
+                                    if prev_states["R"] and not current_R:
                                                 if confirm_selection == CONFIRM_NO:
                                                             confirm_selection = CONFIRM_YES
                                                             log_debug("Copy menu selection changed: YES")
@@ -511,9 +522,8 @@ def copy():
                                                             disp.image(image)
                                                             disp.show()
                                                             time.sleep(.01)
-                                    if button_L.value: # button is released
-                                                filler =(0)
-                                    else: # button is pressed:
+                                    current_L = button_L.value
+                                    if prev_states["L"] and not current_L:
                                                 if confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_NO
                                                             log_debug("Copy menu selection changed: NO")
@@ -535,27 +545,24 @@ def copy():
                                                             disp.image(image)
                                                             disp.show()
                                                             time.sleep(.01)
-                                    if button_B.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_B = button_B.value
+                                    if prev_states["B"] and not current_B:
                                                 disp.fill(0)
                                                 disp.show()
                                                 log_debug("Copy menu: Button B pressed")
                                                 basemenu()
                                                 disp.show()
                                                 return
-                                    if button_A.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_A = button_A.value
+                                    if prev_states["A"] and not current_A:
                                                 disp.fill(0)
                                                 disp.show()
                                                 log_debug("Copy menu: Button A pressed")
                                                 basemenu()
                                                 disp.show()
                                                 return
-                                    if button_C.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_C = button_C.value
+                                    if prev_states["C"] and not current_C:
                                                 if confirm_selection == CONFIRM_YES:
                                                             display_lines(["COPY", "Starting..."])
                                                             if clone_device(source, target):
@@ -569,6 +576,11 @@ def copy():
                                                 elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
+                                    prev_states["R"] = current_R
+                                    prev_states["L"] = current_L
+                                    prev_states["B"] = current_B
+                                    prev_states["A"] = current_A
+                                    prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
                                     disp.image(image)
@@ -615,36 +627,39 @@ def erase():
             render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
+            wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
+            prev_states = {
+                        "L": button_L.value,
+                        "R": button_R.value,
+                        "A": button_A.value,
+                        "B": button_B.value,
+                        "C": button_C.value,
+            }
             try:
                         while 1:
-                                    if button_R.value: # button is released
-                                                filler =(0)
-                                    else: # button is pressed:
+                                    current_R = button_R.value
+                                    if prev_states["R"] and not current_R:
                                                 if confirm_selection == CONFIRM_NO:
                                                             confirm_selection = CONFIRM_YES
                                                             log_debug("Erase menu selection changed: YES")
                                                 elif confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_YES
                                                             log_debug("Erase menu selection changed: YES")
-                                    if button_L.value: # button is released
-                                                filler =(0)
-                                    else: # button is pressed:
+                                    current_L = button_L.value
+                                    if prev_states["L"] and not current_L:
                                                 if confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_NO
                                                             log_debug("Erase menu selection changed: NO")
-                                    if button_A.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_A = button_A.value
+                                    if prev_states["A"] and not current_A:
                                                 basemenu()
                                                 return
-                                    if button_B.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_B = button_B.value
+                                    if prev_states["B"] and not current_B:
                                                 basemenu()
                                                 return
-                                    if button_C.value: # button is released
-                                                filler = (0)
-                                    else: # button is pressed:
+                                    current_C = button_C.value
+                                    if prev_states["C"] and not current_C:
                                                 if confirm_selection == CONFIRM_YES:
                                                             display_lines(["ERASE", "Starting..."])
                                                             if erase_device(target):
@@ -658,6 +673,11 @@ def erase():
                                                 elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
+                                    prev_states["R"] = current_R
+                                    prev_states["L"] = current_L
+                                    prev_states["A"] = current_A
+                                    prev_states["B"] = current_B
+                                    prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
                                     disp.image(image)
