@@ -81,6 +81,7 @@ index = 0
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
 usb = 0
+ENABLE_SLEEP = False
 
 def basemenu():
             global lcdstart
@@ -500,11 +501,12 @@ try:
             while 1:
                         # Sleep Stuff
                         time.sleep(0.1)
-                        lcdtmp = lcdstart + timedelta(seconds=30)
-                        if (datetime.now() > lcdtmp):
-                                    if run_once == 0:
-                                                sleepdisplay()
-                                    time.sleep(0.1)
+                        if ENABLE_SLEEP:
+                                    lcdtmp = lcdstart + timedelta(seconds=30)
+                                    if (datetime.now() > lcdtmp):
+                                                if run_once == 0:
+                                                            sleepdisplay()
+                                                time.sleep(0.1)
                         # Sleep Stuff
                         if button_U.value: # button is released
                                     filler = (0)
