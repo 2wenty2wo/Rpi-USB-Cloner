@@ -71,6 +71,12 @@ disp.show()
 # Make sure to create image with mode '1' for 1-bit color.
 width = disp.width
 height = disp.height
+splash = Image.open("splash.png").convert("1")
+if splash.size != (width, height):
+    splash = splash.resize((width, height))
+disp.image(splash)
+disp.show()
+time.sleep(1.5)
 image = Image.new('1', (width, height))
 
 x = 12
