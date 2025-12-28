@@ -11,6 +11,8 @@ import re
 from mount import *
 import sys
 import argparse
+from dataclasses import dataclass
+from typing import List, Optional
 
 from digitalio import DigitalInOut, Direction, Pull
 from PIL import Image, ImageDraw, ImageFont
@@ -82,6 +84,11 @@ fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
 fontinsert = ImageFont.truetype("slkscr.ttf", 16)
 fontdisks = ImageFont.truetype("slkscr.ttf", 8)
 fontmain = ImageFont.load_default()
+fonts = {
+            "title": fontdisks,
+            "items": fontdisks,
+            "footer": fontcopy,
+}
 
 # Get drawing object to draw on image.
 draw = ImageDraw.Draw(image)
@@ -94,6 +101,60 @@ usb = 0
 ENABLE_SLEEP = False
 USB_REFRESH_INTERVAL = 2.0
 usb_list_index = 0
+
+@dataclass
+class MenuItem:
+            lines: List[str]
+
+@dataclass
+class Menu:
+            items: List[MenuItem]
+            selected_index: int = 0
+            title: Optional[str] = None
+            footer: Optional[List[str]] = None
+            footer_selected_index: Optional[int] = None
+            footer_positions: Optional[List[int]] = None
+            content_top: Optional[int] = None
+            items_font: Optional[ImageFont.ImageFont] = None
+
+def render_menu(menu, draw, width, height, fonts):
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            current_y = top
+            if menu.title:
+                        draw.text((x - 11, current_y), menu.title, font=fonts["title"], fill=255)
+                        current_y += 12
+            if menu.content_top is not None:
+                        current_y = menu.content_top
+
+            for item_index, item in enumerate(menu.items):
+                        lines = item.lines
+                        items_font = menu.items_font or fonts["items"]
+                        line_height = 8
+                        row_height = max(len(lines), 1) * line_height + 4
+                        row_top = current_y
+                        is_selected = item_index == menu.selected_index
+                        if is_selected:
+                                    draw.rectangle((0, row_top - 1, width, row_top + row_height - 1), outline=0, fill=1)
+                        for line_index, line in enumerate(lines):
+                                    text_color = 0 if is_selected else 255
+                                    draw.text((x - 11, row_top + line_index * line_height), line, font=items_font, fill=text_color)
+                        current_y += row_height
+
+            if menu.footer:
+                        footer_font = fonts["footer"]
+                        footer_y = height - 15
+                        positions = menu.footer_positions
+                        if positions is None:
+                                    spacing = width // (len(menu.footer) + 1)
+                                    positions = [(spacing * (index + 1)) - 10 for index in range(len(menu.footer))]
+                        for footer_index, label in enumerate(menu.footer):
+                                    x_pos = positions[footer_index]
+                                    text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
+                                    if menu.footer_selected_index is not None and footer_index == menu.footer_selected_index:
+                                                draw.rectangle((text_bbox[0] - 3, text_bbox[1] - 2, text_bbox[2] + 3, text_bbox[3] + 2), outline=0, fill=1)
+                                                draw.text((x_pos, footer_y), label, font=footer_font, fill=0)
+                                    else:
+                                                draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
 
 def basemenu():
             global lcdstart
@@ -108,34 +169,43 @@ def basemenu():
                         # draw.rectangle((0,0,width,height), outline=0, fill=0)
                         # splash1 = Image.open('usb.png').convert('1')
                         # disp.image(splash1)
-                        draw.rectangle((0, 0, width, height), outline=0, fill=0)  # To hide previous USB information after USB removal.
-                        draw.text((x, top + 30), "INSERT USB", font=fontinsert, fill=255)
+                        menu = Menu(
+                                    items=[MenuItem(["INSERT USB"])],
+                                    selected_index=0,
+                                    content_top=top + 30,
+                                    items_font=fontinsert,
+                        )
+                        render_menu(menu, draw, width, height, fonts)
                         usb = 0
                         usb_list_index = 0
             else:  # If USB is connected.
-                        draw.rectangle((0, 0, width, height), outline=0, fill=0)
                         if usb_list_index >= len(devices):
                                     usb_list_index = max(len(devices) - 1, 0)
-                        for device_index, device in enumerate(devices):  # This is mount.py stuff.
-                                    row_offset = device_index * 20
-                                    row_top = top + 2 + row_offset
-                                    is_selected = device_index == usb_list_index
-                                    text_color = 0 if is_selected else 255
-                                    if is_selected:
-                                                draw.rectangle((0, row_top - 1, width, row_top + 17), outline=0, fill=1)
-                                                draw.text((x - 13, row_top), ">", font=fontdisks, fill=0)
-                                    draw.text((x - 11, row_top),(get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB", font=fontdisks, fill=text_color)
-                                    draw.text((x - 11, row_top + 8),(get_vendor(device)) + " " + (get_model(device)), font=fontdisks, fill=text_color)
+                        menu_items = []
+                        for device in devices:  # This is mount.py stuff.
+                                    menu_items.append(MenuItem([
+                                                (get_device_name(device)) + " " + "%.2f" % (get_size(device) / 1024 ** 3) + "GB",
+                                                (get_vendor(device)) + " " + (get_model(device)),
+                                    ]))
                         usb = 1
-                        draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=255)
-                        draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=255)
-                        draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=255)
+                        footer_selected = None
+                        if index in (1, 2, 3):
+                                    footer_selected = index - 1
+                        menu = Menu(
+                                    items=menu_items,
+                                    selected_index=usb_list_index,
+                                    footer=["COPY", "VIEW", "ERASE"],
+                                    footer_selected_index=footer_selected,
+                                    footer_positions=[x - 11, x + 32, x + 71],
+                        )
+                        render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
             lcdstart = datetime.now()
             run_once = 0
-            index = 0
-            log_debug("Base menu drawn; index reset to 0")
+            if index not in (1, 2, 3):
+                        index = 0
+            log_debug("Base menu drawn")
 
 basemenu()  # Run Base Menu at script start
 
@@ -385,7 +455,6 @@ def view_devices():
 def copy():
             disp.fill(0)
             disp.show()
-            draw.rectangle((0,0,width,height), outline=0, fill=0)
             source, target = pick_source_target()
             if not source or not target:
                         display_lines(["COPY", "Need 2 USBs"])
@@ -394,9 +463,14 @@ def copy():
                         return
             source_name = source.get("name")
             target_name = target.get("name")
-            draw.text((x, top), f"CLONE {source_name} to {target_name}?", font=fontdisks, fill=255)
-            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=255)
-            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=255)
+            title = f"CLONE {source_name} to {target_name}?"
+            menu = Menu(
+                        items=[],
+                        title=title,
+                        footer=["NO", "YES"],
+                        footer_positions=[x + 24, x + 52],
+            )
+            render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
             index = 5
@@ -406,21 +480,11 @@ def copy():
                                                 filler =(0)
                                     else: # button is pressed:
                                                 if index == (5):
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
                                                             index = 6
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Copy menu selection changed: index={index} (NO)")
                                                             run_once = 0
                                                 if index == (6):
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=1) #No White
-                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=1) #Select Yes
-                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=0) #Yes Black
                                                             index = 7
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Copy menu selection changed: index={index} (YES)")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
@@ -433,13 +497,7 @@ def copy():
                                                 filler =(0)
                                     else: # button is pressed:
                                                 if index == (7):
-                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=0) #Deselect Yes
-                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=1) #Yes White
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
                                                             index = 6
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Copy menu selection changed: index={index} (NO)")
                                                             lcdstart = datetime.now()
                                                             run_once = 0
@@ -467,6 +525,7 @@ def copy():
                                                 log_debug("Copy menu: Button B pressed")
                                                 basemenu()
                                                 disp.show()
+                                                return
                                     if button_A.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
@@ -475,6 +534,7 @@ def copy():
                                                 log_debug("Copy menu: Button A pressed")
                                                 basemenu()
                                                 disp.show()
+                                                return
                                     if button_C.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
@@ -487,8 +547,17 @@ def copy():
                                                                         display_lines(["COPY", "Failed"])
                                                             time.sleep(1)
                                                             basemenu()
+                                                            return
                                                 elif index == (6):
                                                             basemenu()
+                                                            return
+                                    footer_selected = None
+                                    if index in (6, 7):
+                                                footer_selected = index - 6
+                                    menu.footer_selected_index = footer_selected
+                                    render_menu(menu, draw, width, height, fonts)
+                                    disp.image(image)
+                                    disp.show()
             except KeyboardInterrupt:
                         GPIO.cleanup()
 
@@ -517,10 +586,14 @@ def erase():
             if not target:
                         target = target_devices[-1]
             target_name = target.get("name")
-            draw.rectangle((0,0,width,height), outline=0, fill=0)
-            draw.text((x, top), f"ERASE {target_name}?", font=fontdisks, fill=255)
-            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=255)
-            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=255)
+            title = f"ERASE {target_name}?"
+            menu = Menu(
+                        items=[],
+                        title=title,
+                        footer=["NO", "YES"],
+                        footer_positions=[x + 24, x + 52],
+            )
+            render_menu(menu, draw, width, height, fonts)
             disp.image(image)
             disp.show()
             index = 5
@@ -530,41 +603,27 @@ def erase():
                                                 filler =(0)
                                     else: # button is pressed:
                                                 if index == (5):
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
                                                             index = 6
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Erase menu selection changed: index={index} (NO)")
                                                 if index == (6):
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=0) #Deselect No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=1) #No White
-                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=1) #Select Yes
-                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=0) #Yes Black
                                                             index = 7
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Erase menu selection changed: index={index} (YES)")
                                     if button_L.value: # button is released
                                                 filler =(0)
                                     else: # button is pressed:
                                                 if index == (7):
-                                                            draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=0) #Deselect Yes
-                                                            draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=1) #Yes White
-                                                            draw.rectangle((x + 21, 48, 57, 60), outline=0, fill=1) #Select No
-                                                            draw.text((x + 24, top + 49), "NO", font=fontcopy, fill=0) #No Black
                                                             index = 6
-                                                            disp.image(image)
-                                                            disp.show()
                                                             log_debug(f"Erase menu selection changed: index={index} (NO)")
                                     if button_A.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
                                                 basemenu()
+                                                return
                                     if button_B.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
                                                 basemenu()
+                                                return
                                     if button_C.value: # button is released
                                                 filler = (0)
                                     else: # button is pressed:
@@ -577,8 +636,17 @@ def erase():
                                                                         display_lines(["ERASE", "Failed"])
                                                             time.sleep(1)
                                                             basemenu()
+                                                            return
                                                 elif index == (6):
                                                             basemenu()
+                                                            return
+                                    footer_selected = None
+                                    if index in (6, 7):
+                                                footer_selected = index - 6
+                                    menu.footer_selected_index = footer_selected
+                                    render_menu(menu, draw, width, height, fonts)
+                                    disp.image(image)
+                                    disp.show()
             except KeyboardInterrupt:
                         GPIO.cleanup()
 
@@ -629,36 +697,21 @@ try:
                                     filler = (0)
                         else: # button is pressed:
                                     if index == (3):
-                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=0)  # Deselect Erase
-                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=1)  # Erase White
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=1) #Select View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
                                                 index = 2
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=2 (VIEW)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0)  # Deselect View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
-                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
-                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
                                                 index = 1
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=1 (COPY)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (1):
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0)  # Deselect View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1)  # View White
-                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1)  # Select Copy
-                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0)  # Copy Black
                                                 index = 1
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=1 (COPY)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     else:
@@ -670,45 +723,27 @@ try:
                                     filler =(0)
                         else: # button is pressed:
                                     if index == (0):
-                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=1) #Select Copy
-                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=0) #Copy Black
                                                 index = 1
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=1 (COPY)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (1):
-                                                draw.rectangle((x - 12, 48, 39, 60), outline=0, fill=0) #Deselect Copy
-                                                draw.text((x - 11, top + 49), "COPY", font=fontcopy, fill=1) #Copy White
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=1) #Select View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=0) #View Black
                                                 index = 2
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=2 (VIEW)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (2):
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0) #Deselect View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
-                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
-                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
                                                 index = 3
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=3 (ERASE)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     elif index == (3):
-                                                draw.rectangle((x + 32, 48, x + 66, 60), outline=0, fill=0) #Deselect View
-                                                draw.text((x + 32, top + 49), "VIEW", font=fontcopy, fill=1) #View White
-                                                draw.rectangle((x + 69, 48, 127, 60), outline=0, fill=1) #Select Erase
-                                                draw.text((x + 71, top + 49), "ERASE", font=fontcopy, fill=0) #Erase Black
                                                 index = 3
-                                                disp.image(image)
-                                                disp.show()
                                                 log_debug("Menu selection changed: index=3 (END OF MENU)")
+                                                basemenu()
                                                 lcdstart = datetime.now()
                                                 run_once = 0
                                     else:
