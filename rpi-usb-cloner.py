@@ -321,10 +321,31 @@ def get_block_devices():
                         log_debug(f"lsblk failed: {error}")
                         return []
 
+ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
+
+def get_children(device):
+            return device.get("children", []) or []
+
+def has_root_mountpoint(device):
+            mountpoint = device.get("mountpoint")
+            if mountpoint in ROOT_MOUNTPOINTS:
+                        return True
+            for child in get_children(device):
+                        if has_root_mountpoint(child):
+                                    return True
+            return False
+
+def is_root_device(device):
+            if device.get("type") != "disk":
+                        return False
+            return has_root_mountpoint(device)
+
 def list_usb_disks():
             devices = []
             for device in get_block_devices():
                         if device.get("type") != "disk":
+                                    continue
+                        if is_root_device(device):
                                     continue
                         tran = device.get("tran")
                         rm = device.get("rm")
@@ -355,9 +376,6 @@ def get_usb_snapshot():
 last_usb_check = time.time()
 last_seen_devices = get_usb_snapshot()
 
-def get_children(device):
-            return device.get("children", []) or []
-
 def unmount_device(device):
             mountpoint = device.get("mountpoint")
             if mountpoint:
@@ -374,7 +392,7 @@ def unmount_device(device):
                                                 pass
 
 def pick_source_target():
-            devices = list_usb_disks()
+            devices = [device for device in list_usb_disks() if not is_root_device(device)]
             if len(devices) < 2:
                         return None, None
             devices = sorted(devices, key=lambda d: d.get("name", ""))
