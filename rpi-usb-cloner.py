@@ -245,11 +245,8 @@ def basemenu():
             global run_once
             global usb_list_index
             global index
-            disp.fill(0)
-            disp.show()
             devices = list_media_devices()  #This is mount.py stuff.
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
-                        disp.fill(0)
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)
                         text = "INSERT USB"
                         text_bbox = draw.textbbox((0, 0), text, font=fontinsert)
@@ -1170,8 +1167,6 @@ def select_erase_mode():
 
 def copy():
             global index
-            disp.fill(0)
-            disp.show()
             index = MENU_NONE
             source, target = pick_source_target()
             if not source or not target:
@@ -1244,19 +1239,13 @@ def copy():
                                                             time.sleep(.01)
                                     current_B = button_B.value
                                     if prev_states["B"] and not current_B:
-                                                disp.fill(0)
-                                                disp.show()
                                                 log_debug("Copy menu: Button B pressed")
                                                 basemenu()
-                                                disp.show()
                                                 return
                                     current_A = button_A.value
                                     if prev_states["A"] and not current_A:
-                                                disp.fill(0)
-                                                disp.show()
                                                 log_debug("Copy menu: Button A pressed")
                                                 basemenu()
-                                                disp.show()
                                                 return
                                     current_C = button_C.value
                                     if prev_states["C"] and not current_C:
@@ -1297,8 +1286,6 @@ def view():
 
 def erase():
             global index
-            disp.fill(0)
-            disp.show()
             index = MENU_NONE
             target_devices = list_usb_disks()
             if not target_devices:
@@ -1408,8 +1395,6 @@ def erase():
 
 def sleepdisplay():  # put the display to sleep to reduce power
             global run_once
-            disp.fill(0)
-            disp.show()
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
             disp.image(image)
             disp.show()
@@ -1532,11 +1517,8 @@ try:
                         if button_A.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
-                                    disp.fill(0)
-                                    disp.show()
                                     log_debug("Button A pressed")
                                     basemenu()
-                                    disp.show()
                         if button_B.value: # button is released
                                     filler = (0)
                         else: # button is pressed:
