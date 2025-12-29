@@ -174,6 +174,7 @@ class Menu:
             items: List[MenuItem]
             selected_index: int = 0
             title: Optional[str] = None
+            title_font: Optional[ImageFont.ImageFont] = None
             footer: Optional[List[str]] = None
             footer_selected_index: Optional[int] = None
             footer_positions: Optional[List[int]] = None
@@ -184,7 +185,8 @@ def render_menu(menu, draw, width, height, fonts):
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
             current_y = top
             if menu.title:
-                        draw.text((x - 11, current_y), menu.title, font=fonts["title"], fill=255)
+                        title_font = menu.title_font or fonts["title"]
+                        draw.text((x - 11, current_y), menu.title, font=title_font, fill=255)
                         current_y += 12
             if menu.content_top is not None:
                         current_y = menu.content_top
@@ -1094,6 +1096,7 @@ def select_erase_mode():
                         items=menu_items,
                         selected_index=selected_index,
                         title="ERASE MODE",
+                        title_font=fontcopy,
             )
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
