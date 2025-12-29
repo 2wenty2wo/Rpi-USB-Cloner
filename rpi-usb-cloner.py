@@ -974,7 +974,7 @@ def select_clone_mode():
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
                         ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+                        ui.display_image(ui_context)
                         time.sleep(0.05)
 
 def select_erase_mode():
@@ -1030,7 +1030,7 @@ def select_erase_mode():
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
                         ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+                        ui.display_image(ui_context)
                         time.sleep(0.05)
 
 def copy():
