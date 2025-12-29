@@ -145,15 +145,6 @@ fonts = {
             "secondary": font_body,
             "tertiary": font_small,
 }
-FONT_LINE_PADDING = {
-            font_title: 2,
-            font_body: 1,
-            font_small: 1,
-            font: 1,
-}
-LINE_SPACING = 1
-ROW_PADDING = 2
-TITLE_SPACING = 1
 
 # Get drawing object to draw on image.
 draw = ImageDraw.Draw(image)
@@ -192,23 +183,15 @@ class Menu:
             content_top: Optional[int] = None
             items_font: Optional[ImageFont.ImageFont] = None
 
-def get_line_height(font, fallback=8, padding=None):
-            if padding is None:
-                        padding = FONT_LINE_PADDING.get(font, 1)
-            height = fallback
-            if hasattr(font, "getmetrics"):
-                        try:
+def get_line_height(font, fallback=8):
+            try:
+                        bbox = font.getbbox("Ag")
+                        return max(bbox[3] - bbox[1], fallback)
+            except AttributeError:
+                        if hasattr(font, "getmetrics"):
                                     ascent, descent = font.getmetrics()
-                                    height = max(ascent + descent, fallback)
-                        except Exception:
-                                    height = fallback
-            else:
-                        try:
-                                    bbox = font.getbbox("Ag")
-                                    height = max(bbox[3] - bbox[1], fallback)
-                        except Exception:
-                                    height = fallback
-            return height + padding
+                                    return max(ascent + descent, fallback)
+            return fallback
 
 def render_menu(menu, draw, width, height, fonts):
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -216,7 +199,7 @@ def render_menu(menu, draw, width, height, fonts):
             if menu.title:
                         title_font = fonts["title"]
                         draw.text((x - 11, current_y), menu.title, font=title_font, fill=255)
-                        current_y += get_line_height(title_font, 10) + TITLE_SPACING
+                        current_y += get_line_height(title_font, 10) + 2
             if menu.content_top is not None:
                         current_y = menu.content_top
 
@@ -230,8 +213,8 @@ def render_menu(menu, draw, width, height, fonts):
                         for line_index, _line in enumerate(lines):
                                     line_font = items_primary_font if line_index == 0 else items_secondary_font
                                     line_fonts.append(line_font)
-                                    line_heights.append(get_line_height(line_font, 8))
-                        row_height = sum(line_heights) + ROW_PADDING if line_heights else get_line_height(items_primary_font, 8) + ROW_PADDING
+                                    line_heights.append(get_line_height(line_font, 8) + 1)
+                        row_height = sum(line_heights) + 4 if line_heights else get_line_height(items_primary_font, 8) + 4
                         row_top = current_y
                         is_selected = item_index == menu.selected_index
                         if is_selected:
@@ -246,7 +229,7 @@ def render_menu(menu, draw, width, height, fonts):
 
             if menu.footer:
                         footer_font = fonts["footer"]
-                        footer_y = height - get_line_height(footer_font, 8) - LINE_SPACING
+                        footer_y = height - get_line_height(footer_font, 8) - 2
                         positions = menu.footer_positions
                         if positions is None:
                                     spacing = width // (len(menu.footer) + 1)
@@ -355,7 +338,7 @@ def display_lines(lines, primary_font=None, secondary_font=None, tertiary_font=N
                         if y + line_height > height:
                                     break
                         draw.text((x - 11, y), line, font=line_font, fill=255)
-                        y += line_height
+                        y += line_height + 2
             disp.display(image)
 
 def ensure_root_for_erase():
@@ -448,7 +431,7 @@ def display_progress(lines, progress_fraction=None, percent_value=None, eta_minu
                         if y + line_height > content_bottom:
                                     break
                         draw.text((x - 11, y), line, font=line_font, fill=255)
-                        y += line_height
+                        y += line_height + 2
 
             if progress_fraction is None and percent_value is None:
                         disp.display(image)
