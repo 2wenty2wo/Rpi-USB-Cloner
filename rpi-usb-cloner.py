@@ -132,10 +132,22 @@ top = padding
 bottom = height-padding
 
 # Load fonts.
+FONT_SIZES = {
+            "title": 14,
+            "body": 10,
+            "small": 8,
+}
+LINE_SPACING = {
+            "title": 2,
+            "body": 1,
+            "small": 1,
+            "default": 1,
+}
+FOOTER_SPACING = 1
 font = ImageFont.load_default()
-font_title = ImageFont.truetype("rainyhearts.ttf", 14)
-font_body = ImageFont.truetype("slkscr.ttf", 10)
-font_small = ImageFont.truetype("slkscr.ttf", 8)
+font_title = ImageFont.truetype("rainyhearts.ttf", FONT_SIZES["title"])
+font_body = ImageFont.truetype("slkscr.ttf", FONT_SIZES["body"])
+font_small = ImageFont.truetype("slkscr.ttf", FONT_SIZES["small"])
 fonts = {
             "title": font_title,
             "items_primary": font_body,
@@ -146,12 +158,11 @@ fonts = {
             "tertiary": font_small,
 }
 FONT_LINE_PADDING = {
-            font_title: 2,
-            font_body: 1,
-            font_small: 1,
-            font: 1,
+            font_title: LINE_SPACING["title"],
+            font_body: LINE_SPACING["body"],
+            font_small: LINE_SPACING["small"],
+            font: LINE_SPACING["default"],
 }
-LINE_SPACING = 1
 ROW_PADDING = 2
 TITLE_SPACING = 1
 
@@ -246,7 +257,7 @@ def render_menu(menu, draw, width, height, fonts):
 
             if menu.footer:
                         footer_font = fonts["footer"]
-                        footer_y = height - get_line_height(footer_font, 8) - LINE_SPACING
+                        footer_y = height - get_line_height(footer_font, 8) - FOOTER_SPACING
                         positions = menu.footer_positions
                         if positions is None:
                                     spacing = width // (len(menu.footer) + 1)
