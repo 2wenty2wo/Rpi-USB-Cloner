@@ -9,7 +9,7 @@ from gpio import (
             PIN_U,
             PIN_D,
             PIN_C,
-            cleanup,
+            cleanup as gpio_cleanup,
             is_pressed,
             read_button,
 )
@@ -1352,10 +1352,10 @@ def sleepdisplay():  # put the display to sleep to reduce power
             disp.display(image)
             run_once = 1
 
-def cleanup(clear_display=True):
+def cleanup_display(clear_display=True):
             if clear_display:
                         disp.clear()
-            cleanup()
+            gpio_cleanup()
 
 # Button Commands
 error_displayed = False
@@ -1479,4 +1479,4 @@ except Exception as e:
             draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
             disp.display(image)
 finally:
-            cleanup(clear_display=not error_displayed)
+            cleanup_display(clear_display=not error_displayed)
