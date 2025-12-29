@@ -186,8 +186,10 @@ def render_menu(menu, draw, width, height, fonts):
             current_y = top
             if menu.title:
                         title_font = menu.title_font or fonts["title"]
+                        title_bbox = draw.textbbox((x - 11, current_y), menu.title, font=title_font)
                         draw.text((x - 11, current_y), menu.title, font=title_font, fill=255)
-                        current_y += 12
+                        title_height = title_bbox[3] - title_bbox[1]
+                        current_y += title_height + 2
             if menu.content_top is not None:
                         current_y = menu.content_top
 
