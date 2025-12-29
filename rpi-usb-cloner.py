@@ -19,6 +19,25 @@ from luma.oled.device import ssd1306
 from datetime import datetime, timedelta
 from time import sleep, strftime, localtime
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+PIN_A = 5
+PIN_B = 6
+PIN_L = 27
+PIN_R = 23
+PIN_U = 17
+PIN_D = 22
+PIN_C = 4
+
+GPIO.setup(PIN_A, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_B, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_L, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_R, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_U, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_D, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(PIN_C, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
 parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
 parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
 args = parser.parse_args()
@@ -87,36 +106,12 @@ def copy_partition_table(src, dst):
                         return
             raise RuntimeError(f"Unsupported partition table label: {label}")
 
-class GPIOButton:
-            def __init__(self, pin):
-                        self.pin = pin
-                        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-            @property
-            def value(self):
-                        return GPIO.input(self.pin) == GPIO.HIGH
-
 # Create the I2C interface.
 serial = i2c(port=1, address=0x3C)
 # Create the SSD1306 OLED class.
 disp = ssd1306(serial)
 
 # Input pins:
-GPIO.setmode(GPIO.BCM)
-button_A = GPIOButton(5)
-
-button_B = GPIOButton(6)
-
-button_L = GPIOButton(27)
-
-button_R = GPIOButton(23)
-
-button_U = GPIOButton(17)
-
-button_D = GPIOButton(22)
-
-button_C = GPIOButton(4)
-
 # Clear display.
 disp.clear()
 
@@ -327,7 +322,7 @@ def ensure_root_for_erase():
             return True
 
 def wait_for_buttons_release(buttons, poll_delay=0.05):
-            while any(not button.value for button in buttons):
+            while any(GPIO.input(pin) == GPIO.LOW for pin in buttons):
                         time.sleep(poll_delay)
 
 def human_size(size_bytes):
@@ -1045,38 +1040,38 @@ def select_clone_mode():
             )
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
-            wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
+            wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
-                        "U": button_U.value,
-                        "D": button_D.value,
-                        "L": button_L.value,
-                        "R": button_R.value,
-                        "A": button_A.value,
-                        "B": button_B.value,
-                        "C": button_C.value,
+                        "U": GPIO.input(PIN_U),
+                        "D": GPIO.input(PIN_D),
+                        "L": GPIO.input(PIN_L),
+                        "R": GPIO.input(PIN_R),
+                        "A": GPIO.input(PIN_A),
+                        "B": GPIO.input(PIN_B),
+                        "C": GPIO.input(PIN_C),
             }
             while True:
-                        current_U = button_U.value
+                        current_U = GPIO.input(PIN_U)
                         if prev_states["U"] and not current_U:
                                     selected_index = max(0, selected_index - 1)
                                     log_debug(f"Clone mode selection changed: {modes[selected_index]}")
-                        current_D = button_D.value
+                        current_D = GPIO.input(PIN_D)
                         if prev_states["D"] and not current_D:
                                     selected_index = min(len(modes) - 1, selected_index + 1)
                                     log_debug(f"Clone mode selection changed: {modes[selected_index]}")
-                        current_L = button_L.value
+                        current_L = GPIO.input(PIN_L)
                         if prev_states["L"] and not current_L:
                                     selected_index = max(0, selected_index - 1)
-                        current_R = button_R.value
+                        current_R = GPIO.input(PIN_R)
                         if prev_states["R"] and not current_R:
                                     selected_index = min(len(modes) - 1, selected_index + 1)
-                        current_A = button_A.value
+                        current_A = GPIO.input(PIN_A)
                         if prev_states["A"] and not current_A:
                                     return None
-                        current_B = button_B.value
+                        current_B = GPIO.input(PIN_B)
                         if prev_states["B"] and not current_B:
                                     return modes[selected_index]
-                        current_C = button_C.value
+                        current_C = GPIO.input(PIN_C)
                         prev_states["U"] = current_U
                         prev_states["D"] = current_D
                         prev_states["L"] = current_L
@@ -1102,38 +1097,38 @@ def select_erase_mode():
             )
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
-            wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
+            wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
-                        "U": button_U.value,
-                        "D": button_D.value,
-                        "L": button_L.value,
-                        "R": button_R.value,
-                        "A": button_A.value,
-                        "B": button_B.value,
-                        "C": button_C.value,
+                        "U": GPIO.input(PIN_U),
+                        "D": GPIO.input(PIN_D),
+                        "L": GPIO.input(PIN_L),
+                        "R": GPIO.input(PIN_R),
+                        "A": GPIO.input(PIN_A),
+                        "B": GPIO.input(PIN_B),
+                        "C": GPIO.input(PIN_C),
             }
             while True:
-                        current_U = button_U.value
+                        current_U = GPIO.input(PIN_U)
                         if prev_states["U"] and not current_U:
                                     selected_index = max(0, selected_index - 1)
                                     log_debug(f"Erase mode selection changed: {modes[selected_index]}")
-                        current_D = button_D.value
+                        current_D = GPIO.input(PIN_D)
                         if prev_states["D"] and not current_D:
                                     selected_index = min(len(modes) - 1, selected_index + 1)
                                     log_debug(f"Erase mode selection changed: {modes[selected_index]}")
-                        current_L = button_L.value
+                        current_L = GPIO.input(PIN_L)
                         if prev_states["L"] and not current_L:
                                     selected_index = max(0, selected_index - 1)
-                        current_R = button_R.value
+                        current_R = GPIO.input(PIN_R)
                         if prev_states["R"] and not current_R:
                                     selected_index = min(len(modes) - 1, selected_index + 1)
-                        current_A = button_A.value
+                        current_A = GPIO.input(PIN_A)
                         if prev_states["A"] and not current_A:
                                     return None
-                        current_B = button_B.value
+                        current_B = GPIO.input(PIN_B)
                         if prev_states["B"] and not current_B:
                                     return modes[selected_index]
-                        current_C = button_C.value
+                        current_C = GPIO.input(PIN_C)
                         prev_states["U"] = current_U
                         prev_states["D"] = current_D
                         prev_states["L"] = current_L
@@ -1168,17 +1163,17 @@ def copy():
             menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
-            wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
+            wait_for_buttons_release([PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
-                        "L": button_L.value,
-                        "R": button_R.value,
-                        "A": button_A.value,
-                        "B": button_B.value,
-                        "C": button_C.value,
+                        "L": GPIO.input(PIN_L),
+                        "R": GPIO.input(PIN_R),
+                        "A": GPIO.input(PIN_A),
+                        "B": GPIO.input(PIN_B),
+                        "C": GPIO.input(PIN_C),
             }
             try:
                         while 1:
-                                    current_R = button_R.value
+                                    current_R = GPIO.input(PIN_R)
                                     if prev_states["R"] and not current_R:
                                                 if confirm_selection == CONFIRM_NO:
                                                             confirm_selection = CONFIRM_YES
@@ -1193,7 +1188,7 @@ def copy():
                                                             # Display image.
                                                             disp.display(image)
                                                             time.sleep(.01)
-                                    current_L = button_L.value
+                                    current_L = GPIO.input(PIN_L)
                                     if prev_states["L"] and not current_L:
                                                 if confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_NO
@@ -1214,12 +1209,12 @@ def copy():
                                                             # Display image.
                                                             disp.display(image)
                                                             time.sleep(.01)
-                                    current_A = button_A.value
+                                    current_A = GPIO.input(PIN_A)
                                     if prev_states["A"] and not current_A:
                                                 log_debug("Copy menu: Button A pressed")
                                                 basemenu()
                                                 return
-                                    current_B = button_B.value
+                                    current_B = GPIO.input(PIN_B)
                                     if prev_states["B"] and not current_B:
                                                 log_debug("Copy menu: Button B pressed")
                                                 if confirm_selection == CONFIRM_YES:
@@ -1240,7 +1235,7 @@ def copy():
                                                 elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
-                                    current_C = button_C.value
+                                    current_C = GPIO.input(PIN_C)
                                     if prev_states["C"] and not current_C:
                                                 log_debug("Copy menu: Button C pressed (ignored)")
                                     prev_states["R"] = current_R
@@ -1294,17 +1289,17 @@ def erase():
             menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
-            wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
+            wait_for_buttons_release([PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
-                        "L": button_L.value,
-                        "R": button_R.value,
-                        "A": button_A.value,
-                        "B": button_B.value,
-                        "C": button_C.value,
+                        "L": GPIO.input(PIN_L),
+                        "R": GPIO.input(PIN_R),
+                        "A": GPIO.input(PIN_A),
+                        "B": GPIO.input(PIN_B),
+                        "C": GPIO.input(PIN_C),
             }
             try:
                         while 1:
-                                    current_R = button_R.value
+                                    current_R = GPIO.input(PIN_R)
                                     if prev_states["R"] and not current_R:
                                                 if confirm_selection == CONFIRM_NO:
                                                             confirm_selection = CONFIRM_YES
@@ -1312,16 +1307,16 @@ def erase():
                                                 elif confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_YES
                                                             log_debug("Erase menu selection changed: YES")
-                                    current_L = button_L.value
+                                    current_L = GPIO.input(PIN_L)
                                     if prev_states["L"] and not current_L:
                                                 if confirm_selection == CONFIRM_YES:
                                                             confirm_selection = CONFIRM_NO
                                                             log_debug("Erase menu selection changed: NO")
-                                    current_A = button_A.value
+                                    current_A = GPIO.input(PIN_A)
                                     if prev_states["A"] and not current_A:
                                                 basemenu()
                                                 return
-                                    current_B = button_B.value
+                                    current_B = GPIO.input(PIN_B)
                                     if prev_states["B"] and not current_B:
                                                 if confirm_selection == CONFIRM_YES:
                                                             if not ensure_root_for_erase():
@@ -1338,7 +1333,7 @@ def erase():
                                                 elif confirm_selection == CONFIRM_NO:
                                                             basemenu()
                                                             return
-                                    current_C = button_C.value
+                                    current_C = GPIO.input(PIN_C)
                                     if prev_states["C"] and not current_C:
                                                 log_debug("Erase menu: Button C pressed (ignored)")
                                     prev_states["R"] = current_R
@@ -1384,7 +1379,7 @@ try:
                                                             sleepdisplay()
                                                 time.sleep(0.1)
                         # Sleep Stuff
-                        if button_U.value: # button is released
+                        if GPIO.input(PIN_U): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     log_debug("Button UP pressed")
@@ -1397,7 +1392,7 @@ try:
                                     disp.display(image)
                                     lcdstart = datetime.now()
                                     run_once = 0
-                        if button_L.value: # button is released
+                        if GPIO.input(PIN_L): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     if index == MENU_ERASE:
@@ -1422,7 +1417,7 @@ try:
                                                 # Display image.
                                                 disp.display(image)
                                                 time.sleep(.01)
-                        if button_R.value: # button is released
+                        if GPIO.input(PIN_R): # button is released
                                     filler =(0)
                         else: # button is pressed:
                                     if index == MENU_NONE:
@@ -1453,7 +1448,7 @@ try:
                                                 # Display image.
                                                 disp.display(image)
                                                 time.sleep(.01)
-                        if button_D.value: # button is released
+                        if GPIO.input(PIN_D): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     log_debug("Button DOWN pressed")
@@ -1463,17 +1458,17 @@ try:
                                                 usb_list_index = min(usb_list_index + 1, len(devices) - 1)
                                                 if usb_list_index != previous_index:
                                                             basemenu()
-                        if button_C.value: # button is released
+                        if GPIO.input(PIN_C): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     filler = (0)
                                     log_debug("Button C pressed")
-                        if button_A.value: # button is released
+                        if GPIO.input(PIN_A): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     log_debug("Button A pressed")
                                     basemenu()
-                        if button_B.value: # button is released
+                        if GPIO.input(PIN_B): # button is released
                                     filler = (0)
                         else: # button is pressed:
                                     menuselect ()
