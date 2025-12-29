@@ -289,7 +289,7 @@ def basemenu():
 basemenu()  # Run Base Menu at script start
 
 #set up a bit of a grid for mapping menu choices.
-index = MENU_NONE
+index = MENU_COPY if list_media_devices() else MENU_NONE
 latindex = 0
 filler = 0
 
@@ -1427,13 +1427,7 @@ try:
                         if GPIO.input(PIN_R): # button is released
                                     filler =(0)
                         else: # button is pressed:
-                                    if index == MENU_NONE:
-                                                index = MENU_COPY
-                                                log_debug("Menu selection changed: index=0 (COPY)")
-                                                basemenu()
-                                                lcdstart = datetime.now()
-                                                run_once = 0
-                                    elif index == MENU_COPY:
+                                    if index == MENU_COPY:
                                                 index = MENU_VIEW
                                                 log_debug("Menu selection changed: index=1 (VIEW)")
                                                 basemenu()
