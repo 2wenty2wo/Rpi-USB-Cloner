@@ -387,87 +387,6 @@ def format_eta(seconds):
                         return f"{hours:d}:{minutes:02d}:{secs:02d}"
             return f"{minutes:02d}:{secs:02d}"
 
-def format_eta_minutes(seconds):
-            if seconds is None:
-                        return None
-            if seconds < 0:
-                        return None
-            minutes = int((seconds + 59) // 60)
-            return f"{minutes:02d}m"
-
-def calculate_progress(bytes_copied, total_bytes, percent):
-            progress_fraction = None
-            percent_value = None
-            if total_bytes and bytes_copied is not None:
-                        progress_fraction = min(max(bytes_copied / total_bytes, 0.0), 1.0)
-                        percent_value = progress_fraction * 100.0
-            elif percent is not None:
-                        progress_fraction = min(max(percent / 100.0, 0.0), 1.0)
-                        percent_value = percent
-            return progress_fraction, percent_value
-
-def display_progress(lines, progress_fraction=None, percent_value=None, eta_minutes=None,
-                     primary_font=None, secondary_font=None, tertiary_font=None):
-            draw.rectangle((0, 0, width, height), outline=0, fill=0)
-            primary_font = primary_font or fonts["primary"]
-            secondary_font = secondary_font or fonts["secondary"]
-            tertiary_font = tertiary_font or fonts["tertiary"]
-
-            bar_height = 6
-            bar_padding = 2
-            bar_bottom = height - bar_padding
-            bar_top = bar_bottom - bar_height
-            content_bottom = bar_top - 2
-
-            y = top
-            for index, line in enumerate(lines[:6]):
-                        if index == 0:
-                                    line_font = primary_font
-                        elif index == 1:
-                                    line_font = secondary_font
-                        else:
-                                    line_font = tertiary_font
-                        line_height = get_line_height(line_font, 8)
-                        if y + line_height > content_bottom:
-                                    break
-                        draw.text((x - 11, y), line, font=line_font, fill=255)
-                        y += line_height + 2
-
-            if progress_fraction is None and percent_value is None:
-                        disp.display(image)
-                        return
-
-            if progress_fraction is None and percent_value is not None:
-                        progress_fraction = min(max(percent_value / 100.0, 0.0), 1.0)
-            if percent_value is None and progress_fraction is not None:
-                        percent_value = progress_fraction * 100.0
-
-            label_parts = []
-            if percent_value is not None:
-                        label_parts.append(f"{percent_value:.0f}%")
-            if eta_minutes:
-                        label_parts.append(eta_minutes)
-            label = " ".join(label_parts)
-
-            label_font = fonts["tertiary"]
-            label_width = 0
-            if label:
-                        label_bbox = draw.textbbox((0, 0), label, font=label_font)
-                        label_width = label_bbox[2] - label_bbox[0]
-            bar_width = max(width - label_width - 6, 10)
-            bar_x = 2
-            bar_y = bar_top
-            draw.rectangle((bar_x, bar_y, bar_x + bar_width, bar_y + bar_height), outline=1, fill=0)
-            if progress_fraction is not None:
-                        fill_width = int((bar_width - 2) * min(max(progress_fraction, 0.0), 1.0))
-                        if fill_width > 0:
-                                    draw.rectangle((bar_x + 1, bar_y + 1, bar_x + 1 + fill_width, bar_y + bar_height - 1), outline=1, fill=1)
-            if label:
-                        label_x = bar_x + bar_width + 4
-                        label_y = bar_y - 1
-                        draw.text((label_x, label_y), label, font=label_font, fill=255)
-            disp.display(image)
-
 def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, eta):
             lines = []
             if title:
@@ -663,17 +582,14 @@ def pick_source_target():
             return source, target
 
 def run_progress_command(command, total_bytes=None, title="WORKING", device_label=None, mode_label=None):
-            display_progress(
-                        format_progress_display(title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None),
-                        progress_fraction=0.0 if total_bytes else None,
-                        percent_value=0.0 if total_bytes else None,
-            )
+            display_lines(format_progress_display(title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None))
             log_debug(f"Starting command: {' '.join(command)}")
-            process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             last_update = time.time()
             last_bytes = None
             last_time = None
             last_rate = None
+            last_eta = None
             last_percent = None
             spinner_frames = ["|", "/", "-", "\\"]
             spinner_index = 0
@@ -691,6 +607,7 @@ def run_progress_command(command, total_bytes=None, title="WORKING", device_labe
                                     rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)
                                     bytes_copied = last_bytes
                                     rate = last_rate
+                                    eta = last_eta
                                     if bytes_match:
                                                 bytes_copied = int(bytes_match.group(1))
                                                 if rate_match:
@@ -702,59 +619,42 @@ def run_progress_command(command, total_bytes=None, title="WORKING", device_labe
                                                                         delta_time = now - last_time
                                                                         if delta_bytes >= 0 and delta_time > 0:
                                                                                     rate = delta_bytes / delta_time
+                                                if rate and total_bytes and bytes_copied <= total_bytes:
+                                                            eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                                                            eta = format_eta(eta_seconds)
                                                 last_bytes = bytes_copied
                                                 last_time = now
                                                 last_rate = rate or last_rate
+                                                last_eta = eta or last_eta
                                     if percent_match:
                                                 last_percent = float(percent_match.group(1))
                                     rate_display = rate if rate is not None else last_rate
-                                    progress_fraction, percent_value = calculate_progress(bytes_copied, total_bytes, last_percent)
-                                    eta_minutes = None
-                                    if rate_display and total_bytes and bytes_copied is not None:
-                                                remaining_bytes = total_bytes - bytes_copied
-                                                if remaining_bytes >= 0 and rate_display > 0:
-                                                            eta_minutes = format_eta_minutes(remaining_bytes / rate_display)
-                                    display_progress(
-                                                format_progress_display(
-                                                            title,
-                                                            device_label,
-                                                            mode_label,
-                                                            bytes_copied,
-                                                            total_bytes,
-                                                            last_percent,
-                                                            rate_display,
-                                                            None,
-                                                            spinner_frames[spinner_index],
-                                                ),
-                                                progress_fraction=progress_fraction,
-                                                percent_value=percent_value,
-                                                eta_minutes=eta_minutes,
-                                    )
+                                    eta_display = eta if eta is not None else last_eta
+                                    display_lines(format_progress_display(
+                                                title,
+                                                device_label,
+                                                mode_label,
+                                                bytes_copied,
+                                                total_bytes,
+                                                last_percent,
+                                                rate_display,
+                                                eta_display,
+                                                spinner_frames[spinner_index],
+                                    ))
                                     last_update = now
                         if now - last_update >= refresh_interval:
                                     spinner_index = (spinner_index + 1) % len(spinner_frames)
-                                    progress_fraction, percent_value = calculate_progress(last_bytes, total_bytes, last_percent)
-                                    eta_minutes = None
-                                    if last_rate and total_bytes and last_bytes is not None:
-                                                remaining_bytes = total_bytes - last_bytes
-                                                if remaining_bytes >= 0 and last_rate > 0:
-                                                            eta_minutes = format_eta_minutes(remaining_bytes / last_rate)
-                                    display_progress(
-                                                format_progress_display(
-                                                            title,
-                                                            device_label,
-                                                            mode_label,
-                                                            last_bytes,
-                                                            total_bytes,
-                                                            last_percent,
-                                                            last_rate,
-                                                            None,
-                                                            spinner_frames[spinner_index],
-                                                ),
-                                                progress_fraction=progress_fraction,
-                                                percent_value=percent_value,
-                                                eta_minutes=eta_minutes,
-                                    )
+                                    display_lines(format_progress_display(
+                                                title,
+                                                device_label,
+                                                mode_label,
+                                                last_bytes,
+                                                total_bytes,
+                                                last_percent,
+                                                last_rate,
+                                                last_eta,
+                                                spinner_frames[spinner_index],
+                                    ))
                                     last_update = now
                         if process.poll() is not None and not line:
                                     break
@@ -788,110 +688,22 @@ def parse_progress(stderr_output, total_bytes=None, title="WORKING"):
                                     display_lines([title, f"{percent_match.group(1)}%"])
 
 def run_checked_with_progress(command, total_bytes=None, title="WORKING", stdout_target=None):
-            display_progress([title, "Starting..."], progress_fraction=0.0 if total_bytes else None, percent_value=0.0 if total_bytes else None)
+            display_lines([title, "Starting..."])
             log_debug(f"Running command: {' '.join(command)}")
-            process = subprocess.Popen(
+            result = subprocess.run(
                         command,
-                        stdout=stdout_target or subprocess.DEVNULL,
+                        stdout=stdout_target or subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
             )
-            last_update = time.time()
-            last_bytes = None
-            last_time = None
-            last_rate = None
-            last_percent = None
-            spinner_frames = ["|", "/", "-", "\\"]
-            spinner_index = 0
-            refresh_interval = 1.0
-            stderr_lines = []
-            while True:
-                        ready, _, _ = select.select([process.stderr], [], [], refresh_interval)
-                        now = time.time()
-                        line = None
-                        if ready:
-                                    line = process.stderr.readline()
-                        if line:
-                                    stderr_lines.append(line)
-                                    log_debug(f"stderr: {line.strip()}")
-                                    bytes_match = re.search(r"(\d+)\s+bytes", line)
-                                    percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
-                                    rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)
-                                    bytes_copied = last_bytes
-                                    rate = last_rate
-                                    if bytes_match:
-                                                bytes_copied = int(bytes_match.group(1))
-                                                if rate_match:
-                                                            rate = float(rate_match.group(1)) * 1024 * 1024
-                                                else:
-                                                            rate = None
-                                                            if last_bytes is not None and last_time is not None:
-                                                                        delta_bytes = bytes_copied - last_bytes
-                                                                        delta_time = now - last_time
-                                                                        if delta_bytes >= 0 and delta_time > 0:
-                                                                                    rate = delta_bytes / delta_time
-                                                last_bytes = bytes_copied
-                                                last_time = now
-                                                last_rate = rate or last_rate
-                                    if percent_match:
-                                                last_percent = float(percent_match.group(1))
-                                    rate_display = rate if rate is not None else last_rate
-                                    progress_fraction, percent_value = calculate_progress(bytes_copied, total_bytes, last_percent)
-                                    eta_minutes = None
-                                    if rate_display and total_bytes and bytes_copied is not None:
-                                                remaining_bytes = total_bytes - bytes_copied
-                                                if remaining_bytes >= 0 and rate_display > 0:
-                                                            eta_minutes = format_eta_minutes(remaining_bytes / rate_display)
-                                    display_progress(
-                                                format_progress_display(
-                                                            title,
-                                                            None,
-                                                            None,
-                                                            bytes_copied,
-                                                            total_bytes,
-                                                            last_percent,
-                                                            rate_display,
-                                                            None,
-                                                            spinner_frames[spinner_index],
-                                                ),
-                                                progress_fraction=progress_fraction,
-                                                percent_value=percent_value,
-                                                eta_minutes=eta_minutes,
-                                    )
-                                    last_update = now
-                        if now - last_update >= refresh_interval:
-                                    spinner_index = (spinner_index + 1) % len(spinner_frames)
-                                    progress_fraction, percent_value = calculate_progress(last_bytes, total_bytes, last_percent)
-                                    eta_minutes = None
-                                    if last_rate and total_bytes and last_bytes is not None:
-                                                remaining_bytes = total_bytes - last_bytes
-                                                if remaining_bytes >= 0 and last_rate > 0:
-                                                            eta_minutes = format_eta_minutes(remaining_bytes / last_rate)
-                                    display_progress(
-                                                format_progress_display(
-                                                            title,
-                                                            None,
-                                                            None,
-                                                            last_bytes,
-                                                            total_bytes,
-                                                            last_percent,
-                                                            last_rate,
-                                                            None,
-                                                            spinner_frames[spinner_index],
-                                                ),
-                                                progress_fraction=progress_fraction,
-                                                percent_value=percent_value,
-                                                eta_minutes=eta_minutes,
-                                    )
-                                    last_update = now
-                        if process.poll() is not None and not line:
-                                    break
-            stderr_output = "".join(stderr_lines)
-            if process.returncode != 0:
-                        message = stderr_output.strip().splitlines()[-1] if stderr_output.strip() else "Command failed"
+            parse_progress(result.stderr, total_bytes=total_bytes, title=title)
+            if result.returncode != 0:
+                        stderr = result.stderr.strip()
+                        stdout = result.stdout.strip() if result.stdout else ""
+                        message = stderr or stdout or "Command failed"
                         raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
-            display_progress([title, "Complete"], progress_fraction=1.0 if total_bytes else None, percent_value=100.0 if total_bytes else None)
-            return subprocess.CompletedProcess(command, process.returncode, stdout=None, stderr=stderr_output)
+            display_lines([title, "Complete"])
+            return result
 
 def clone_dd(src, dst, total_bytes=None, title="CLONING"):
             dd_path = shutil.which("dd")
