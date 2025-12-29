@@ -235,6 +235,7 @@ def basemenu():
             global usb_list_index
             global index
             devices = list_media_devices()  #This is mount.py stuff.
+            devices_present = bool(devices)
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)
                         text = "INSERT USB"
@@ -278,7 +279,7 @@ def basemenu():
             disp.display(image)
             lcdstart = datetime.now()
             run_once = 0
-            if index not in (MENU_COPY, MENU_VIEW, MENU_ERASE):
+            if not devices_present:
                         index = MENU_NONE
             log_debug("Base menu drawn")
 
