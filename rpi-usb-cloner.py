@@ -334,8 +334,11 @@ def display_lines(lines, primary_font=None, secondary_font=None, tertiary_font=N
                                     line_font = secondary_font
                         else:
                                     line_font = tertiary_font
+                        line_height = get_line_height(line_font, 8)
+                        if y + line_height > height:
+                                    break
                         draw.text((x - 11, y), line, font=line_font, fill=255)
-                        y += get_line_height(line_font, 8) + 2
+                        y += line_height + 2
             disp.display(image)
 
 def ensure_root_for_erase():
