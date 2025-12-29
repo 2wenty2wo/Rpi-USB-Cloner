@@ -131,16 +131,19 @@ padding = -2
 top = padding
 bottom = height-padding
 
-# Load default font.
+# Load fonts.
 font = ImageFont.load_default()
-fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
-fontinsert = ImageFont.truetype("slkscr.ttf", 16)
-fontdisks = ImageFont.truetype("slkscr.ttf", 8)
-fontmain = ImageFont.load_default()
+font_title = ImageFont.truetype("rainyhearts.ttf", 14)
+font_body = ImageFont.truetype("slkscr.ttf", 10)
+font_small = ImageFont.truetype("slkscr.ttf", 8)
 fonts = {
-            "title": fontdisks,
-            "items": fontdisks,
-            "footer": fontcopy,
+            "title": font_title,
+            "items_primary": font_body,
+            "items_secondary": font_small,
+            "footer": font_body,
+            "primary": font_title,
+            "secondary": font_body,
+            "tertiary": font_small,
 }
 
 # Get drawing object to draw on image.
@@ -180,40 +183,53 @@ class Menu:
             content_top: Optional[int] = None
             items_font: Optional[ImageFont.ImageFont] = None
 
+def get_line_height(font, fallback=8):
+            try:
+                        bbox = font.getbbox("Ag")
+                        return max(bbox[3] - bbox[1], fallback)
+            except AttributeError:
+                        if hasattr(font, "getmetrics"):
+                                    ascent, descent = font.getmetrics()
+                                    return max(ascent + descent, fallback)
+            return fallback
+
 def render_menu(menu, draw, width, height, fonts):
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
             current_y = top
             if menu.title:
-                        draw.text((x - 11, current_y), menu.title, font=fonts["title"], fill=255)
-                        current_y += 12
+                        title_font = fonts["title"]
+                        draw.text((x - 11, current_y), menu.title, font=title_font, fill=255)
+                        current_y += get_line_height(title_font, 10) + 2
             if menu.content_top is not None:
                         current_y = menu.content_top
 
-            items_font = menu.items_font or fonts["items"]
-            line_height = 8
-            try:
-                        bbox = items_font.getbbox("Ag")
-                        line_height = max(bbox[3] - bbox[1], line_height)
-            except AttributeError:
-                        if hasattr(items_font, "getmetrics"):
-                                    ascent, descent = items_font.getmetrics()
-                                    line_height = max(ascent + descent, line_height)
+            items_primary_font = menu.items_font or fonts["items_primary"]
+            items_secondary_font = fonts["items_secondary"]
 
             for item_index, item in enumerate(menu.items):
                         lines = item.lines
-                        row_height = max(len(lines), 1) * line_height + 4
+                        line_fonts = []
+                        line_heights = []
+                        for line_index, _line in enumerate(lines):
+                                    line_font = items_primary_font if line_index == 0 else items_secondary_font
+                                    line_fonts.append(line_font)
+                                    line_heights.append(get_line_height(line_font, 8) + 1)
+                        row_height = sum(line_heights) + 4 if line_heights else get_line_height(items_primary_font, 8) + 4
                         row_top = current_y
                         is_selected = item_index == menu.selected_index
                         if is_selected:
                                     draw.rectangle((0, row_top - 1, width, row_top + row_height - 1), outline=0, fill=1)
+                        line_y = row_top
                         for line_index, line in enumerate(lines):
+                                    line_font = line_fonts[line_index]
                                     text_color = 0 if is_selected else 255
-                                    draw.text((x - 11, row_top + line_index * line_height), line, font=items_font, fill=text_color)
+                                    draw.text((x - 11, line_y), line, font=line_font, fill=text_color)
+                                    line_y += line_heights[line_index]
                         current_y += row_height
 
             if menu.footer:
                         footer_font = fonts["footer"]
-                        footer_y = height - 15
+                        footer_y = height - get_line_height(footer_font, 8) - 2
                         positions = menu.footer_positions
                         if positions is None:
                                     spacing = width // (len(menu.footer) + 1)
@@ -236,12 +252,12 @@ def basemenu():
             if not devices:  # If nothing in devices list (No USB connected), display "INSERT USB".
                         draw.rectangle((0, 0, width, height), outline=0, fill=0)
                         text = "INSERT USB"
-                        text_bbox = draw.textbbox((0, 0), text, font=fontinsert)
+                        text_bbox = draw.textbbox((0, 0), text, font=fonts["primary"])
                         text_width = text_bbox[2] - text_bbox[0]
                         text_height = text_bbox[3] - text_bbox[1]
                         text_x = (width - text_width) // 2
                         text_y = (height - text_height) // 2
-                        draw.text((text_x, text_y), text, font=fontinsert, fill=255)
+                        draw.text((text_x, text_y), text, font=fonts["primary"], fill=255)
                         usb = 0
                         usb_list_index = 0
             else:  # If USB is connected.
@@ -305,12 +321,24 @@ run_once = 0
 lcdstart = datetime.now()
 
 # Copy USB Screen
-def display_lines(lines, font=fontdisks):
+def display_lines(lines, primary_font=None, secondary_font=None, tertiary_font=None):
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            primary_font = primary_font or fonts["primary"]
+            secondary_font = secondary_font or fonts["secondary"]
+            tertiary_font = tertiary_font or fonts["tertiary"]
             y = top
-            for line in lines[:6]:
-                        draw.text((x - 11, y), line, font=font, fill=255)
-                        y += 10
+            for index, line in enumerate(lines[:6]):
+                        if index == 0:
+                                    line_font = primary_font
+                        elif index == 1:
+                                    line_font = secondary_font
+                        else:
+                                    line_font = tertiary_font
+                        line_height = get_line_height(line_font, 8)
+                        if y + line_height > height:
+                                    break
+                        draw.text((x - 11, y), line, font=line_font, fill=255)
+                        y += line_height + 2
             disp.display(image)
 
 def ensure_root_for_erase():
@@ -1483,7 +1511,7 @@ except Exception as e:
             error_displayed = True
             disp.clear()
             draw.rectangle((0,0,width,height), outline=0, fill=0)
-            draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
+            draw.text((x, top + 30), "ERROR", font=fonts["primary"], fill=255)
             disp.display(image)
 finally:
             cleanup(clear_display=not error_displayed)
