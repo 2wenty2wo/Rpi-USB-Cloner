@@ -1,5 +1,3 @@
-import board
-import busio
 import time
 import datetime
 import subprocess
@@ -15,9 +13,9 @@ import argparse
 from dataclasses import dataclass
 from typing import List, Optional
 
-from digitalio import DigitalInOut, Direction, Pull
 from PIL import Image, ImageDraw, ImageFont
-import adafruit_ssd1306
+from luma.core.interface.serial import i2c
+from luma.oled.device import ssd1306
 from datetime import datetime, timedelta
 from time import sleep, strftime, localtime
 
@@ -89,43 +87,38 @@ def copy_partition_table(src, dst):
                         return
             raise RuntimeError(f"Unsupported partition table label: {label}")
 
+class GPIOButton:
+            def __init__(self, pin):
+                        self.pin = pin
+                        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+            @property
+            def value(self):
+                        return GPIO.input(self.pin) == GPIO.HIGH
+
 # Create the I2C interface.
-i2c = busio.I2C(board.SCL, board.SDA)
+serial = i2c(port=1, address=0x3C)
 # Create the SSD1306 OLED class.
-disp = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c)
+disp = ssd1306(serial)
 
 # Input pins:
-button_A = DigitalInOut(board.D5)
-button_A.direction = Direction.INPUT
-button_A.pull = Pull.UP
+GPIO.setmode(GPIO.BCM)
+button_A = GPIOButton(5)
 
-button_B = DigitalInOut(board.D6)
-button_B.direction = Direction.INPUT
-button_B.pull = Pull.UP
+button_B = GPIOButton(6)
 
-button_L = DigitalInOut(board.D27)
-button_L.direction = Direction.INPUT
-button_L.pull = Pull.UP
+button_L = GPIOButton(27)
 
-button_R = DigitalInOut(board.D23)
-button_R.direction = Direction.INPUT
-button_R.pull = Pull.UP
+button_R = GPIOButton(23)
 
-button_U = DigitalInOut(board.D17)
-button_U.direction = Direction.INPUT
-button_U.pull = Pull.UP
+button_U = GPIOButton(17)
 
-button_D = DigitalInOut(board.D22)
-button_D.direction = Direction.INPUT
-button_D.pull = Pull.UP
+button_D = GPIOButton(22)
 
-button_C = DigitalInOut(board.D4)
-button_C.direction = Direction.INPUT
-button_C.pull = Pull.UP
+button_C = GPIOButton(4)
 
 # Clear display.
-disp.fill(0)
-disp.show()
+disp.clear()
 
 # Create blank image for drawing.
 # Make sure to create image with mode '1' for 1-bit color.
@@ -134,8 +127,7 @@ height = disp.height
 splash = Image.open("splash.png").convert("1")
 if splash.size != (width, height):
     splash = splash.resize((width, height))
-disp.image(splash)
-disp.show()
+disp.display(splash)
 time.sleep(1.5)
 image = Image.new('1', (width, height))
 
@@ -284,8 +276,7 @@ def basemenu():
                                     footer_positions=[x - 11, x + 32, x + 71],
                         )
                         render_menu(menu, draw, width, height, fonts)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             lcdstart = datetime.now()
             run_once = 0
             if index not in (MENU_COPY, MENU_VIEW, MENU_ERASE):
@@ -309,8 +300,7 @@ def menuselect():
                         erase()
             else:
                         # Display image.
-                        disp.image(image)
-                        disp.show()
+                        disp.display(image)
                         time.sleep(.01)
 
 global run_once
@@ -326,8 +316,7 @@ def display_lines(lines, font=fontdisks):
             for line in lines[:6]:
                         draw.text((x - 11, y), line, font=font, fill=255)
                         y += 10
-            disp.image(image)
-            disp.show()
+            disp.display(image)
 
 def ensure_root_for_erase():
             if os.geteuid() != 0:
@@ -1055,8 +1044,7 @@ def select_clone_mode():
                         footer_positions=[x + 12, x + 63],
             )
             render_menu(menu, draw, width, height, fonts)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
             prev_states = {
                         "U": button_U.value,
@@ -1098,8 +1086,7 @@ def select_clone_mode():
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
                         render_menu(menu, draw, width, height, fonts)
-                        disp.image(image)
-                        disp.show()
+                        disp.display(image)
                         time.sleep(0.05)
 
 def select_erase_mode():
@@ -1114,8 +1101,7 @@ def select_erase_mode():
                         footer_positions=[x + 12, x + 63],
             )
             render_menu(menu, draw, width, height, fonts)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             wait_for_buttons_release([button_U, button_D, button_L, button_R, button_A, button_B, button_C])
             prev_states = {
                         "U": button_U.value,
@@ -1157,8 +1143,7 @@ def select_erase_mode():
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
                         render_menu(menu, draw, width, height, fonts)
-                        disp.image(image)
-                        disp.show()
+                        disp.display(image)
                         time.sleep(0.05)
 
 def copy():
@@ -1182,8 +1167,7 @@ def copy():
             confirm_selection = CONFIRM_NO
             menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
             prev_states = {
                         "L": button_L.value,
@@ -1207,8 +1191,7 @@ def copy():
                                                             run_once = 0
                                                 else:
                                                             # Display image.
-                                                            disp.image(image)
-                                                            disp.show()
+                                                            disp.display(image)
                                                             time.sleep(.01)
                                     current_L = button_L.value
                                     if prev_states["L"] and not current_L:
@@ -1223,15 +1206,13 @@ def copy():
                                                             #draw.rectangle((x + 49, 48, 92, 60), outline=0, fill=1) #Select Yes
                                                             #draw.text((x + 52, top + 49), "YES", font=fontcopy, fill=0) #Yes Black
                                                             #index = 6
-                                                            #disp.image(image)
-                                                            #disp.show()
+                                                            #disp.display(image)
                                                             #print("YES" + str(index))
                                                             #lcdstart = datetime.now()
                                                             #run_once = 0
                                                 else:
                                                             # Display image.
-                                                            disp.image(image)
-                                                            disp.show()
+                                                            disp.display(image)
                                                             time.sleep(.01)
                                     current_A = button_A.value
                                     if prev_states["A"] and not current_A:
@@ -1269,8 +1250,7 @@ def copy():
                                     prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
-                                    disp.image(image)
-                                    disp.show()
+                                    disp.display(image)
             except KeyboardInterrupt:
                         raise
 
@@ -1313,8 +1293,7 @@ def erase():
             confirm_selection = CONFIRM_NO
             menu.footer_selected_index = confirm_selection
             render_menu(menu, draw, width, height, fonts)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             wait_for_buttons_release([button_L, button_R, button_A, button_B, button_C])
             prev_states = {
                         "L": button_L.value,
@@ -1369,22 +1348,19 @@ def erase():
                                     prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
                                     render_menu(menu, draw, width, height, fonts)
-                                    disp.image(image)
-                                    disp.show()
+                                    disp.display(image)
             except KeyboardInterrupt:
                         raise
 
 def sleepdisplay():  # put the display to sleep to reduce power
             global run_once
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
             run_once = 1
 
 def cleanup(clear_display=True):
             if clear_display:
-                        disp.fill(0)
-                        disp.show()
+                        disp.clear()
             GPIO.cleanup()
 
 # Button Commands
@@ -1418,8 +1394,7 @@ try:
                                                 usb_list_index = max(usb_list_index - 1, 0)
                                                 if usb_list_index != previous_index:
                                                             basemenu()
-                                    disp.image(image)
-                                    disp.show()
+                                    disp.display(image)
                                     lcdstart = datetime.now()
                                     run_once = 0
                         if button_L.value: # button is released
@@ -1445,8 +1420,7 @@ try:
                                                 run_once = 0
                                     else:
                                                 # Display image.
-                                                disp.image(image)
-                                                disp.show()
+                                                disp.display(image)
                                                 time.sleep(.01)
                         if button_R.value: # button is released
                                     filler =(0)
@@ -1477,8 +1451,7 @@ try:
                                                 run_once = 0
                                     else:
                                                 # Display image.
-                                                disp.image(image)
-                                                disp.show()
+                                                disp.display(image)
                                                 time.sleep(.01)
                         if button_D.value: # button is released
                                     filler = (0)
@@ -1513,11 +1486,9 @@ except Exception as e:
 
             # This will display a simple error message on the OLED screen
             error_displayed = True
-            disp.fill(0)
-            disp.show()
+            disp.clear()
             draw.rectangle((0,0,width,height), outline=0, fill=0)
             draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
-            disp.image(image)
-            disp.show()
+            disp.display(image)
 finally:
             cleanup(clear_display=not error_displayed)
