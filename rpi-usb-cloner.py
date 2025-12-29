@@ -931,8 +931,11 @@ def select_clone_mode():
                         footer=["BACK", "OK"],
                         footer_positions=[x + 12, x + 63],
             )
-            ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+            def refresh_menu():
+                        ui.render_menu(menu, ui_context)
+                        ui.display_image(ui_context)
+
+            refresh_menu()
             wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "U": read_button(PIN_U),
@@ -973,8 +976,7 @@ def select_clone_mode():
                         prev_states["B"] = current_B
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
-                        ui.render_menu(menu, ui_context)
-                        ui.display_image(ui_context)
+                        refresh_menu()
                         time.sleep(0.05)
 
 def select_erase_mode():
@@ -987,8 +989,11 @@ def select_erase_mode():
                         title="ERASE MODE",
                         title_font=fontcopy,
             )
-            ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+            def refresh_menu():
+                        ui.render_menu(menu, ui_context)
+                        ui.display_image(ui_context)
+
+            refresh_menu()
             wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "U": read_button(PIN_U),
@@ -1029,8 +1034,7 @@ def select_erase_mode():
                         prev_states["B"] = current_B
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
-                        ui.render_menu(menu, ui_context)
-                        ui.display_image(ui_context)
+                        refresh_menu()
                         time.sleep(0.05)
 
 def copy():
