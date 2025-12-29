@@ -24,9 +24,11 @@ import argparse
 from dataclasses import dataclass
 from typing import List, Optional
 
+from PIL import Image, ImageDraw, ImageFont
+from luma.core.interface.serial import i2c
+from luma.oled.device import ssd1306
 from datetime import datetime, timedelta
 from time import sleep, strftime, localtime
-import ui
 
 parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
 parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
@@ -96,15 +98,45 @@ def copy_partition_table(src, dst):
                         return
             raise RuntimeError(f"Unsupported partition table label: {label}")
 
-ui_context = ui.init_display()
-width = ui_context.width
-height = ui_context.height
-x = ui_context.x
-top = ui_context.top
-bottom = ui_context.bottom
-draw = ui_context.draw
-fontinsert = ui_context.font_insert
-fontdisks = ui_context.font_disks
+# Create the I2C interface.
+serial = i2c(port=1, address=0x3C)
+# Create the SSD1306 OLED class.
+disp = ssd1306(serial)
+
+# Input pins:
+# Clear display.
+disp.clear()
+
+# Create blank image for drawing.
+# Make sure to create image with mode '1' for 1-bit color.
+width = disp.width
+height = disp.height
+splash = Image.open("splash.png").convert("1")
+if splash.size != (width, height):
+    splash = splash.resize((width, height))
+disp.display(splash)
+time.sleep(1.5)
+image = Image.new('1', (width, height))
+
+x = 12
+padding = -2
+top = padding
+bottom = height-padding
+
+# Load default font.
+font = ImageFont.load_default()
+fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
+fontinsert = ImageFont.truetype("slkscr.ttf", 16)
+fontdisks = ImageFont.truetype("slkscr.ttf", 8)
+fontmain = ImageFont.load_default()
+fonts = {
+            "title": fontdisks,
+            "items": fontdisks,
+            "footer": fontcopy,
+}
+
+# Get drawing object to draw on image.
+draw = ImageDraw.Draw(image)
 MENU_COPY = 0
 MENU_VIEW = 1
 MENU_ERASE = 2
@@ -134,12 +166,63 @@ class Menu:
             items: List[MenuItem]
             selected_index: int = 0
             title: Optional[str] = None
-            title_font: Optional[object] = None
+            title_font: Optional[ImageFont.ImageFont] = None
             footer: Optional[List[str]] = None
             footer_selected_index: Optional[int] = None
             footer_positions: Optional[List[int]] = None
             content_top: Optional[int] = None
-            items_font: Optional[object] = None
+            items_font: Optional[ImageFont.ImageFont] = None
+
+def render_menu(menu, draw, width, height, fonts):
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            current_y = top
+            if menu.title:
+                        title_font = menu.title_font or fonts["title"]
+                        title_bbox = draw.textbbox((x - 11, current_y), menu.title, font=title_font)
+                        draw.text((x - 11, current_y), menu.title, font=title_font, fill=255)
+                        title_height = title_bbox[3] - title_bbox[1]
+                        current_y += title_height + 2
+            if menu.content_top is not None:
+                        current_y = menu.content_top
+
+            items_font = menu.items_font or fonts["items"]
+            line_height = 8
+            try:
+                        bbox = items_font.getbbox("Ag")
+                        line_height = max(bbox[3] - bbox[1], line_height)
+            except AttributeError:
+                        if hasattr(items_font, "getmetrics"):
+                                    ascent, descent = items_font.getmetrics()
+                                    line_height = max(ascent + descent, line_height)
+
+            for item_index, item in enumerate(menu.items):
+                        lines = item.lines
+                        row_height = max(len(lines), 1) * line_height + 4
+                        row_top = current_y
+                        text_y_offset = (row_height - len(lines) * line_height) // 2
+                        is_selected = item_index == menu.selected_index
+                        if is_selected:
+                                    draw.rectangle((0, row_top - 1, width, row_top + row_height - 1), outline=0, fill=1)
+                        for line_index, line in enumerate(lines):
+                                    text_color = 0 if is_selected else 255
+                                    draw.text((x - 11, row_top + text_y_offset + line_index * line_height), line, font=items_font, fill=text_color)
+                        current_y += row_height
+
+            if menu.footer:
+                        footer_font = fonts["footer"]
+                        footer_y = height - 15
+                        positions = menu.footer_positions
+                        if positions is None:
+                                    spacing = width // (len(menu.footer) + 1)
+                                    positions = [(spacing * (index + 1)) - 10 for index in range(len(menu.footer))]
+                        for footer_index, label in enumerate(menu.footer):
+                                    x_pos = positions[footer_index]
+                                    text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
+                                    if menu.footer_selected_index is not None and footer_index == menu.footer_selected_index:
+                                                draw.rectangle((text_bbox[0] - 3, text_bbox[1] - 2, text_bbox[2] + 3, text_bbox[3] + 2), outline=0, fill=1)
+                                                draw.text((x_pos, footer_y), label, font=footer_font, fill=0)
+                                    else:
+                                                draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
 
 def basemenu():
             global lcdstart
@@ -187,8 +270,8 @@ def basemenu():
                                     footer_selected_index=footer_selected,
                                     footer_positions=[x - 11, x + 32, x + 71],
                         )
-                        ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+                        render_menu(menu, draw, width, height, fonts)
+            disp.display(image)
             lcdstart = datetime.now()
             run_once = 0
             if not devices_present:
@@ -212,7 +295,7 @@ def menuselect():
                         erase()
             else:
                         # Display image.
-                        ui.display_image(ui_context)
+                        disp.display(image)
                         time.sleep(.01)
 
 global run_once
@@ -223,7 +306,12 @@ lcdstart = datetime.now()
 
 # Copy USB Screen
 def display_lines(lines, font=fontdisks):
-            ui.display_lines(ui_context, lines, font=font)
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            y = top
+            for line in lines[:6]:
+                        draw.text((x - 11, y), line, font=font, fill=255)
+                        y += 10
+            disp.display(image)
 
 def ensure_root_for_erase():
             if os.geteuid() != 0:
@@ -297,17 +385,36 @@ def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, 
             return lines[:6]
 
 def format_progress_display(title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None):
-            return ui.format_progress_display(
-                        title,
-                        device,
-                        mode,
-                        bytes_copied,
-                        total_bytes,
-                        percent,
-                        rate,
-                        eta,
-                        spinner,
-            )
+            lines = []
+            if title:
+                        title_line = title
+                        if spinner:
+                                    title_line = f"{title} {spinner}"
+                        lines.append(title_line)
+            if device:
+                        lines.append(device)
+            if mode:
+                        lines.append(f"Mode {mode}")
+            if bytes_copied is not None:
+                        percent_display = ""
+                        if total_bytes:
+                                    percent_display = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                        elif percent is not None:
+                                    percent_display = f"{percent:.1f}%"
+                        written_line = f"Wrote {human_size(bytes_copied)}"
+                        if percent_display:
+                                    written_line = f"{written_line} {percent_display}"
+                        lines.append(written_line)
+            elif percent is not None:
+                        lines.append(f"{percent:.1f}%")
+            else:
+                        lines.append("Working...")
+            if rate:
+                        rate_line = f"{human_size(rate)}/s"
+                        if eta:
+                                    rate_line = f"{rate_line} ETA {eta}"
+                        lines.append(rate_line)
+            return lines[:6]
 
 def run_command(command, check=True):
             log_debug(f"Running command: {' '.join(command)}")
@@ -931,11 +1038,8 @@ def select_clone_mode():
                         footer=["BACK", "OK"],
                         footer_positions=[x + 12, x + 63],
             )
-            def refresh_menu():
-                        ui.render_menu(menu, ui_context)
-                        ui.display_image(ui_context)
-
-            refresh_menu()
+            render_menu(menu, draw, width, height, fonts)
+            disp.display(image)
             wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "U": read_button(PIN_U),
@@ -976,7 +1080,8 @@ def select_clone_mode():
                         prev_states["B"] = current_B
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
-                        refresh_menu()
+                        render_menu(menu, draw, width, height, fonts)
+                        disp.display(image)
                         time.sleep(0.05)
 
 def select_erase_mode():
@@ -989,11 +1094,8 @@ def select_erase_mode():
                         title="ERASE MODE",
                         title_font=fontcopy,
             )
-            def refresh_menu():
-                        ui.render_menu(menu, ui_context)
-                        ui.display_image(ui_context)
-
-            refresh_menu()
+            render_menu(menu, draw, width, height, fonts)
+            disp.display(image)
             wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "U": read_button(PIN_U),
@@ -1034,7 +1136,8 @@ def select_erase_mode():
                         prev_states["B"] = current_B
                         prev_states["C"] = current_C
                         menu.selected_index = selected_index
-                        refresh_menu()
+                        render_menu(menu, draw, width, height, fonts)
+                        disp.display(image)
                         time.sleep(0.05)
 
 def copy():
@@ -1057,8 +1160,8 @@ def copy():
             )
             confirm_selection = CONFIRM_NO
             menu.footer_selected_index = confirm_selection
-            ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+            render_menu(menu, draw, width, height, fonts)
+            disp.display(image)
             wait_for_buttons_release([PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "L": read_button(PIN_L),
@@ -1082,7 +1185,7 @@ def copy():
                                                             run_once = 0
                                                 else:
                                                             # Display image.
-                                                            ui.display_image(ui_context)
+                                                            disp.display(image)
                                                             time.sleep(.01)
                                     current_L = read_button(PIN_L)
                                     if prev_states["L"] and not current_L:
@@ -1103,7 +1206,7 @@ def copy():
                                                             #run_once = 0
                                                 else:
                                                             # Display image.
-                                                            ui.display_image(ui_context)
+                                                            disp.display(image)
                                                             time.sleep(.01)
                                     current_A = read_button(PIN_A)
                                     if prev_states["A"] and not current_A:
@@ -1140,8 +1243,8 @@ def copy():
                                     prev_states["A"] = current_A
                                     prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
-                                    ui.render_menu(menu, ui_context)
-                                    ui.display_image(ui_context)
+                                    render_menu(menu, draw, width, height, fonts)
+                                    disp.display(image)
             except KeyboardInterrupt:
                         raise
 
@@ -1183,8 +1286,8 @@ def erase():
             )
             confirm_selection = CONFIRM_NO
             menu.footer_selected_index = confirm_selection
-            ui.render_menu(menu, ui_context)
-            ui.display_image(ui_context)
+            render_menu(menu, draw, width, height, fonts)
+            disp.display(image)
             wait_for_buttons_release([PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
             prev_states = {
                         "L": read_button(PIN_L),
@@ -1238,20 +1341,20 @@ def erase():
                                     prev_states["B"] = current_B
                                     prev_states["C"] = current_C
                                     menu.footer_selected_index = confirm_selection
-                                    ui.render_menu(menu, ui_context)
-                                    ui.display_image(ui_context)
+                                    render_menu(menu, draw, width, height, fonts)
+                                    disp.display(image)
             except KeyboardInterrupt:
                         raise
 
 def sleepdisplay():  # put the display to sleep to reduce power
             global run_once
             draw.rectangle((0, 0, width, height), outline=0, fill=0)
-            ui.display_image(ui_context)
+            disp.display(image)
             run_once = 1
 
 def cleanup_display(clear_display=True):
             if clear_display:
-                        ui.clear_display(ui_context)
+                        disp.clear()
             gpio_cleanup()
 
 # Button Commands
@@ -1285,7 +1388,7 @@ try:
                                                 usb_list_index = max(usb_list_index - 1, 0)
                                                 if usb_list_index != previous_index:
                                                             basemenu()
-                                    ui.display_image(ui_context)
+                                    disp.display(image)
                                     lcdstart = datetime.now()
                                     run_once = 0
                         if read_button(PIN_L): # button is released
@@ -1311,7 +1414,7 @@ try:
                                                 run_once = 0
                                     else:
                                                 # Display image.
-                                                ui.display_image(ui_context)
+                                                disp.display(image)
                                                 time.sleep(.01)
                         if read_button(PIN_R): # button is released
                                     filler =(0)
@@ -1336,7 +1439,7 @@ try:
                                                 run_once = 0
                                     else:
                                                 # Display image.
-                                                ui.display_image(ui_context)
+                                                disp.display(image)
                                                 time.sleep(.01)
                         if read_button(PIN_D): # button is released
                                     filler = (0)
@@ -1371,9 +1474,9 @@ except Exception as e:
 
             # This will display a simple error message on the OLED screen
             error_displayed = True
-            ui.clear_display(ui_context)
+            disp.clear()
             draw.rectangle((0,0,width,height), outline=0, fill=0)
             draw.text((x, top + 30), "ERROR", font=fontinsert, fill=255)
-            ui.display_image(ui_context)
+            disp.display(image)
 finally:
             cleanup_display(clear_display=not error_displayed)
