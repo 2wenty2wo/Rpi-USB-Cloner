@@ -260,6 +260,8 @@ def basemenu():
                                     start_index = max_start
                         visible_items = menu_items[start_index:start_index + VISIBLE_ROWS]
                         visible_selected_index = usb_list_index - start_index
+                        if index not in (MENU_COPY, MENU_VIEW, MENU_ERASE):
+                                    index = MENU_COPY
                         footer_selected = None
                         if index in (MENU_COPY, MENU_VIEW, MENU_ERASE):
                                     footer_selected = index
