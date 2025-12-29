@@ -1094,8 +1094,6 @@ def select_erase_mode():
                         items=menu_items,
                         selected_index=selected_index,
                         title="ERASE MODE",
-                        footer=["BACK", "OK"],
-                        footer_positions=[x + 12, x + 63],
             )
             render_menu(menu, draw, width, height, fonts)
             disp.display(image)
