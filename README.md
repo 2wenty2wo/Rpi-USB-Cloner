@@ -1,6 +1,6 @@
 ![Rpi USB Cloner](rpi_usb_cloner/ui/assets/logo.webp)
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white) ![Last commit](https://img.shields.io/github/last-commit/2wenty2wo/Rpi-USB-Cloner)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white) ![Last commit](https://img.shields.io/github/last-commit/2wenty2wo/Rpi-USB-Cloner) ![Status](https://img.shields.io/badge/status-WIP-yellow)
 
 **STATUS: NOT WORKING**
 
