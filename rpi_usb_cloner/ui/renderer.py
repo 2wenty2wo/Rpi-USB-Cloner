@@ -17,6 +17,28 @@ def _get_line_height(font, min_height=8):
     return line_height
 
 
+def _measure_text_width(font, text: str) -> float:
+    try:
+        return font.getlength(text)
+    except AttributeError:
+        bbox = font.getbbox(text)
+        return bbox[2] - bbox[0]
+
+
+def _truncate_text(text: str, font, max_width: int) -> str:
+    if not text:
+        return text
+    if _measure_text_width(font, text) <= max_width:
+        return text
+    ellipsis = "…"
+    if _measure_text_width(font, ellipsis) > max_width:
+        return ""
+    trimmed = text
+    while trimmed and _measure_text_width(font, f"{trimmed}{ellipsis}") > max_width:
+        trimmed = trimmed[:-1]
+    return f"{trimmed}{ellipsis}"
+
+
 def render_menu_screen(
     title: str,
     items: Iterable[str],
@@ -35,7 +57,9 @@ def render_menu_screen(
     current_y = context.top
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
+        max_title_width = context.width - (context.x - 11) - 1
+        title_text = _truncate_text(title, header_font, max_title_width)
+        draw.text((context.x - 11, current_y), title_text, font=header_font, fill=255)
         title_height = _get_line_height(header_font)
         current_y += title_height + display.TITLE_PADDING
 
@@ -44,7 +68,10 @@ def render_menu_screen(
     row_height = line_height + 4
     left_margin = context.x - 11
 
-    items_list = list(items)
+    max_item_width = context.width - left_margin - 1
+    items_list = [
+        _truncate_text(item, list_font, max_item_width) for item in list(items)
+    ]
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
@@ -59,6 +86,8 @@ def render_menu_screen(
         footer_font = status_font or context.fonts.get("footer", context.fontcopy)
         footer_height = _get_line_height(footer_font)
         footer_y = context.height - footer_height - 2
-        draw.text((left_margin, footer_y), status_line, font=footer_font, fill=255)
+        max_status_width = context.width - left_margin - 1
+        footer_text = _truncate_text(status_line, footer_font, max_status_width)
+        draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=255)
 
     context.disp.display(context.image)
