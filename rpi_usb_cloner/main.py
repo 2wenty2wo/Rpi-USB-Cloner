@@ -88,7 +88,7 @@ def main(argv=None):
             return False
         return True
 
-    def build_device_info_lines(device, max_lines=6):
+    def build_device_info_lines(device, max_lines=None):
         lines = []
         header = format_device_label(device)
         vendor = (device.get("vendor") or "").strip()
@@ -99,7 +99,7 @@ def main(argv=None):
         lines.append(header.strip())
 
         for child in get_children(device):
-            if len(lines) >= max_lines:
+            if max_lines is not None and len(lines) >= max_lines:
                 break
             name = child.get("name") or ""
             fstype = child.get("fstype") or "raw"
@@ -129,22 +129,22 @@ def main(argv=None):
 
             lines.append(f"{name} {fstype}{label_suffix} {mountpoint}{usage_label}{files_label}")
 
-        if len(lines) > max_lines:
+        if max_lines is not None and len(lines) > max_lines:
             return lines[:max_lines]
         return lines
 
-    def view_devices():
+    def view_devices(page_index=0):
         selected_name = get_selected_usb_name()
         if not selected_name:
             display.display_lines(["NO SELECTED USB"])
-            return
+            return 1, 0
         devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
         if not devices_list:
             display.display_lines(["NO SELECTED USB"])
-            return
+            return 1, 0
         device = devices_list[0]
-        lines = build_device_info_lines(device, max_lines=6)
-        display.display_lines(lines)
+        lines = build_device_info_lines(device)
+        return display.render_paginated_lines("DRIVE INFO", lines, page_index=page_index)
 
     def menuselect():
         if state.index == app_state.MENU_COPY:
@@ -253,18 +253,48 @@ def main(argv=None):
             raise
 
     def view():
-        view_devices()
-        menus.wait_for_buttons_release([gpio.PIN_A])
+        page_index = 0
+        total_pages, page_index = view_devices(page_index)
+        menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
         last_selected_name = get_selected_usb_name()
+        prev_states = {
+            "A": gpio.read_button(gpio.PIN_A),
+            "L": gpio.read_button(gpio.PIN_L),
+            "R": gpio.read_button(gpio.PIN_R),
+            "U": gpio.read_button(gpio.PIN_U),
+            "D": gpio.read_button(gpio.PIN_D),
+        }
         while True:
             current_a = gpio.read_button(gpio.PIN_A)
-            if not current_a:
+            if prev_states["A"] and not current_a:
                 display.basemenu(state)
                 return
+            current_l = gpio.read_button(gpio.PIN_L)
+            if prev_states["L"] and not current_l:
+                page_index = max(0, page_index - 1)
+                total_pages, page_index = view_devices(page_index)
+            current_r = gpio.read_button(gpio.PIN_R)
+            if prev_states["R"] and not current_r:
+                page_index = min(total_pages - 1, page_index + 1)
+                total_pages, page_index = view_devices(page_index)
+            current_u = gpio.read_button(gpio.PIN_U)
+            if prev_states["U"] and not current_u:
+                page_index = max(0, page_index - 1)
+                total_pages, page_index = view_devices(page_index)
+            current_d = gpio.read_button(gpio.PIN_D)
+            if prev_states["D"] and not current_d:
+                page_index = min(total_pages - 1, page_index + 1)
+                total_pages, page_index = view_devices(page_index)
             current_selected_name = get_selected_usb_name()
             if current_selected_name != last_selected_name:
-                view_devices()
+                page_index = 0
+                total_pages, page_index = view_devices(page_index)
                 last_selected_name = current_selected_name
+            prev_states["A"] = current_a
+            prev_states["L"] = current_l
+            prev_states["R"] = current_r
+            prev_states["U"] = current_u
+            prev_states["D"] = current_d
             time.sleep(0.05)
 
     def erase():

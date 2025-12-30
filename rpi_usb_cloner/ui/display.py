@@ -119,6 +119,58 @@ def display_lines(lines, font=None):
     context.disp.display(context.image)
 
 
+def _get_line_height(font, min_height=8):
+    line_height = min_height
+    try:
+        bbox = font.getbbox("Ag")
+        line_height = max(bbox[3] - bbox[1], line_height)
+    except AttributeError:
+        if hasattr(font, "getmetrics"):
+            ascent, descent = font.getmetrics()
+            line_height = max(ascent + descent, line_height)
+    return line_height
+
+
+def render_paginated_lines(title, lines, page_index=0, items_font=None, title_font=None):
+    context = get_display_context()
+    draw = context.draw
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    current_y = context.top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title:
+        draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
+        title_height = _get_line_height(header_font)
+        current_y += title_height + 6
+    items_font = items_font or context.fontdisks
+    line_height = _get_line_height(items_font)
+    line_step = line_height + 2
+    available_height = context.height - current_y - 2
+    lines_per_page = max(1, available_height // line_step)
+    total_pages = max(1, (len(lines) + lines_per_page - 1) // lines_per_page)
+    page_index = max(0, min(page_index, total_pages - 1))
+    start = page_index * lines_per_page
+    end = start + lines_per_page
+    page_lines = lines[start:end]
+    for line in page_lines:
+        draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
+        current_y += line_step
+    if total_pages > 1:
+        left_indicator = "<" if page_index > 0 else ""
+        right_indicator = ">" if page_index < total_pages - 1 else ""
+        indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+        indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
+        indicator_width = indicator_bbox[2] - indicator_bbox[0]
+        indicator_height = indicator_bbox[3] - indicator_bbox[1]
+        draw.text(
+            (context.width - indicator_width - 2, context.height - indicator_height - 2),
+            indicator,
+            font=items_font,
+            fill=255,
+        )
+    context.disp.display(context.image)
+    return total_pages, page_index
+
+
 def basemenu(state: app_state.AppState) -> None:
     from rpi_usb_cloner.ui.menus import Menu, MenuItem, render_menu
 
