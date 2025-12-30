@@ -58,11 +58,11 @@ Button inputs use `RPi.GPIO` **BCM pin numbering** with internal pull-ups enable
 ### 4) Start the cloner script
 From the repo directory:
 ```sh
-sudo -E python3 rpi-usb-cloner.py
+sudo -E python3 -m rpi_usb_cloner
 ```
 To enable verbose debug logging:
 ```sh
-sudo -E python3 rpi-usb-cloner.py --debug
+sudo -E python3 -m rpi_usb_cloner --debug
 ```
 The erase workflow requires root permissions; if you start without `sudo`, the OLED will prompt you to run as root.
 
@@ -73,7 +73,7 @@ If running in the foreground, press **Ctrl+C** in the terminal where it was star
 1. Stop it (Ctrl+C).
 2. Start it again:
    ```sh
-   sudo -E python3 rpi-usb-cloner.py
+   sudo -E python3 -m rpi_usb_cloner
    ```
 
 ### 7) Update the software
@@ -84,6 +84,14 @@ python3 -m pip install --upgrade luma.oled pillow
 ```
 If you used Option B above, append `--break-system-packages` to the pip command.
 `mount.py` ships with this repository, so no separate install is needed.
+
+## Module layout
+The codebase is now organized as a package:
+- UI rendering and assets live in `rpi_usb_cloner/ui/`.
+- Storage/USB drive operations live in `rpi_usb_cloner/storage/`.
+- GPIO/OLED button hardware support lives in `rpi_usb_cloner/hardware/`.
+
+If you prefer the legacy shim, `rpi-usb-cloner.py` still forwards to the module entrypoint.
 
 ## UI assets
 The UI expects the following files in `rpi_usb_cloner/ui/assets/`:
