@@ -99,6 +99,8 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 usb = 0
 ENABLE_SLEEP = False
 USB_REFRESH_INTERVAL = 2.0
+last_usb_check = time.time()
+last_seen_devices = get_usb_snapshot()
 usb_list_index = 0
 VISIBLE_ROWS = 3
 
