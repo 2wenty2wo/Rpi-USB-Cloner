@@ -1,12 +1,18 @@
 import argparse
 import os
+import shutil
 import time
 from datetime import datetime, timedelta
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.devices import get_children, human_size, list_usb_disks
+from rpi_usb_cloner.storage.devices import (
+    format_device_label,
+    get_children,
+    human_size,
+    list_usb_disks,
+)
 from rpi_usb_cloner.storage.mount import get_device_name, list_media_devices
 from rpi_usb_cloner.storage.clone import clone_device, configure_clone_helpers, erase_device
 from rpi_usb_cloner.ui import display, menus
@@ -82,6 +88,51 @@ def main(argv=None):
             return False
         return True
 
+    def build_device_info_lines(device, max_lines=6):
+        lines = []
+        header = format_device_label(device)
+        vendor = (device.get("vendor") or "").strip()
+        model = (device.get("model") or "").strip()
+        vendor_model = " ".join(part for part in [vendor, model] if part)
+        if vendor_model:
+            header = f"{header} {vendor_model}"
+        lines.append(header.strip())
+
+        for child in get_children(device):
+            if len(lines) >= max_lines:
+                break
+            name = child.get("name") or ""
+            fstype = child.get("fstype") or "raw"
+            label = (child.get("label") or "").strip()
+            mountpoint = child.get("mountpoint")
+            label_suffix = f" {label}" if label else ""
+            if not mountpoint:
+                lines.append(f"{name} {fstype}{label_suffix} not mounted")
+                continue
+
+            usage_label = ""
+            try:
+                usage = shutil.disk_usage(mountpoint)
+                usage_label = f" {human_size(usage.used)}/{human_size(usage.total)}"
+            except (FileNotFoundError, PermissionError, OSError) as error:
+                log_debug(f"Usage check failed for {mountpoint}: {error}")
+                usage_label = " usage?"
+
+            files_label = ""
+            try:
+                entries = sorted(os.listdir(mountpoint))[:3]
+                if entries:
+                    files_label = " files:" + ",".join(entries)
+            except (FileNotFoundError, PermissionError, OSError) as error:
+                log_debug(f"Listdir failed for {mountpoint}: {error}")
+                files_label = " files?"
+
+            lines.append(f"{name} {fstype}{label_suffix} {mountpoint}{usage_label}{files_label}")
+
+        if len(lines) > max_lines:
+            return lines[:max_lines]
+        return lines
+
     def view_devices():
         selected_name = get_selected_usb_name()
         if not selected_name:
@@ -91,19 +142,8 @@ def main(argv=None):
         if not devices_list:
             display.display_lines(["NO SELECTED USB"])
             return
-        lines = []
         device = devices_list[0]
-        name = device.get("name")
-        size = human_size(device.get("size"))
-        model = (device.get("model") or "").strip()
-        line = f"{name} {size}"
-        if model:
-            line = f"{line} {model[:6]}"
-        lines.append(line)
-        for child in get_children(device):
-            fstype = child.get("fstype") or "raw"
-            mountpoint = child.get("mountpoint") or "-"
-            lines.append(f"{child.get('name')} {fstype} {mountpoint[:10]}")
+        lines = build_device_info_lines(device, max_lines=6)
         display.display_lines(lines)
 
     def menuselect():
