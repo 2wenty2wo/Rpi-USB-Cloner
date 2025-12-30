@@ -13,9 +13,10 @@ from rpi_usb_cloner.storage.devices import (
     human_size,
     list_usb_disks,
 )
-from rpi_usb_cloner.storage.mount import get_device_name, list_media_devices
+from rpi_usb_cloner.storage.mount import get_device_name, get_model, get_size, get_vendor, list_media_devices
 from rpi_usb_cloner.storage.clone import clone_device, configure_clone_helpers, erase_device
-from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui import display, menus, renderer
+from rpi_usb_cloner.menu import MenuItem, definitions, navigator
 
 
 def main(argv=None):
@@ -37,7 +38,7 @@ def main(argv=None):
     configure_clone_helpers(log_debug=log_debug)
 
     state = app_state.AppState()
-
+    visible_rows = 4
     def get_selected_usb_name():
         devices_list = list_media_devices()
         if not devices_list:
@@ -84,7 +85,6 @@ def main(argv=None):
         if os.geteuid() != 0:
             display.display_lines(["Run as root"])
             time.sleep(1)
-            display.basemenu(state)
             return False
         return True
 
@@ -165,24 +165,61 @@ def main(argv=None):
             title_font=context.fontcopy,
         )
 
-    def menuselect():
-        if state.index == app_state.MENU_COPY:
-            copy()
-        if state.index == app_state.MENU_VIEW:
-            view()
-        if state.index == app_state.MENU_ERASE:
-            erase()
-        else:
-            context.disp.display(context.image)
-            time.sleep(0.01)
+    def get_device_items():
+        devices_list = list_media_devices()
+        items = []
+        for device in devices_list:
+            label = f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB"
+            items.append(MenuItem(label=label, next_screen=definitions.ACTIONS_MENU.screen_id))
+        if not items:
+            items.append(MenuItem(label="NO USB DEVICES"))
+        return items
+
+    def get_device_status_line():
+        devices_list = list_media_devices()
+        if not devices_list:
+            return "INSERT USB"
+        selected_name = get_selected_usb_name()
+        for device in devices_list:
+            if get_device_name(device) == selected_name:
+                vendor = (get_vendor(device) or "").strip()
+                model = (get_model(device) or "").strip()
+                label = " ".join(part for part in [vendor, model] if part)
+                return label or selected_name
+        return "USB DEVICES"
+
+    menu_navigator = navigator.MenuNavigator(
+        screens=definitions.SCREENS,
+        root_screen_id=definitions.MAIN_MENU.screen_id,
+        items_providers={definitions.MAIN_MENU.screen_id: get_device_items},
+    )
+
+    def render_current_screen():
+        menu_navigator.sync_visible_rows(visible_rows)
+        current_screen = menu_navigator.current_screen()
+        if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
+            state.usb_list_index = menu_navigator.current_state().selected_index
+        items = [item.label for item in menu_navigator.current_items()]
+        status_line = current_screen.status_line
+        if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
+            status_line = get_device_status_line()
+        elif current_screen.screen_id == definitions.ACTIONS_MENU.screen_id:
+            selected_name = get_selected_usb_name() or "NO USB"
+            status_line = f"USB: {selected_name}"
+        renderer.render_menu_screen(
+            title=current_screen.title,
+            items=items,
+            selected_index=menu_navigator.current_state().selected_index,
+            scroll_offset=menu_navigator.current_state().scroll_offset,
+            status_line=status_line,
+            visible_rows=visible_rows,
+        )
 
     def copy():
-        state.index = app_state.MENU_NONE
         source, target = pick_source_target()
         if not source or not target:
             display.display_lines(["COPY", "Need 2 USBs"])
             time.sleep(1)
-            display.basemenu(state)
             return
         source_name = source.get("name")
         target_name = target.get("name")
@@ -234,7 +271,6 @@ def main(argv=None):
                 current_A = gpio.read_button(gpio.PIN_A)
                 if prev_states["A"] and not current_A:
                     log_debug("Copy menu: Button A pressed")
-                    display.basemenu(state)
                     return
                 current_B = gpio.read_button(gpio.PIN_B)
                 if prev_states["B"] and not current_B:
@@ -243,7 +279,6 @@ def main(argv=None):
                         display.display_lines(["COPY", "Starting..."])
                         mode = menus.select_clone_mode(clone_mode)
                         if not mode:
-                            display.basemenu(state)
                             return
                         display.display_lines(["COPY", mode.upper()])
                         if clone_device(source, target, mode=mode):
@@ -252,10 +287,8 @@ def main(argv=None):
                             log_debug("Copy failed")
                             display.display_lines(["COPY", "Failed"])
                         time.sleep(1)
-                        display.basemenu(state)
                         return
                     if confirm_selection == app_state.CONFIRM_NO:
-                        display.basemenu(state)
                         return
                 current_C = gpio.read_button(gpio.PIN_C)
                 if prev_states["C"] and not current_C:
@@ -286,7 +319,6 @@ def main(argv=None):
         while True:
             current_a = gpio.read_button(gpio.PIN_A)
             if prev_states["A"] and not current_a:
-                display.basemenu(state)
                 return
             current_l = gpio.read_button(gpio.PIN_L)
             if prev_states["L"] and not current_l:
@@ -317,12 +349,10 @@ def main(argv=None):
             time.sleep(0.05)
 
     def erase():
-        state.index = app_state.MENU_NONE
         target_devices = list_usb_disks()
         if not target_devices:
             display.display_lines(["ERASE", "No USB found"])
             time.sleep(1)
-            display.basemenu(state)
             return
         target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
         selected_name = get_selected_usb_name()
@@ -337,7 +367,6 @@ def main(argv=None):
         target_name = target.get("name")
         mode = menus.select_erase_mode()
         if not mode:
-            display.basemenu(state)
             return
         title = f"ERASE {target_name} {mode.upper()}?"
         menu = menus.Menu(
@@ -375,7 +404,6 @@ def main(argv=None):
                         log_debug("Erase menu selection changed: NO")
                 current_A = gpio.read_button(gpio.PIN_A)
                 if prev_states["A"] and not current_A:
-                    display.basemenu(state)
                     return
                 current_B = gpio.read_button(gpio.PIN_B)
                 if prev_states["B"] and not current_B:
@@ -389,10 +417,8 @@ def main(argv=None):
                             log_debug("Erase failed")
                             display.display_lines(["ERASE", "Failed"])
                         time.sleep(1)
-                        display.basemenu(state)
                         return
                     if confirm_selection == app_state.CONFIRM_NO:
-                        display.basemenu(state)
                         return
                 current_C = gpio.read_button(gpio.PIN_C)
                 if prev_states["C"] and not current_C:
@@ -418,10 +444,18 @@ def main(argv=None):
             context.disp.clear()
         gpio.cleanup()
 
-    display.basemenu(state)
-    state.index = app_state.MENU_COPY if list_media_devices() else app_state.MENU_NONE
+    render_current_screen()
     state.last_usb_check = time.time()
     state.last_seen_devices = get_usb_snapshot()
+    prev_states = {
+        "U": gpio.read_button(gpio.PIN_U),
+        "D": gpio.read_button(gpio.PIN_D),
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+        "C": gpio.read_button(gpio.PIN_C),
+    }
 
     error_displayed = False
     try:
@@ -432,7 +466,14 @@ def main(argv=None):
                 current_devices = get_usb_snapshot()
                 if current_devices != state.last_seen_devices:
                     log_debug(f"USB devices changed: {state.last_seen_devices} -> {current_devices}")
-                    display.basemenu(state)
+                    selected_name = None
+                    if state.last_seen_devices and state.usb_list_index < len(state.last_seen_devices):
+                        selected_name = state.last_seen_devices[state.usb_list_index]
+                    if selected_name and selected_name in current_devices:
+                        state.usb_list_index = current_devices.index(selected_name)
+                    else:
+                        state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
+                    menu_navigator.set_selection(definitions.MAIN_MENU.screen_id, state.usb_list_index, visible_rows)
                     state.last_seen_devices = current_devices
                 state.last_usb_check = time.time()
             if app_state.ENABLE_SLEEP:
@@ -441,90 +482,66 @@ def main(argv=None):
                     if state.run_once == 0:
                         sleepdisplay()
                     time.sleep(0.1)
-            if gpio.read_button(gpio.PIN_U):
-                pass
-            else:
+
+            current_states = {
+                "U": gpio.read_button(gpio.PIN_U),
+                "D": gpio.read_button(gpio.PIN_D),
+                "L": gpio.read_button(gpio.PIN_L),
+                "R": gpio.read_button(gpio.PIN_R),
+                "A": gpio.read_button(gpio.PIN_A),
+                "B": gpio.read_button(gpio.PIN_B),
+                "C": gpio.read_button(gpio.PIN_C),
+            }
+            button_pressed = False
+
+            if prev_states["U"] and not current_states["U"]:
                 log_debug("Button UP pressed")
-                devices_list = list_media_devices()
-                if devices_list:
-                    previous_index = state.usb_list_index
-                    state.usb_list_index = max(state.usb_list_index - 1, 0)
-                    if state.usb_list_index != previous_index:
-                        display.basemenu(state)
-                context.disp.display(context.image)
+                menu_navigator.move_selection(-1, visible_rows)
+                button_pressed = True
+            if prev_states["D"] and not current_states["D"]:
+                log_debug("Button DOWN pressed")
+                menu_navigator.move_selection(1, visible_rows)
+                button_pressed = True
+            if prev_states["L"] and not current_states["L"]:
+                log_debug("Button LEFT pressed")
+                menu_navigator.back()
+                button_pressed = True
+            if prev_states["A"] and not current_states["A"]:
+                log_debug("Button BACK pressed")
+                menu_navigator.back()
+                button_pressed = True
+            if prev_states["R"] and not current_states["R"]:
+                log_debug("Button RIGHT pressed")
+                action = menu_navigator.activate(visible_rows)
+                if action:
+                    if action == "copy":
+                        copy()
+                    elif action == "view":
+                        view()
+                    elif action == "erase":
+                        erase()
+                button_pressed = True
+            if prev_states["B"] and not current_states["B"]:
+                log_debug("Button SELECT pressed")
+                action = menu_navigator.activate(visible_rows)
+                if action:
+                    if action == "copy":
+                        copy()
+                    elif action == "view":
+                        view()
+                    elif action == "erase":
+                        erase()
+                button_pressed = True
+            if prev_states["C"] and not current_states["C"]:
+                log_debug("Button C pressed")
+                button_pressed = True
+
+            if button_pressed:
                 state.lcdstart = datetime.now()
                 state.run_once = 0
-            if gpio.read_button(gpio.PIN_L):
-                pass
-            else:
-                if state.index == app_state.MENU_ERASE:
-                    state.index = app_state.MENU_VIEW
-                    log_debug("Menu selection changed: index=1 (VIEW)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                elif state.index == app_state.MENU_VIEW:
-                    state.index = app_state.MENU_COPY
-                    log_debug("Menu selection changed: index=0 (COPY)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                elif state.index == app_state.MENU_COPY:
-                    state.index = app_state.MENU_COPY
-                    log_debug("Menu selection changed: index=0 (COPY)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
-            if gpio.read_button(gpio.PIN_R):
-                pass
-            else:
-                if state.index == app_state.MENU_COPY:
-                    state.index = app_state.MENU_VIEW
-                    log_debug("Menu selection changed: index=1 (VIEW)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                elif state.index == app_state.MENU_VIEW:
-                    state.index = app_state.MENU_ERASE
-                    log_debug("Menu selection changed: index=2 (ERASE)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                elif state.index == app_state.MENU_ERASE:
-                    state.index = app_state.MENU_ERASE
-                    log_debug("Menu selection changed: index=2 (END OF MENU)")
-                    display.basemenu(state)
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
-            if gpio.read_button(gpio.PIN_D):
-                pass
-            else:
-                log_debug("Button DOWN pressed")
-                devices_list = list_media_devices()
-                if devices_list:
-                    previous_index = state.usb_list_index
-                    state.usb_list_index = min(state.usb_list_index + 1, len(devices_list) - 1)
-                    if state.usb_list_index != previous_index:
-                        display.basemenu(state)
-            if gpio.read_button(gpio.PIN_C):
-                pass
-            else:
-                log_debug("Button C pressed")
-            if gpio.read_button(gpio.PIN_A):
-                pass
-            else:
-                log_debug("Button A pressed")
-                display.basemenu(state)
-            if gpio.read_button(gpio.PIN_B):
-                pass
-            else:
-                menuselect()
+
+            prev_states = current_states
+            render_current_screen()
     except KeyboardInterrupt:
         pass
     except Exception as error:
