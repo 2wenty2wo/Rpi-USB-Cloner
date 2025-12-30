@@ -65,9 +65,6 @@ cd Rpi-USB-Cloner
 2. Attach the Zero4U USB Hub to the Pi Zero (per the Zero4U instructions).
 3. Connect power and boot the Pi.
 
-### 3a) GPIO button inputs
-Button inputs use `RPi.GPIO` **BCM pin numbering** with internal pull-ups enabled. Wire your buttons to pull the selected BCM pins to **GND**.
-
 ### 4) Start the cloner script
 From the repo directory:
 ```sh
