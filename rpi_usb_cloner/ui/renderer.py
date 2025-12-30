@@ -55,13 +55,14 @@ def render_menu_screen(
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
     current_y = context.top
+    extra_gap = 2
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         max_title_width = context.width - (context.x - 11) - 1
         title_text = _truncate_text(title, header_font, max_title_width)
         draw.text((context.x - 11, current_y), title_text, font=header_font, fill=255)
         title_height = _get_line_height(header_font)
-        current_y += title_height + display.TITLE_PADDING
+        current_y += title_height + display.TITLE_PADDING + extra_gap
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     line_height = _get_line_height(list_font)
@@ -87,7 +88,7 @@ def render_menu_screen(
         row_top = current_y + row_index * row_height
         is_selected = item_index == selected_index
         if is_selected:
-            draw.rectangle((0, row_top - 1, context.width, row_top + row_height - 1), outline=0, fill=1)
+            draw.rectangle((0, row_top, context.width, row_top + row_height - 1), outline=0, fill=1)
         text_color = 0 if is_selected else 255
         draw.text((left_margin, row_top + 1), items_list[item_index], font=list_font, fill=text_color)
 
@@ -112,10 +113,11 @@ def calculate_visible_rows(
 ) -> int:
     context = display.get_display_context()
     current_y = context.top
+    extra_gap = 2
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         title_height = _get_line_height(header_font)
-        current_y += title_height + display.TITLE_PADDING
+        current_y += title_height + display.TITLE_PADDING + extra_gap
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     row_height = _get_line_height(list_font) + 2
