@@ -1,6 +1,7 @@
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
 
 from PIL import Image, ImageDraw, ImageFont
@@ -36,6 +37,7 @@ class DisplayContext:
 
 _context: Optional[DisplayContext] = None
 _log_debug = None
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 
 def configure_display_helpers(log_debug=None):
@@ -62,7 +64,7 @@ def init_display() -> DisplayContext:
     width = disp.width
     height = disp.height
 
-    splash = Image.open("splash.png").convert("1")
+    splash = Image.open(ASSETS_DIR / "splash.png").convert("1")
     if splash.size != (width, height):
         splash = splash.resize((width, height))
     disp.display(splash)
@@ -77,9 +79,9 @@ def init_display() -> DisplayContext:
     bottom = height - padding
 
     font = ImageFont.load_default()
-    fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
-    fontinsert = ImageFont.truetype("slkscr.ttf", 16)
-    fontdisks = ImageFont.truetype("slkscr.ttf", 8)
+    fontcopy = ImageFont.truetype(ASSETS_DIR / "rainyhearts.ttf", 16)
+    fontinsert = ImageFont.truetype(ASSETS_DIR / "slkscr.ttf", 16)
+    fontdisks = ImageFont.truetype(ASSETS_DIR / "slkscr.ttf", 8)
     fontmain = font
     fonts = {
         "title": fontdisks,
