@@ -123,7 +123,8 @@ disp.clear()
 # Make sure to create image with mode '1' for 1-bit color.
 width = disp.width
 height = disp.height
-splash = Image.open("splash.png").convert("1")
+asset_dir = Path(__file__).resolve().parent
+splash = Image.open(asset_dir / "splash.png").convert("1")
 if splash.size != (width, height):
     splash = splash.resize((width, height))
 disp.display(splash)
@@ -137,9 +138,9 @@ bottom = height-padding
 
 # Load default font.
 font = ImageFont.load_default()
-fontcopy = ImageFont.truetype("rainyhearts.ttf", 16)
-fontinsert = ImageFont.truetype("slkscr.ttf", 16)
-fontdisks = ImageFont.truetype("slkscr.ttf", 8)
+fontcopy = ImageFont.truetype(str(asset_dir / "rainyhearts.ttf"), 16)
+fontinsert = ImageFont.truetype(str(asset_dir / "slkscr.ttf"), 16)
+fontdisks = ImageFont.truetype(str(asset_dir / "slkscr.ttf"), 8)
 fontmain = ImageFont.load_default()
 fonts = {
             "title": fontdisks,
