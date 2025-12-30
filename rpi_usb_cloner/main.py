@@ -7,7 +7,12 @@ from datetime import datetime, timedelta
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.devices import get_children, human_size, list_usb_disks
+from rpi_usb_cloner.storage.devices import (
+    format_device_label,
+    get_children,
+    human_size,
+    list_usb_disks,
+)
 from rpi_usb_cloner.storage.mount import get_device_name, list_media_devices
 from rpi_usb_cloner.storage.clone import clone_device, configure_clone_helpers, erase_device
 from rpi_usb_cloner.ui import display, menus
