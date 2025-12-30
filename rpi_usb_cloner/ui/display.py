@@ -38,6 +38,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+TITLE_PADDING = 6
 
 
 def configure_display_helpers(log_debug=None):
@@ -140,7 +141,7 @@ def render_paginated_lines(title, lines, page_index=0, items_font=None, title_fo
     if title:
         draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
         title_height = _get_line_height(header_font)
-        current_y += title_height + 6
+        current_y += title_height + TITLE_PADDING
     items_font = items_font or context.fontdisks
     line_height = _get_line_height(items_font)
     line_step = line_height + 2

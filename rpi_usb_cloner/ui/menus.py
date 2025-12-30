@@ -18,7 +18,6 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.ui import display
 
-TITLE_PADDING = 6
 INITIAL_REPEAT_DELAY = 0.3
 REPEAT_INTERVAL = 0.08
 BUTTON_POLL_DELAY = 0.01
@@ -55,7 +54,7 @@ def render_menu(menu, draw, width, height, fonts):
         title_font = menu.title_font or fonts["title"]
         draw.text((context.x - 11, current_y), menu.title, font=title_font, fill=255)
         title_height = _get_text_height(draw, menu.title, title_font)
-        current_y += title_height + TITLE_PADDING
+        current_y += title_height + display.TITLE_PADDING
     if menu.content_top is not None:
         current_y = max(current_y, menu.content_top)
 
@@ -211,7 +210,7 @@ def select_erase_mode():
         selected_index=selected_index,
         title="ERASE MODE",
         title_font=context.fontcopy,
-        content_top=context.top + title_height + TITLE_PADDING,
+        content_top=context.top + title_height + display.TITLE_PADDING,
     )
     render_menu(menu, context.draw, context.width, context.height, context.fonts)
     context.disp.display(context.image)

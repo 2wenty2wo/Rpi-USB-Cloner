@@ -144,7 +144,12 @@ def main(argv=None):
             return 1, 0
         device = devices_list[0]
         lines = build_device_info_lines(device)
-        return display.render_paginated_lines("DRIVE INFO", lines, page_index=page_index)
+        return display.render_paginated_lines(
+            "DRIVE INFO",
+            lines,
+            page_index=page_index,
+            title_font=context.fontcopy,
+        )
 
     def menuselect():
         if state.index == app_state.MENU_COPY:
