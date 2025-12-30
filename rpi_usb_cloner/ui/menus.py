@@ -18,6 +18,8 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.ui import display
 
+TITLE_PADDING = 6
+
 
 @dataclass
 class MenuItem:
@@ -37,18 +39,22 @@ class Menu:
     items_font: Optional[ImageFont.ImageFont] = None
 
 
+def _get_text_height(draw, text, font):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[3] - bbox[1]
+
+
 def render_menu(menu, draw, width, height, fonts):
     context = display.get_display_context()
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
     current_y = context.top
     if menu.title:
         title_font = menu.title_font or fonts["title"]
-        title_bbox = draw.textbbox((context.x - 11, current_y), menu.title, font=title_font)
         draw.text((context.x - 11, current_y), menu.title, font=title_font, fill=255)
-        title_height = title_bbox[3] - title_bbox[1]
-        current_y += title_height + 2
+        title_height = _get_text_height(draw, menu.title, title_font)
+        current_y += title_height + TITLE_PADDING
     if menu.content_top is not None:
-        current_y = menu.content_top
+        current_y = max(current_y, menu.content_top)
 
     items_font = menu.items_font or fonts["items"]
     line_height = 8
@@ -169,11 +175,13 @@ def select_erase_mode():
     modes = ["quick", "zero", "discard", "secure"]
     selected_index = 0
     menu_items = [MenuItem([mode.upper()]) for mode in modes]
+    title_height = _get_text_height(context.draw, "ERASE MODE", context.fontcopy)
     menu = Menu(
         items=menu_items,
         selected_index=selected_index,
         title="ERASE MODE",
         title_font=context.fontcopy,
+        content_top=context.top + title_height + TITLE_PADDING,
     )
     render_menu(menu, context.draw, context.width, context.height, context.fonts)
     context.disp.display(context.image)
