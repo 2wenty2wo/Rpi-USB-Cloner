@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 
 @dataclass
 class MenuItem:
     label: str
-    action: Optional[str] = None
-    next_screen: Optional[str] = None
+    action: Optional[Callable[[], None]] = None
+    submenu: Optional[MenuScreen] = None
 
 
 @dataclass

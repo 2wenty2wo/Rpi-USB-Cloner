@@ -78,7 +78,7 @@ class MenuNavigator:
             return provider()
         return list(self._screens[screen_id].items)
 
-    def activate(self, visible_rows: int) -> Optional[str]:
+    def activate(self, visible_rows: int) -> Optional[Callable[[], None]]:
         state = self.current_state()
         items = self.current_items()
         if not items:
@@ -86,10 +86,11 @@ class MenuNavigator:
         if state.selected_index >= len(items):
             state.selected_index = max(len(items) - 1, 0)
         selected_item = items[state.selected_index]
-        if selected_item.next_screen:
-            if selected_item.next_screen not in self._screens:
-                raise ValueError(f"Unknown screen: {selected_item.next_screen}")
-            self._stack.append(ScreenState(screen_id=selected_item.next_screen))
+        if selected_item.submenu:
+            submenu_id = selected_item.submenu.screen_id
+            if submenu_id not in self._screens:
+                raise ValueError(f"Unknown screen: {submenu_id}")
+            self._stack.append(ScreenState(screen_id=submenu_id))
             self._ensure_scroll(self.current_state(), visible_rows)
             return None
         return selected_item.action

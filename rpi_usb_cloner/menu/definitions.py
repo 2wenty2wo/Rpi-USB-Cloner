@@ -1,25 +1,92 @@
-from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
+"""Menu hierarchy definitions.
 
-ACTIONS_MENU = MenuScreen(
-    screen_id="actions",
-    title="ACTIONS",
+Edit this file to adjust menu labels or structure; it is the single source of truth for menu edits.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, Optional
+
+from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
+from . import actions as menu_actions
+
+
+def menu_entry(
+    label: str,
+    *,
+    submenu: Optional[MenuScreen] = None,
+    action=None,
+) -> MenuItem:
+    if (submenu is None) == (action is None):
+        raise ValueError("Menu entries must define exactly one of submenu or action.")
+    return MenuItem(label=label, submenu=submenu, action=action)
+
+
+DRIVE_LIST_MENU = MenuScreen(
+    screen_id="drive_list",
+    title="SELECT DRIVE",
+)
+
+DRIVES_MENU = MenuScreen(
+    screen_id="drives",
+    title="DRIVES",
     items=[
-        MenuItem(label="SELECT DRIVE", next_screen="devices"),
-        MenuItem(label="COPY DRIVE", action="drive.copy"),
-        MenuItem(label="DRIVE INFO", action="drive.info"),
-        MenuItem(label="ERASE DRIVE", action="drive.erase"),
-        MenuItem(label="IMAGES", action="image.coming_soon"),
-        MenuItem(label="TOOLS", action="tools.coming_soon"),
-        MenuItem(label="SETTINGS", action="settings.coming_soon"),
+        menu_entry("SELECT DRIVE", submenu=DRIVE_LIST_MENU),
+        menu_entry("COPY DRIVE", action=menu_actions.copy_drive),
+        menu_entry("DRIVE INFO", action=menu_actions.drive_info),
+        menu_entry("ERASE DRIVE", action=menu_actions.erase_drive),
+    ],
+)
+
+IMAGES_MENU = MenuScreen(
+    screen_id="images",
+    title="IMAGES",
+    items=[
+        menu_entry("COMING SOON", action=menu_actions.images_coming_soon),
+    ],
+)
+
+TOOLS_MENU = MenuScreen(
+    screen_id="tools",
+    title="TOOLS",
+    items=[
+        menu_entry("COMING SOON", action=menu_actions.tools_coming_soon),
+    ],
+)
+
+SETTINGS_MENU = MenuScreen(
+    screen_id="settings",
+    title="SETTINGS",
+    items=[
+        menu_entry("COMING SOON", action=menu_actions.settings_coming_soon),
     ],
 )
 
 MAIN_MENU = MenuScreen(
-    screen_id="devices",
-    title="SELECT DRIVE",
+    screen_id="main",
+    title="MAIN MENU",
+    items=[
+        menu_entry("DRIVES", submenu=DRIVES_MENU),
+        menu_entry("IMAGES", submenu=IMAGES_MENU),
+        menu_entry("TOOLS", submenu=TOOLS_MENU),
+        menu_entry("SETTINGS", submenu=SETTINGS_MENU),
+    ],
 )
 
-SCREENS = {
-    MAIN_MENU.screen_id: MAIN_MENU,
-    ACTIONS_MENU.screen_id: ACTIONS_MENU,
-}
+
+def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
+    screens: Dict[str, MenuScreen] = {}
+
+    def walk(screen: MenuScreen) -> None:
+        if screen.screen_id in screens:
+            return
+        screens[screen.screen_id] = screen
+        for item in screen.items:
+            if item.submenu:
+                walk(item.submenu)
+
+    walk(root)
+    return screens
+
+
+SCREENS = _collect_screens(MAIN_MENU)

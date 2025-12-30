@@ -3,7 +3,6 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from rpi_usb_cloner.actions import drive_actions, image_actions, settings_actions, tools_actions
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
@@ -19,6 +18,7 @@ from rpi_usb_cloner.storage.mount import (
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.ui import display, menus, renderer
 from rpi_usb_cloner.menu import MenuItem, definitions, navigator
+from rpi_usb_cloner.menu import actions as menu_actions
 
 
 def main(argv=None):
@@ -61,11 +61,11 @@ def main(argv=None):
     def get_device_items():
         labels = drives.list_media_drive_labels()
         items = [
-            MenuItem(label=label, next_screen=definitions.ACTIONS_MENU.screen_id)
+            MenuItem(label=label, submenu=definitions.DRIVES_MENU)
             for label in labels
         ]
         if not items:
-            items.append(MenuItem(label="NO USB DEVICES"))
+            items.append(MenuItem(label="NO USB DEVICES", action=menu_actions.noop))
         return items
 
     def get_device_status_line():
@@ -151,16 +151,27 @@ def main(argv=None):
             prev_states["D"] = current_d
             time.sleep(0.05)
 
+    menu_actions.set_action_context(
+        menu_actions.ActionContext(
+            app_context=app_context,
+            clone_mode=clone_mode,
+            state=state,
+            log_debug=log_debug,
+            get_selected_usb_name=get_active_drive_name,
+            show_drive_info=show_drive_info,
+        )
+    )
+
     menu_navigator = navigator.MenuNavigator(
         screens=definitions.SCREENS,
-        root_screen_id=definitions.ACTIONS_MENU.screen_id,
-        items_providers={definitions.MAIN_MENU.screen_id: get_device_items},
+        root_screen_id=definitions.MAIN_MENU.screen_id,
+        items_providers={definitions.DRIVE_LIST_MENU.screen_id: get_device_items},
     )
 
     def render_current_screen():
         menu_navigator.sync_visible_rows(visible_rows)
         current_screen = menu_navigator.current_screen()
-        if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
+        if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
             app_context.active_drive = drives.select_active_drive(
                 app_context.discovered_drives,
@@ -169,11 +180,11 @@ def main(argv=None):
         items = [item.label for item in menu_navigator.current_items()]
         status_line = current_screen.status_line
         active_drive_label = drives.get_active_drive_label(app_context.active_drive)
-        if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
+        if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             status_line = get_device_status_line()
-        if active_drive_label:
+        elif active_drive_label:
             status_line = active_drive_label
-        elif current_screen.screen_id == definitions.ACTIONS_MENU.screen_id:
+        elif current_screen.screen_id == definitions.DRIVES_MENU.screen_id:
             status_line = "NO DRIVE SELECTED"
         renderer.render_menu_screen(
             title=current_screen.title,
@@ -183,35 +194,6 @@ def main(argv=None):
             status_line=status_line,
             visible_rows=visible_rows,
         )
-
-    action_handlers = {
-        "drive.copy": lambda: drive_actions.copy_drive(
-            state=state,
-            clone_mode=clone_mode,
-            log_debug=log_debug,
-            get_selected_usb_name=get_active_drive_name,
-        ),
-        "drive.info": show_drive_info,
-        "drive.erase": lambda: drive_actions.erase_drive(
-            state=state,
-            log_debug=log_debug,
-            get_selected_usb_name=get_active_drive_name,
-        ),
-        "image.coming_soon": image_actions.coming_soon,
-        "tools.coming_soon": tools_actions.coming_soon,
-        "settings.coming_soon": settings_actions.coming_soon,
-    }
-
-    def run_action(action):
-        if action in {"drive.copy", "drive.info", "drive.erase"} and not app_context.active_drive:
-            display.display_lines(["NO DRIVE", "SELECTED"])
-            time.sleep(1)
-            return
-        handler = action_handlers.get(action)
-        if handler:
-            handler()
-        else:
-            log_debug(f"Unhandled action: {action}")
 
     def sleepdisplay():
         context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
@@ -309,13 +291,13 @@ def main(argv=None):
                 log_debug("Button RIGHT pressed")
                 action = menu_navigator.activate(visible_rows)
                 if action:
-                    run_action(action)
+                    action()
                 button_pressed = True
             if prev_states["B"] and not current_states["B"]:
                 log_debug("Button SELECT pressed")
                 action = menu_navigator.activate(visible_rows)
                 if action:
-                    run_action(action)
+                    action()
                 button_pressed = True
             if prev_states["C"] and not current_states["C"]:
                 log_debug("Button C pressed")
