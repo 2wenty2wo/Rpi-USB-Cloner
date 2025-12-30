@@ -214,8 +214,18 @@ def main(argv=None):
 
     def view():
         view_devices()
-        time.sleep(2)
-        display.basemenu(state)
+        menus.wait_for_buttons_release([gpio.PIN_A])
+        last_selected_name = get_selected_usb_name()
+        while True:
+            current_a = gpio.read_button(gpio.PIN_A)
+            if not current_a:
+                display.basemenu(state)
+                return
+            current_selected_name = get_selected_usb_name()
+            if current_selected_name != last_selected_name:
+                view_devices()
+                last_selected_name = current_selected_name
+            time.sleep(0.05)
 
     def erase():
         state.index = app_state.MENU_NONE
