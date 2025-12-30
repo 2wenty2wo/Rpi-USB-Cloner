@@ -1,4 +1,4 @@
-# Rpi-USB-Cloner
+![Rpi USB Cloner](logo.webp)
 
 **STATUS: NOT WORKING**
 
