@@ -65,7 +65,7 @@ def render_menu_screen(
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     line_height = _get_line_height(list_font)
-    row_height = line_height + 4
+    row_height = line_height + 2
     left_margin = context.x - 11
 
     max_visible_rows = calculate_visible_rows(
@@ -92,7 +92,7 @@ def render_menu_screen(
         draw.text((left_margin, row_top + 1), items_list[item_index], font=list_font, fill=text_color)
 
     if status_line:
-        footer_font = status_font or context.fonts.get("footer", context.fontcopy)
+        footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
         footer_y = context.height - footer_height - 2
         max_status_width = context.width - left_margin - 1
@@ -118,11 +118,11 @@ def calculate_visible_rows(
         current_y += title_height + display.TITLE_PADDING
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
-    row_height = _get_line_height(list_font) + 4
+    row_height = _get_line_height(list_font) + 2
 
     footer_height = 0
     if status_line:
-        footer_font = status_font or context.fonts.get("footer", context.fontcopy)
+        footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
 
     available_height = context.height - current_y - footer_height - padding

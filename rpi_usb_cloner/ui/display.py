@@ -38,7 +38,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-TITLE_PADDING = 6
+TITLE_PADDING = 0
 
 
 def configure_display_helpers(log_debug=None):
@@ -85,7 +85,7 @@ def init_display() -> DisplayContext:
     fontdisks = ImageFont.truetype(ASSETS_DIR / "slkscr.ttf", 8)
     fontmain = font
     fonts = {
-        "title": fontdisks,
+        "title": fontcopy,
         "items": fontdisks,
         "footer": fontcopy,
     }
