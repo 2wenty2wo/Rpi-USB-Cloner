@@ -132,6 +132,53 @@ def _get_line_height(font, min_height=8):
     return line_height
 
 
+def _measure_text_width(draw, text, font):
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _truncate_text(draw, text, font, max_width):
+    if _measure_text_width(draw, text, font) <= max_width:
+        return text
+    if max_width <= 0:
+        return ""
+    ellipsis = "…"
+    truncated = text
+    while truncated:
+        candidate = f"{truncated}{ellipsis}" if truncated != text else truncated
+        if _measure_text_width(draw, candidate, font) <= max_width:
+            return candidate
+        truncated = truncated[:-1]
+    return ""
+
+
+def _wrap_lines_to_width(lines, font, available_width):
+    context = get_display_context()
+    draw = context.draw
+    wrapped_lines = []
+    for line in lines:
+        words = line.split()
+        if not words:
+            wrapped_lines.append("")
+            continue
+        current = ""
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if _measure_text_width(draw, candidate, font) <= available_width:
+                current = candidate
+                continue
+            if current:
+                wrapped_lines.append(current)
+                current = ""
+            if _measure_text_width(draw, word, font) <= available_width:
+                current = word
+            else:
+                wrapped_lines.append(_truncate_text(draw, word, font, available_width))
+        if current:
+            wrapped_lines.append(current)
+    return wrapped_lines
+
+
 def render_paginated_lines(title, lines, page_index=0, items_font=None, title_font=None):
     context = get_display_context()
     draw = context.draw
@@ -143,6 +190,9 @@ def render_paginated_lines(title, lines, page_index=0, items_font=None, title_fo
         title_height = _get_line_height(header_font)
         current_y += title_height + TITLE_PADDING
     items_font = items_font or context.fontdisks
+    left_margin = context.x - 11
+    available_width = max(0, context.width - left_margin)
+    lines = _wrap_lines_to_width(lines, items_font, available_width)
     line_height = _get_line_height(items_font)
     line_step = line_height + 2
     available_height = context.height - current_y - 2

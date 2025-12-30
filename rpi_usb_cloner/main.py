@@ -98,6 +98,12 @@ def main(argv=None):
             header = f"{header} {vendor_model}"
         lines.append(header.strip())
 
+        def append_line(line):
+            if max_lines is not None and len(lines) >= max_lines:
+                return False
+            lines.append(line)
+            return True
+
         for child in get_children(device):
             if max_lines is not None and len(lines) >= max_lines:
                 break
@@ -106,28 +112,36 @@ def main(argv=None):
             label = (child.get("label") or "").strip()
             mountpoint = child.get("mountpoint")
             label_suffix = f" {label}" if label else ""
+            if not append_line(f"{name} {fstype}{label_suffix}".strip()):
+                break
+            if max_lines is not None and len(lines) >= max_lines:
+                break
             if not mountpoint:
-                lines.append(f"{name} {fstype}{label_suffix} not mounted")
+                append_line("mnt: not mounted")
                 continue
 
-            usage_label = ""
+            if not append_line(f"mnt:{mountpoint}"):
+                break
+
+            usage_label = "?"
             try:
                 usage = shutil.disk_usage(mountpoint)
-                usage_label = f" {human_size(usage.used)}/{human_size(usage.total)}"
+                usage_label = f"{human_size(usage.used)}/{human_size(usage.total)}"
             except (FileNotFoundError, PermissionError, OSError) as error:
                 log_debug(f"Usage check failed for {mountpoint}: {error}")
-                usage_label = " usage?"
+                usage_label = "usage?"
 
-            files_label = ""
+            if not append_line(f"use:{usage_label}"):
+                break
+
             try:
                 entries = sorted(os.listdir(mountpoint))[:3]
                 if entries:
-                    files_label = " files:" + ",".join(entries)
+                    if not append_line(f"files:{','.join(entries)}"):
+                        break
             except (FileNotFoundError, PermissionError, OSError) as error:
                 log_debug(f"Listdir failed for {mountpoint}: {error}")
-                files_label = " files?"
-
-            lines.append(f"{name} {fstype}{label_suffix} {mountpoint}{usage_label}{files_label}")
+                append_line("files?")
 
         if max_lines is not None and len(lines) > max_lines:
             return lines[:max_lines]
