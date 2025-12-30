@@ -44,7 +44,6 @@ def main(argv=None):
     configure_clone_helpers(log_debug=log_debug)
 
     state = app_state.AppState()
-    visible_rows = 4
     def get_active_drive_name():
         return app_context.active_drive
 
@@ -168,8 +167,24 @@ def main(argv=None):
         items_providers={definitions.DRIVE_LIST_MENU.screen_id: get_device_items},
     )
 
+    def get_screen_status_line(screen):
+        status_line = screen.status_line
+        active_drive_label = drives.get_active_drive_label(app_context.active_drive)
+        if screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
+            return get_device_status_line()
+        if screen.screen_id == definitions.DRIVES_MENU.screen_id:
+            return active_drive_label or "NO DRIVE SELECTED"
+        return status_line
+
+    def get_visible_rows_for_screen(screen, status_line=None):
+        if status_line is None:
+            status_line = get_screen_status_line(screen)
+        return renderer.calculate_visible_rows(
+            title=screen.title,
+            status_line=status_line,
+        )
+
     def render_current_screen():
-        menu_navigator.sync_visible_rows(visible_rows)
         current_screen = menu_navigator.current_screen()
         if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
@@ -178,21 +193,16 @@ def main(argv=None):
                 state.usb_list_index,
             )
         items = [item.label for item in menu_navigator.current_items()]
-        status_line = current_screen.status_line
-        active_drive_label = drives.get_active_drive_label(app_context.active_drive)
-        if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
-            status_line = get_device_status_line()
-        elif active_drive_label:
-            status_line = active_drive_label
-        elif current_screen.screen_id == definitions.DRIVES_MENU.screen_id:
-            status_line = "NO DRIVE SELECTED"
+        status_line = get_screen_status_line(current_screen)
+        dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
+        menu_navigator.sync_visible_rows(dynamic_visible_rows)
         renderer.render_menu_screen(
             title=current_screen.title,
             items=items,
             selected_index=menu_navigator.current_state().selected_index,
             scroll_offset=menu_navigator.current_state().scroll_offset,
             status_line=status_line,
-            visible_rows=visible_rows,
+            visible_rows=dynamic_visible_rows,
         )
 
     def handle_back() -> None:
@@ -251,7 +261,13 @@ def main(argv=None):
                         state.usb_list_index = current_devices.index(selected_name)
                     else:
                         state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
-                    menu_navigator.set_selection(definitions.MAIN_MENU.screen_id, state.usb_list_index, visible_rows)
+                    main_screen = definitions.SCREENS[definitions.MAIN_MENU.screen_id]
+                    main_visible_rows = get_visible_rows_for_screen(main_screen)
+                    menu_navigator.set_selection(
+                        definitions.MAIN_MENU.screen_id,
+                        state.usb_list_index,
+                        main_visible_rows,
+                    )
                     app_context.discovered_drives = current_devices
                     app_context.active_drive = drives.select_active_drive(
                         app_context.discovered_drives,
@@ -277,14 +293,17 @@ def main(argv=None):
             }
             app_context.input_state = current_states
             button_pressed = False
+            current_screen = menu_navigator.current_screen()
+            status_line = get_screen_status_line(current_screen)
+            dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
 
             if prev_states["U"] and not current_states["U"]:
                 log_debug("Button UP pressed")
-                menu_navigator.move_selection(-1, visible_rows)
+                menu_navigator.move_selection(-1, dynamic_visible_rows)
                 button_pressed = True
             if prev_states["D"] and not current_states["D"]:
                 log_debug("Button DOWN pressed")
-                menu_navigator.move_selection(1, visible_rows)
+                menu_navigator.move_selection(1, dynamic_visible_rows)
                 button_pressed = True
             if prev_states["L"] and not current_states["L"]:
                 log_debug("Button LEFT pressed")
@@ -296,13 +315,13 @@ def main(argv=None):
                 button_pressed = True
             if prev_states["R"] and not current_states["R"]:
                 log_debug("Button RIGHT pressed")
-                action = menu_navigator.activate(visible_rows)
+                action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
                 button_pressed = True
             if prev_states["B"] and not current_states["B"]:
                 log_debug("Button SELECT pressed")
-                action = menu_navigator.activate(visible_rows)
+                action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
                 button_pressed = True
