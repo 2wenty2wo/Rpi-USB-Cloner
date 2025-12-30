@@ -19,6 +19,9 @@ from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.ui import display
 
 TITLE_PADDING = 6
+INITIAL_REPEAT_DELAY = 0.3
+REPEAT_INTERVAL = 0.08
+BUTTON_POLL_DELAY = 0.01
 
 
 @dataclass
@@ -105,7 +108,7 @@ def render_menu(menu, draw, width, height, fonts):
                 draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
 
 
-def wait_for_buttons_release(buttons, poll_delay=0.05):
+def wait_for_buttons_release(buttons, poll_delay=BUTTON_POLL_DELAY):
     while any(is_pressed(pin) for pin in buttons):
         time.sleep(poll_delay)
 
@@ -137,19 +140,46 @@ def select_clone_mode(current_mode=None):
         "B": read_button(PIN_B),
         "C": read_button(PIN_C),
     }
+    last_press_time = {key: 0.0 for key in prev_states}
+    last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
+        now = time.monotonic()
         current_U = read_button(PIN_U)
         if prev_states["U"] and not current_U:
             selected_index = max(0, selected_index - 1)
+            last_press_time["U"] = now
+            last_repeat_time["U"] = now
+        elif not current_U and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - 1)
+                last_repeat_time["U"] = now
         current_D = read_button(PIN_D)
         if prev_states["D"] and not current_D:
             selected_index = min(len(modes) - 1, selected_index + 1)
+            last_press_time["D"] = now
+            last_repeat_time["D"] = now
+        elif not current_D and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
+                selected_index = min(len(modes) - 1, selected_index + 1)
+                last_repeat_time["D"] = now
         current_L = read_button(PIN_L)
         if prev_states["L"] and not current_L:
             selected_index = max(0, selected_index - 1)
+            last_press_time["L"] = now
+            last_repeat_time["L"] = now
+        elif not current_L and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - 1)
+                last_repeat_time["L"] = now
         current_R = read_button(PIN_R)
         if prev_states["R"] and not current_R:
             selected_index = min(len(modes) - 1, selected_index + 1)
+            last_press_time["R"] = now
+            last_repeat_time["R"] = now
+        elif not current_R and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
+                selected_index = min(len(modes) - 1, selected_index + 1)
+                last_repeat_time["R"] = now
         current_A = read_button(PIN_A)
         if prev_states["A"] and not current_A:
             return None
@@ -167,7 +197,7 @@ def select_clone_mode(current_mode=None):
         menu.selected_index = selected_index
         render_menu(menu, context.draw, context.width, context.height, context.fonts)
         context.disp.display(context.image)
-        time.sleep(0.05)
+        time.sleep(BUTTON_POLL_DELAY)
 
 
 def select_erase_mode():
@@ -195,19 +225,46 @@ def select_erase_mode():
         "B": read_button(PIN_B),
         "C": read_button(PIN_C),
     }
+    last_press_time = {key: 0.0 for key in prev_states}
+    last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
+        now = time.monotonic()
         current_U = read_button(PIN_U)
         if prev_states["U"] and not current_U:
             selected_index = max(0, selected_index - 1)
+            last_press_time["U"] = now
+            last_repeat_time["U"] = now
+        elif not current_U and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - 1)
+                last_repeat_time["U"] = now
         current_D = read_button(PIN_D)
         if prev_states["D"] and not current_D:
             selected_index = min(len(modes) - 1, selected_index + 1)
+            last_press_time["D"] = now
+            last_repeat_time["D"] = now
+        elif not current_D and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
+                selected_index = min(len(modes) - 1, selected_index + 1)
+                last_repeat_time["D"] = now
         current_L = read_button(PIN_L)
         if prev_states["L"] and not current_L:
             selected_index = max(0, selected_index - 1)
+            last_press_time["L"] = now
+            last_repeat_time["L"] = now
+        elif not current_L and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - 1)
+                last_repeat_time["L"] = now
         current_R = read_button(PIN_R)
         if prev_states["R"] and not current_R:
             selected_index = min(len(modes) - 1, selected_index + 1)
+            last_press_time["R"] = now
+            last_repeat_time["R"] = now
+        elif not current_R and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
+                selected_index = min(len(modes) - 1, selected_index + 1)
+                last_repeat_time["R"] = now
         current_A = read_button(PIN_A)
         if prev_states["A"] and not current_A:
             return None
@@ -225,4 +282,4 @@ def select_erase_mode():
         menu.selected_index = selected_index
         render_menu(menu, context.draw, context.width, context.height, context.fonts)
         context.disp.display(context.image)
-        time.sleep(0.05)
+        time.sleep(BUTTON_POLL_DELAY)
