@@ -83,23 +83,27 @@ def main(argv=None):
         return True
 
     def view_devices():
-        devices_list = list_usb_disks()
+        selected_name = get_selected_usb_name()
+        if not selected_name:
+            display.display_lines(["NO SELECTED USB"])
+            return
+        devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
         if not devices_list:
-            display.display_lines(["NO USB", "Insert device"])
+            display.display_lines(["NO SELECTED USB"])
             return
         lines = []
-        for device in devices_list:
-            name = device.get("name")
-            size = human_size(device.get("size"))
-            model = (device.get("model") or "").strip()
-            line = f"{name} {size}"
-            if model:
-                line = f"{line} {model[:6]}"
-            lines.append(line)
-            for child in get_children(device):
-                fstype = child.get("fstype") or "raw"
-                mountpoint = child.get("mountpoint") or "-"
-                lines.append(f"{child.get('name')} {fstype} {mountpoint[:10]}")
+        device = devices_list[0]
+        name = device.get("name")
+        size = human_size(device.get("size"))
+        model = (device.get("model") or "").strip()
+        line = f"{name} {size}"
+        if model:
+            line = f"{line} {model[:6]}"
+        lines.append(line)
+        for child in get_children(device):
+            fstype = child.get("fstype") or "raw"
+            mountpoint = child.get("mountpoint") or "-"
+            lines.append(f"{child.get('name')} {fstype} {mountpoint[:10]}")
         display.display_lines(lines)
 
     def menuselect():
