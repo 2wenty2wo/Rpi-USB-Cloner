@@ -1,6 +1,8 @@
 import time
 import datetime
 import subprocess
+import sys
+from pathlib import Path
 from gpio import (
             PIN_A,
             PIN_B,
@@ -17,8 +19,8 @@ import os
 import shutil
 import re
 import select
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mount import *
-import sys
 import argparse
 from dataclasses import dataclass
 from typing import List, Optional
