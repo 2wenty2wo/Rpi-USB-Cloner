@@ -39,18 +39,12 @@ cd Rpi-USB-Cloner
      source .venv/bin/activate
      python3 -m pip install --upgrade pip
      python3 -m pip install luma.oled pillow
-     python3 -m pip install --user --break-system-packages ./mount.py
      ```
    - **Option B (single-use device):** install into system Python with the PEP 668 override.
      ```sh
      sudo python3 -m pip install --break-system-packages luma.oled
      sudo python3 -m pip install --break-system-packages pillow
      python3 -m pip install --upgrade pip --break-system-packages
-     python3 -m pip install --user --break-system-packages ./mount.py
-     ```
-   - **Before running the mount.py command above, clone it locally so `./mount.py` exists:**
-     ```sh
-     git clone https://github.com/MrVallentin/mount.py
      ```
 
 ### 3) Hardware setup
@@ -86,10 +80,10 @@ If running in the foreground, press **Ctrl+C** in the terminal where it was star
 From the repo directory:
 ```sh
 git pull
-python3 -m pip install --upgrade luma.oled pillow mount.py
+python3 -m pip install --upgrade luma.oled pillow
 ```
 If you used Option B above, append `--break-system-packages` to the pip command.
-If the `mount.py` pip install fails, reinstall it manually using the steps in the installation section above.
+`mount.py` ships with this repository, so no separate install is needed.
 
   USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
   
