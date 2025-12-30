@@ -1,9 +1,8 @@
 <p align="center">
-  <img src="rpi_usb_cloner/ui/assets/logo.webp" width="220" />
+  <img src="rpi_usb_cloner/ui/assets/logo.webp" alt="Rpi USB Cloner" />
 </p>
 
 <p align="center">
-  <br/>
   <img src="https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white" />
   <img src="https://img.shields.io/github/last-commit/2wenty2wo/Rpi-USB-Cloner" />
   <img src="https://img.shields.io/badge/status-WIP-yellow" />
