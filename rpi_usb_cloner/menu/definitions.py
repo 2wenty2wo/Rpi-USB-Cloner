@@ -4,6 +4,7 @@ ACTIONS_MENU = MenuScreen(
     screen_id="actions",
     title="ACTIONS",
     items=[
+        MenuItem(label="SELECT DRIVE", next_screen="devices"),
         MenuItem(label="COPY DRIVE", action="drive.copy"),
         MenuItem(label="DRIVE INFO", action="drive.info"),
         MenuItem(label="ERASE DRIVE", action="drive.erase"),
@@ -15,7 +16,7 @@ ACTIONS_MENU = MenuScreen(
 
 MAIN_MENU = MenuScreen(
     screen_id="devices",
-    title="USB DEVICES",
+    title="SELECT DRIVE",
 )
 
 SCREENS = {

@@ -4,12 +4,20 @@ import time
 from datetime import datetime, timedelta
 
 from rpi_usb_cloner.actions import drive_actions, image_actions, settings_actions, tools_actions
+from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.mount import get_device_name, get_model, get_size, get_vendor, list_media_devices
+from rpi_usb_cloner.storage.mount import (
+    get_device_name,
+    get_model,
+    get_size,
+    get_vendor,
+    list_media_devices,
+)
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
-from rpi_usb_cloner.ui import display, renderer
+from rpi_usb_cloner.ui import display, menus, renderer
 from rpi_usb_cloner.menu import MenuItem, definitions, navigator
 
 
@@ -20,44 +28,42 @@ def main(argv=None):
     debug_enabled = args.debug
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
+    app_context = AppContext()
+
     def log_debug(message):
+        app_context.add_log(message)
         if debug_enabled:
             print(f"[DEBUG] {message}")
 
     gpio.setup_gpio()
     context = display.init_display()
     display.set_display_context(context)
+    app_context.display = context
     display.configure_display_helpers(log_debug=log_debug)
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
 
     state = app_state.AppState()
     visible_rows = 4
-    def get_selected_usb_name():
-        devices_list = list_media_devices()
-        if not devices_list:
-            return None
-        if state.usb_list_index >= len(devices_list):
-            state.usb_list_index = max(len(devices_list) - 1, 0)
-        device = devices_list[state.usb_list_index]
-        return get_device_name(device)
+    def get_active_drive_name():
+        return app_context.active_drive
 
     def get_usb_snapshot():
         try:
-            devices_list = list_media_devices()
+            devices_list = drives.list_media_drive_names()
         except Exception as error:
             log_debug(f"Failed to list media devices: {error}")
             return []
-        snapshot = sorted(get_device_name(device) for device in devices_list)
+        snapshot = sorted(devices_list)
         log_debug(f"USB snapshot: {snapshot}")
         return snapshot
 
     def get_device_items():
-        devices_list = list_media_devices()
-        items = []
-        for device in devices_list:
-            label = f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB"
-            items.append(MenuItem(label=label, next_screen=definitions.ACTIONS_MENU.screen_id))
+        labels = drives.list_media_drive_labels()
+        items = [
+            MenuItem(label=label, next_screen=definitions.ACTIONS_MENU.screen_id)
+            for label in labels
+        ]
         if not items:
             items.append(MenuItem(label="NO USB DEVICES"))
         return items
@@ -66,18 +72,88 @@ def main(argv=None):
         devices_list = list_media_devices()
         if not devices_list:
             return "INSERT USB"
-        selected_name = get_selected_usb_name()
+        selected_name = app_context.active_drive
         for device in devices_list:
             if get_device_name(device) == selected_name:
                 vendor = (get_vendor(device) or "").strip()
                 model = (get_model(device) or "").strip()
                 label = " ".join(part for part in [vendor, model] if part)
                 return label or selected_name
-        return "USB DEVICES"
+        return "NO DRIVE SELECTED"
+
+    def render_drive_info(page_index: int) -> tuple[int, int]:
+        selected_name = app_context.active_drive
+        if not selected_name:
+            display.display_lines(["NO DRIVE", "SELECTED"])
+            return 1, 0
+        device = None
+        for candidate in list_media_devices():
+            if get_device_name(candidate) == selected_name:
+                device = candidate
+                break
+        if not device:
+            display.display_lines(["NO DRIVE", "SELECTED"])
+            return 1, 0
+        size_gb = get_size(device) / 1024 ** 3
+        vendor = (get_vendor(device) or "").strip()
+        model = (get_model(device) or "").strip()
+        info_lines = [f"{selected_name} {size_gb:.2f}GB"]
+        if vendor or model:
+            info_lines.append(" ".join(part for part in [vendor, model] if part))
+        return display.render_paginated_lines(
+            "DRIVE INFO",
+            info_lines,
+            page_index=page_index,
+            title_font=display.get_display_context().fontcopy,
+        )
+
+    def show_drive_info() -> None:
+        page_index = 0
+        total_pages, page_index = render_drive_info(page_index)
+        menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+        last_selected_name = app_context.active_drive
+        prev_states = {
+            "A": gpio.read_button(gpio.PIN_A),
+            "L": gpio.read_button(gpio.PIN_L),
+            "R": gpio.read_button(gpio.PIN_R),
+            "U": gpio.read_button(gpio.PIN_U),
+            "D": gpio.read_button(gpio.PIN_D),
+        }
+        while True:
+            current_a = gpio.read_button(gpio.PIN_A)
+            if prev_states["A"] and not current_a:
+                return
+            current_l = gpio.read_button(gpio.PIN_L)
+            if prev_states["L"] and not current_l:
+                page_index = max(0, page_index - 1)
+                total_pages, page_index = render_drive_info(page_index)
+            current_r = gpio.read_button(gpio.PIN_R)
+            if prev_states["R"] and not current_r:
+                page_index = min(total_pages - 1, page_index + 1)
+                total_pages, page_index = render_drive_info(page_index)
+            current_u = gpio.read_button(gpio.PIN_U)
+            if prev_states["U"] and not current_u:
+                page_index = max(0, page_index - 1)
+                total_pages, page_index = render_drive_info(page_index)
+            current_d = gpio.read_button(gpio.PIN_D)
+            if prev_states["D"] and not current_d:
+                page_index = min(total_pages - 1, page_index + 1)
+                total_pages, page_index = render_drive_info(page_index)
+            current_selected_name = app_context.active_drive
+            if current_selected_name != last_selected_name:
+                page_index = 0
+                total_pages, page_index = render_drive_info(page_index)
+                last_selected_name = current_selected_name
+            prev_states["A"] = current_a
+            prev_states["L"] = current_l
+            prev_states["R"] = current_r
+            prev_states["U"] = current_u
+            prev_states["D"] = current_d
+            time.sleep(0.05)
 
     menu_navigator = navigator.MenuNavigator(
         screens=definitions.SCREENS,
-        root_screen_id=definitions.MAIN_MENU.screen_id,
+        root_screen_id=definitions.ACTIONS_MENU.screen_id,
         items_providers={definitions.MAIN_MENU.screen_id: get_device_items},
     )
 
@@ -86,13 +162,19 @@ def main(argv=None):
         current_screen = menu_navigator.current_screen()
         if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
+            app_context.active_drive = drives.select_active_drive(
+                app_context.discovered_drives,
+                state.usb_list_index,
+            )
         items = [item.label for item in menu_navigator.current_items()]
         status_line = current_screen.status_line
+        active_drive_label = drives.get_active_drive_label(app_context.active_drive)
         if current_screen.screen_id == definitions.MAIN_MENU.screen_id:
             status_line = get_device_status_line()
+        if active_drive_label:
+            status_line = active_drive_label
         elif current_screen.screen_id == definitions.ACTIONS_MENU.screen_id:
-            selected_name = get_selected_usb_name() or "NO USB"
-            status_line = f"USB: {selected_name}"
+            status_line = "NO DRIVE SELECTED"
         renderer.render_menu_screen(
             title=current_screen.title,
             items=items,
@@ -107,17 +189,13 @@ def main(argv=None):
             state=state,
             clone_mode=clone_mode,
             log_debug=log_debug,
-            get_selected_usb_name=get_selected_usb_name,
+            get_selected_usb_name=get_active_drive_name,
         ),
-        "drive.info": lambda: drive_actions.drive_info(
-            state=state,
-            log_debug=log_debug,
-            get_selected_usb_name=get_selected_usb_name,
-        ),
+        "drive.info": show_drive_info,
         "drive.erase": lambda: drive_actions.erase_drive(
             state=state,
             log_debug=log_debug,
-            get_selected_usb_name=get_selected_usb_name,
+            get_selected_usb_name=get_active_drive_name,
         ),
         "image.coming_soon": image_actions.coming_soon,
         "tools.coming_soon": tools_actions.coming_soon,
@@ -125,6 +203,10 @@ def main(argv=None):
     }
 
     def run_action(action):
+        if action in {"drive.copy", "drive.info", "drive.erase"} and not app_context.active_drive:
+            display.display_lines(["NO DRIVE", "SELECTED"])
+            time.sleep(1)
+            return
         handler = action_handlers.get(action)
         if handler:
             handler()
@@ -141,9 +223,14 @@ def main(argv=None):
             context.disp.clear()
         gpio.cleanup()
 
+    app_context.discovered_drives = drives.list_media_drive_names()
+    app_context.active_drive = drives.select_active_drive(
+        app_context.discovered_drives,
+        state.usb_list_index,
+    )
     render_current_screen()
     state.last_usb_check = time.time()
-    state.last_seen_devices = get_usb_snapshot()
+    state.last_seen_devices = list(app_context.discovered_drives)
     prev_states = {
         "U": gpio.read_button(gpio.PIN_U),
         "D": gpio.read_button(gpio.PIN_D),
@@ -161,16 +248,26 @@ def main(argv=None):
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 log_debug(f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)")
                 current_devices = get_usb_snapshot()
-                if current_devices != state.last_seen_devices:
-                    log_debug(f"USB devices changed: {state.last_seen_devices} -> {current_devices}")
+                if current_devices != app_context.discovered_drives:
+                    log_debug(
+                        f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
+                    )
                     selected_name = None
-                    if state.last_seen_devices and state.usb_list_index < len(state.last_seen_devices):
-                        selected_name = state.last_seen_devices[state.usb_list_index]
+                    if (
+                        app_context.discovered_drives
+                        and state.usb_list_index < len(app_context.discovered_drives)
+                    ):
+                        selected_name = app_context.discovered_drives[state.usb_list_index]
                     if selected_name and selected_name in current_devices:
                         state.usb_list_index = current_devices.index(selected_name)
                     else:
                         state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
                     menu_navigator.set_selection(definitions.MAIN_MENU.screen_id, state.usb_list_index, visible_rows)
+                    app_context.discovered_drives = current_devices
+                    app_context.active_drive = drives.select_active_drive(
+                        app_context.discovered_drives,
+                        state.usb_list_index,
+                    )
                     state.last_seen_devices = current_devices
                 state.last_usb_check = time.time()
             if app_state.ENABLE_SLEEP:
@@ -189,6 +286,7 @@ def main(argv=None):
                 "B": gpio.read_button(gpio.PIN_B),
                 "C": gpio.read_button(gpio.PIN_C),
             }
+            app_context.input_state = current_states
             button_pressed = False
 
             if prev_states["U"] and not current_states["U"]:
