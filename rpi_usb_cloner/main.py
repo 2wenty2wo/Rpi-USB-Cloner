@@ -195,6 +195,13 @@ def main(argv=None):
             visible_rows=visible_rows,
         )
 
+    def handle_back() -> None:
+        if app_context.operation_active and not app_context.allow_back_interrupt:
+            log_debug("Back ignored: operation active")
+            return
+        if not menu_navigator.back():
+            log_debug("Back ignored: already at root")
+
     def sleepdisplay():
         context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
         context.disp.display(context.image)
@@ -281,11 +288,11 @@ def main(argv=None):
                 button_pressed = True
             if prev_states["L"] and not current_states["L"]:
                 log_debug("Button LEFT pressed")
-                menu_navigator.back()
+                handle_back()
                 button_pressed = True
             if prev_states["A"] and not current_states["A"]:
                 log_debug("Button BACK pressed")
-                menu_navigator.back()
+                handle_back()
                 button_pressed = True
             if prev_states["R"] and not current_states["R"]:
                 log_debug("Button RIGHT pressed")
