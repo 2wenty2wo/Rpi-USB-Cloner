@@ -91,15 +91,6 @@ python3 -m pip install --upgrade luma.oled pillow
 If you used Option B above, append `--break-system-packages` to the pip command.
 `mount.py` ships with this repository, so no separate install is needed.
 
-## UI assets
-The UI expects the following files in `rpi_usb_cloner/ui/assets/`:
-
-- `splash.png`
-- `menu.jpg`
-- `logo.webp`
-- `usb.png`
-- `rainyhearts.ttf`
-- `slkscr.ttf`
 
   USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
   
