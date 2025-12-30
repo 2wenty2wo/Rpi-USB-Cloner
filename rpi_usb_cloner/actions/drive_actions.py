@@ -15,7 +15,7 @@ from rpi_usb_cloner.storage.devices import (
     human_size,
     list_usb_disks,
 )
-from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui import display, menus, screens
 
 
 def copy_drive(
@@ -86,16 +86,16 @@ def copy_drive(
             if prev_states["B"] and not current_B:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
-                    display.display_lines(["COPY", "Starting..."])
+                    screens.render_status_screen("COPY", "Running...", progress_line="Starting...")
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
                         return
-                    display.display_lines(["COPY", mode.upper()])
+                    screens.render_status_screen("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
                     if clone_device(source, target, mode=mode):
-                        display.display_lines(["COPY", "Done"])
+                        screens.render_status_screen("COPY", "Done", progress_line="Complete.")
                     else:
                         _log_debug(log_debug, "Copy failed")
-                        display.display_lines(["COPY", "Failed"])
+                        screens.render_status_screen("COPY", "Failed", progress_line="Check logs.")
                     time.sleep(1)
                     return
                 if confirm_selection == app_state.CONFIRM_NO:
@@ -223,12 +223,12 @@ def erase_drive(
         return
     if not _ensure_root_for_erase():
         return
-    display.display_lines(["ERASE", "Starting..."])
+    screens.render_status_screen("ERASE", "Running...", progress_line="Starting...")
     if erase_device(target, mode):
-        display.display_lines(["ERASE", "Done"])
+        screens.render_status_screen("ERASE", "Done", progress_line="Complete.")
     else:
         _log_debug(log_debug, "Erase failed")
-        display.display_lines(["ERASE", "Failed"])
+        screens.render_status_screen("ERASE", "Failed", progress_line="Check logs.")
     time.sleep(1)
 
 

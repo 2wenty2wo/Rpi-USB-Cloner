@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 from rpi_usb_cloner.actions import drive_actions, image_actions, settings_actions, tools_actions
 from rpi_usb_cloner.app.context import AppContext
-from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui import display, screens
 
 
 @dataclass
@@ -42,15 +42,28 @@ def _ensure_drive_selected() -> bool:
     return False
 
 
+def _run_operation(action: Callable[[], None], *, allow_back_interrupt: bool = False) -> None:
+    context = _require_context()
+    context.app_context.operation_active = True
+    context.app_context.allow_back_interrupt = allow_back_interrupt
+    try:
+        action()
+    finally:
+        context.app_context.operation_active = False
+        context.app_context.allow_back_interrupt = False
+
+
 def copy_drive() -> None:
     context = _require_context()
     if not _ensure_drive_selected():
         return
-    drive_actions.copy_drive(
-        state=context.state,
-        clone_mode=context.clone_mode,
-        log_debug=context.log_debug,
-        get_selected_usb_name=context.get_selected_usb_name,
+    _run_operation(
+        lambda: drive_actions.copy_drive(
+            state=context.state,
+            clone_mode=context.clone_mode,
+            log_debug=context.log_debug,
+            get_selected_usb_name=context.get_selected_usb_name,
+        )
     )
 
 
@@ -65,15 +78,25 @@ def erase_drive() -> None:
     context = _require_context()
     if not _ensure_drive_selected():
         return
-    drive_actions.erase_drive(
-        state=context.state,
-        log_debug=context.log_debug,
-        get_selected_usb_name=context.get_selected_usb_name,
+    _run_operation(
+        lambda: drive_actions.erase_drive(
+            state=context.state,
+            log_debug=context.log_debug,
+            get_selected_usb_name=context.get_selected_usb_name,
+        )
     )
 
 
 def images_coming_soon() -> None:
     image_actions.coming_soon()
+
+
+def backup_image() -> None:
+    _run_operation(image_actions.backup_image)
+
+
+def write_image() -> None:
+    _run_operation(image_actions.write_image)
 
 
 def tools_coming_soon() -> None:
@@ -82,6 +105,11 @@ def tools_coming_soon() -> None:
 
 def settings_coming_soon() -> None:
     settings_actions.coming_soon()
+
+
+def view_logs() -> None:
+    context = _require_context()
+    screens.show_logs(context.app_context)
 
 
 def noop() -> None:

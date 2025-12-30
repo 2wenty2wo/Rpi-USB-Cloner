@@ -14,6 +14,8 @@ class AppContext:
     active_drive: Optional[str] = None
     discovered_drives: List[str] = field(default_factory=list)
     log_buffer: Deque[str] = field(default_factory=lambda: deque(maxlen=100))
+    operation_active: bool = False
+    allow_back_interrupt: bool = False
 
     def add_log(self, message: str) -> None:
         if message:

@@ -42,6 +42,8 @@ IMAGES_MENU = MenuScreen(
     screen_id="images",
     title="IMAGES",
     items=[
+        menu_entry("BACKUP IMAGE", action=menu_actions.backup_image),
+        menu_entry("WRITE IMAGE", action=menu_actions.write_image),
         menu_entry("COMING SOON", action=menu_actions.images_coming_soon),
     ],
 )
@@ -50,6 +52,7 @@ TOOLS_MENU = MenuScreen(
     screen_id="tools",
     title="TOOLS",
     items=[
+        menu_entry("LOGS", action=menu_actions.view_logs),
         menu_entry("COMING SOON", action=menu_actions.tools_coming_soon),
     ],
 )
