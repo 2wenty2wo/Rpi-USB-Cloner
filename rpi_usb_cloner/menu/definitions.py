@@ -4,9 +4,12 @@ ACTIONS_MENU = MenuScreen(
     screen_id="actions",
     title="ACTIONS",
     items=[
-        MenuItem(label="COPY", action="copy"),
-        MenuItem(label="VIEW", action="view"),
-        MenuItem(label="ERASE", action="erase"),
+        MenuItem(label="COPY DRIVE", action="drive.copy"),
+        MenuItem(label="DRIVE INFO", action="drive.info"),
+        MenuItem(label="ERASE DRIVE", action="drive.erase"),
+        MenuItem(label="IMAGES", action="image.coming_soon"),
+        MenuItem(label="TOOLS", action="tools.coming_soon"),
+        MenuItem(label="SETTINGS", action="settings.coming_soon"),
     ],
 )
 
