@@ -243,7 +243,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         menu_state = build_menu_state()
         menu_lines, status_lines, visible_networks, disconnect_index = menu_state
 
-        selection = menus.select_list(
+        selection = menus.render_menu_list(
             title,
             menu_lines,
             content_top=content_top,
@@ -336,7 +336,7 @@ def show_update_version(*, title: str = "UPDATE") -> None:
         content_top=content_top,
     )
     while True:
-        selection = menus.select_list(title, ["UPDATE", "BACK"], content_top=content_top)
+        selection = menus.render_menu_list(title, ["UPDATE", "BACK"], content_top=content_top)
         if selection is None or selection == 1:
             return
         if selection == 0:
