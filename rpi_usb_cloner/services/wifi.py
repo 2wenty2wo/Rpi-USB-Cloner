@@ -441,7 +441,10 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
 
     def _connection_exists() -> bool:
         result = _run_command(["nmcli", "-t", "-f", "NAME", "connection", "show"])
-        return any(line == connection_name for line in result.stdout.splitlines())
+        return any(
+            _nmcli_unescape(line) == connection_name
+            for line in result.stdout.splitlines()
+        )
 
     redactions = [7]
     try:
