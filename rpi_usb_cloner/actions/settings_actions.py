@@ -22,7 +22,7 @@ def wifi_settings() -> None:
 
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE / VERSION"
-    version = _get_app_version()
+    version = _get_app_version(log_debug=log_debug)
     version_lines = [f"Version: {version}"]
     display.render_paginated_lines(title, version_lines, page_index=0)
     while True:
@@ -31,7 +31,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
             return
         if selection == 0:
             _run_update_flow(title, log_debug=log_debug)
-            version = _get_app_version()
+            version = _get_app_version(log_debug=log_debug)
             version_lines = [f"Version: {version}"]
             display.render_paginated_lines(title, version_lines, page_index=0)
 
@@ -170,13 +170,21 @@ def _restart_systemd_service(
     )
 
 
-def _get_git_version(repo_root: Path) -> str | None:
-    describe = _run_command(["git", "-C", str(repo_root), "describe", "--tags", "--always", "--dirty"])
+def _get_git_version(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> str | None:
+    describe = _run_command(
+        ["git", "-C", str(repo_root), "describe", "--tags", "--always", "--dirty"],
+        log_debug=log_debug,
+    )
     if describe.returncode == 0:
         value = describe.stdout.strip()
         if value:
             return value
-    rev_parse = _run_command(["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"])
+    rev_parse = _run_command(
+        ["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"],
+        log_debug=log_debug,
+    )
     if rev_parse.returncode == 0:
         value = rev_parse.stdout.strip()
         if value:
@@ -210,9 +218,10 @@ def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None
         log_debug(message)
 
 
-def _get_app_version() -> str:
+def _get_app_version(*, log_debug: Optional[Callable[[str], None]] = None) -> str:
     repo_root = Path(__file__).resolve().parents[2]
-    version = _get_git_version(repo_root)
+    _log_debug(log_debug, f"Repo root detection (version): {repo_root}")
+    version = _get_git_version(repo_root, log_debug=log_debug)
     if version:
         return version
     version_file = repo_root / "VERSION"
