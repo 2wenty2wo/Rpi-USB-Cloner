@@ -410,7 +410,7 @@ def _view_devices(
         return 1, 0
     device = devices_list[0]
     lines = _build_device_info_lines(device, log_debug=log_debug)
-    return display.render_paginated_lines(
+    return screens.render_info_screen(
         "DRIVE INFO",
         lines,
         page_index=page_index,
