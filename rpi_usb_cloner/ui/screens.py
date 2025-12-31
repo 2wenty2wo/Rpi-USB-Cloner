@@ -108,8 +108,10 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
 def show_wifi_settings(*, title: str = "WIFI") -> None:
     while True:
         networks = wifi.list_networks()
-        if not networks:
-            display.display_lines([title, "No networks", "Press BACK"])
+        visible_networks = [network for network in networks if network.ssid]
+        if not visible_networks:
+            message = "No networks" if not networks else "No visible networks"
+            display.display_lines([title, message, "Press BACK"])
             menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
             while True:
                 current_a = gpio.read_button(gpio.PIN_A)
@@ -119,8 +121,8 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                 time.sleep(0.05)
 
         menu_lines = []
-        for network in networks:
-            ssid = network.ssid or "<hidden>"
+        for network in visible_networks:
+            ssid = network.ssid
             lock = "*" if network.secured else ""
             signal = f"{network.signal}%" if network.signal is not None else "?"
             in_use = "✔" if network.in_use else ""
@@ -132,7 +134,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             return
         if selection == len(menu_lines) - 1:
             continue
-        selected_network = networks[selection]
+        selected_network = visible_networks[selection]
         password = None
         if selected_network.secured:
             password = keyboard.prompt_text(
