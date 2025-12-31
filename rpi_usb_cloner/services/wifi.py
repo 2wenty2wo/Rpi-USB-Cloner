@@ -361,6 +361,9 @@ def list_networks() -> List[WifiNetwork]:
             _log_debug(f"nmcli scan failed: {error}")
             return _scan_with_iw()
 
+        if not result.stdout.strip():
+            _log_debug("nmcli stdout empty or whitespace-only; nmcli returned no APs.")
+
         networks: List[WifiNetwork] = []
         non_empty_ssid = False
         for line in result.stdout.splitlines():
@@ -383,6 +386,9 @@ def list_networks() -> List[WifiNetwork]:
                     in_use=in_use,
                 )
             )
+        if not networks:
+            _log_debug("nmcli parsing produced no networks; falling back to iw scan.")
+            return _scan_with_iw()
         if networks and non_empty_ssid:
             return networks
 
