@@ -141,19 +141,26 @@ def list_networks() -> List[WifiNetwork]:
     interface = _select_active_interface()
     if not interface:
         return []
-    backoff_schedule = [0.0, 0.5]
+    backoff_schedule = [0.0, 0.5, 1.0]
 
     for delay in backoff_schedule:
         if delay:
             time.sleep(delay)
         try:
-            _run_command(["nmcli", "dev", "wifi", "rescan", "ifname", interface])
-        except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            _notify_error(f"Wi-Fi rescan failed: {error}")
-
-        try:
             result = _run_command(
-                ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE", "dev", "wifi", "list", "ifname", interface]
+                [
+                    "nmcli",
+                    "-t",
+                    "-f",
+                    "SSID,SIGNAL,SECURITY,IN-USE",
+                    "dev",
+                    "wifi",
+                    "list",
+                    "--rescan",
+                    "yes",
+                    "ifname",
+                    interface,
+                ]
             )
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
             _notify_error(f"Wi-Fi scan failed: {error}")
