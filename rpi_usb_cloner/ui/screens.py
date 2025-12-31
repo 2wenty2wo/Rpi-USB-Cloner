@@ -166,7 +166,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
 
         active_ssid = wifi.get_active_ssid()
         is_connected = wifi.is_connected()
-        ip_address = wifi.get_ip_address()
+        ip_address = wifi.get_ip_address() if is_connected else None
         status_lines = [
             f"Wi-Fi: {'Connected' if is_connected else 'Not connected'}",
             f"SSID: {active_ssid or '--'}",
