@@ -273,7 +273,7 @@ def _get_update_menu_top(title: str, info_lines: list[str]) -> int:
     line_height = display._get_line_height(items_font)
     line_step = line_height + 2
     base_top = menus.get_standard_content_top(title)
-    return base_top + (line_step * len(wrapped_lines)) + 2
+    return base_top + (line_step * len(wrapped_lines)) + line_step
 
 
 def _format_command_output(stdout: str, stderr: str) -> list[str]:
