@@ -111,7 +111,7 @@ def main(argv=None):
                 action=menu_actions.wifi_settings,
             ),
             MenuItem(
-                label="UPDATE / VERSION",
+                label="UPDATE",
                 action=menu_actions.update_version,
             ),
         ]

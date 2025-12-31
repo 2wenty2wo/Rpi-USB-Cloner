@@ -264,7 +264,7 @@ def _get_app_version() -> str:
     return "unknown"
 
 
-def show_update_version(*, title: str = "UPDATE / VERSION") -> None:
+def show_update_version(*, title: str = "UPDATE") -> None:
     version = _get_app_version()
     version_lines = [f"Version: {version}"]
     content_top = menus.get_standard_content_top(title)
