@@ -164,6 +164,10 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                 status_lines.append("No networks" if not networks else "No visible networks")
 
         menu_lines = list(status_lines)
+        disconnect_index = None
+        if is_connected:
+            disconnect_index = len(menu_lines)
+            menu_lines.append("Disconnect")
         menu_lines.append("Search")
         for network in visible_networks:
             ssid = network.ssid
@@ -174,14 +178,26 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         menu_lines.append("Refresh")
 
         selection = menus.select_list(title, menu_lines)
+        search_index = len(status_lines) + (1 if disconnect_index is not None else 0)
+        network_start_index = search_index + 1
+        refresh_index = len(menu_lines) - 1
         if selection is None:
             return
         if selection < len(status_lines):
             continue
-        if selection == len(status_lines) or selection == len(menu_lines) - 1:
+        if disconnect_index is not None and selection == disconnect_index:
+            disconnected = wifi.disconnect()
+            if disconnected:
+                display.display_lines([title, "Disconnected"])
+            else:
+                display.display_lines([title, "Disconnect failed"])
+            time.sleep(1.5)
             needs_scan = True
             continue
-        selected_network = visible_networks[selection - len(status_lines) - 1]
+        if selection in {search_index, refresh_index}:
+            needs_scan = True
+            continue
+        selected_network = visible_networks[selection - network_start_index]
         password = None
         if selected_network.secured:
             password = keyboard.prompt_text(
