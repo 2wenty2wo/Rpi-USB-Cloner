@@ -143,6 +143,141 @@ def list_networks() -> List[WifiNetwork]:
         return []
     backoff_schedule = [0.0, 0.5, 1.0]
 
+    def _parse_signal_line(value: str) -> Optional[int]:
+        match = re.search(r"(-?\d+(?:\.\d+)?)", value)
+        if not match:
+            return None
+        try:
+            return int(round(float(match.group(1))))
+        except ValueError:
+            return None
+
+    def _parse_quality_value(value: str) -> Optional[int]:
+        match = re.search(r"(\d+)\s*/\s*(\d+)", value)
+        if not match:
+            return None
+        try:
+            current = int(match.group(1))
+            total = int(match.group(2))
+        except ValueError:
+            return None
+        if total <= 0:
+            return None
+        return int(round((current / total) * 100))
+
+    def _parse_iw_scan(output: str) -> List[WifiNetwork]:
+        networks: List[WifiNetwork] = []
+        current_ssid: Optional[str] = None
+        current_signal: Optional[int] = None
+        current_secured = False
+
+        def _flush_current() -> None:
+            nonlocal current_ssid, current_signal, current_secured
+            if current_ssid:
+                networks.append(
+                    WifiNetwork(
+                        ssid=current_ssid,
+                        signal=current_signal,
+                        secured=current_secured,
+                        in_use=False,
+                    )
+                )
+            current_ssid = None
+            current_signal = None
+            current_secured = False
+
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if line.startswith("BSS "):
+                _flush_current()
+                continue
+            if line.startswith("SSID:"):
+                current_ssid = line.split("SSID:", 1)[1].strip()
+                continue
+            if line.startswith("signal:"):
+                current_signal = _parse_signal_line(line)
+                continue
+            if line.startswith("RSN:") or line.startswith("WPA:"):
+                current_secured = True
+                continue
+            if line.startswith("capability:") and "Privacy" in line:
+                current_secured = True
+                continue
+
+        _flush_current()
+        return networks
+
+    def _parse_iwlist_scan(output: str) -> List[WifiNetwork]:
+        networks: List[WifiNetwork] = []
+        current_ssid: Optional[str] = None
+        current_signal: Optional[int] = None
+        current_secured = False
+
+        def _flush_current() -> None:
+            nonlocal current_ssid, current_signal, current_secured
+            if current_ssid:
+                networks.append(
+                    WifiNetwork(
+                        ssid=current_ssid,
+                        signal=current_signal,
+                        secured=current_secured,
+                        in_use=False,
+                    )
+                )
+            current_ssid = None
+            current_signal = None
+            current_secured = False
+
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if line.startswith("Cell "):
+                _flush_current()
+                continue
+            if "ESSID:" in line:
+                match = re.search(r'ESSID:"(.*)"', line)
+                if match:
+                    current_ssid = match.group(1)
+                continue
+            if "Signal level" in line:
+                signal_match = re.search(r"Signal level[=:-]\s*(-?\d+)", line)
+                if signal_match:
+                    current_signal = _parse_signal_line(signal_match.group(1))
+                elif "Quality" in line:
+                    quality_match = re.search(r"Quality[=:-]\s*([\d/]+)", line)
+                    if quality_match:
+                        current_signal = _parse_quality_value(quality_match.group(1))
+                continue
+            if line.startswith("Quality"):
+                quality_match = re.search(r"Quality[=:-]\s*([\d/]+)", line)
+                if quality_match:
+                    current_signal = _parse_quality_value(quality_match.group(1))
+                continue
+            if "Encryption key:" in line and "on" in line:
+                current_secured = True
+
+        _flush_current()
+        return networks
+
+    def _scan_with_iw() -> List[WifiNetwork]:
+        try:
+            result = _run_command(["iw", "dev", interface, "scan"])
+            networks = _parse_iw_scan(result.stdout)
+            if networks:
+                return networks
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _log_debug(f"iw scan failed: {error}")
+
+        try:
+            result = _run_command(["iwlist", interface, "scan"])
+            networks = _parse_iwlist_scan(result.stdout)
+            if networks:
+                return networks
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _log_debug(f"iwlist scan failed: {error}")
+
+        _notify_error("No Wi-Fi networks found.")
+        return []
+
     def _nmcli_unescape(value: str) -> str:
         if not value:
             return value
@@ -206,15 +341,18 @@ def list_networks() -> List[WifiNetwork]:
                 ]
             )
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            _notify_error(f"Wi-Fi scan failed: {error}")
-            return []
+            _log_debug(f"nmcli scan failed: {error}")
+            return _scan_with_iw()
 
         networks: List[WifiNetwork] = []
+        non_empty_ssid = False
         for line in result.stdout.splitlines():
             if not line:
                 continue
             parts = _split_nmcli_line(line)
             ssid = _nmcli_unescape(parts[0]) if parts else ""
+            if ssid:
+                non_empty_ssid = True
             signal_value = None
             if len(parts) > 1 and parts[1].isdigit():
                 signal_value = int(parts[1])
@@ -228,11 +366,10 @@ def list_networks() -> List[WifiNetwork]:
                     in_use=in_use,
                 )
             )
-        if networks:
+        if networks and non_empty_ssid:
             return networks
 
-    _notify_error("No Wi-Fi networks found.")
-    return []
+    return _scan_with_iw()
 
 
 def connect(ssid: str, password: Optional[str] = None) -> bool:
