@@ -38,7 +38,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-TITLE_PADDING = 0
+TITLE_PADDING = 2
 
 
 def configure_display_helpers(log_debug=None):
