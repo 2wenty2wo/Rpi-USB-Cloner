@@ -201,8 +201,9 @@ def render_paginated_lines(
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
-        title_height = _get_line_height(header_font)
-        current_y += title_height + TITLE_PADDING
+        from rpi_usb_cloner.ui import menus
+
+        current_y = menus.get_standard_content_top(title, title_font=header_font)
     if content_top is not None:
         current_y = max(current_y, content_top)
     items_font = items_font or context.fontdisks
