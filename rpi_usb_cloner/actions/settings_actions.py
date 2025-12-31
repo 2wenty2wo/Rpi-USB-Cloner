@@ -59,9 +59,29 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             return
     screens.render_status_screen(title, "Updating...", progress_line="Pulling...")
     pull_result = _run_git_pull(repo_root, log_debug=log_debug)
+    dubious_ownership = _is_dubious_ownership_error(pull_result.stderr)
+    if dubious_ownership and _is_running_under_systemd(log_debug=log_debug):
+        _log_debug(
+            log_debug,
+            f"Dubious ownership detected; adding safe.directory for {repo_root}",
+        )
+        _run_command(
+            ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
+            log_debug=log_debug,
+        )
+        pull_result = _run_git_pull(repo_root, log_debug=log_debug)
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
     if pull_result.returncode != 0:
         _log_debug(log_debug, f"Git pull failed with return code {pull_result.returncode}")
+        if dubious_ownership:
+            output_lines = (
+                [
+                    "Git safety check failed.",
+                    "Run as the service user:",
+                    f"git config --global --add safe.directory {repo_root}",
+                ]
+                + output_lines
+            )
         display.render_paginated_lines(
             title,
             ["Update failed"] + output_lines,
@@ -124,6 +144,10 @@ def _format_command_output(stdout: str, stderr: str) -> list[str]:
             if cleaned:
                 lines.append(cleaned)
     return lines or ["No output"]
+
+
+def _is_dubious_ownership_error(stderr: str) -> bool:
+    return "detected dubious ownership" in stderr.lower()
 
 
 def _is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> bool:
