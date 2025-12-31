@@ -364,11 +364,10 @@ def select_clone_mode(current_mode=None):
 
 def select_erase_mode():
     modes = ["quick", "zero", "discard", "secure"]
-    context = display.get_display_context()
     selected_index = render_menu_list(
         "ERASE MODE",
         [mode.upper() for mode in modes],
-        title_font=context.fontcopy,
+        title_font=display.get_display_context().fontcopy,
     )
     if selected_index is None:
         return None
