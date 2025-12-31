@@ -428,13 +428,70 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
         _notify_error("Wi-Fi connect failed: SSID is required.")
         return False
 
-    command = ["nmcli", "dev", "wifi", "connect", ssid, "ifname", interface]
-    redactions: Optional[List[int]] = None
-    if password:
-        command.extend(["password", password, "wifi-sec.key-mgmt", "wpa-psk"])
-        redactions = [len(command) - 3]
+    if not password:
+        command = ["nmcli", "dev", "wifi", "connect", ssid, "ifname", interface]
+        try:
+            _run_command(command)
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _notify_error(f"Wi-Fi connect failed: {error}")
+            return False
+        return True
+
+    connection_name = ssid
+
+    def _connection_exists() -> bool:
+        result = _run_command(["nmcli", "-t", "-f", "NAME", "connection", "show"])
+        return any(
+            _nmcli_unescape(line) == connection_name
+            for line in result.stdout.splitlines()
+        )
+
+    redactions = [7]
     try:
-        _run_command(command, redactions=redactions)
+        if _connection_exists():
+            _run_command(
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection_name,
+                    "802-11-wireless-security.key-mgmt",
+                    "wpa-psk",
+                    "802-11-wireless-security.psk",
+                    password,
+                ],
+                redactions=redactions,
+            )
+        else:
+            _run_command(
+                [
+                    "nmcli",
+                    "connection",
+                    "add",
+                    "type",
+                    "wifi",
+                    "ifname",
+                    interface,
+                    "con-name",
+                    connection_name,
+                    "ssid",
+                    ssid,
+                ]
+            )
+            _run_command(
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection_name,
+                    "802-11-wireless-security.key-mgmt",
+                    "wpa-psk",
+                    "802-11-wireless-security.psk",
+                    password,
+                ],
+                redactions=redactions,
+            )
+        _run_command(["nmcli", "connection", "up", connection_name])
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
         _notify_error(f"Wi-Fi connect failed: {error}")
         return False
