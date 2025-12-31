@@ -11,7 +11,7 @@
 
 USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
 
-Modified [Adafruit_OLED_Bonnet_menu](https://github.com/W5DMH/Adafruit_OLED_Bonnet_menu) for a menu and used [Vallentin/mount.py](https://github.com/Vallentin/mount.py) to interact with USB drives and inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
+Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ![Picture of the menu](rpi_usb_cloner/ui/assets/menu.jpg)
 
