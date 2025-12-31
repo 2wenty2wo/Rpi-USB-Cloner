@@ -26,8 +26,8 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     version_lines = [f"Version: {version}"]
     display.render_paginated_lines(title, version_lines, page_index=0)
     while True:
-        selection = menus.select_list(title, ["UPDATE", "BACK"])
-        if selection is None or selection == 1:
+        selection = menus.select_list(title, ["UPDATE"])
+        if selection is None:
             return
         if selection == 0:
             _run_update_flow(title, log_debug=log_debug)
