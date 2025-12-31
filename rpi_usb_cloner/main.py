@@ -68,6 +68,50 @@ def main(argv=None):
             items.append(MenuItem(label="NO USB DEVICES", action=menu_actions.noop))
         return items
 
+    WIFI_SSID_CACHE_TTL = 2.0
+    wifi_ssid_cache = {"ssid": None, "expires_at": 0.0}
+
+    def get_cached_ssid():
+        now = time.monotonic()
+        if now >= wifi_ssid_cache["expires_at"]:
+            wifi_ssid_cache["ssid"] = wifi.get_active_ssid()
+            wifi_ssid_cache["expires_at"] = now + WIFI_SSID_CACHE_TTL
+        return wifi_ssid_cache["ssid"]
+
+    def get_wifi_item_label():
+        ssid = get_cached_ssid()
+        if not ssid:
+            return "WIFI"
+        context = display.get_display_context()
+        list_font = context.fonts.get("items", context.fontdisks)
+        left_margin = context.x - 11
+        max_item_width = context.width - left_margin - 1
+        prefix = "WIFI ("
+        suffix = ")"
+        label = f"{prefix}{ssid}{suffix}"
+        if renderer._measure_text_width(list_font, label) <= max_item_width:
+            return label
+        available_width = max_item_width - renderer._measure_text_width(
+            list_font,
+            f"{prefix}{suffix}",
+        )
+        truncated_ssid = renderer._truncate_text(
+            ssid,
+            list_font,
+            max(0, int(available_width)),
+        )
+        if not truncated_ssid:
+            return "WIFI"
+        return f"{prefix}{truncated_ssid}{suffix}"
+
+    def get_settings_items():
+        return [
+            MenuItem(
+                label=get_wifi_item_label(),
+                action=menu_actions.wifi_settings,
+            )
+        ]
+
     def get_device_status_line():
         devices_list = list_media_devices()
         if not devices_list:
@@ -169,7 +213,10 @@ def main(argv=None):
     menu_navigator = navigator.MenuNavigator(
         screens=definitions.SCREENS,
         root_screen_id=definitions.MAIN_MENU.screen_id,
-        items_providers={definitions.DRIVE_LIST_MENU.screen_id: get_device_items},
+        items_providers={
+            definitions.DRIVE_LIST_MENU.screen_id: get_device_items,
+            definitions.SETTINGS_MENU.screen_id: get_settings_items,
+        },
     )
 
     def get_screen_status_line(screen):
