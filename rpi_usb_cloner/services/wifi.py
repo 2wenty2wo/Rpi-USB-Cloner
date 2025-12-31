@@ -47,6 +47,48 @@ def _format_command(command: Sequence[str], redactions: Optional[Iterable[int]] 
     return " ".join(redacted_parts)
 
 
+def _nmcli_unescape(value: str) -> str:
+    if not value:
+        return value
+    unescaped = []
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char == "\\" and index + 1 < len(value):
+            next_char = value[index + 1]
+            if next_char in {":", "|", "\\"}:
+                unescaped.append(next_char)
+                index += 2
+                continue
+        unescaped.append(char)
+        index += 1
+    return "".join(unescaped)
+
+
+def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> List[str]:
+    parts: List[str] = []
+    current: List[str] = []
+    index = 0
+    splits = 0
+    while index < len(line):
+        char = line[index]
+        if char == "\\" and index + 1 < len(line):
+            current.append(char)
+            current.append(line[index + 1])
+            index += 2
+            continue
+        if char == separator and splits < maxsplit:
+            parts.append("".join(current))
+            current = []
+            splits += 1
+            index += 1
+            continue
+        current.append(char)
+        index += 1
+    parts.append("".join(current))
+    return parts
+
+
 def _run_command(
     command: Sequence[str],
     check: bool = True,
@@ -318,47 +360,6 @@ def list_networks() -> List[WifiNetwork]:
         _notify_error("No Wi-Fi networks found.")
         return []
 
-    def _nmcli_unescape(value: str) -> str:
-        if not value:
-            return value
-        unescaped = []
-        iterator = iter(range(len(value)))
-        index = 0
-        while index < len(value):
-            char = value[index]
-            if char == "\\" and index + 1 < len(value):
-                next_char = value[index + 1]
-                if next_char in {":", "|", "\\"}:
-                    unescaped.append(next_char)
-                    index += 2
-                    continue
-            unescaped.append(char)
-            index += 1
-        return "".join(unescaped)
-
-    def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> List[str]:
-        parts: List[str] = []
-        current: List[str] = []
-        index = 0
-        splits = 0
-        while index < len(line):
-            char = line[index]
-            if char == "\\" and index + 1 < len(line):
-                current.append(char)
-                current.append(line[index + 1])
-                index += 2
-                continue
-            if char == separator and splits < maxsplit:
-                parts.append("".join(current))
-                current = []
-                splits += 1
-                index += 1
-                continue
-            current.append(char)
-            index += 1
-        parts.append("".join(current))
-        return parts
-
     _prepare_interface_for_scan()
 
     for delay in backoff_schedule:
@@ -427,6 +428,45 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
     if not ssid:
         _notify_error("Wi-Fi connect failed: SSID is required.")
         return False
+
+    def _active_ssid_matches() -> bool:
+        try:
+            result = _run_command(
+                ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"]
+            )
+            for line in result.stdout.splitlines():
+                if not line:
+                    continue
+                parts = _split_nmcli_line(line, separator=":", maxsplit=2)
+                active = parts[0].strip().lower() if parts else ""
+                current_ssid = _nmcli_unescape(parts[1]) if len(parts) > 1 else ""
+                device = parts[2].strip() if len(parts) > 2 else ""
+                if active == "yes" and device == interface and current_ssid == ssid:
+                    return True
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _log_debug(f"nmcli active SSID lookup failed: {error}")
+
+        try:
+            result = _run_command(["iw", "dev"])
+            current_interface = None
+            for raw_line in result.stdout.splitlines():
+                line = raw_line.strip()
+                if line.startswith("Interface"):
+                    parts = line.split()
+                    current_interface = parts[1] if len(parts) > 1 else None
+                    continue
+                if current_interface == interface and line.startswith("ssid "):
+                    current_ssid = line.split("ssid", 1)[1].strip()
+                    if current_ssid == ssid:
+                        return True
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _log_debug(f"iw dev SSID lookup failed: {error}")
+
+        return False
+
+    if _active_ssid_matches():
+        _log_debug(f"Already connected to SSID {ssid} on {interface}")
+        return True
 
     if not password:
         command = ["nmcli", "dev", "wifi", "connect", ssid, "ifname", interface]
