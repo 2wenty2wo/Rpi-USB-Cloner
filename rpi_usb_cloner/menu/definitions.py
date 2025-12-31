@@ -57,11 +57,23 @@ TOOLS_MENU = MenuScreen(
     ],
 )
 
+POWER_MENU = MenuScreen(
+    screen_id="power",
+    title="POWER",
+    items=[
+        menu_entry("RESTART RPI-USB-CLONER", action=menu_actions.restart_service),
+        menu_entry("STOP RPI-USB-CLONER", action=menu_actions.stop_service),
+        menu_entry("RESTART SYSTEM", action=menu_actions.restart_system),
+        menu_entry("SHUTDOWN SYSTEM", action=menu_actions.shutdown_system),
+    ],
+)
+
 SETTINGS_MENU = MenuScreen(
     screen_id="settings",
     title="SETTINGS",
     items=[
         menu_entry("WIFI", action=menu_actions.wifi_settings),
+        menu_entry("POWER", submenu=POWER_MENU),
     ],
 )
 

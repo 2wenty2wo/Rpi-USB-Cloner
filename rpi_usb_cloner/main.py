@@ -111,6 +111,10 @@ def main(argv=None):
                 action=menu_actions.wifi_settings,
             ),
             MenuItem(
+                label="POWER",
+                submenu=definitions.POWER_MENU,
+            ),
+            MenuItem(
                 label="UPDATE",
                 action=menu_actions.update_version,
             ),
