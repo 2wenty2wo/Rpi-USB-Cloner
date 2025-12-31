@@ -36,13 +36,28 @@ def _default_runner(command: Sequence[str], check: bool) -> subprocess.Completed
     return subprocess.run(command, check=check, text=True, capture_output=True)
 
 
-def _run_command(command: Sequence[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+def _format_command(command: Sequence[str], redactions: Optional[Iterable[int]] = None) -> str:
+    if not redactions:
+        return " ".join(command)
+    redacted_indexes = set(redactions)
+    redacted_parts = [
+        "******" if index in redacted_indexes else part for index, part in enumerate(command)
+    ]
+    return " ".join(redacted_parts)
+
+
+def _run_command(
+    command: Sequence[str],
+    check: bool = True,
+    redactions: Optional[Iterable[int]] = None,
+) -> subprocess.CompletedProcess[str]:
     runner = _command_runner or _default_runner
-    _log_debug(f"Running command: {' '.join(command)}")
+    command_display = _format_command(command, redactions)
+    _log_debug(f"Running command: {command_display}")
     try:
         result = runner(command, check)
     except subprocess.CalledProcessError as error:
-        _log_debug(f"Command failed: {' '.join(command)}")
+        _log_debug(f"Command failed: {command_display}")
         if error.stdout:
             _log_debug(f"stdout: {error.stdout.strip()}")
         if error.stderr:
@@ -166,10 +181,12 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
         return False
 
     command = ["nmcli", "dev", "wifi", "connect", ssid, "ifname", interface]
+    redactions: Optional[List[int]] = None
     if password:
         command.extend(["password", password])
+        redactions = [len(command) - 1]
     try:
-        _run_command(command)
+        _run_command(command, redactions=redactions)
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
         _notify_error(f"Wi-Fi connect failed: {error}")
         return False
