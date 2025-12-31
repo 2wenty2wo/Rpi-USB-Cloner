@@ -431,14 +431,17 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
 
     def _active_ssid_matches() -> bool:
         try:
-            result = _run_command(["nmcli", "-t", "-f", "ACTIVE,SSID", "dev", "wifi"])
+            result = _run_command(
+                ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"]
+            )
             for line in result.stdout.splitlines():
                 if not line:
                     continue
-                parts = _split_nmcli_line(line, separator=":", maxsplit=1)
+                parts = _split_nmcli_line(line, separator=":", maxsplit=2)
                 active = parts[0].strip().lower() if parts else ""
                 current_ssid = _nmcli_unescape(parts[1]) if len(parts) > 1 else ""
-                if active == "yes" and current_ssid == ssid:
+                device = parts[2].strip() if len(parts) > 2 else ""
+                if active == "yes" and device == interface and current_ssid == ssid:
                     return True
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
             _log_debug(f"nmcli active SSID lookup failed: {error}")
