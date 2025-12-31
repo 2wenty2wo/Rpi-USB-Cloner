@@ -1,3 +1,4 @@
+import threading
 import time
 
 from typing import Iterable, Optional
@@ -106,11 +107,48 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
 
 
 def show_wifi_settings(*, title: str = "WIFI") -> None:
+    def scan_networks_with_spinner(
+        *,
+        scan_timeout_s: float = 15.0,
+        refresh_interval_s: float = 0.25,
+    ) -> tuple[list[wifi.WifiNetwork], bool]:
+        spinner_frames = [
+            "Searching",
+            "Searching.",
+            "Searching..",
+            "Searching...",
+        ]
+        display.render_paginated_lines(title, [spinner_frames[0]], page_index=0)
+
+        result: dict[str, list[wifi.WifiNetwork]] = {"networks": []}
+
+        def run_scan() -> None:
+            result["networks"] = wifi.list_networks()
+
+        scan_thread = threading.Thread(target=run_scan, daemon=True)
+        scan_thread.start()
+        start_time = time.monotonic()
+        frame_index = 0
+        while scan_thread.is_alive():
+            elapsed = time.monotonic() - start_time
+            if elapsed >= scan_timeout_s:
+                break
+            frame = spinner_frames[frame_index % len(spinner_frames)]
+            display.render_paginated_lines(title, [frame], page_index=0)
+            frame_index += 1
+            time.sleep(refresh_interval_s)
+        if scan_thread.is_alive():
+            return [], True
+        return result["networks"], False
+
     while True:
-        networks = wifi.list_networks()
+        networks, timed_out = scan_networks_with_spinner()
         visible_networks = [network for network in networks if network.ssid]
         if not visible_networks:
-            message = "No networks" if not networks else "No visible networks"
+            if timed_out:
+                message = "Scan timed out"
+            else:
+                message = "No networks" if not networks else "No visible networks"
             display.display_lines([title, message, "Press BACK"])
             menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
             while True:
