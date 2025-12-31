@@ -265,6 +265,7 @@ def main(argv=None):
         while True:
             time.sleep(INPUT_POLL_INTERVAL)
             render_requested = False
+            force_render = False
             now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 log_debug(f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)")
@@ -360,6 +361,7 @@ def main(argv=None):
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
+                    force_render = True
                 button_pressed = True
                 render_requested = True
             if prev_states["B"] and not current_states["B"]:
@@ -367,6 +369,7 @@ def main(argv=None):
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
+                    force_render = True
                 button_pressed = True
                 render_requested = True
             if prev_states["C"] and not current_states["C"]:
@@ -380,7 +383,7 @@ def main(argv=None):
 
             prev_states = current_states
             if render_requested:
-                render_current_screen()
+                render_current_screen(force=force_render)
     except KeyboardInterrupt:
         pass
     except Exception as error:
