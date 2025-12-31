@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.services import drives
+from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.mount import (
     get_device_name,
@@ -42,6 +42,7 @@ def main(argv=None):
     display.configure_display_helpers(log_debug=log_debug)
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
+    wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
 
     state = app_state.AppState()
     def get_active_drive_name():
