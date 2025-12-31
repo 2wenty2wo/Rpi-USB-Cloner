@@ -68,8 +68,18 @@ def main(argv=None):
             items.append(MenuItem(label="NO USB DEVICES", action=menu_actions.noop))
         return items
 
+    WIFI_SSID_CACHE_TTL = 2.0
+    wifi_ssid_cache = {"ssid": None, "expires_at": 0.0}
+
+    def get_cached_ssid():
+        now = time.monotonic()
+        if now >= wifi_ssid_cache["expires_at"]:
+            wifi_ssid_cache["ssid"] = wifi.get_active_ssid()
+            wifi_ssid_cache["expires_at"] = now + WIFI_SSID_CACHE_TTL
+        return wifi_ssid_cache["ssid"]
+
     def get_wifi_item_label():
-        ssid = wifi.get_active_ssid()
+        ssid = get_cached_ssid()
         if not ssid:
             return "WIFI"
         context = display.get_display_context()
