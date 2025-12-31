@@ -99,12 +99,13 @@ Create a systemd unit so the cloner starts automatically at boot. Update paths a
    Type=simple
    User=root
    WorkingDirectory=/home/pi/Rpi-USB-Cloner
-   ExecStart=/usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py
+   ExecStart=/home/pi/Rpi-USB-Cloner/.venv/bin/python /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py
    Restart=on-failure
 
    [Install]
    WantedBy=multi-user.target
    ```
+   If you used Option B (system Python), change `ExecStart` to `/usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py`.
 2. Reload systemd and enable the service to start on boot:
    ```sh
    sudo systemctl daemon-reload
