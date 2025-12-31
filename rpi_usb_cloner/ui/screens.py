@@ -164,7 +164,16 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                     return
                 time.sleep(0.05)
 
-        menu_lines = []
+        active_ssid = wifi.get_active_ssid()
+        is_connected = wifi.is_connected()
+        ip_address = wifi.get_ip_address()
+        status_lines = [
+            f"Wi-Fi: {'Connected' if is_connected else 'Not connected'}",
+            f"SSID: {active_ssid or '--'}",
+            f"IP: {ip_address or '--'}",
+        ]
+
+        menu_lines = list(status_lines)
         for network in visible_networks:
             ssid = network.ssid
             lock = "*" if network.secured else ""
@@ -176,9 +185,11 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         selection = menus.select_list(title, menu_lines)
         if selection is None:
             return
+        if selection < len(status_lines):
+            continue
         if selection == len(menu_lines) - 1:
             continue
-        selected_network = visible_networks[selection]
+        selected_network = visible_networks[selection - len(status_lines)]
         password = None
         if selected_network.secured:
             password = keyboard.prompt_text(
