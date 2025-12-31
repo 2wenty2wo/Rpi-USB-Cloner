@@ -109,7 +109,11 @@ def main(argv=None):
             MenuItem(
                 label=get_wifi_item_label(),
                 action=menu_actions.wifi_settings,
-            )
+            ),
+            MenuItem(
+                label="UPDATE / VERSION",
+                action=menu_actions.update_version,
+            ),
         ]
 
     def get_device_status_line():
