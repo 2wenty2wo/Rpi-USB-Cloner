@@ -145,6 +145,7 @@ def select_list(
     footer_positions: Optional[List[int]] = None,
     items_font: Optional[ImageFont.ImageFont] = None,
     content_top: Optional[int] = None,
+    selected_index: int = 0,
     header_lines: Optional[List[str]] = None,
     refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
     refresh_interval: float = 0.25,
@@ -164,7 +165,7 @@ def select_list(
     row_height = line_height + 2
     available_height = context.height - content_top - footer_height
     items_per_page = max(1, available_height // row_height)
-    selected_index = 0
+    selected_index = max(0, min(selected_index, len(items) - 1))
 
     def render(selected: int) -> None:
         offset = (selected // items_per_page) * items_per_page
@@ -319,6 +320,7 @@ def render_menu_list(
     footer_positions: Optional[List[int]] = None,
     items_font: Optional[ImageFont.ImageFont] = None,
     content_top: Optional[int] = None,
+    selected_index: int = 0,
     header_lines: Optional[List[str]] = None,
     refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
     refresh_interval: float = 0.25,
@@ -337,6 +339,7 @@ def render_menu_list(
         footer_positions=footer_positions,
         items_font=items_font,
         content_top=content_top,
+        selected_index=selected_index,
         header_lines=header_lines,
         refresh_callback=refresh_callback,
         refresh_interval=refresh_interval,
@@ -352,6 +355,7 @@ def select_clone_mode(current_mode=None):
         "CLONE MODE",
         [mode.upper() for mode in modes],
         footer=["BACK", "OK"],
+        selected_index=modes.index(selected_mode),
     )
     if selected_index is None:
         return None
@@ -360,6 +364,7 @@ def select_clone_mode(current_mode=None):
 
 def select_erase_mode():
     modes = ["quick", "zero", "discard", "secure"]
+    context = display.get_display_context()
     selected_index = render_menu_list(
         "ERASE MODE",
         [mode.upper() for mode in modes],
