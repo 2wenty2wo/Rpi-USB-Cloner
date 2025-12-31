@@ -84,8 +84,10 @@ def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
 
 def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "POWER"
+    if not _confirm_power_action(title, "RESTART SYSTEM", log_debug=log_debug):
+        return
     screens.render_status_screen(title, "Restarting...", progress_line="System reboot")
-    reboot_result = _run_systemctl_action("reboot", log_debug=log_debug)
+    reboot_result = _reboot_system(log_debug=log_debug)
     if reboot_result.returncode != 0:
         _log_debug(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
         display.render_paginated_lines(
@@ -98,8 +100,10 @@ def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None
 
 def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "POWER"
+    if not _confirm_power_action(title, "SHUTDOWN SYSTEM", log_debug=log_debug):
+        return
     screens.render_status_screen(title, "Shutting down...", progress_line="System poweroff")
-    shutdown_result = _run_systemctl_action("poweroff", log_debug=log_debug)
+    shutdown_result = _poweroff_system(log_debug=log_debug)
     if shutdown_result.returncode != 0:
         _log_debug(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
         display.render_paginated_lines(
@@ -315,43 +319,51 @@ def _is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> 
 def _restart_systemd_service(
     *, log_debug: Optional[Callable[[str], None]]
 ) -> subprocess.CompletedProcess[str]:
-    if not shutil.which("systemctl"):
-        _log_debug(log_debug, "Service restart failed: systemctl missing")
-        return subprocess.CompletedProcess(
-            args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
-        )
-    return _run_command(
-        ["systemctl", "restart", _SERVICE_NAME],
-        log_debug=log_debug,
-    )
+    return _restart_service(log_debug=log_debug)
 
 
 def _stop_systemd_service(
     *, log_debug: Optional[Callable[[str], None]]
 ) -> subprocess.CompletedProcess[str]:
-    if not shutil.which("systemctl"):
-        _log_debug(log_debug, "Service stop failed: systemctl missing")
-        return subprocess.CompletedProcess(
-            args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
-        )
-    return _run_command(
-        ["systemctl", "stop", _SERVICE_NAME],
-        log_debug=log_debug,
-    )
+    return _stop_service(log_debug=log_debug)
 
 
-def _run_systemctl_action(
-    action: str, *, log_debug: Optional[Callable[[str], None]]
+def _confirm_power_action(
+    title: str,
+    action_label: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+) -> bool:
+    selection = menus.select_list(title, ["CANCEL", action_label], header_lines=["Are you sure?"])
+    _log_debug(log_debug, f"Power action confirmation {action_label}: selection={selection}")
+    return selection == 1
+
+
+def _run_systemctl_command(
+    args: list[str], *, log_debug: Optional[Callable[[str], None]]
 ) -> subprocess.CompletedProcess[str]:
     if not shutil.which("systemctl"):
-        _log_debug(log_debug, f"systemctl action failed: {action} (systemctl missing)")
+        _log_debug(log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)")
         return subprocess.CompletedProcess(
             args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
         )
-    return _run_command(
-        ["systemctl", action],
-        log_debug=log_debug,
-    )
+    return _run_command(["systemctl", *args], log_debug=log_debug)
+
+
+def _restart_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+    return _run_systemctl_command(["restart", _SERVICE_NAME], log_debug=log_debug)
+
+
+def _stop_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+    return _run_systemctl_command(["stop", _SERVICE_NAME], log_debug=log_debug)
+
+
+def _reboot_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+    return _run_systemctl_command(["reboot"], log_debug=log_debug)
+
+
+def _poweroff_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+    return _run_systemctl_command(["poweroff"], log_debug=log_debug)
 
 
 def _get_git_version(
