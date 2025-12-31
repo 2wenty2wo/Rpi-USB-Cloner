@@ -187,10 +187,7 @@ def _check_update_status(
 
 
 def _build_update_info_lines(version: str, status: str, last_checked: str | None) -> list[str]:
-    lines = [f"Version: {version}", f"Status: {status}"]
-    if last_checked:
-        lines.append(f"Last checked: {last_checked}")
-    return lines
+    return [f"Version: {version}", f"Status: {status}"]
 
 
 def _get_update_menu_top(title: str, info_lines: list[str]) -> int:
