@@ -58,6 +58,21 @@ def _get_line_height(font, min_height=8):
     return line_height
 
 
+def get_standard_content_top(
+    title: str,
+    *,
+    title_font: Optional[ImageFont.ImageFont] = None,
+    extra_gap: int = 2,
+) -> int:
+    # Use this helper for new pages to avoid title overlap.
+    context = display.get_display_context()
+    if not title:
+        return context.top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    title_height = _get_text_height(context.draw, title, header_font)
+    return context.top + title_height + display.TITLE_PADDING + extra_gap
+
+
 def render_menu(menu, draw, width, height, fonts):
     context = display.get_display_context()
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -65,8 +80,7 @@ def render_menu(menu, draw, width, height, fonts):
     if menu.title:
         title_font = menu.title_font or fonts["title"]
         draw.text((context.x - 11, current_y), menu.title, font=title_font, fill=255)
-        title_height = _get_text_height(draw, menu.title, title_font)
-        current_y += title_height + display.TITLE_PADDING
+        current_y = get_standard_content_top(menu.title, title_font=title_font)
     if menu.content_top is not None:
         current_y = max(current_y, menu.content_top)
 
@@ -131,17 +145,22 @@ def select_list(
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
     items_font: Optional[ImageFont.ImageFont] = None,
+    content_top: Optional[int] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
         return None
     items_font = items_font or context.fontdisks
     title_font = context.fonts.get("title", context.fontdisks)
-    title_height = _get_text_height(context.draw, title, title_font) if title else 0
+    content_top = (
+        content_top
+        if content_top is not None
+        else get_standard_content_top(title, title_font=title_font)
+    )
     footer_height = 15 if footer else 0
     line_height = _get_line_height(items_font)
     row_height = line_height + 4
-    available_height = context.height - context.top - title_height - display.TITLE_PADDING - footer_height
+    available_height = context.height - content_top - footer_height
     items_per_page = max(1, available_height // row_height)
     selected_index = 0
 
@@ -154,7 +173,7 @@ def select_list(
             selected_index=selected - offset,
             title=title,
             title_font=title_font,
-            content_top=context.top + title_height + display.TITLE_PADDING if title else context.top,
+            content_top=content_top,
             footer=footer,
             footer_positions=footer_positions,
             items_font=items_font,

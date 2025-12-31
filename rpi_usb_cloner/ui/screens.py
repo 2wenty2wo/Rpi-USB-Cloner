@@ -109,6 +109,8 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
 
 
 def show_wifi_settings(*, title: str = "WIFI") -> None:
+    content_top = menus.get_standard_content_top(title)
+
     def scan_networks_with_spinner(
         *,
         scan_timeout_s: float = 15.0,
@@ -120,7 +122,12 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             "Searching..",
             "Searching...",
         ]
-        display.render_paginated_lines(title, [spinner_frames[0]], page_index=0)
+        display.render_paginated_lines(
+            title,
+            [spinner_frames[0]],
+            page_index=0,
+            content_top=content_top,
+        )
 
         result: dict[str, list[wifi.WifiNetwork]] = {"networks": []}
 
@@ -136,7 +143,12 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             if elapsed >= scan_timeout_s:
                 break
             frame = spinner_frames[frame_index % len(spinner_frames)]
-            display.render_paginated_lines(title, [frame], page_index=0)
+            display.render_paginated_lines(
+                title,
+                [frame],
+                page_index=0,
+                content_top=content_top,
+            )
             frame_index += 1
             time.sleep(refresh_interval_s)
         if scan_thread.is_alive():
@@ -179,7 +191,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             menu_lines.append(f"{ssid} {signal}{lock}{in_use}".strip())
         menu_lines.append("Refresh")
 
-        selection = menus.select_list(title, menu_lines)
+        selection = menus.select_list(title, menu_lines, content_top=content_top)
         search_index = len(status_lines) + (1 if disconnect_index is not None else 0)
         network_start_index = search_index + 1
         refresh_index = len(menu_lines) - 1
@@ -255,9 +267,15 @@ def _get_app_version() -> str:
 def show_update_version(*, title: str = "UPDATE / VERSION") -> None:
     version = _get_app_version()
     version_lines = [f"Version: {version}"]
-    display.render_paginated_lines(title, version_lines, page_index=0)
+    content_top = menus.get_standard_content_top(title)
+    display.render_paginated_lines(
+        title,
+        version_lines,
+        page_index=0,
+        content_top=content_top,
+    )
     while True:
-        selection = menus.select_list(title, ["UPDATE", "BACK"])
+        selection = menus.select_list(title, ["UPDATE", "BACK"], content_top=content_top)
         if selection is None or selection == 1:
             return
         if selection == 0:
@@ -265,6 +283,12 @@ def show_update_version(*, title: str = "UPDATE / VERSION") -> None:
                 title,
                 ["Update not implemented yet."],
                 page_index=0,
+                content_top=content_top,
             )
             time.sleep(1.5)
-            display.render_paginated_lines(title, version_lines, page_index=0)
+            display.render_paginated_lines(
+                title,
+                version_lines,
+                page_index=0,
+                content_top=content_top,
+            )
