@@ -431,8 +431,8 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
     command = ["nmcli", "dev", "wifi", "connect", ssid, "ifname", interface]
     redactions: Optional[List[int]] = None
     if password:
-        command.extend(["password", password])
-        redactions = [len(command) - 1]
+        command.extend(["password", password, "wifi-sec.key-mgmt", "wpa-psk"])
+        redactions = [len(command) - 3]
     try:
         _run_command(command, redactions=redactions)
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
