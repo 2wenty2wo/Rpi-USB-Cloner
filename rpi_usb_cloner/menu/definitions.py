@@ -61,7 +61,7 @@ SETTINGS_MENU = MenuScreen(
     screen_id="settings",
     title="SETTINGS",
     items=[
-        menu_entry("COMING SOON", action=menu_actions.settings_coming_soon),
+        menu_entry("WIFI", action=menu_actions.wifi_settings),
     ],
 )
 
