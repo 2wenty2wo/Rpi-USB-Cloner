@@ -16,7 +16,7 @@ from rpi_usb_cloner.storage.mount import (
     list_media_devices,
 )
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
-from rpi_usb_cloner.ui import display, menus, renderer
+from rpi_usb_cloner.ui import display, menus, renderer, screens
 from rpi_usb_cloner.menu import MenuItem, definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
 
@@ -152,7 +152,7 @@ def main(argv=None):
         info_lines = [f"{selected_name} {size_gb:.2f}GB"]
         if vendor or model:
             info_lines.append(" ".join(part for part in [vendor, model] if part))
-        return display.render_paginated_lines(
+        return screens.render_info_screen(
             "DRIVE INFO",
             info_lines,
             page_index=page_index,

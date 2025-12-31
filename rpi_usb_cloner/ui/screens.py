@@ -78,6 +78,27 @@ def render_status_screen(
     )
 
 
+def render_info_screen(
+    title: str,
+    lines: Iterable[str],
+    *,
+    page_index: int = 0,
+    title_font=None,
+    body_font=None,
+    content_top: Optional[int] = None,
+) -> tuple[int, int]:
+    if content_top is None:
+        content_top = menus.get_standard_content_top(title, title_font=title_font)
+    return display.render_paginated_lines(
+        title,
+        list(lines),
+        page_index=page_index,
+        title_font=title_font,
+        items_font=body_font,
+        content_top=content_top,
+    )
+
+
 def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
     page_index = 0
 
@@ -85,7 +106,7 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
         lines = list(app_context.log_buffer)[-max_lines:]
         if not lines:
             lines = ["No logs yet."]
-        return display.render_paginated_lines(title, lines, page_index=page)
+        return render_info_screen(title, lines, page_index=page)
 
     total_pages, page_index = render(page_index)
     menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
