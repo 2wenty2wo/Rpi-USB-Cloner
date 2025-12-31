@@ -143,6 +143,19 @@ def list_networks() -> List[WifiNetwork]:
         return []
     backoff_schedule = [0.0, 0.5, 1.0]
 
+    def _prepare_interface_for_scan() -> None:
+        try:
+            _run_command(["rfkill", "unblock", "wifi"])
+        except FileNotFoundError as error:
+            _log_debug(f"rfkill not available: {error}")
+        except subprocess.CalledProcessError as error:
+            _log_debug(f"rfkill unblock failed: {error}")
+
+        try:
+            _run_command(["ip", "link", "set", interface, "up"])
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _log_debug(f"ip link set up failed: {error}")
+
     def _parse_signal_line(value: str) -> Optional[int]:
         match = re.search(r"(-?\d+(?:\.\d+)?)", value)
         if not match:
@@ -322,6 +335,8 @@ def list_networks() -> List[WifiNetwork]:
             index += 1
         parts.append("".join(current))
         return parts
+
+    _prepare_interface_for_scan()
 
     for delay in backoff_schedule:
         if delay:
