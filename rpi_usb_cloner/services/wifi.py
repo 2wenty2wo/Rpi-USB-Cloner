@@ -387,8 +387,10 @@ def list_networks() -> List[WifiNetwork]:
                 )
             )
         if not networks:
-            _log_debug("nmcli parsing produced no networks; falling back to iw scan.")
-            return _scan_with_iw()
+            _log_debug(
+                "nmcli parsing produced no networks; retrying nmcli before falling back."
+            )
+            continue
         if networks and non_empty_ssid:
             return networks
 
