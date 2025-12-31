@@ -22,8 +22,10 @@ def wifi_settings() -> None:
 
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
+    repo_root = Path(__file__).resolve().parents[2]
     version = _get_app_version(log_debug=log_debug)
-    version_lines = [f"Version: {version}"]
+    status = _get_update_status(repo_root, log_debug=log_debug)
+    version_lines = [f"Version: {version}", f"Status: {status}"]
     display.render_paginated_lines(title, version_lines, page_index=0)
     while True:
         selection = menus.select_list(title, ["UPDATE"])
@@ -32,7 +34,8 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if selection == 0:
             _run_update_flow(title, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
-            version_lines = [f"Version: {version}"]
+            status = _get_update_status(repo_root, log_debug=log_debug)
+            version_lines = [f"Version: {version}", f"Status: {status}"]
             display.render_paginated_lines(title, version_lines, page_index=0)
 
 
@@ -134,6 +137,36 @@ def _run_git_pull(
     repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
 ) -> subprocess.CompletedProcess[str]:
     return _run_command(["git", "pull"], cwd=repo_root, log_debug=log_debug)
+
+
+def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> str:
+    if not _is_git_repo(repo_root):
+        _log_debug(log_debug, "Update status check: repo not found")
+        return "Repo not found"
+    fetch = _run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
+    if fetch.returncode != 0:
+        _log_debug(log_debug, f"Update status check: fetch failed {fetch.returncode}")
+        return "Unable to check"
+    upstream = _run_command(
+        ["git", "rev-parse", "--abbrev-ref", "@{u}"],
+        cwd=repo_root,
+        log_debug=log_debug,
+    )
+    upstream_ref = upstream.stdout.strip()
+    if upstream.returncode != 0 or not upstream_ref:
+        _log_debug(log_debug, "Update status check: upstream missing")
+        return "No upstream configured"
+    behind = _run_command(
+        ["git", "rev-list", "--count", "HEAD..@{u}"],
+        cwd=repo_root,
+        log_debug=log_debug,
+    )
+    if behind.returncode != 0:
+        _log_debug(log_debug, "Update status check: rev-list failed")
+        return "Unable to check"
+    count = behind.stdout.strip()
+    _log_debug(log_debug, f"Update status check: behind count={count!r}")
+    return "Update available" if count.isdigit() and int(count) > 0 else "Up to date"
 
 
 def _format_command_output(stdout: str, stderr: str) -> list[str]:
