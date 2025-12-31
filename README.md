@@ -106,6 +106,7 @@ Create a systemd unit so the cloner starts automatically at boot. Update paths a
    [Install]
    WantedBy=multi-user.target
    ```
+   Ensure the `User=` matches the repository owner, or make sure the repository is owned by the service user (to avoid Git dubious-ownership warnings).
    If you used Option B (system Python), change `ExecStart` to `/usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py`.
 2. Reload systemd and enable the service to start on boot:
    ```sh

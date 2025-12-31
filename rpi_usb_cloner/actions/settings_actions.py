@@ -71,17 +71,19 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         )
         pull_result = _run_git_pull(repo_root, log_debug=log_debug)
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
+    if dubious_ownership:
+        output_lines = (
+            [
+                "Dubious ownership detected.",
+                "Service User= should own repo.",
+                f"Or run: git config --global --add safe.directory {repo_root}",
+            ]
+            + output_lines
+        )
     if pull_result.returncode != 0:
         _log_debug(log_debug, f"Git pull failed with return code {pull_result.returncode}")
         if dubious_ownership:
-            output_lines = (
-                [
-                    "Git safety check failed.",
-                    "Run as the service user:",
-                    f"git config --global --add safe.directory {repo_root}",
-                ]
-                + output_lines
-            )
+            output_lines = ["Git safety check failed."] + output_lines
         display.render_paginated_lines(
             title,
             ["Update failed"] + output_lines,
