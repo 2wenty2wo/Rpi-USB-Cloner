@@ -276,13 +276,36 @@ def list_networks() -> List[WifiNetwork]:
         return networks
 
     def _scan_with_iw() -> List[WifiNetwork]:
+        iw_command = ["iw", "dev", interface, "scan"]
+        iw_command_display = _format_command(iw_command)
         try:
-            result = _run_command(["iw", "dev", interface, "scan"])
+            _log_debug(f"Running command: {iw_command_display}")
+            result = subprocess.run(
+                iw_command,
+                check=True,
+                text=True,
+                capture_output=True,
+                timeout=10,
+            )
+            if result.stdout:
+                _log_debug(f"stdout: {result.stdout.strip()}")
+            if result.stderr:
+                _log_debug(f"stderr: {result.stderr.strip()}")
+            _log_debug(f"Command completed with return code {result.returncode}")
             networks = _parse_iw_scan(result.stdout)
             if networks:
                 return networks
+        except subprocess.TimeoutExpired:
+            _log_debug("iw scan timed out")
+            _notify_error("Wi-Fi scan timed out.")
+            return []
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
             _log_debug(f"iw scan failed: {error}")
+            if isinstance(error, subprocess.CalledProcessError):
+                if error.stdout:
+                    _log_debug(f"stdout: {error.stdout.strip()}")
+                if error.stderr:
+                    _log_debug(f"stderr: {error.stderr.strip()}")
 
         try:
             result = _run_command(["iwlist", interface, "scan"])
