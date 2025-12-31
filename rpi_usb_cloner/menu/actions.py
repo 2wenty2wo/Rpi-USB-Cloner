@@ -107,6 +107,10 @@ def settings_coming_soon() -> None:
     settings_actions.coming_soon()
 
 
+def wifi_settings() -> None:
+    settings_actions.wifi_settings()
+
+
 def view_logs() -> None:
     context = _require_context()
     screens.show_logs(context.app_context)
