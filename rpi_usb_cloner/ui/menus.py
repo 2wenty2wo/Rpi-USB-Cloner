@@ -46,6 +46,18 @@ def _get_text_height(draw, text, font):
     return bbox[3] - bbox[1]
 
 
+def _get_line_height(font, min_height=8):
+    line_height = min_height
+    try:
+        bbox = font.getbbox("Ag")
+        line_height = max(bbox[3] - bbox[1], line_height)
+    except AttributeError:
+        if hasattr(font, "getmetrics"):
+            ascent, descent = font.getmetrics()
+            line_height = max(ascent + descent, line_height)
+    return line_height
+
+
 def render_menu(menu, draw, width, height, fonts):
     context = display.get_display_context()
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -110,6 +122,111 @@ def render_menu(menu, draw, width, height, fonts):
 def wait_for_buttons_release(buttons, poll_delay=BUTTON_POLL_DELAY):
     while any(is_pressed(pin) for pin in buttons):
         time.sleep(poll_delay)
+
+
+def select_list(
+    title: str,
+    items: List[str],
+    *,
+    footer: Optional[List[str]] = None,
+    footer_positions: Optional[List[int]] = None,
+    items_font: Optional[ImageFont.ImageFont] = None,
+) -> Optional[int]:
+    context = display.get_display_context()
+    if not items:
+        return None
+    items_font = items_font or context.fontdisks
+    title_font = context.fonts.get("title", context.fontdisks)
+    title_height = _get_text_height(context.draw, title, title_font) if title else 0
+    footer_height = 15 if footer else 0
+    line_height = _get_line_height(items_font)
+    row_height = line_height + 4
+    available_height = context.height - context.top - title_height - display.TITLE_PADDING - footer_height
+    items_per_page = max(1, available_height // row_height)
+    selected_index = 0
+
+    def render(selected: int) -> None:
+        offset = (selected // items_per_page) * items_per_page
+        page_items = items[offset : offset + items_per_page]
+        menu_items = [MenuItem([line]) for line in page_items]
+        menu = Menu(
+            items=menu_items,
+            selected_index=selected - offset,
+            title=title,
+            footer=footer,
+            footer_positions=footer_positions,
+            items_font=items_font,
+        )
+        render_menu(menu, context.draw, context.width, context.height, context.fonts)
+        context.disp.display(context.image)
+
+    render(selected_index)
+    wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
+    prev_states = {
+        "U": read_button(PIN_U),
+        "D": read_button(PIN_D),
+        "L": read_button(PIN_L),
+        "R": read_button(PIN_R),
+        "A": read_button(PIN_A),
+        "B": read_button(PIN_B),
+        "C": read_button(PIN_C),
+    }
+    last_press_time = {key: 0.0 for key in prev_states}
+    last_repeat_time = {key: 0.0 for key in prev_states}
+    while True:
+        now = time.monotonic()
+        current_u = read_button(PIN_U)
+        if prev_states["U"] and not current_u:
+            selected_index = max(0, selected_index - 1)
+            last_press_time["U"] = now
+            last_repeat_time["U"] = now
+        elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - 1)
+                last_repeat_time["U"] = now
+        current_d = read_button(PIN_D)
+        if prev_states["D"] and not current_d:
+            selected_index = min(len(items) - 1, selected_index + 1)
+            last_press_time["D"] = now
+            last_repeat_time["D"] = now
+        elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
+                selected_index = min(len(items) - 1, selected_index + 1)
+                last_repeat_time["D"] = now
+        current_l = read_button(PIN_L)
+        if prev_states["L"] and not current_l:
+            selected_index = max(0, selected_index - items_per_page)
+            last_press_time["L"] = now
+            last_repeat_time["L"] = now
+        elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
+                selected_index = max(0, selected_index - items_per_page)
+                last_repeat_time["L"] = now
+        current_r = read_button(PIN_R)
+        if prev_states["R"] and not current_r:
+            selected_index = min(len(items) - 1, selected_index + items_per_page)
+            last_press_time["R"] = now
+            last_repeat_time["R"] = now
+        elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
+                selected_index = min(len(items) - 1, selected_index + items_per_page)
+                last_repeat_time["R"] = now
+        current_a = read_button(PIN_A)
+        if prev_states["A"] and not current_a:
+            return None
+        current_b = read_button(PIN_B)
+        if prev_states["B"] and not current_b:
+            return selected_index
+        current_c = read_button(PIN_C)
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
+        prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        prev_states["C"] = current_c
+        render(selected_index)
+        time.sleep(BUTTON_POLL_DELAY)
 
 
 def select_clone_mode(current_mode=None):
