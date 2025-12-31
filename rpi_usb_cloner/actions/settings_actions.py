@@ -21,7 +21,7 @@ def wifi_settings() -> None:
 
 
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
-    title = "UPDATE / VERSION"
+    title = "UPDATE"
     version = _get_app_version(log_debug=log_debug)
     version_lines = [f"Version: {version}"]
     display.render_paginated_lines(title, version_lines, page_index=0)
