@@ -143,6 +143,24 @@ def list_networks() -> List[WifiNetwork]:
         return []
     backoff_schedule = [0.0, 0.5, 1.0]
 
+    def _nmcli_unescape(value: str) -> str:
+        if not value:
+            return value
+        unescaped = []
+        iterator = iter(range(len(value)))
+        index = 0
+        while index < len(value):
+            char = value[index]
+            if char == "\\" and index + 1 < len(value):
+                next_char = value[index + 1]
+                if next_char in {":", "|", "\\"}:
+                    unescaped.append(next_char)
+                    index += 2
+                    continue
+            unescaped.append(char)
+            index += 1
+        return "".join(unescaped)
+
     for delay in backoff_schedule:
         if delay:
             time.sleep(delay)
@@ -151,6 +169,8 @@ def list_networks() -> List[WifiNetwork]:
                 [
                     "nmcli",
                     "-t",
+                    "--separator",
+                    "|",
                     "-f",
                     "SSID,SIGNAL,SECURITY,IN-USE",
                     "dev",
@@ -170,12 +190,12 @@ def list_networks() -> List[WifiNetwork]:
         for line in result.stdout.splitlines():
             if not line:
                 continue
-            parts = line.split(":")
-            ssid = parts[0] if parts else ""
+            parts = line.split("|", 3)
+            ssid = _nmcli_unescape(parts[0]) if parts else ""
             signal_value = None
             if len(parts) > 1 and parts[1].isdigit():
                 signal_value = int(parts[1])
-            security = parts[2] if len(parts) > 2 else ""
+            security = _nmcli_unescape(parts[2]) if len(parts) > 2 else ""
             in_use = len(parts) > 3 and parts[3].strip() == "*"
             networks.append(
                 WifiNetwork(
