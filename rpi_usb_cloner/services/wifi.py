@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 import time
 import subprocess
 from dataclasses import dataclass
@@ -18,6 +19,9 @@ def _noop_logger(message: str) -> None:
 _log_debug = _noop_logger
 _error_handler = None
 _command_runner = None
+_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
+_STATUS_CACHE_LOCK = threading.Lock()
+_STATUS_CACHE_TIME: Optional[float] = None
 
 
 def configure_wifi_helpers(
@@ -571,3 +575,52 @@ def get_ip_address() -> Optional[str]:
         return match.group(1)
     _notify_error("No IPv4 address assigned.")
     return None
+
+
+def get_status_cached(ttl_s: float = 1.0) -> dict:
+    global _STATUS_CACHE_TIME
+    now = time.monotonic()
+    with _STATUS_CACHE_LOCK:
+        if _STATUS_CACHE_TIME is not None and now - _STATUS_CACHE_TIME <= ttl_s:
+            return dict(_STATUS_CACHE)
+
+    status = {"connected": False, "ssid": None, "ip": None}
+    try:
+        result = _run_command(
+            [
+                "nmcli",
+                "-t",
+                "-f",
+                "DEVICE,TYPE,STATE,CONNECTION,IP4.ADDRESS",
+                "device",
+                "status",
+            ]
+        )
+        for line in result.stdout.splitlines():
+            if not line:
+                continue
+            parts = _split_nmcli_line(line, separator=":", maxsplit=4)
+            if len(parts) < 3:
+                continue
+            device_type = parts[1]
+            state = parts[2]
+            if device_type != "wifi" or state != "connected":
+                continue
+            connection = _nmcli_unescape(parts[3]) if len(parts) > 3 else ""
+            ip_address = _nmcli_unescape(parts[4]) if len(parts) > 4 else ""
+            ip_value = None
+            if ip_address:
+                ip_value = ip_address.split(",", 1)[0].split("/", 1)[0]
+            status = {
+                "connected": True,
+                "ssid": connection or None,
+                "ip": ip_value,
+            }
+            break
+    except (FileNotFoundError, subprocess.CalledProcessError) as error:
+        _log_debug(f"nmcli status lookup failed: {error}")
+
+    with _STATUS_CACHE_LOCK:
+        _STATUS_CACHE.update(status)
+        _STATUS_CACHE_TIME = now
+        return dict(_STATUS_CACHE)

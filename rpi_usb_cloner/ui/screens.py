@@ -14,15 +14,13 @@ _WIFI_STATUS_LOCK = threading.Lock()
 
 
 def _update_wifi_status_cache() -> None:
-    connected = wifi.is_connected()
-    ssid = wifi.get_active_ssid()
-    ip_address = wifi.get_ip_address() if connected else None
+    status = wifi.get_status_cached()
     with _WIFI_STATUS_LOCK:
         _WIFI_STATUS_CACHE.update(
             {
-                "connected": connected,
-                "ssid": ssid,
-                "ip": ip_address,
+                "connected": status.get("connected", False),
+                "ssid": status.get("ssid"),
+                "ip": status.get("ip"),
             }
         )
 
