@@ -86,23 +86,17 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
         current_y = max(current_y, menu.content_top)
 
     items_font = menu.items_font or fonts["items"]
-    line_height = 8
-    try:
-        bbox = items_font.getbbox("Ag")
-        line_height = max(bbox[3] - bbox[1], line_height)
-    except AttributeError:
-        if hasattr(items_font, "getmetrics"):
-            ascent, descent = items_font.getmetrics()
-            line_height = max(ascent + descent, line_height)
+    line_height = _get_line_height(items_font)
+    row_height_per_line = line_height + 2
 
     for item_index, item in enumerate(menu.items):
         lines = item.lines
-        row_height = max(len(lines), 1) * line_height + 4
+        row_height = max(len(lines), 1) * row_height_per_line
         row_top = current_y
         text_y_offset = (row_height - len(lines) * line_height) // 2
         is_selected = item_index == menu.selected_index
         if is_selected:
-            draw.rectangle((0, row_top - 1, width, row_top + row_height - 1), outline=0, fill=1)
+            draw.rectangle((0, row_top, width, row_top + row_height - 1), outline=0, fill=1)
         for line_index, line in enumerate(lines):
             text_color = 0 if is_selected else 255
             draw.text(
@@ -163,7 +157,7 @@ def select_list(
     )
     footer_height = 15 if footer else 0
     line_height = _get_line_height(items_font)
-    row_height = line_height + 4
+    row_height = line_height + 2
     available_height = context.height - content_top - footer_height
     items_per_page = max(1, available_height // row_height)
     selected_index = 0
