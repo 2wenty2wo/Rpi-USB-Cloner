@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from PIL import ImageFont
 
@@ -148,6 +148,8 @@ def select_list(
     items_font: Optional[ImageFont.ImageFont] = None,
     content_top: Optional[int] = None,
     header_lines: Optional[List[str]] = None,
+    refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
+    refresh_interval: float = 0.25,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -194,6 +196,7 @@ def select_list(
 
     render(selected_index)
     last_rendered_index = selected_index
+    last_refresh_time = time.monotonic()
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": read_button(PIN_U),
@@ -210,6 +213,17 @@ def select_list(
         now = time.monotonic()
         action_taken = False
         refresh_needed = False
+        if refresh_callback and now - last_refresh_time >= refresh_interval:
+            new_items = refresh_callback()
+            last_refresh_time = now
+            if new_items is not None:
+                items = new_items
+                if not items:
+                    return None
+                if selected_index >= len(items):
+                    selected_index = len(items) - 1
+                render(selected_index)
+                last_rendered_index = selected_index
         current_u = read_button(PIN_U)
         if prev_states["U"] and not current_u:
             action_taken = True
