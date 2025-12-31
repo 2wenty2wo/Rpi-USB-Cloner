@@ -112,7 +112,8 @@ def wifi_settings() -> None:
 
 
 def update_version() -> None:
-    _run_operation(settings_actions.update_version)
+    context = _require_context()
+    _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
 
 
 def view_logs() -> None:
