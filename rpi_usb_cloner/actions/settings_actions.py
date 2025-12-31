@@ -49,6 +49,68 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
             continue
 
 
+def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    title = "POWER"
+    screens.render_status_screen(title, "Restarting...", progress_line=_SERVICE_NAME)
+    restart_result = _restart_systemd_service(log_debug=log_debug)
+    if restart_result.returncode != 0:
+        _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
+        display.render_paginated_lines(
+            title,
+            ["Service restart failed"]
+            + _format_command_output(restart_result.stdout, restart_result.stderr),
+            page_index=0,
+        )
+        time.sleep(2)
+        return
+    sys.exit(0)
+
+
+def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    title = "POWER"
+    screens.render_status_screen(title, "Stopping...", progress_line=_SERVICE_NAME)
+    stop_result = _stop_systemd_service(log_debug=log_debug)
+    if stop_result.returncode != 0:
+        _log_debug(log_debug, f"Service stop failed with return code {stop_result.returncode}")
+        display.render_paginated_lines(
+            title,
+            ["Service stop failed"] + _format_command_output(stop_result.stdout, stop_result.stderr),
+            page_index=0,
+        )
+        time.sleep(2)
+        return
+    sys.exit(0)
+
+
+def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    title = "POWER"
+    screens.render_status_screen(title, "Restarting...", progress_line="System reboot")
+    reboot_result = _run_systemctl_action("reboot", log_debug=log_debug)
+    if reboot_result.returncode != 0:
+        _log_debug(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
+        display.render_paginated_lines(
+            title,
+            ["System reboot failed"] + _format_command_output(reboot_result.stdout, reboot_result.stderr),
+            page_index=0,
+        )
+        time.sleep(2)
+
+
+def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    title = "POWER"
+    screens.render_status_screen(title, "Shutting down...", progress_line="System poweroff")
+    shutdown_result = _run_systemctl_action("poweroff", log_debug=log_debug)
+    if shutdown_result.returncode != 0:
+        _log_debug(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
+        display.render_paginated_lines(
+            title,
+            ["System poweroff failed"]
+            + _format_command_output(shutdown_result.stdout, shutdown_result.stderr),
+            page_index=0,
+        )
+        time.sleep(2)
+
+
 def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     _log_debug(log_debug, f"Repo root detection: {repo_root}")
@@ -260,6 +322,34 @@ def _restart_systemd_service(
         )
     return _run_command(
         ["systemctl", "restart", _SERVICE_NAME],
+        log_debug=log_debug,
+    )
+
+
+def _stop_systemd_service(
+    *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
+    if not shutil.which("systemctl"):
+        _log_debug(log_debug, "Service stop failed: systemctl missing")
+        return subprocess.CompletedProcess(
+            args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
+        )
+    return _run_command(
+        ["systemctl", "stop", _SERVICE_NAME],
+        log_debug=log_debug,
+    )
+
+
+def _run_systemctl_action(
+    action: str, *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
+    if not shutil.which("systemctl"):
+        _log_debug(log_debug, f"systemctl action failed: {action} (systemctl missing)")
+        return subprocess.CompletedProcess(
+            args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
+        )
+    return _run_command(
+        ["systemctl", action],
         log_debug=log_debug,
     )
 

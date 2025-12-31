@@ -116,6 +116,26 @@ def update_version() -> None:
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
 
 
+def restart_service() -> None:
+    context = _require_context()
+    _run_operation(lambda: settings_actions.restart_service(log_debug=context.log_debug))
+
+
+def stop_service() -> None:
+    context = _require_context()
+    _run_operation(lambda: settings_actions.stop_service(log_debug=context.log_debug))
+
+
+def restart_system() -> None:
+    context = _require_context()
+    _run_operation(lambda: settings_actions.restart_system(log_debug=context.log_debug))
+
+
+def shutdown_system() -> None:
+    context = _require_context()
+    _run_operation(lambda: settings_actions.shutdown_system(log_debug=context.log_debug))
+
+
 def view_logs() -> None:
     context = _require_context()
     screens.show_logs(context.app_context)
