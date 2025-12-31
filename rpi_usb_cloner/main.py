@@ -106,6 +106,10 @@ def main(argv=None):
             title_font=display.get_display_context().fontcopy,
         )
 
+    INPUT_POLL_INTERVAL = 0.03
+    INITIAL_REPEAT_DELAY = 0.25
+    REPEAT_INTERVAL = 0.08
+
     def show_drive_info() -> None:
         page_index = 0
         total_pages, page_index = render_drive_info(page_index)
@@ -148,7 +152,7 @@ def main(argv=None):
             prev_states["R"] = current_r
             prev_states["U"] = current_u
             prev_states["D"] = current_d
-            time.sleep(0.05)
+            time.sleep(INPUT_POLL_INTERVAL)
 
     menu_actions.set_action_context(
         menu_actions.ActionContext(
@@ -184,7 +188,9 @@ def main(argv=None):
             status_line=status_line,
         )
 
-    def render_current_screen():
+    last_render_state = {"key": None}
+
+    def render_current_screen(force=False):
         current_screen = menu_navigator.current_screen()
         if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
@@ -196,14 +202,24 @@ def main(argv=None):
         status_line = get_screen_status_line(current_screen)
         dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
         menu_navigator.sync_visible_rows(dynamic_visible_rows)
-        renderer.render_menu_screen(
-            title=current_screen.title,
-            items=items,
-            selected_index=menu_navigator.current_state().selected_index,
-            scroll_offset=menu_navigator.current_state().scroll_offset,
-            status_line=status_line,
-            visible_rows=dynamic_visible_rows,
+        render_key = (
+            current_screen.screen_id,
+            tuple(items),
+            menu_navigator.current_state().selected_index,
+            menu_navigator.current_state().scroll_offset,
+            status_line,
+            dynamic_visible_rows,
         )
+        if force or render_key != last_render_state["key"]:
+            renderer.render_menu_screen(
+                title=current_screen.title,
+                items=items,
+                selected_index=menu_navigator.current_state().selected_index,
+                scroll_offset=menu_navigator.current_state().scroll_offset,
+                status_line=status_line,
+                visible_rows=dynamic_visible_rows,
+            )
+            last_render_state["key"] = render_key
 
     def handle_back() -> None:
         if app_context.operation_active and not app_context.allow_back_interrupt:
@@ -227,7 +243,7 @@ def main(argv=None):
         app_context.discovered_drives,
         state.usb_list_index,
     )
-    render_current_screen()
+    render_current_screen(force=True)
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
     prev_states = {
@@ -239,11 +255,18 @@ def main(argv=None):
         "B": gpio.read_button(gpio.PIN_B),
         "C": gpio.read_button(gpio.PIN_C),
     }
+    repeat_state = {
+        "U": {"next_repeat": None},
+        "D": {"next_repeat": None},
+    }
 
     error_displayed = False
     try:
         while True:
-            time.sleep(0.1)
+            time.sleep(INPUT_POLL_INTERVAL)
+            render_requested = False
+            force_render = False
+            now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 log_debug(f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)")
                 current_devices = get_usb_snapshot()
@@ -274,13 +297,13 @@ def main(argv=None):
                         state.usb_list_index,
                     )
                     state.last_seen_devices = current_devices
+                    render_requested = True
                 state.last_usb_check = time.time()
             if app_state.ENABLE_SLEEP:
                 lcdtmp = state.lcdstart + timedelta(seconds=30)
                 if datetime.now() > lcdtmp:
                     if state.run_once == 0:
                         sleepdisplay()
-                    time.sleep(0.1)
 
             current_states = {
                 "U": gpio.read_button(gpio.PIN_U),
@@ -297,44 +320,70 @@ def main(argv=None):
             status_line = get_screen_status_line(current_screen)
             dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
 
-            if prev_states["U"] and not current_states["U"]:
-                log_debug("Button UP pressed")
-                menu_navigator.move_selection(-1, dynamic_visible_rows)
-                button_pressed = True
-            if prev_states["D"] and not current_states["D"]:
-                log_debug("Button DOWN pressed")
-                menu_navigator.move_selection(1, dynamic_visible_rows)
-                button_pressed = True
+            def handle_repeat_button(key, direction):
+                nonlocal button_pressed, render_requested
+                is_pressed = not current_states[key]
+                was_pressed = not prev_states[key]
+                if is_pressed and not was_pressed:
+                    log_debug(f"Button {key} pressed")
+                    menu_navigator.move_selection(direction, dynamic_visible_rows)
+                    button_pressed = True
+                    render_requested = True
+                    repeat_state[key]["next_repeat"] = now + INITIAL_REPEAT_DELAY
+                    return
+                if (
+                    is_pressed
+                    and repeat_state[key]["next_repeat"] is not None
+                    and now >= repeat_state[key]["next_repeat"]
+                ):
+                    menu_navigator.move_selection(direction, dynamic_visible_rows)
+                    button_pressed = True
+                    render_requested = True
+                    repeat_state[key]["next_repeat"] = now + REPEAT_INTERVAL
+                    return
+                if not is_pressed:
+                    repeat_state[key]["next_repeat"] = None
+
+            handle_repeat_button("U", -1)
+            handle_repeat_button("D", 1)
             if prev_states["L"] and not current_states["L"]:
                 log_debug("Button LEFT pressed")
                 handle_back()
                 button_pressed = True
+                render_requested = True
             if prev_states["A"] and not current_states["A"]:
                 log_debug("Button BACK pressed")
                 handle_back()
                 button_pressed = True
+                render_requested = True
             if prev_states["R"] and not current_states["R"]:
                 log_debug("Button RIGHT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
+                    force_render = True
                 button_pressed = True
+                render_requested = True
             if prev_states["B"] and not current_states["B"]:
                 log_debug("Button SELECT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
+                    force_render = True
                 button_pressed = True
+                render_requested = True
             if prev_states["C"] and not current_states["C"]:
                 log_debug("Button C pressed")
                 button_pressed = True
+                render_requested = True
 
             if button_pressed:
                 state.lcdstart = datetime.now()
                 state.run_once = 0
 
             prev_states = current_states
-            render_current_screen()
+            if render_requested:
+                render_current_screen(force=force_render)
     except KeyboardInterrupt:
         pass
     except Exception as error:
