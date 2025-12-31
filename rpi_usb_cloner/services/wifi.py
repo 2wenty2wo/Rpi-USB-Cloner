@@ -161,6 +161,29 @@ def list_networks() -> List[WifiNetwork]:
             index += 1
         return "".join(unescaped)
 
+    def _split_nmcli_line(line: str, separator: str = "|", maxsplit: int = 3) -> List[str]:
+        parts: List[str] = []
+        current: List[str] = []
+        index = 0
+        splits = 0
+        while index < len(line):
+            char = line[index]
+            if char == "\\" and index + 1 < len(line):
+                current.append(char)
+                current.append(line[index + 1])
+                index += 2
+                continue
+            if char == separator and splits < maxsplit:
+                parts.append("".join(current))
+                current = []
+                splits += 1
+                index += 1
+                continue
+            current.append(char)
+            index += 1
+        parts.append("".join(current))
+        return parts
+
     for delay in backoff_schedule:
         if delay:
             time.sleep(delay)
@@ -190,7 +213,7 @@ def list_networks() -> List[WifiNetwork]:
         for line in result.stdout.splitlines():
             if not line:
                 continue
-            parts = line.split("|", 3)
+            parts = _split_nmcli_line(line)
             ssid = _nmcli_unescape(parts[0]) if parts else ""
             signal_value = None
             if len(parts) > 1 and parts[1].isdigit():
