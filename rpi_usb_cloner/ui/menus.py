@@ -172,6 +172,8 @@ def select_list(
                 header_lines,
                 page_index=0,
                 content_top=header_content_top,
+                title_font=title_font,
+                items_font=items_font,
             )
         menu = Menu(
             items=menu_items,
