@@ -8,14 +8,14 @@ def coming_soon() -> None:
 
 
 def backup_image() -> None:
-    screens.render_status_screen("BACKUP", "Running...", progress_line="Preparing image...")
+    screens.render_status_template("BACKUP", "Running...", progress_line="Preparing image...")
     time.sleep(1)
-    screens.render_status_screen("BACKUP", "Done", progress_line="Image saved.")
+    screens.render_status_template("BACKUP", "Done", progress_line="Image saved.")
     time.sleep(1)
 
 
 def write_image() -> None:
-    screens.render_status_screen("WRITE", "Running...", progress_line="Preparing media...")
+    screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
     time.sleep(1)
-    screens.render_status_screen("WRITE", "Done", progress_line="Image written.")
+    screens.render_status_template("WRITE", "Done", progress_line="Image written.")
     time.sleep(1)

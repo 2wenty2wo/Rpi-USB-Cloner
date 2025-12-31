@@ -30,7 +30,7 @@ def _get_wifi_status_cache() -> dict:
         return dict(_WIFI_STATUS_CACHE)
 
 
-def render_status_screen(
+def render_status_template(
     title: str,
     status: str = "Running...",
     *,
@@ -68,17 +68,13 @@ def render_status_screen(
     title_font=None,
     body_font=None,
 ) -> None:
-    lines = [status]
-    if progress_line:
-        lines.append(progress_line)
-    if extra_lines:
-        lines.extend(line for line in extra_lines if line)
-    display.render_paginated_lines(
+    render_status_template(
         title,
-        lines,
-        page_index=0,
+        status,
+        progress_line=progress_line,
+        extra_lines=extra_lines,
         title_font=title_font,
-        items_font=body_font,
+        body_font=body_font,
     )
 
 
