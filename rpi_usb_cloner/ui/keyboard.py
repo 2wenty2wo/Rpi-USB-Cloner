@@ -34,6 +34,8 @@ class KeyboardLayout:
             return self.uppercase_rows
         if mode == "symbols" and self.symbols_rows:
             return self.symbols_rows
+        if mode == "numbers":
+            return self.rows
         return self.rows
 
 
@@ -116,6 +118,8 @@ def _render_keyboard(
     layout_mode: str,
     selected_row: int,
     selected_col: int,
+    selected_band: str,
+    mode_index: int,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -123,56 +127,128 @@ def _render_keyboard(
     rows = layout.get_rows(layout_mode)
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
+    padding = 4
     if title:
         draw.text((context.x - 11, current_y), title, font=title_font, fill=255)
         current_y += _get_line_height(title_font) + display.TITLE_PADDING
 
     input_font, key_font = _get_keyboard_fonts()
     display_value = "*" * len(value) if masked else value
-    available_width = context.width - (context.x - 11)
+    input_left = context.x - 11
+    input_right = context.width - padding
+    input_top = current_y
+    input_height = _get_line_height(input_font) + 6
+    draw.rectangle((input_left, input_top, input_right, input_top + input_height), outline=1, fill=1)
+    available_width = max(0, input_right - input_left - 4)
     display_value = _truncate_text(draw, display_value, input_font, available_width)
-    draw.text((context.x - 11, current_y), display_value, font=input_font, fill=255)
-    current_y += _get_line_height(input_font) + 2
+    draw.text((input_left + 2, input_top + 2), display_value, font=input_font, fill=0)
+    current_y += input_height + padding
 
     line_height = _get_line_height(key_font)
-    row_height = line_height + 4
-    available_height = context.height - current_y
-    visible_rows = max(1, available_height // row_height)
-    total_rows = len(rows)
-    row_offset = min(max(selected_row - visible_rows + 1, 0), max(0, total_rows - visible_rows))
+    row_height = line_height + 6
+    strip_top = current_y
+    strip_height = row_height
+    strip_left = context.x - 11
+    strip_right = context.width - padding
+    strip_width = max(0, strip_right - strip_left)
 
-    for row_index in range(row_offset, min(total_rows, row_offset + visible_rows)):
-        row = rows[row_index]
-        cell_width = max(1, context.width // len(row))
-        row_top = current_y + (row_index - row_offset) * row_height
-        for col_index, key in enumerate(row):
-            cell_left = col_index * cell_width
-            cell_right = cell_left + cell_width - 1
-            is_selected = row_index == selected_row and col_index == selected_col
-            if is_selected:
-                draw.rectangle((cell_left, row_top, cell_right, row_top + row_height - 1), outline=0, fill=1)
-            label = key
-            if key == KEY_SPACE:
-                label = "SPC"
-            elif key == KEY_BACKSPACE:
-                label = "BS"
-            elif key == KEY_CONFIRM:
-                label = "OK"
-            elif key == KEY_CANCEL:
-                label = "CAN"
-            elif key == KEY_SHIFT:
-                label = "SYM" if layout_mode == "upper" else "ABC" if layout_mode == "symbols" else "SHF"
-            text_bbox = draw.textbbox((0, 0), label, font=key_font)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-            text_x = cell_left + max(0, (cell_width - text_width) // 2)
-            text_y = row_top + max(0, (row_height - text_height) // 2)
-            draw.text(
-                (text_x, text_y),
-                label,
-                font=key_font,
-                fill=0 if is_selected else 255,
-            )
+    row = rows[selected_row]
+    key_padding = 6
+    key_metrics = []
+    for key in row:
+        label = key
+        if key == KEY_SPACE:
+            label = "SPACE"
+        elif key == KEY_BACKSPACE:
+            label = "BACK"
+        elif key == KEY_CONFIRM:
+            label = "OK"
+        elif key == KEY_CANCEL:
+            label = "CANCEL"
+        elif key == KEY_SHIFT:
+            label = "SYM" if layout_mode == "upper" else "ABC" if layout_mode == "symbols" else "SHF"
+        text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        key_metrics.append((label, text_width))
+
+    key_positions = []
+    cursor_x = 0
+    for label, text_width in key_metrics:
+        key_width = text_width + key_padding
+        key_positions.append((cursor_x, key_width, label))
+        cursor_x += key_width
+    total_width = cursor_x
+    offset_x = 0
+    if total_width > strip_width and key_positions:
+        selected_left, selected_width, _ = key_positions[selected_col]
+        selected_right = selected_left + selected_width
+        if selected_right - offset_x > strip_width:
+            offset_x = selected_right - strip_width
+        if selected_left - offset_x < 0:
+            offset_x = selected_left
+        offset_x = max(0, min(offset_x, total_width - strip_width))
+
+    for col_index, (key_left, key_width, label) in enumerate(key_positions):
+        cell_left = strip_left + key_left - offset_x
+        cell_right = cell_left + key_width - 1
+        is_selected = selected_band == "chars" and col_index == selected_col
+        if cell_right < strip_left or cell_left > strip_right:
+            continue
+        if is_selected:
+            draw.rectangle((cell_left, strip_top, cell_right, strip_top + strip_height), outline=0, fill=1)
+        text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_x = cell_left + max(0, (key_width - text_width) // 2)
+        text_y = strip_top + max(0, (strip_height - text_height) // 2)
+        draw.text(
+            (text_x, text_y),
+            label,
+            font=key_font,
+            fill=0 if is_selected else 255,
+        )
+
+    current_y += strip_height + padding
+
+    mode_items = [
+        ("upper", "Upper Case"),
+        ("lower", "Lower Case"),
+        ("numbers", "Numbers"),
+        ("symbols", "Symbols"),
+        ("ok", "OK"),
+    ]
+    mode_positions = []
+    cursor_x = 0
+    for _, label in mode_items:
+        text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        item_width = text_width + key_padding
+        mode_positions.append((cursor_x, item_width, label))
+        cursor_x += item_width + 4
+    total_mode_width = cursor_x - 4 if mode_positions else 0
+    mode_left = strip_left
+    mode_top = current_y
+    mode_height = row_height
+    mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
+    for item_index, (item_left, item_width, label) in enumerate(mode_positions):
+        cell_left = mode_left + mode_offset + item_left
+        cell_right = cell_left + item_width - 1
+        mode_key, _ = mode_items[item_index]
+        is_active = layout_mode == mode_key
+        is_selected = selected_band == "modes" and item_index == mode_index
+        if is_selected or (is_active and selected_band != "modes"):
+            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=1)
+            text_fill = 0
+        else:
+            if is_active:
+                draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
+            text_fill = 255
+        text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_x = cell_left + max(0, (item_width - text_width) // 2)
+        text_y = mode_top + max(0, (mode_height - text_height) // 2)
+        draw.text((text_x, text_y), label, font=key_font, fill=text_fill)
     context.disp.display(context.image)
 
 
@@ -186,7 +262,10 @@ def prompt_text(
     value = initial
     selected_row = 0
     selected_col = 0
+    selected_band = "chars"
     layout_mode = "lower"
+    mode_items = ["upper", "lower", "numbers", "symbols", "ok"]
+    mode_index = mode_items.index(layout_mode)
     menus.wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": read_button(PIN_U),
@@ -201,69 +280,111 @@ def prompt_text(
     last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
         rows = layout.get_rows(layout_mode)
-        _render_keyboard(title, value, masked, layout, layout_mode, selected_row, selected_col)
+        _render_keyboard(
+            title,
+            value,
+            masked,
+            layout,
+            layout_mode,
+            selected_row,
+            selected_col,
+            selected_band,
+            mode_index,
+        )
         now = time.monotonic()
         current_u = read_button(PIN_U)
         if prev_states["U"] and not current_u:
-            selected_row = max(0, selected_row - 1)
-            selected_col = min(selected_col, len(rows[selected_row]) - 1)
+            if selected_band == "modes":
+                selected_band = "chars"
+            else:
+                selected_row = max(0, selected_row - 1)
+                selected_col = min(selected_col, len(rows[selected_row]) - 1)
             last_press_time["U"] = now
             last_repeat_time["U"] = now
         elif not current_u and now - last_press_time["U"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= menus.REPEAT_INTERVAL:
-                selected_row = max(0, selected_row - 1)
-                selected_col = min(selected_col, len(rows[selected_row]) - 1)
-                last_repeat_time["U"] = now
+                if selected_band == "chars":
+                    selected_row = max(0, selected_row - 1)
+                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                    last_repeat_time["U"] = now
         current_d = read_button(PIN_D)
         if prev_states["D"] and not current_d:
-            selected_row = min(len(rows) - 1, selected_row + 1)
-            selected_col = min(selected_col, len(rows[selected_row]) - 1)
+            if selected_band == "chars" and selected_row == len(rows) - 1:
+                selected_band = "modes"
+                mode_index = mode_items.index(layout_mode)
+            elif selected_band == "chars":
+                selected_row = min(len(rows) - 1, selected_row + 1)
+                selected_col = min(selected_col, len(rows[selected_row]) - 1)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
         elif not current_d and now - last_press_time["D"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= menus.REPEAT_INTERVAL:
-                selected_row = min(len(rows) - 1, selected_row + 1)
-                selected_col = min(selected_col, len(rows[selected_row]) - 1)
-                last_repeat_time["D"] = now
+                if selected_band == "chars" and selected_row < len(rows) - 1:
+                    selected_row = min(len(rows) - 1, selected_row + 1)
+                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                    last_repeat_time["D"] = now
         current_l = read_button(PIN_L)
         if prev_states["L"] and not current_l:
-            selected_col = max(0, selected_col - 1)
+            if selected_band == "modes":
+                mode_index = max(0, mode_index - 1)
+            else:
+                selected_col = max(0, selected_col - 1)
             last_press_time["L"] = now
             last_repeat_time["L"] = now
         elif not current_l and now - last_press_time["L"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= menus.REPEAT_INTERVAL:
-                selected_col = max(0, selected_col - 1)
+                if selected_band == "modes":
+                    mode_index = max(0, mode_index - 1)
+                else:
+                    selected_col = max(0, selected_col - 1)
                 last_repeat_time["L"] = now
         current_r = read_button(PIN_R)
         if prev_states["R"] and not current_r:
-            selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
+            if selected_band == "modes":
+                mode_index = min(len(mode_items) - 1, mode_index + 1)
+            else:
+                selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
             last_press_time["R"] = now
             last_repeat_time["R"] = now
         elif not current_r and now - last_press_time["R"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= menus.REPEAT_INTERVAL:
-                selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
+                if selected_band == "modes":
+                    mode_index = min(len(mode_items) - 1, mode_index + 1)
+                else:
+                    selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
                 last_repeat_time["R"] = now
         current_a = read_button(PIN_A)
         if prev_states["A"] and not current_a:
             return None
         current_b = read_button(PIN_B)
         if prev_states["B"] and not current_b:
-            key = rows[selected_row][selected_col]
-            if key == KEY_BACKSPACE:
-                value = value[:-1]
-            elif key == KEY_SPACE:
-                value += " "
-            elif key == KEY_CONFIRM:
-                return value
-            elif key == KEY_CANCEL:
-                return None
-            elif key == KEY_SHIFT:
-                layout_mode = "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
+            if selected_band == "modes":
+                selected_mode = mode_items[mode_index]
+                if selected_mode == "ok":
+                    return value
+                layout_mode = selected_mode
+                if layout_mode == "numbers":
+                    selected_row = 0
                 rows = layout.get_rows(layout_mode)
                 selected_row = min(selected_row, len(rows) - 1)
                 selected_col = min(selected_col, len(rows[selected_row]) - 1)
             else:
-                value += key
+                key = rows[selected_row][selected_col]
+                if key == KEY_BACKSPACE:
+                    value = value[:-1]
+                elif key == KEY_SPACE:
+                    value += " "
+                elif key == KEY_CONFIRM:
+                    return value
+                elif key == KEY_CANCEL:
+                    return None
+                elif key == KEY_SHIFT:
+                    layout_mode = "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
+                    rows = layout.get_rows(layout_mode)
+                    selected_row = min(selected_row, len(rows) - 1)
+                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                else:
+                    value += key
         current_c = read_button(PIN_C)
         if prev_states["C"] and not current_c:
             return value
