@@ -153,6 +153,8 @@ def select_list(
             items=menu_items,
             selected_index=selected - offset,
             title=title,
+            title_font=title_font,
+            content_top=context.top + title_height + display.TITLE_PADDING if title else context.top,
             footer=footer,
             footer_positions=footer_positions,
             items_font=items_font,
