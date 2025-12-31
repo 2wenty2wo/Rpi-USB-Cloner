@@ -232,17 +232,22 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         menu_lines.append("Refresh")
         return menu_lines, status_lines, visible_networks, disconnect_index
 
+    menu_state = build_menu_state()
+
     def refresh_menu_if_status_ready() -> Optional[list[str]]:
+        nonlocal menu_state
         if not screen_active or not status_updated.is_set():
             return None
         status_updated.clear()
-        return build_menu_state()[0]
+        menu_state = build_menu_state()
+        return menu_state[0]
 
     while True:
         if needs_scan:
             networks, timed_out = scan_networks_with_spinner()
             needs_scan = False
-        menu_lines, status_lines, visible_networks, disconnect_index = build_menu_state()
+        menu_state = build_menu_state()
+        menu_lines, status_lines, visible_networks, disconnect_index = menu_state
 
         selection = menus.select_list(
             title,
@@ -250,6 +255,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             content_top=content_top,
             refresh_callback=refresh_menu_if_status_ready,
         )
+        menu_lines, status_lines, visible_networks, disconnect_index = menu_state
         search_index = len(status_lines) + (1 if disconnect_index is not None else 0)
         network_start_index = search_index + 1
         refresh_index = len(menu_lines) - 1
