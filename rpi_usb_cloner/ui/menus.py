@@ -193,6 +193,7 @@ def select_list(
         context.disp.display(context.image)
 
     render(selected_index)
+    last_rendered_index = selected_index
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": read_button(PIN_U),
@@ -207,42 +208,51 @@ def select_list(
     last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
         now = time.monotonic()
+        action_happened = False
         current_u = read_button(PIN_U)
         if prev_states["U"] and not current_u:
             selected_index = max(0, selected_index - 1)
             last_press_time["U"] = now
             last_repeat_time["U"] = now
+            action_happened = True
         elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
                 selected_index = max(0, selected_index - 1)
                 last_repeat_time["U"] = now
+                action_happened = True
         current_d = read_button(PIN_D)
         if prev_states["D"] and not current_d:
             selected_index = min(len(items) - 1, selected_index + 1)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
+            action_happened = True
         elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
                 selected_index = min(len(items) - 1, selected_index + 1)
                 last_repeat_time["D"] = now
+                action_happened = True
         current_l = read_button(PIN_L)
         if prev_states["L"] and not current_l:
             selected_index = max(0, selected_index - items_per_page)
             last_press_time["L"] = now
             last_repeat_time["L"] = now
+            action_happened = True
         elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 selected_index = max(0, selected_index - items_per_page)
                 last_repeat_time["L"] = now
+                action_happened = True
         current_r = read_button(PIN_R)
         if prev_states["R"] and not current_r:
             selected_index = min(len(items) - 1, selected_index + items_per_page)
             last_press_time["R"] = now
             last_repeat_time["R"] = now
+            action_happened = True
         elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 selected_index = min(len(items) - 1, selected_index + items_per_page)
                 last_repeat_time["R"] = now
+                action_happened = True
         current_a = read_button(PIN_A)
         if prev_states["A"] and not current_a:
             return None
@@ -257,7 +267,9 @@ def select_list(
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["C"] = current_c
-        render(selected_index)
+        if selected_index != last_rendered_index or action_happened:
+            render(selected_index)
+            last_rendered_index = selected_index
         time.sleep(BUTTON_POLL_DELAY)
 
 
