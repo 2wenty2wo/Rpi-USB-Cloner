@@ -622,5 +622,5 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
 
     with _STATUS_CACHE_LOCK:
         _STATUS_CACHE.update(status)
-        _STATUS_CACHE_TIME = now
+        _STATUS_CACHE_TIME = time.monotonic()
         return dict(_STATUS_CACHE)
