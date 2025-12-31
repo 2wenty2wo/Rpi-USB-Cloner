@@ -37,6 +37,8 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if selection is None:
             return
         if selection == 0:
+            checking_lines = _build_update_info_lines(version, "Checking...", last_checked)
+            display.render_paginated_lines(title, checking_lines, page_index=0)
             status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
             continue
