@@ -143,7 +143,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
 
     networks: list[wifi.WifiNetwork] = []
     timed_out = False
-    needs_scan = True
+    needs_scan = False
     while True:
         if needs_scan:
             networks, timed_out = scan_networks_with_spinner()
@@ -192,7 +192,6 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             else:
                 display.display_lines([title, "Disconnect failed"])
             time.sleep(1.5)
-            needs_scan = True
             continue
         if selection in {search_index, refresh_index}:
             needs_scan = True
