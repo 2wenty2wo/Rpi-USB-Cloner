@@ -9,6 +9,28 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.ui import display, keyboard, menus
 
+_WIFI_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
+_WIFI_STATUS_LOCK = threading.Lock()
+
+
+def _update_wifi_status_cache() -> None:
+    connected = wifi.is_connected()
+    ssid = wifi.get_active_ssid()
+    ip_address = wifi.get_ip_address() if connected else None
+    with _WIFI_STATUS_LOCK:
+        _WIFI_STATUS_CACHE.update(
+            {
+                "connected": connected,
+                "ssid": ssid,
+                "ip": ip_address,
+            }
+        )
+
+
+def _get_wifi_status_cache() -> dict:
+    with _WIFI_STATUS_LOCK:
+        return dict(_WIFI_STATUS_CACHE)
+
 
 def render_status_screen(
     title: str,
@@ -110,6 +132,24 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
 
 def show_wifi_settings(*, title: str = "WIFI") -> None:
     content_top = menus.get_standard_content_top(title)
+    status_updated = threading.Event()
+    status_thread = None
+    status_thread_lock = threading.Lock()
+    screen_active = True
+
+    def refresh_status_async() -> None:
+        nonlocal status_thread
+        with status_thread_lock:
+            if status_thread and status_thread.is_alive():
+                return
+            status_updated.clear()
+
+            def run() -> None:
+                _update_wifi_status_cache()
+                status_updated.set()
+
+            status_thread = threading.Thread(target=run, daemon=True)
+            status_thread.start()
 
     def scan_networks_with_spinner(
         *,
@@ -158,14 +198,14 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
     networks: list[wifi.WifiNetwork] = []
     timed_out = False
     needs_scan = False
-    while True:
-        if needs_scan:
-            networks, timed_out = scan_networks_with_spinner()
-            needs_scan = False
+    refresh_status_async()
+
+    def build_menu_state() -> tuple[list[str], list[str], list[wifi.WifiNetwork], Optional[int]]:
         visible_networks = [network for network in networks if network.ssid]
-        active_ssid = wifi.get_active_ssid()
-        is_connected = wifi.is_connected()
-        ip_address = wifi.get_ip_address() if is_connected else None
+        cached_status = _get_wifi_status_cache()
+        is_connected = cached_status["connected"]
+        active_ssid = cached_status["ssid"]
+        ip_address = cached_status["ip"] if is_connected else None
         status_lines = [
             f"Wi-Fi: {'Connected' if is_connected else 'Not connected'}",
             f"SSID: {active_ssid or '--'}",
@@ -190,12 +230,37 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             in_use = "✔" if network.in_use else ""
             menu_lines.append(f"{ssid} {signal}{lock}{in_use}".strip())
         menu_lines.append("Refresh")
+        return menu_lines, status_lines, visible_networks, disconnect_index
 
-        selection = menus.select_list(title, menu_lines, content_top=content_top)
+    menu_state = build_menu_state()
+
+    def refresh_menu_if_status_ready() -> Optional[list[str]]:
+        nonlocal menu_state
+        if not screen_active or not status_updated.is_set():
+            return None
+        status_updated.clear()
+        menu_state = build_menu_state()
+        return menu_state[0]
+
+    while True:
+        if needs_scan:
+            networks, timed_out = scan_networks_with_spinner()
+            needs_scan = False
+        menu_state = build_menu_state()
+        menu_lines, status_lines, visible_networks, disconnect_index = menu_state
+
+        selection = menus.select_list(
+            title,
+            menu_lines,
+            content_top=content_top,
+            refresh_callback=refresh_menu_if_status_ready,
+        )
+        menu_lines, status_lines, visible_networks, disconnect_index = menu_state
         search_index = len(status_lines) + (1 if disconnect_index is not None else 0)
         network_start_index = search_index + 1
         refresh_index = len(menu_lines) - 1
         if selection is None:
+            screen_active = False
             return
         if selection < len(status_lines):
             continue
@@ -206,6 +271,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             else:
                 display.display_lines([title, "Disconnect failed"])
             time.sleep(1.5)
+            refresh_status_async()
             continue
         if selection in {search_index, refresh_index}:
             needs_scan = True
@@ -225,6 +291,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         else:
             display.display_lines([title, "Connection failed", selected_network.ssid])
         time.sleep(1.5)
+        refresh_status_async()
 
 
 def _get_git_version(repo_root: Path) -> Optional[str]:
