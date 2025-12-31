@@ -421,6 +421,46 @@ def list_networks() -> List[WifiNetwork]:
     return _scan_with_iw()
 
 
+def get_active_ssid() -> Optional[str]:
+    interface = _select_active_interface()
+    if not interface:
+        return None
+    try:
+        result = _run_command(["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"])
+        for line in result.stdout.splitlines():
+            if not line:
+                continue
+            parts = _split_nmcli_line(line, separator=":", maxsplit=2)
+            active = parts[0].strip().lower() if parts else ""
+            current_ssid = _nmcli_unescape(parts[1]) if len(parts) > 1 else ""
+            device = parts[2].strip() if len(parts) > 2 else ""
+            if active == "yes" and device == interface and current_ssid:
+                return current_ssid
+    except (FileNotFoundError, subprocess.CalledProcessError) as error:
+        _log_debug(f"nmcli active SSID lookup failed: {error}")
+
+    try:
+        result = _run_command(["iw", "dev"])
+        current_interface = None
+        for raw_line in result.stdout.splitlines():
+            line = raw_line.strip()
+            if line.startswith("Interface"):
+                parts = line.split()
+                current_interface = parts[1] if len(parts) > 1 else None
+                continue
+            if current_interface == interface and line.startswith("ssid "):
+                current_ssid = line.split("ssid", 1)[1].strip()
+                if current_ssid:
+                    return current_ssid
+    except (FileNotFoundError, subprocess.CalledProcessError) as error:
+        _log_debug(f"iw dev SSID lookup failed: {error}")
+    return None
+
+
+def is_connected() -> bool:
+    return bool(get_active_ssid())
+
+
 def connect(ssid: str, password: Optional[str] = None) -> bool:
     interface = _select_active_interface()
     if not interface:
@@ -429,42 +469,8 @@ def connect(ssid: str, password: Optional[str] = None) -> bool:
         _notify_error("Wi-Fi connect failed: SSID is required.")
         return False
 
-    def _active_ssid_matches() -> bool:
-        try:
-            result = _run_command(
-                ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"]
-            )
-            for line in result.stdout.splitlines():
-                if not line:
-                    continue
-                parts = _split_nmcli_line(line, separator=":", maxsplit=2)
-                active = parts[0].strip().lower() if parts else ""
-                current_ssid = _nmcli_unescape(parts[1]) if len(parts) > 1 else ""
-                device = parts[2].strip() if len(parts) > 2 else ""
-                if active == "yes" and device == interface and current_ssid == ssid:
-                    return True
-        except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            _log_debug(f"nmcli active SSID lookup failed: {error}")
-
-        try:
-            result = _run_command(["iw", "dev"])
-            current_interface = None
-            for raw_line in result.stdout.splitlines():
-                line = raw_line.strip()
-                if line.startswith("Interface"):
-                    parts = line.split()
-                    current_interface = parts[1] if len(parts) > 1 else None
-                    continue
-                if current_interface == interface and line.startswith("ssid "):
-                    current_ssid = line.split("ssid", 1)[1].strip()
-                    if current_ssid == ssid:
-                        return True
-        except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            _log_debug(f"iw dev SSID lookup failed: {error}")
-
-        return False
-
-    if _active_ssid_matches():
+    active_ssid = get_active_ssid()
+    if active_ssid and active_ssid == ssid:
         _log_debug(f"Already connected to SSID {ssid} on {interface}")
         return True
 
