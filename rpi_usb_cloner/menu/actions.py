@@ -112,7 +112,7 @@ def wifi_settings() -> None:
 
 
 def update_version() -> None:
-    settings_actions.update_version()
+    _run_operation(settings_actions.update_version)
 
 
 def view_logs() -> None:
