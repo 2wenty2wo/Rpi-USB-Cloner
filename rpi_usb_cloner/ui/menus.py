@@ -167,11 +167,12 @@ def select_list(
         page_items = items[offset : offset + items_per_page]
         menu_items = [MenuItem([line]) for line in page_items]
         if header_lines:
+            header_content_top = get_standard_content_top(title, title_font=title_font)
             display.render_paginated_lines(
                 title,
                 header_lines,
                 page_index=0,
-                content_top=content_top,
+                content_top=header_content_top,
             )
         menu = Menu(
             items=menu_items,
