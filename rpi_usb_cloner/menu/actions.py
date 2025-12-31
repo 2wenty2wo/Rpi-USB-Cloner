@@ -111,6 +111,10 @@ def wifi_settings() -> None:
     settings_actions.wifi_settings()
 
 
+def update_version() -> None:
+    settings_actions.update_version()
+
+
 def view_logs() -> None:
     context = _require_context()
     screens.show_logs(context.app_context)
