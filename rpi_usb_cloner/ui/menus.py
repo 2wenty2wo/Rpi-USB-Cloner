@@ -93,14 +93,13 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
         lines = item.lines
         row_height = max(len(lines), 1) * row_height_per_line
         row_top = current_y
-        text_y_offset = (row_height - len(lines) * line_height) // 2
         is_selected = item_index == menu.selected_index
         if is_selected:
             draw.rectangle((0, row_top, width, row_top + row_height - 1), outline=0, fill=1)
         for line_index, line in enumerate(lines):
             text_color = 0 if is_selected else 255
             draw.text(
-                (context.x - 11, row_top + text_y_offset + line_index * line_height),
+                (context.x - 11, row_top + 1 + line_index * row_height_per_line),
                 line,
                 font=items_font,
                 fill=text_color,
