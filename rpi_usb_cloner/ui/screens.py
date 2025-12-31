@@ -149,7 +149,13 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                 message = "Scan timed out"
             else:
                 message = "No networks" if not networks else "No visible networks"
-            display.display_lines([title, message, "Press A to go back"])
+            context = display.get_display_context()
+            display.render_paginated_lines(
+                title,
+                [message, "Press A to go back"],
+                page_index=0,
+                title_font=context.fonts.get("title", context.fontdisks),
+            )
             menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
             while True:
                 current_a = gpio.read_button(gpio.PIN_A)
