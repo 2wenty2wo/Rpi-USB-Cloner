@@ -28,7 +28,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     while True:
         version_lines = _build_update_info_lines(version, status, last_checked)
         content_top = _get_update_menu_top(title, version_lines)
-        selection = menus.select_list(
+        selection = menus.render_menu_list(
             title,
             ["CHECK FOR UPDATES", "UPDATE"],
             content_top=content_top,
@@ -138,7 +138,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             ["Uncommitted", "changes found"],
             page_index=0,
         )
-        selection = menus.select_list(title, ["CANCEL", "CONTINUE"])
+        selection = menus.render_menu_list(title, ["CANCEL", "CONTINUE"])
         if selection is None or selection == 0:
             _log_debug(log_debug, "Update canceled due to dirty tree")
             return
@@ -340,7 +340,7 @@ def _confirm_power_action(
     *,
     log_debug: Optional[Callable[[str], None]],
 ) -> bool:
-    selection = menus.select_list(title, ["CANCEL", action_label], header_lines=["Are you sure?"])
+    selection = menus.render_menu_list(title, ["CANCEL", action_label], header_lines=["Are you sure?"])
     _log_debug(log_debug, f"Power action confirmation {action_label}: selection={selection}")
     return selection == 1
 
