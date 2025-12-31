@@ -86,7 +86,41 @@ If running in the foreground, press **Ctrl+C** in the terminal where it was star
    sudo -E python3 rpi-usb-cloner.py
    ```
 
-### 7) Update the software
+### 7) Auto-start on boot (systemd)
+Create a systemd unit so the cloner starts automatically at boot. Update paths as needed for your install location.
+
+1. Create `/etc/systemd/system/rpi-usb-cloner.service`:
+   ```ini
+   [Unit]
+   Description=Rpi USB Cloner
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=root
+   WorkingDirectory=/home/pi/Rpi-USB-Cloner
+   ExecStart=/usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+2. Reload systemd and enable the service to start on boot:
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable rpi-usb-cloner.service
+   sudo systemctl start rpi-usb-cloner.service
+   ```
+3. SSH control commands:
+   ```sh
+   sudo systemctl stop rpi-usb-cloner.service
+   sudo systemctl start rpi-usb-cloner.service
+   sudo systemctl restart rpi-usb-cloner.service
+   sudo systemctl status rpi-usb-cloner.service
+   sudo journalctl -u rpi-usb-cloner.service -f
+   ```
+
+### 8) Update the software
 From the repo directory:
 ```sh
 git pull
