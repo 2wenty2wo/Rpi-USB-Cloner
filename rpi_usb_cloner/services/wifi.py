@@ -313,7 +313,7 @@ def list_networks() -> List[WifiNetwork]:
             index += 1
         return "".join(unescaped)
 
-    def _split_nmcli_line(line: str, separator: str = "|", maxsplit: int = 3) -> List[str]:
+    def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> List[str]:
         parts: List[str] = []
         current: List[str] = []
         index = 0
@@ -346,8 +346,6 @@ def list_networks() -> List[WifiNetwork]:
                 [
                     "nmcli",
                     "-t",
-                    "--separator",
-                    "|",
                     "-f",
                     "SSID,SIGNAL,SECURITY,IN-USE",
                     "dev",
@@ -368,7 +366,7 @@ def list_networks() -> List[WifiNetwork]:
         for line in result.stdout.splitlines():
             if not line:
                 continue
-            parts = _split_nmcli_line(line)
+            parts = _split_nmcli_line(line, separator=":")
             ssid = _nmcli_unescape(parts[0]) if parts else ""
             if ssid:
                 non_empty_ssid = True
