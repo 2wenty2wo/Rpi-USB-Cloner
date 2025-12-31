@@ -86,16 +86,16 @@ def copy_drive(
             if prev_states["B"] and not current_B:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
-                    screens.render_status_screen("COPY", "Running...", progress_line="Starting...")
+                    screens.render_status_template("COPY", "Running...", progress_line="Starting...")
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
                         return
-                    screens.render_status_screen("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
+                    screens.render_status_template("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
                     if clone_device(source, target, mode=mode):
-                        screens.render_status_screen("COPY", "Done", progress_line="Complete.")
+                        screens.render_status_template("COPY", "Done", progress_line="Complete.")
                     else:
                         _log_debug(log_debug, "Copy failed")
-                        screens.render_status_screen("COPY", "Failed", progress_line="Check logs.")
+                        screens.render_status_template("COPY", "Failed", progress_line="Check logs.")
                     time.sleep(1)
                     return
                 if confirm_selection == app_state.CONFIRM_NO:
@@ -223,12 +223,12 @@ def erase_drive(
         return
     if not _ensure_root_for_erase():
         return
-    screens.render_status_screen("ERASE", "Running...", progress_line="Starting...")
+    screens.render_status_template("ERASE", "Running...", progress_line="Starting...")
     if erase_device(target, mode):
-        screens.render_status_screen("ERASE", "Done", progress_line="Complete.")
+        screens.render_status_template("ERASE", "Done", progress_line="Complete.")
     else:
         _log_debug(log_debug, "Erase failed")
-        screens.render_status_screen("ERASE", "Failed", progress_line="Check logs.")
+        screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     time.sleep(1)
 
 

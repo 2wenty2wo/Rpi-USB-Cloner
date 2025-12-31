@@ -51,7 +51,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
 
 def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "POWER"
-    screens.render_status_screen(title, "Restarting...", progress_line=_SERVICE_NAME)
+    screens.render_status_template(title, "Restarting...", progress_line=_SERVICE_NAME)
     display.clear_display()
     restart_result = _restart_systemd_service(log_debug=log_debug)
     if restart_result.returncode != 0:
@@ -70,7 +70,7 @@ def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
 
 def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "POWER"
-    screens.render_status_screen(title, "Stopping...", progress_line=_SERVICE_NAME)
+    screens.render_status_template(title, "Stopping...", progress_line=_SERVICE_NAME)
     display.clear_display()
     stop_result = _stop_systemd_service(log_debug=log_debug)
     if stop_result.returncode != 0:
@@ -90,7 +90,7 @@ def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     title = "POWER"
     if not _confirm_power_action(title, "RESTART SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_screen(title, "Restarting...", progress_line="System reboot")
+    screens.render_status_template(title, "Restarting...", progress_line="System reboot")
     display.clear_display()
     reboot_result = _reboot_system(log_debug=log_debug)
     if reboot_result.returncode != 0:
@@ -107,7 +107,7 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     title = "POWER"
     if not _confirm_power_action(title, "SHUTDOWN SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_screen(title, "Shutting down...", progress_line="System poweroff")
+    screens.render_status_template(title, "Shutting down...", progress_line="System poweroff")
     display.clear_display()
     shutdown_result = _poweroff_system(log_debug=log_debug)
     if shutdown_result.returncode != 0:
@@ -142,7 +142,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         if selection is None or selection == 0:
             _log_debug(log_debug, "Update canceled due to dirty tree")
             return
-    screens.render_status_screen(title, "Updating...", progress_line="Pulling...")
+    screens.render_status_template(title, "Updating...", progress_line="Pulling...")
     pull_result = _run_git_pull(repo_root, log_debug=log_debug)
     dubious_ownership = _is_dubious_ownership_error(pull_result.stderr)
     if dubious_ownership and _is_running_under_systemd(log_debug=log_debug):
@@ -183,7 +183,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
     )
     time.sleep(1)
     if _is_running_under_systemd(log_debug=log_debug):
-        screens.render_status_screen(title, "Restarting...", progress_line=_SERVICE_NAME)
+        screens.render_status_template(title, "Restarting...", progress_line=_SERVICE_NAME)
         restart_result = _restart_systemd_service(log_debug=log_debug)
         if restart_result.returncode != 0:
             _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
