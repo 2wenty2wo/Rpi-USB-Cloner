@@ -57,6 +57,13 @@ def get_display_context() -> DisplayContext:
     return _context
 
 
+def clear_display() -> None:
+    context = get_display_context()
+    context.disp.clear()
+    context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    context.disp.display(context.image)
+
+
 def init_display() -> DisplayContext:
     serial = i2c(port=1, address=0x3C)
     disp = ssd1306(serial)
