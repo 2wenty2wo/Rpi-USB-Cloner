@@ -179,7 +179,14 @@ def _wrap_lines_to_width(lines, font, available_width):
     return wrapped_lines
 
 
-def render_paginated_lines(title, lines, page_index=0, items_font=None, title_font=None):
+def render_paginated_lines(
+    title,
+    lines,
+    page_index=0,
+    items_font=None,
+    title_font=None,
+    content_top: Optional[int] = None,
+):
     context = get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
@@ -189,6 +196,8 @@ def render_paginated_lines(title, lines, page_index=0, items_font=None, title_fo
         draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
         title_height = _get_line_height(header_font)
         current_y += title_height + TITLE_PADDING
+    if content_top is not None:
+        current_y = max(current_y, content_top)
     items_font = items_font or context.fontdisks
     left_margin = context.x - 11
     available_width = max(0, context.width - left_margin)
