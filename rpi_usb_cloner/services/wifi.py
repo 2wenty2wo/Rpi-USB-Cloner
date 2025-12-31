@@ -148,9 +148,13 @@ def list_networks() -> List[WifiNetwork]:
         if not match:
             return None
         try:
-            return int(round(float(match.group(1))))
+            signal_value = int(round(float(match.group(1))))
         except ValueError:
             return None
+        if signal_value < 0:
+            normalized = (signal_value + 100) * 2
+            return max(0, min(100, normalized))
+        return signal_value
 
     def _parse_quality_value(value: str) -> Optional[int]:
         match = re.search(r"(\d+)\s*/\s*(\d+)", value)
