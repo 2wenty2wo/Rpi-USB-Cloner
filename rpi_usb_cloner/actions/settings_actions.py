@@ -23,20 +23,28 @@ def wifi_settings() -> None:
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
     repo_root = Path(__file__).resolve().parents[2]
+    status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
     version = _get_app_version(log_debug=log_debug)
-    status = _get_update_status(repo_root, log_debug=log_debug)
-    version_lines = [f"Version: {version}", f"Status: {status}"]
-    display.render_paginated_lines(title, version_lines, page_index=0)
     while True:
-        selection = menus.select_list(title, ["UPDATE"])
+        version_lines = _build_update_info_lines(version, status, last_checked)
+        content_top = _get_update_menu_top(title, version_lines)
+        selection = menus.select_list(
+            title,
+            ["CHECK FOR UPDATES", "UPDATE"],
+            content_top=content_top,
+            header_lines=version_lines,
+        )
         if selection is None:
             return
         if selection == 0:
-            _run_update_flow(title, log_debug=log_debug)
+            status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
-            status = _get_update_status(repo_root, log_debug=log_debug)
-            version_lines = [f"Version: {version}", f"Status: {status}"]
-            display.render_paginated_lines(title, version_lines, page_index=0)
+            continue
+        if selection == 1:
+            _run_update_flow(title, log_debug=log_debug)
+            status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
+            version = _get_app_version(log_debug=log_debug)
+            continue
 
 
 def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) -> None:
@@ -167,6 +175,34 @@ def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], N
     count = behind.stdout.strip()
     _log_debug(log_debug, f"Update status check: behind count={count!r}")
     return "Update available" if count.isdigit() and int(count) > 0 else "Up to date"
+
+
+def _check_update_status(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> tuple[str, str]:
+    status = _get_update_status(repo_root, log_debug=log_debug)
+    last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+    _log_debug(log_debug, f"Update status check complete at {last_checked}: {status}")
+    return status, last_checked
+
+
+def _build_update_info_lines(version: str, status: str, last_checked: str | None) -> list[str]:
+    lines = [f"Version: {version}", f"Status: {status}"]
+    if last_checked:
+        lines.append(f"Last checked: {last_checked}")
+    return lines
+
+
+def _get_update_menu_top(title: str, info_lines: list[str]) -> int:
+    context = display.get_display_context()
+    items_font = context.fontdisks
+    left_margin = context.x - 11
+    available_width = max(0, context.width - left_margin)
+    wrapped_lines = display._wrap_lines_to_width(info_lines, items_font, available_width)
+    line_height = display._get_line_height(items_font)
+    line_step = line_height + 2
+    base_top = menus.get_standard_content_top(title)
+    return base_top + (line_step * len(wrapped_lines)) + 2
 
 
 def _format_command_output(stdout: str, stderr: str) -> list[str]:

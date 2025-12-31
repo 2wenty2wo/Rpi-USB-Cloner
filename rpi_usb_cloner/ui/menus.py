@@ -73,9 +73,10 @@ def get_standard_content_top(
     return context.top + title_height + display.TITLE_PADDING + extra_gap
 
 
-def render_menu(menu, draw, width, height, fonts):
+def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     context = display.get_display_context()
-    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    if clear:
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
     current_y = context.top
     if menu.title:
         title_font = menu.title_font or fonts["title"]
@@ -146,6 +147,7 @@ def select_list(
     footer_positions: Optional[List[int]] = None,
     items_font: Optional[ImageFont.ImageFont] = None,
     content_top: Optional[int] = None,
+    header_lines: Optional[List[str]] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -168,17 +170,26 @@ def select_list(
         offset = (selected // items_per_page) * items_per_page
         page_items = items[offset : offset + items_per_page]
         menu_items = [MenuItem([line]) for line in page_items]
+        if header_lines:
+            display.render_paginated_lines(title, header_lines, page_index=0)
         menu = Menu(
             items=menu_items,
             selected_index=selected - offset,
-            title=title,
+            title=None if header_lines else title,
             title_font=title_font,
             content_top=content_top,
             footer=footer,
             footer_positions=footer_positions,
             items_font=items_font,
         )
-        render_menu(menu, context.draw, context.width, context.height, context.fonts)
+        render_menu(
+            menu,
+            context.draw,
+            context.width,
+            context.height,
+            context.fonts,
+            clear=not header_lines,
+        )
         context.disp.display(context.image)
 
     render(selected_index)
