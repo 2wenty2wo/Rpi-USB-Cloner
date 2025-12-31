@@ -152,7 +152,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             context = display.get_display_context()
             display.render_paginated_lines(
                 title,
-                [message, "Press A to go back"],
+                [message, "Press BACK"],
                 page_index=0,
                 title_font=context.fonts.get("title", context.fontdisks),
             )
