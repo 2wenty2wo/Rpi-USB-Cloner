@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 import subprocess
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Sequence
@@ -140,36 +141,48 @@ def list_networks() -> List[WifiNetwork]:
     interface = _select_active_interface()
     if not interface:
         return []
-    try:
-        result = _run_command(
-            ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE", "dev", "wifi", "list", "ifname", interface]
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        _notify_error(f"Wi-Fi scan failed: {error}")
-        return []
+    backoff_schedule = [0.0, 0.5]
 
-    networks: List[WifiNetwork] = []
-    for line in result.stdout.splitlines():
-        if not line:
-            continue
-        parts = line.split(":")
-        ssid = parts[0] if parts else ""
-        signal_value = None
-        if len(parts) > 1 and parts[1].isdigit():
-            signal_value = int(parts[1])
-        security = parts[2] if len(parts) > 2 else ""
-        in_use = len(parts) > 3 and parts[3].strip() == "*"
-        networks.append(
-            WifiNetwork(
-                ssid=ssid,
-                signal=signal_value,
-                secured=bool(security and security != "--"),
-                in_use=in_use,
+    for delay in backoff_schedule:
+        if delay:
+            time.sleep(delay)
+        try:
+            _run_command(["nmcli", "dev", "wifi", "rescan", "ifname", interface])
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _notify_error(f"Wi-Fi rescan failed: {error}")
+
+        try:
+            result = _run_command(
+                ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE", "dev", "wifi", "list", "ifname", interface]
             )
-        )
-    if not networks:
-        _notify_error("No Wi-Fi networks found.")
-    return networks
+        except (FileNotFoundError, subprocess.CalledProcessError) as error:
+            _notify_error(f"Wi-Fi scan failed: {error}")
+            return []
+
+        networks: List[WifiNetwork] = []
+        for line in result.stdout.splitlines():
+            if not line:
+                continue
+            parts = line.split(":")
+            ssid = parts[0] if parts else ""
+            signal_value = None
+            if len(parts) > 1 and parts[1].isdigit():
+                signal_value = int(parts[1])
+            security = parts[2] if len(parts) > 2 else ""
+            in_use = len(parts) > 3 and parts[3].strip() == "*"
+            networks.append(
+                WifiNetwork(
+                    ssid=ssid,
+                    signal=signal_value,
+                    secured=bool(security and security != "--"),
+                    in_use=in_use,
+                )
+            )
+        if networks:
+            return networks
+
+    _notify_error("No Wi-Fi networks found.")
+    return []
 
 
 def connect(ssid: str, password: Optional[str] = None) -> bool:
