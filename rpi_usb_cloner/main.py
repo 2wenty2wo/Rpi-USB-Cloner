@@ -358,7 +358,14 @@ def main(argv=None):
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SLEEP_TIMEOUT:
                     screensaver_active = True
-                    screensaver.play_screensaver(context, input_checker=any_button_pressed)
+                    screensaver_ran = screensaver.play_screensaver(
+                        context,
+                        input_checker=any_button_pressed,
+                    )
+                    if not screensaver_ran:
+                        display.clear_display()
+                        while not any_button_pressed():
+                            time.sleep(INPUT_POLL_INTERVAL)
                     state.lcdstart = datetime.now()
                     state.run_once = 0
                     prev_states = {
