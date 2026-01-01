@@ -2,9 +2,13 @@ import argparse
 import os
 import time
 from datetime import datetime
+from functools import partial
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
+from rpi_usb_cloner.app.menu_builders import build_device_items, build_settings_items
+from rpi_usb_cloner.app.wifi_label import make_wifi_labeler
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import drives, wifi
@@ -18,7 +22,7 @@ from rpi_usb_cloner.storage.mount import (
 )
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
-from rpi_usb_cloner.menu import MenuItem, definitions, navigator
+from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
 
 
@@ -50,9 +54,6 @@ def main(argv=None):
         "screensaver_enabled",
         default=app_state.ENABLE_SLEEP,
     )
-    def get_active_drive_name():
-        return app_context.active_drive
-
     def get_usb_snapshot():
         try:
             devices_list = drives.list_media_drive_names()
@@ -63,115 +64,21 @@ def main(argv=None):
         log_debug(f"USB snapshot: {snapshot}")
         return snapshot
 
-    def get_device_items():
-        labels = drives.list_media_drive_labels()
-        items = [
-            MenuItem(label=label, submenu=definitions.DRIVES_MENU)
-            for label in labels
-        ]
-        if not items:
-            items.append(MenuItem(label="NO USB DEVICES", action=menu_actions.noop))
-        return items
-
-    WIFI_SSID_CACHE_TTL = 2.0
-    wifi_ssid_cache = {"ssid": None, "expires_at": 0.0}
-
-    def get_cached_ssid():
-        now = time.monotonic()
-        if now >= wifi_ssid_cache["expires_at"]:
-            wifi_ssid_cache["ssid"] = wifi.get_active_ssid()
-            wifi_ssid_cache["expires_at"] = now + WIFI_SSID_CACHE_TTL
-        return wifi_ssid_cache["ssid"]
-
-    def get_wifi_item_label():
-        ssid = get_cached_ssid()
-        if not ssid:
-            return "WIFI"
-        context = display.get_display_context()
-        list_font = context.fonts.get("items", context.fontdisks)
-        left_margin = context.x - 11
-        max_item_width = context.width - left_margin - 1
-        prefix = "WIFI ("
-        suffix = ")"
-        label = f"{prefix}{ssid}{suffix}"
-        if renderer._measure_text_width(list_font, label) <= max_item_width:
-            return label
-        available_width = max_item_width - renderer._measure_text_width(
-            list_font,
-            f"{prefix}{suffix}",
-        )
-        truncated_ssid = renderer._truncate_text(
-            ssid,
-            list_font,
-            max(0, int(available_width)),
-        )
-        if not truncated_ssid:
-            return "WIFI"
-        return f"{prefix}{truncated_ssid}{suffix}"
-
-    def get_settings_items():
-        screensaver_enabled = settings_store.get_bool(
-            "screensaver_enabled",
-            default=app_state.ENABLE_SLEEP,
-        )
-        screensaver_state = "ON" if screensaver_enabled else "OFF"
-        return [
-            MenuItem(
-                label=get_wifi_item_label(),
-                action=menu_actions.wifi_settings,
-            ),
-            MenuItem(
-                label=f"SCREENSAVER: {screensaver_state}",
-                action=menu_actions.screensaver_settings,
-            ),
-            MenuItem(
-                label="POWER",
-                submenu=definitions.POWER_MENU,
-            ),
-            MenuItem(
-                label="UPDATE",
-                action=menu_actions.update_version,
-            ),
-        ]
-
-    def get_device_status_line():
-        devices_list = list_media_devices()
-        if not devices_list:
-            return "INSERT USB"
-        selected_name = app_context.active_drive
-        for device in devices_list:
-            if get_device_name(device) == selected_name:
-                vendor = (get_vendor(device) or "").strip()
-                model = (get_model(device) or "").strip()
-                label = " ".join(part for part in [vendor, model] if part)
-                return label or selected_name
-        return "NO DRIVE SELECTED"
-
-    def render_drive_info(page_index: int) -> tuple[int, int]:
-        selected_name = app_context.active_drive
-        if not selected_name:
-            display.display_lines(["NO DRIVE", "SELECTED"])
-            return 1, 0
-        device = None
-        for candidate in list_media_devices():
-            if get_device_name(candidate) == selected_name:
-                device = candidate
-                break
-        if not device:
-            display.display_lines(["NO DRIVE", "SELECTED"])
-            return 1, 0
-        size_gb = get_size(device) / 1024 ** 3
-        vendor = (get_vendor(device) or "").strip()
-        model = (get_model(device) or "").strip()
-        info_lines = [f"{selected_name} {size_gb:.2f}GB"]
-        if vendor or model:
-            info_lines.append(" ".join(part for part in [vendor, model] if part))
-        return screens.render_info_screen(
-            "DRIVE INFO",
-            info_lines,
-            page_index=page_index,
-            title_font=display.get_display_context().fontcopy,
-        )
+    wifi_label = make_wifi_labeler(display, renderer, wifi)
+    get_device_items = partial(
+        build_device_items,
+        drives,
+        definitions.DRIVES_MENU,
+        menu_actions,
+    )
+    get_settings_items = partial(
+        build_settings_items,
+        settings_store,
+        app_state,
+        menu_actions,
+        wifi_label,
+        definitions.POWER_MENU,
+    )
 
     INPUT_POLL_INTERVAL = 0.03
     INITIAL_REPEAT_DELAY = 0.25
@@ -179,7 +86,17 @@ def main(argv=None):
 
     def show_drive_info() -> None:
         page_index = 0
-        total_pages, page_index = render_drive_info(page_index)
+        total_pages, page_index = render_drive_info(
+            app_context.active_drive,
+            list_media_devices,
+            get_device_name,
+            get_size,
+            get_vendor,
+            get_model,
+            display,
+            screens,
+            page_index,
+        )
         menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
         last_selected_name = app_context.active_drive
         prev_states = {
@@ -196,19 +113,59 @@ def main(argv=None):
             current_l = gpio.read_button(gpio.PIN_L)
             if prev_states["L"] and not current_l:
                 page_index = max(0, page_index - 1)
-                total_pages, page_index = render_drive_info(page_index)
+                total_pages, page_index = render_drive_info(
+                    app_context.active_drive,
+                    list_media_devices,
+                    get_device_name,
+                    get_size,
+                    get_vendor,
+                    get_model,
+                    display,
+                    screens,
+                    page_index,
+                )
             current_r = gpio.read_button(gpio.PIN_R)
             if prev_states["R"] and not current_r:
                 page_index = min(total_pages - 1, page_index + 1)
-                total_pages, page_index = render_drive_info(page_index)
+                total_pages, page_index = render_drive_info(
+                    app_context.active_drive,
+                    list_media_devices,
+                    get_device_name,
+                    get_size,
+                    get_vendor,
+                    get_model,
+                    display,
+                    screens,
+                    page_index,
+                )
             current_u = gpio.read_button(gpio.PIN_U)
             if prev_states["U"] and not current_u:
                 page_index = max(0, page_index - 1)
-                total_pages, page_index = render_drive_info(page_index)
+                total_pages, page_index = render_drive_info(
+                    app_context.active_drive,
+                    list_media_devices,
+                    get_device_name,
+                    get_size,
+                    get_vendor,
+                    get_model,
+                    display,
+                    screens,
+                    page_index,
+                )
             current_d = gpio.read_button(gpio.PIN_D)
             if prev_states["D"] and not current_d:
                 page_index = min(total_pages - 1, page_index + 1)
-                total_pages, page_index = render_drive_info(page_index)
+                total_pages, page_index = render_drive_info(
+                    app_context.active_drive,
+                    list_media_devices,
+                    get_device_name,
+                    get_size,
+                    get_vendor,
+                    get_model,
+                    display,
+                    screens,
+                    page_index,
+                )
             current_selected_name = app_context.active_drive
             if current_selected_name != last_selected_name:
                 page_index = 0
@@ -227,7 +184,7 @@ def main(argv=None):
             clone_mode=clone_mode,
             state=state,
             log_debug=log_debug,
-            get_selected_usb_name=get_active_drive_name,
+            get_selected_usb_name=lambda: app_context.active_drive,
             show_drive_info=show_drive_info,
         )
     )
@@ -245,7 +202,13 @@ def main(argv=None):
         status_line = screen.status_line
         active_drive_label = drives.get_active_drive_label(app_context.active_drive)
         if screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
-            return get_device_status_line()
+            return get_device_status_line(
+                app_context.active_drive,
+                list_media_devices,
+                get_device_name,
+                get_vendor,
+                get_model,
+            )
         if screen.screen_id == definitions.DRIVES_MENU.screen_id:
             return active_drive_label or "NO DRIVE SELECTED"
         return status_line
