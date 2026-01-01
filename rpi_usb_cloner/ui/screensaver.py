@@ -10,6 +10,7 @@ from rpi_usb_cloner.ui import display
 
 SCREENSAVER_DIR = Path(__file__).resolve().parent / "assets" / "gifs"
 DEFAULT_FRAME_DURATION_MS = 100
+MIN_FRAME_DURATION_MS = 30
 INPUT_POLL_INTERVAL = 0.02
 
 
@@ -58,6 +59,8 @@ def _frame_duration_seconds(frame: Image.Image) -> float:
     duration_ms = frame.info.get("duration", DEFAULT_FRAME_DURATION_MS)
     if not isinstance(duration_ms, (int, float)) or duration_ms <= 0:
         duration_ms = DEFAULT_FRAME_DURATION_MS
+    if duration_ms < MIN_FRAME_DURATION_MS:
+        duration_ms = MIN_FRAME_DURATION_MS
     return duration_ms / 1000.0
 
 
@@ -80,13 +83,17 @@ def play_screensaver(
     rng = rng or random.Random()
     gif_path = rng.choice(gif_paths)
     with Image.open(gif_path) as image:
+        prepared_frames: list[tuple[Image.Image, float]] = []
+        for frame in ImageSequence.Iterator(image):
+            prepared = _prepare_frame(frame, (context.width, context.height))
+            prepared_frames.append((prepared, _frame_duration_seconds(frame)))
+        if not prepared_frames:
+            return False
         while True:
-            for frame in ImageSequence.Iterator(image):
+            for prepared, duration_s in prepared_frames:
                 if input_checker():
                     return True
-                prepared = _prepare_frame(frame, (context.width, context.height))
                 context.disp.display(prepared)
-                if _sleep_with_input_check(_frame_duration_seconds(frame), input_checker):
+                if _sleep_with_input_check(duration_s, input_checker):
                     return True
-            image.seek(0)
     return False
