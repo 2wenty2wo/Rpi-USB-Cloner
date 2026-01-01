@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display, menus, screens
 

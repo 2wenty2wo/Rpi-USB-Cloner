@@ -5,6 +5,7 @@ from datetime import datetime
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.storage import devices
