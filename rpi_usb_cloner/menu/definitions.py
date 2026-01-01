@@ -73,6 +73,7 @@ SETTINGS_MENU = MenuScreen(
     title="SETTINGS",
     items=[
         menu_entry("WIFI", action=menu_actions.wifi_settings),
+        menu_entry("SCREENSAVER", action=menu_actions.screensaver_settings),
         menu_entry("POWER", submenu=POWER_MENU),
     ],
 )

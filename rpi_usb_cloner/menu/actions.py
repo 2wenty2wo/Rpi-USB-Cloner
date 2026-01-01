@@ -111,6 +111,10 @@ def wifi_settings() -> None:
     settings_actions.wifi_settings()
 
 
+def screensaver_settings() -> None:
+    settings_actions.screensaver_settings()
+
+
 def update_version() -> None:
     context = _require_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
