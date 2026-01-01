@@ -46,6 +46,10 @@ def main(argv=None):
     wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
 
     state = app_state.AppState()
+    app_state.ENABLE_SLEEP = settings_store.get_bool(
+        "screensaver_enabled",
+        default=app_state.ENABLE_SLEEP,
+    )
     def get_active_drive_name():
         return app_context.active_drive
 
@@ -106,10 +110,19 @@ def main(argv=None):
         return f"{prefix}{truncated_ssid}{suffix}"
 
     def get_settings_items():
+        screensaver_enabled = settings_store.get_bool(
+            "screensaver_enabled",
+            default=app_state.ENABLE_SLEEP,
+        )
+        screensaver_state = "ON" if screensaver_enabled else "OFF"
         return [
             MenuItem(
                 label=get_wifi_item_label(),
                 action=menu_actions.wifi_settings,
+            ),
+            MenuItem(
+                label=f"SCREENSAVER: {screensaver_state}",
+                action=menu_actions.screensaver_settings,
             ),
             MenuItem(
                 label="POWER",

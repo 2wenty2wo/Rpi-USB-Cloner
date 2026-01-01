@@ -23,6 +23,16 @@ def wifi_settings() -> None:
     screens.show_wifi_settings(title="WIFI")
 
 
+def screensaver_settings() -> None:
+    enabled = settings.get_bool("screensaver_enabled", default=app_state.ENABLE_SLEEP)
+    enabled = not enabled
+    settings.set_bool("screensaver_enabled", enabled)
+    app_state.ENABLE_SLEEP = enabled
+    status = "ENABLED" if enabled else "DISABLED"
+    screens.render_status_template("SCREENSAVER", f"Screensaver {status}")
+    time.sleep(1.5)
+
+
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
     repo_root = Path(__file__).resolve().parents[2]
