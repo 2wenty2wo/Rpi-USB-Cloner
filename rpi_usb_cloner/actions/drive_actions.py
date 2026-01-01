@@ -61,9 +61,6 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: YES")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
             current_L = gpio.read_button(gpio.PIN_L)
             if prev_states["L"] and not current_L:
                 if confirm_selection == app_state.CONFIRM_YES:
@@ -71,9 +68,6 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: NO")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
             current_A = gpio.read_button(gpio.PIN_A)
             if prev_states["A"] and not current_A:
                 _log_debug(log_debug, "Copy menu: Button A pressed")
