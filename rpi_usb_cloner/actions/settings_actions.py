@@ -149,18 +149,15 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         display.display_lines(["UPDATE", "Repo not found"])
         time.sleep(2)
         return
-    if not _confirm_action(title, "Are you sure you want to update?", log_debug=log_debug):
+    dirty_tree = _has_dirty_working_tree(repo_root, log_debug=log_debug)
+    if dirty_tree:
+        _log_debug(log_debug, "Dirty working tree detected")
+        prompt = "Uncommitted changes found. Continue with update?"
+    else:
+        prompt = "Are you sure you want to update?"
+    if not _confirm_action(title, prompt, log_debug=log_debug):
         _log_debug(log_debug, "Update canceled by confirmation prompt")
         return
-    if _has_dirty_working_tree(repo_root, log_debug=log_debug):
-        _log_debug(log_debug, "Dirty working tree detected")
-        if not _confirm_action(
-            title,
-            "Uncommitted changes found. Continue?",
-            log_debug=log_debug,
-        ):
-            _log_debug(log_debug, "Update canceled due to dirty tree")
-            return
     screens.render_status_template(title, "Updating...", progress_line="Pulling...")
     pull_result = _run_git_pull(repo_root, log_debug=log_debug)
     dubious_ownership = _is_dubious_ownership_error(pull_result.stderr)
