@@ -19,7 +19,7 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 ## Installation & Usage
 
 ## Screensaver GIFs
-Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
+Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
 
 ### 1) Clone the repository
 ```sh
