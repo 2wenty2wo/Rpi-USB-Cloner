@@ -8,7 +8,7 @@ from PIL import Image, ImageOps, ImageSequence
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display
 
-SCREENSAVER_DIR = display.ASSETS_DIR / "gifs"
+SCREENSAVER_DIR = Path(__file__).resolve().parent / "assets" / "gifs"
 DEFAULT_FRAME_DURATION_MS = 100
 INPUT_POLL_INTERVAL = 0.02
 
