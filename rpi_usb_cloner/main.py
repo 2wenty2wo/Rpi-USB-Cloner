@@ -1,7 +1,7 @@
 import argparse
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
@@ -16,7 +16,7 @@ from rpi_usb_cloner.storage.mount import (
     list_media_devices,
 )
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
-from rpi_usb_cloner.ui import display, menus, renderer, screens
+from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
 from rpi_usb_cloner.menu import MenuItem, definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
 
@@ -284,11 +284,6 @@ def main(argv=None):
         if not menu_navigator.back():
             log_debug("Back ignored: already at root")
 
-    def sleepdisplay():
-        context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        context.disp.display(context.image)
-        state.run_once = 1
-
     def cleanup_display(clear_display=True):
         if clear_display:
             context.disp.clear()
@@ -315,6 +310,10 @@ def main(argv=None):
         "U": {"next_repeat": None},
         "D": {"next_repeat": None},
     }
+    screensaver_active = False
+
+    def any_button_pressed() -> bool:
+        return any(gpio.is_pressed(pin) for pin in gpio.PINS)
 
     error_displayed = False
     try:
@@ -355,11 +354,25 @@ def main(argv=None):
                     state.last_seen_devices = current_devices
                     render_requested = True
                 state.last_usb_check = time.time()
-            if app_state.ENABLE_SLEEP:
-                lcdtmp = state.lcdstart + timedelta(seconds=30)
-                if datetime.now() > lcdtmp:
-                    if state.run_once == 0:
-                        sleepdisplay()
+            if app_state.ENABLE_SLEEP and not screensaver_active:
+                idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
+                if idle_seconds >= app_state.SLEEP_TIMEOUT:
+                    screensaver_active = True
+                    screensaver.play_screensaver(context, input_checker=any_button_pressed)
+                    state.lcdstart = datetime.now()
+                    state.run_once = 0
+                    prev_states = {
+                        "U": gpio.read_button(gpio.PIN_U),
+                        "D": gpio.read_button(gpio.PIN_D),
+                        "L": gpio.read_button(gpio.PIN_L),
+                        "R": gpio.read_button(gpio.PIN_R),
+                        "A": gpio.read_button(gpio.PIN_A),
+                        "B": gpio.read_button(gpio.PIN_B),
+                        "C": gpio.read_button(gpio.PIN_C),
+                    }
+                    render_current_screen(force=True)
+                    screensaver_active = False
+                    continue
 
             current_states = {
                 "U": gpio.read_button(gpio.PIN_U),
