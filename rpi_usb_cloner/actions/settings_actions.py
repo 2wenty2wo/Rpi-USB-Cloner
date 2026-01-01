@@ -132,6 +132,11 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
             page_index=0,
         )
         time.sleep(2)
+        return
+    display.clear_display()
+    display.display_lines(["Shutdown initiated", "Safe to remove power"])
+    while True:
+        time.sleep(1)
 
 
 def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) -> None:
