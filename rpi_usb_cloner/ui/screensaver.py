@@ -8,7 +8,7 @@ from PIL import Image, ImageOps, ImageSequence
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display
 
-SCREENSAVER_DIR = display.ASSETS_DIR / "screensaver"
+SCREENSAVER_DIR = display.ASSETS_DIR / "gifs"
 DEFAULT_FRAME_DURATION_MS = 100
 INPUT_POLL_INTERVAL = 0.02
 
@@ -16,7 +16,16 @@ INPUT_POLL_INTERVAL = 0.02
 def _list_gif_paths(directory: Path) -> list[Path]:
     if not directory.exists():
         return []
-    return sorted(path for path in directory.iterdir() if path.suffix.lower() == ".gif")
+    return sorted(directory.glob("*.gif"))
+
+
+def _render_placeholder(context: display.DisplayContext, lines: list[str]) -> None:
+    context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    y = context.top
+    for line in lines:
+        context.draw.text((0, y), line, font=context.fontmain, fill=255)
+        y += 10
+    context.disp.display(context.image)
 
 
 def _prepare_frame(frame: Image.Image, size: tuple[int, int]) -> Image.Image:
@@ -57,7 +66,13 @@ def play_screensaver(
 ) -> bool:
     gif_paths = _list_gif_paths(gif_directory)
     if not gif_paths:
-        return False
+        _render_placeholder(
+            context,
+            ["No GIFs found", "Add *.gif to", "ui/assets/gifs"],
+        )
+        while not input_checker():
+            time.sleep(INPUT_POLL_INTERVAL)
+        return True
     rng = rng or random.Random()
     gif_path = rng.choice(gif_paths)
     with Image.open(gif_path) as image:
