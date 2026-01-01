@@ -25,7 +25,6 @@ def copy_drive(
     log_debug: Optional[Callable[[str], None]],
     get_selected_usb_name: Callable[[], Optional[str]],
 ) -> None:
-    context = display.get_display_context()
     source, target = _pick_source_target(get_selected_usb_name)
     if not source or not target:
         display.display_lines(["COPY", "Need 2 USBs"])
@@ -33,17 +32,14 @@ def copy_drive(
         return
     source_name = source.get("name")
     target_name = target.get("name")
-    title = f"CLONE {source_name} to {target_name}?"
-    menu = menus.Menu(
-        items=[],
-        title=title,
-        footer=["NO", "YES"],
-        footer_positions=[context.x + 24, context.x + 52],
-    )
+    title = "COPY"
+    prompt = f"Clone {source_name} to {target_name}?"
     confirm_selection = app_state.CONFIRM_NO
-    menu.footer_selected_index = confirm_selection
-    menus.render_menu(menu, context.draw, context.width, context.height, context.fonts)
-    context.disp.display(context.image)
+    screens.render_confirmation_screen(
+        title,
+        prompt,
+        selected_index=confirm_selection,
+    )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
@@ -65,9 +61,6 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: YES")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
             current_L = gpio.read_button(gpio.PIN_L)
             if prev_states["L"] and not current_L:
                 if confirm_selection == app_state.CONFIRM_YES:
@@ -75,9 +68,6 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: NO")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-                else:
-                    context.disp.display(context.image)
-                    time.sleep(0.01)
             current_A = gpio.read_button(gpio.PIN_A)
             if prev_states["A"] and not current_A:
                 _log_debug(log_debug, "Copy menu: Button A pressed")
@@ -108,9 +98,11 @@ def copy_drive(
             prev_states["B"] = current_B
             prev_states["A"] = current_A
             prev_states["C"] = current_C
-            menu.footer_selected_index = confirm_selection
-            menus.render_menu(menu, context.draw, context.width, context.height, context.fonts)
-            context.disp.display(context.image)
+            screens.render_confirmation_screen(
+                title,
+                prompt,
+                selected_index=confirm_selection,
+            )
     except KeyboardInterrupt:
         raise
 
@@ -272,18 +264,14 @@ def _confirm_destructive_action(
     log_debug: Optional[Callable[[str], None]],
     prompt_lines: Iterable[str],
 ) -> bool:
-    context = display.get_display_context()
-    menu = menus.Menu(
-        items=[menus.MenuItem(list(prompt_lines))],
-        selected_index=-1,
-        title="⚠ DATA LOST",
-        footer=["NO", "YES"],
-        footer_positions=[context.x + 24, context.x + 52],
-    )
+    title = "⚠ DATA LOST"
+    prompt = " ".join(prompt_lines)
     confirm_selection = app_state.CONFIRM_NO
-    menu.footer_selected_index = confirm_selection
-    menus.render_menu(menu, context.draw, context.width, context.height, context.fonts)
-    context.disp.display(context.image)
+    screens.render_confirmation_screen(
+        title,
+        prompt,
+        selected_index=confirm_selection,
+    )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
@@ -321,9 +309,11 @@ def _confirm_destructive_action(
         prev_states["A"] = current_A
         prev_states["B"] = current_B
         prev_states["C"] = current_C
-        menu.footer_selected_index = confirm_selection
-        menus.render_menu(menu, context.draw, context.width, context.height, context.fonts)
-        context.disp.display(context.image)
+        screens.render_confirmation_screen(
+            title,
+            prompt,
+            selected_index=confirm_selection,
+        )
 
 
 def _build_device_info_lines(

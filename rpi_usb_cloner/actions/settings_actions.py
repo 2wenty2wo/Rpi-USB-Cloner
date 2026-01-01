@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
+from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display, menus, screens
 
 
@@ -131,15 +133,16 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         display.display_lines(["UPDATE", "Repo not found"])
         time.sleep(2)
         return
+    if not _confirm_action(title, "Are you sure you want to update?", log_debug=log_debug):
+        _log_debug(log_debug, "Update canceled by confirmation prompt")
+        return
     if _has_dirty_working_tree(repo_root, log_debug=log_debug):
         _log_debug(log_debug, "Dirty working tree detected")
-        display.render_paginated_lines(
+        if not _confirm_action(
             title,
-            ["Uncommitted", "changes found"],
-            page_index=0,
-        )
-        selection = menus.render_menu_list(title, ["CANCEL", "CONTINUE"])
-        if selection is None or selection == 0:
+            "Uncommitted changes found. Continue?",
+            log_debug=log_debug,
+        ):
             _log_debug(log_debug, "Update canceled due to dirty tree")
             return
     screens.render_status_template(title, "Updating...", progress_line="Pulling...")
@@ -340,9 +343,50 @@ def _confirm_power_action(
     *,
     log_debug: Optional[Callable[[str], None]],
 ) -> bool:
-    selection = menus.render_menu_list(title, ["CANCEL", action_label], header_lines=["Are you sure?"])
-    _log_debug(log_debug, f"Power action confirmation {action_label}: selection={selection}")
-    return selection == 1
+    prompt = f"Are you sure you want to {action_label.lower()}?"
+    confirmed = _confirm_action(title, prompt, log_debug=log_debug)
+    _log_debug(log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}")
+    return confirmed
+
+
+def _confirm_action(
+    title: str,
+    prompt: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+) -> bool:
+    selection = app_state.CONFIRM_NO
+    screens.render_confirmation_screen(title, prompt, selected_index=selection)
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+    }
+    while True:
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if selection == app_state.CONFIRM_NO:
+                selection = app_state.CONFIRM_YES
+                _log_debug(log_debug, f"Confirmation selection changed: {selection}")
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if selection == app_state.CONFIRM_YES:
+                selection = app_state.CONFIRM_NO
+                _log_debug(log_debug, f"Confirmation selection changed: {selection}")
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return False
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            return selection == app_state.CONFIRM_YES
+        prev_states["R"] = current_r
+        prev_states["L"] = current_l
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        screens.render_confirmation_screen(title, prompt, selected_index=selection)
+        time.sleep(menus.BUTTON_POLL_DELAY)
 
 
 def _run_systemctl_command(
