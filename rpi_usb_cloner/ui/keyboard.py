@@ -25,42 +25,45 @@ KEY_SHIFT = "SHIFT"
 
 @dataclass(frozen=True)
 class KeyboardLayout:
-    rows: List[List[str]]
-    uppercase_rows: Optional[List[List[str]]] = None
-    symbols_rows: Optional[List[List[str]]] = None
+    lower: List[str]
+    upper: List[str]
+    numbers: List[str]
+    symbols: List[str]
 
-    def get_rows(self, mode: str) -> List[List[str]]:
-        if mode == "upper" and self.uppercase_rows:
-            return self.uppercase_rows
-        if mode == "symbols" and self.symbols_rows:
-            return self.symbols_rows
+    def get_keys(self, mode: str) -> List[str]:
+        if mode == "upper":
+            return self.upper
+        if mode == "symbols":
+            return self.symbols
         if mode == "numbers":
-            return self.rows
-        return self.rows
+            return self.numbers
+        return self.lower
 
 
 DEFAULT_LAYOUT = KeyboardLayout(
-    rows=[
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
-        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-        ["a", "s", "d", "f", "g", "h", "j", "k", "l", "-"],
-        [KEY_SHIFT, "z", "x", "c", "v", "b", "n", "m", ".", "@"],
-        [KEY_SPACE, KEY_BACKSPACE, KEY_CONFIRM, KEY_CANCEL],
+    numbers=[
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+        KEY_SPACE,
     ],
-    uppercase_rows=[
-        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
-        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-        ["A", "S", "D", "F", "G", "H", "J", "K", "L", "-"],
-        [KEY_SHIFT, "Z", "X", "C", "V", "B", "N", "M", ".", "@"],
-        [KEY_SPACE, KEY_BACKSPACE, KEY_CONFIRM, KEY_CANCEL],
+    lower=[
+        "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
+        "a", "s", "d", "f", "g", "h", "j", "k", "l",
+        "z", "x", "c", "v", "b", "n", "m",
+        KEY_SPACE,
     ],
-    symbols_rows=[
-        ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")"],
-        ["-", "_", "+", "=", "[", "]", "{", "}", "\\", "|"],
-        [";", ":", "'", "\"", "<", ">", ",", ".", "?", "/"],
-        [KEY_SHIFT, "`", "~", "^", "*", "(", ")", "<", ">", "?"],
-        [KEY_SPACE, KEY_BACKSPACE, KEY_CONFIRM, KEY_CANCEL],
-    ]
+    upper=[
+        "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P",
+        "A", "S", "D", "F", "G", "H", "J", "K", "L",
+        "Z", "X", "C", "V", "B", "N", "M",
+        KEY_SPACE,
+    ],
+    symbols=[
+        "!", "@", "#", "$", "%", "^", "&", "*", "(", ")",
+        "-", "_", "+", "=", "[", "]", "{", "}", "\\", "|",
+        ";", ":", "'", "\"", "<", ">", ",", ".", "?", "/",
+        "`", "~",
+        KEY_SPACE,
+    ],
 )
 
 _keyboard_fonts: Optional[tuple[ImageFont.ImageFont, ImageFont.ImageFont]] = None
@@ -116,7 +119,6 @@ def _render_keyboard(
     masked: bool,
     layout: KeyboardLayout,
     layout_mode: str,
-    selected_row: int,
     selected_col: int,
     selected_band: str,
     mode_index: int,
@@ -124,7 +126,7 @@ def _render_keyboard(
     context = display.get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    rows = layout.get_rows(layout_mode)
+    keys = layout.get_keys(layout_mode)
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
     padding = 4
@@ -152,10 +154,9 @@ def _render_keyboard(
     strip_right = context.width - padding
     strip_width = max(0, strip_right - strip_left)
 
-    row = rows[selected_row]
     key_padding = 6
     key_metrics = []
-    for key in row:
+    for key in keys:
         label = key
         if key == KEY_SPACE:
             label = "SPACE"
@@ -211,11 +212,12 @@ def _render_keyboard(
     current_y += strip_height + padding
 
     mode_items = [
-        ("upper", "Upper Case"),
-        ("lower", "Lower Case"),
-        ("numbers", "Numbers"),
-        ("symbols", "Symbols"),
-        ("ok", "OK"),
+        ("upper", "A"),
+        ("lower", "a"),
+        ("numbers", "123"),
+        ("symbols", "!@#"),
+        ("back", "X"),
+        ("ok", "✓"),
     ]
     mode_positions = []
     cursor_x = 0
@@ -260,11 +262,10 @@ def prompt_text(
     layout: KeyboardLayout = DEFAULT_LAYOUT,
 ) -> Optional[str]:
     value = initial
-    selected_row = 0
     selected_col = 0
     selected_band = "chars"
     layout_mode = "lower"
-    mode_items = ["upper", "lower", "numbers", "symbols", "ok"]
+    mode_items = ["upper", "lower", "numbers", "symbols", "back", "ok"]
     mode_index = mode_items.index(layout_mode)
     menus.wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
@@ -279,14 +280,13 @@ def prompt_text(
     last_press_time = {key: 0.0 for key in prev_states}
     last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
-        rows = layout.get_rows(layout_mode)
+        keys = layout.get_keys(layout_mode)
         _render_keyboard(
             title,
             value,
             masked,
             layout,
             layout_mode,
-            selected_row,
             selected_col,
             selected_band,
             mode_index,
@@ -296,32 +296,25 @@ def prompt_text(
         if prev_states["U"] and not current_u:
             if selected_band == "modes":
                 selected_band = "chars"
-            else:
-                selected_row = max(0, selected_row - 1)
-                selected_col = min(selected_col, len(rows[selected_row]) - 1)
             last_press_time["U"] = now
             last_repeat_time["U"] = now
         elif not current_u and now - last_press_time["U"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= menus.REPEAT_INTERVAL:
-                if selected_band == "chars":
-                    selected_row = max(0, selected_row - 1)
-                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                if selected_band == "modes":
+                    selected_band = "chars"
                     last_repeat_time["U"] = now
         current_d = read_button(PIN_D)
         if prev_states["D"] and not current_d:
-            if selected_band == "chars" and selected_row == len(rows) - 1:
+            if selected_band == "chars":
                 selected_band = "modes"
                 mode_index = mode_items.index(layout_mode)
-            elif selected_band == "chars":
-                selected_row = min(len(rows) - 1, selected_row + 1)
-                selected_col = min(selected_col, len(rows[selected_row]) - 1)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
         elif not current_d and now - last_press_time["D"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= menus.REPEAT_INTERVAL:
-                if selected_band == "chars" and selected_row < len(rows) - 1:
-                    selected_row = min(len(rows) - 1, selected_row + 1)
-                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                if selected_band == "chars":
+                    selected_band = "modes"
+                    mode_index = mode_items.index(layout_mode)
                     last_repeat_time["D"] = now
         current_l = read_button(PIN_L)
         if prev_states["L"] and not current_l:
@@ -343,7 +336,7 @@ def prompt_text(
             if selected_band == "modes":
                 mode_index = min(len(mode_items) - 1, mode_index + 1)
             else:
-                selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
+                selected_col = min(len(keys) - 1, selected_col + 1)
             last_press_time["R"] = now
             last_repeat_time["R"] = now
         elif not current_r and now - last_press_time["R"] >= menus.INITIAL_REPEAT_DELAY:
@@ -351,7 +344,7 @@ def prompt_text(
                 if selected_band == "modes":
                     mode_index = min(len(mode_items) - 1, mode_index + 1)
                 else:
-                    selected_col = min(len(rows[selected_row]) - 1, selected_col + 1)
+                    selected_col = min(len(keys) - 1, selected_col + 1)
                 last_repeat_time["R"] = now
         current_a = read_button(PIN_A)
         if prev_states["A"] and not current_a:
@@ -362,14 +355,14 @@ def prompt_text(
                 selected_mode = mode_items[mode_index]
                 if selected_mode == "ok":
                     return value
+                if selected_mode == "back":
+                    value = value[:-1]
+                    continue
                 layout_mode = selected_mode
-                if layout_mode == "numbers":
-                    selected_row = 0
-                rows = layout.get_rows(layout_mode)
-                selected_row = min(selected_row, len(rows) - 1)
-                selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                keys = layout.get_keys(layout_mode)
+                selected_col = min(selected_col, len(keys) - 1)
             else:
-                key = rows[selected_row][selected_col]
+                key = keys[selected_col]
                 if key == KEY_BACKSPACE:
                     value = value[:-1]
                 elif key == KEY_SPACE:
@@ -380,9 +373,8 @@ def prompt_text(
                     return None
                 elif key == KEY_SHIFT:
                     layout_mode = "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
-                    rows = layout.get_rows(layout_mode)
-                    selected_row = min(selected_row, len(rows) - 1)
-                    selected_col = min(selected_col, len(rows[selected_row]) - 1)
+                    keys = layout.get_keys(layout_mode)
+                    selected_col = min(selected_col, len(keys) - 1)
                 else:
                     value += key
         current_c = read_button(PIN_C)
