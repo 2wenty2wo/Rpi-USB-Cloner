@@ -369,6 +369,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
     timed_out = False
     needs_scan = False
     refresh_status_async()
+    _update_wifi_status_cache()
 
     def build_menu_state() -> tuple[list[str], list[str], list[wifi.WifiNetwork], Optional[int]]:
         visible_networks = [network for network in networks if network.ssid]
@@ -441,6 +442,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             else:
                 display.display_lines([title, "Disconnect failed"])
             time.sleep(1.5)
+            _update_wifi_status_cache()
             refresh_status_async()
             continue
         if selection in {search_index, refresh_index}:
@@ -461,4 +463,5 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         else:
             display.display_lines([title, "Connection failed", selected_network.ssid])
         time.sleep(1.5)
+        _update_wifi_status_cache()
         refresh_status_async()
