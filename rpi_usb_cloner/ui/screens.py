@@ -244,6 +244,12 @@ def render_progress_screen(
                 return
             phase = (phase + 0.08) % 1.0
             time.sleep(0.08)
+    elif progress_ratio is None:
+        phase = 0.0
+        while True:
+            render_frame(None, phase=phase)
+            phase = (phase + 0.08) % 1.0
+            time.sleep(0.08)
     else:
         render_frame(progress_ratio)
 
