@@ -1,7 +1,6 @@
 import argparse
 import os
 import time
-import threading
 from datetime import datetime
 from functools import partial
 
@@ -59,23 +58,6 @@ def main(argv=None):
         "screensaver_enabled",
         default=app_state.ENABLE_SLEEP,
     )
-
-    def start_wifi_status_poller(interval_s: float = 3.0) -> None:
-        def poll_status() -> None:
-            while True:
-                try:
-                    wifi.get_status_cached()
-                except Exception as error:
-                    log_debug(f"Wi-Fi status poll failed: {error}")
-                time.sleep(interval_s)
-
-        threading.Thread(
-            target=poll_status,
-            name="wifi-status-poller",
-            daemon=True,
-        ).start()
-
-    start_wifi_status_poller()
     def get_usb_snapshot():
         try:
             devices_list = drives.list_media_drive_names()

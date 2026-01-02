@@ -624,8 +624,3 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
         _STATUS_CACHE.update(status)
         _STATUS_CACHE_TIME = time.monotonic()
         return dict(_STATUS_CACHE)
-
-
-def get_status_snapshot() -> dict:
-    with _STATUS_CACHE_LOCK:
-        return dict(_STATUS_CACHE)
