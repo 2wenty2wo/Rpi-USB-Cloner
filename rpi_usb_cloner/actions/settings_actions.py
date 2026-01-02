@@ -9,7 +9,7 @@ from typing import Callable, Optional
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.ui import display, menus, screens
+from rpi_usb_cloner.ui import display, keyboard, menus, screens
 
 
 _SERVICE_NAME = "rpi-usb-cloner.service"
@@ -30,6 +30,14 @@ def screensaver_settings() -> None:
     app_state.ENABLE_SLEEP = enabled
     status = "ENABLED" if enabled else "DISABLED"
     screens.render_status_template("SCREENSAVER", f"Screensaver {status}")
+    time.sleep(1.5)
+
+
+def keyboard_test() -> None:
+    text = keyboard.prompt_text(title="KEYBOARD", masked=False)
+    if text is None:
+        return
+    screens.render_status_template("KEYBOARD", "Entry captured")
     time.sleep(1.5)
 
 
