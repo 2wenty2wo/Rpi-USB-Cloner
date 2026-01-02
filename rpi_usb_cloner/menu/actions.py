@@ -115,6 +115,18 @@ def screensaver_settings() -> None:
     settings_actions.screensaver_settings()
 
 
+def toggle_screensaver_enabled() -> None:
+    settings_actions.toggle_screensaver_enabled()
+
+
+def toggle_screensaver_mode() -> None:
+    settings_actions.toggle_screensaver_mode()
+
+
+def select_screensaver_gif() -> None:
+    settings_actions.select_screensaver_gif()
+
+
 def keyboard_test() -> None:
     settings_actions.keyboard_test()
 
