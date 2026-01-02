@@ -90,7 +90,7 @@ def init_display() -> DisplayContext:
     fontcopy = ImageFont.truetype(ASSETS_DIR / "fonts" / "rainyhearts.ttf", 16)
     fontinsert = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 16)
     fontdisks = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 8)
-    fontkeyboard = ImageFont.truetype(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 8)
+    fontkeyboard = ImageFont.truetype(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 10)
     fontmain = font
     fonts = {
         "title": fontcopy,
