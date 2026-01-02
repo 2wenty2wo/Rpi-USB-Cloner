@@ -3,6 +3,8 @@ import time
 
 from typing import Iterable, Optional
 
+from PIL import ImageFont
+
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.ui import display, keyboard, menus
@@ -55,6 +57,50 @@ def show_coming_soon(title="COMING SOON", delay=1) -> None:
     display.display_lines([title, "Not implemented", "yet"])
     if delay:
         time.sleep(delay)
+
+
+def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
+    context = display.get_display_context()
+    draw = context.draw
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    title_font = context.fonts.get("title", context.fontdisks)
+    draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+
+    content_top = menus.get_standard_content_top(title, title_font=title_font)
+    font_path = display.ASSETS_DIR / "fonts" / "fontawesome-webfont.ttf"
+    # Font Awesome "delete-left" (aka backspace) glyph in the bundled webfont.
+    icon_glyph = "\uf55a"
+    size_candidates = [10, 12, 14, 16, 18, 20]
+    label_font = context.fontdisks
+    line_gap = 1
+    available_height = max(0, context.height - content_top - 1)
+    sizes = list(size_candidates)
+
+    while sizes:
+        line_heights = [
+            display._get_line_height(ImageFont.truetype(font_path, size)) for size in sizes
+        ]
+        total_height = sum(line_heights) + line_gap * (len(sizes) - 1)
+        if total_height <= available_height or len(sizes) <= 2:
+            break
+        sizes.pop()
+
+    current_y = content_top
+    left_x = context.x - 11
+    label_height = display._get_line_height(label_font)
+    for size in sizes:
+        icon_font = ImageFont.truetype(font_path, size)
+        icon_height = display._get_line_height(icon_font)
+        line_height = max(icon_height, label_height)
+        icon_width = display._measure_text_width(draw, icon_glyph, icon_font)
+        icon_y = current_y + max(0, (line_height - icon_height) // 2)
+        label_y = current_y + max(0, (line_height - label_height) // 2)
+        draw.text((left_x, icon_y), icon_glyph, font=icon_font, fill=255)
+        draw.text((left_x + icon_width + 4, label_y), f"{size}px", font=label_font, fill=255)
+        current_y += line_height + line_gap
+        if current_y >= context.height:
+            break
+    context.disp.display(context.image)
 
 
 def render_status_screen(

@@ -21,6 +21,9 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 ## Screensaver GIFs
 Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
 
+## Font assets
+The OLED demo uses the Font Awesome Free `fontawesome-webfont.ttf` font. The font is licensed under the SIL OFL 1.1; see `rpi_usb_cloner/ui/assets/fonts/LICENSE-FONT-AWESOME.txt` for details.
+
 ### 1) Clone the repository
 ```sh
 git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
