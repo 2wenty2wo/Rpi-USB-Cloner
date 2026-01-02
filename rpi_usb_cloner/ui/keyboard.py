@@ -357,10 +357,10 @@ def prompt_text(
                     return value
                 if selected_mode == "back":
                     value = value[:-1]
-                    continue
-                layout_mode = selected_mode
-                keys = layout.get_keys(layout_mode)
-                selected_col = min(selected_col, len(keys) - 1)
+                else:
+                    layout_mode = selected_mode
+                    keys = layout.get_keys(layout_mode)
+                    selected_col = min(selected_col, len(keys) - 1)
             else:
                 key = keys[selected_col]
                 if key == KEY_BACKSPACE:
