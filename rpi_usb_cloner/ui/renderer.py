@@ -55,7 +55,7 @@ def render_menu_screen(
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
     current_y = context.top
-    extra_gap = 2
+    extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         max_title_width = context.width - (context.x - 11) - 1
@@ -66,7 +66,7 @@ def render_menu_screen(
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     line_height = _get_line_height(list_font)
-    row_height = line_height + 2
+    row_height = line_height + 1
     left_margin = context.x - 11
 
     max_visible_rows = calculate_visible_rows(
@@ -109,18 +109,18 @@ def calculate_visible_rows(
     title_font=None,
     items_font=None,
     status_font=None,
-    padding: int = 2,
+    padding: int = 1,
 ) -> int:
     context = display.get_display_context()
     current_y = context.top
-    extra_gap = 2
+    extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         title_height = _get_line_height(header_font)
         current_y += title_height + display.TITLE_PADDING + extra_gap
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
-    row_height = _get_line_height(list_font) + 2
+    row_height = _get_line_height(list_font) + 1
 
     footer_height = 0
     if status_line:
