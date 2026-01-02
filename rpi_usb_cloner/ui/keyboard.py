@@ -79,9 +79,9 @@ def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont]:
     except OSError:
         input_font = context.fontdisks
     try:
-        key_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixelbold.ttf", 8)
+        key_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
     except OSError:
-        key_font = context.fontdisks
+        key_font = input_font
     _keyboard_fonts = (input_font, key_font)
     return _keyboard_fonts
 
