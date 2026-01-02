@@ -1,8 +1,10 @@
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from io import BytesIO
+from typing import Dict, List, Optional
 
-from PIL import ImageFont
+import cairosvg
+from PIL import Image, ImageFont
 
 from rpi_usb_cloner.hardware.gpio import (
     PIN_A,
@@ -67,6 +69,7 @@ DEFAULT_LAYOUT = KeyboardLayout(
 )
 
 _keyboard_fonts: Optional[tuple[ImageFont.ImageFont, ImageFont.ImageFont]] = None
+_backspace_icon_cache: Dict[int, Image.Image] = {}
 
 
 def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont]:
@@ -113,6 +116,17 @@ def _truncate_text(draw, text: str, font, max_width: int) -> str:
     return ""
 
 
+def _get_backspace_mask(size: int) -> Image.Image:
+    if size in _backspace_icon_cache:
+        return _backspace_icon_cache[size]
+    svg_path = display.ASSETS_DIR / "svg" / "backspace.svg"
+    png_bytes = cairosvg.svg2png(url=str(svg_path), output_width=size, output_height=size)
+    image = Image.open(BytesIO(png_bytes)).convert("RGBA")
+    mask = image.split()[3]
+    _backspace_icon_cache[size] = mask
+    return mask
+
+
 def _render_keyboard(
     title: str,
     value: str,
@@ -156,27 +170,35 @@ def _render_keyboard(
 
     key_padding = 6
     key_metrics = []
+    icon_size = max(6, row_height - 6)
     for key in keys:
         label = key
+        is_icon = False
         if key == KEY_SPACE:
             label = "SPACE"
         elif key == KEY_BACKSPACE:
-            label = "BACK"
+            label = ""
+            is_icon = True
         elif key == KEY_CONFIRM:
             label = "OK"
         elif key == KEY_CANCEL:
             label = "CANCEL"
         elif key == KEY_SHIFT:
             label = "SYM" if layout_mode == "upper" else "ABC" if layout_mode == "symbols" else "SHF"
-        text_bbox = draw.textbbox((0, 0), label, font=key_font)
-        text_width = text_bbox[2] - text_bbox[0]
-        key_metrics.append((label, text_width))
+        if is_icon:
+            content_width = icon_size
+            content_height = icon_size
+        else:
+            text_bbox = draw.textbbox((0, 0), label, font=key_font)
+            content_width = text_bbox[2] - text_bbox[0]
+            content_height = text_bbox[3] - text_bbox[1]
+        key_metrics.append((label, content_width, content_height, is_icon))
 
     key_positions = []
     cursor_x = 0
-    for label, text_width in key_metrics:
-        key_width = text_width + key_padding
-        key_positions.append((cursor_x, key_width, label))
+    for label, content_width, content_height, is_icon in key_metrics:
+        key_width = content_width + key_padding
+        key_positions.append((cursor_x, key_width, label, content_width, content_height, is_icon))
         cursor_x += key_width
     total_width = cursor_x
     offset_x = 0
@@ -189,7 +211,7 @@ def _render_keyboard(
             offset_x = selected_left
         offset_x = max(0, min(offset_x, total_width - strip_width))
 
-    for col_index, (key_left, key_width, label) in enumerate(key_positions):
+    for col_index, (key_left, key_width, label, content_width, content_height, is_icon) in enumerate(key_positions):
         cell_left = strip_left + key_left - offset_x
         cell_right = cell_left + key_width - 1
         is_selected = selected_band == "chars" and col_index == selected_col
@@ -197,17 +219,22 @@ def _render_keyboard(
             continue
         if is_selected:
             draw.rectangle((cell_left, strip_top, cell_right, strip_top + strip_height), outline=0, fill=1)
-        text_bbox = draw.textbbox((0, 0), label, font=key_font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        text_x = cell_left + max(0, (key_width - text_width) // 2)
-        text_y = strip_top + max(0, (strip_height - text_height) // 2)
-        draw.text(
-            (text_x, text_y),
-            label,
-            font=key_font,
-            fill=0 if is_selected else 255,
-        )
+        if is_icon:
+            mask = _get_backspace_mask(icon_size)
+            icon_left = cell_left + max(0, (key_width - icon_size) // 2)
+            icon_top = strip_top + max(0, (strip_height - icon_size) // 2)
+            fill_color = 0 if is_selected else 255
+            icon_image = Image.new("1", (icon_size, icon_size), color=fill_color)
+            context.image.paste(icon_image, (icon_left, icon_top), mask)
+        else:
+            text_x = cell_left + max(0, (key_width - content_width) // 2)
+            text_y = strip_top + max(0, (strip_height - content_height) // 2)
+            draw.text(
+                (text_x, text_y),
+                label,
+                font=key_font,
+                fill=0 if is_selected else 255,
+            )
 
     current_y += strip_height + padding
 
