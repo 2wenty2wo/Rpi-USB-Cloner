@@ -110,7 +110,7 @@ def render_confirmation_screen(
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
     draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
-    prompt_font = context.fontinsert
+    prompt_font = context.fontdisks
     button_font = context.fontcopy
     content_top = menus.get_standard_content_top(title, title_font=title_font)
     prompt_lines = display._wrap_lines_to_width(
