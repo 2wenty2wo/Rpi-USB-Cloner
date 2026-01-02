@@ -1,4 +1,4 @@
-from rpi_usb_cloner.menu import MenuItem
+from rpi_usb_cloner.menu import MenuItem, definitions
 
 
 def build_device_items(drives_service, drive_menu, menu_actions):
@@ -27,6 +27,10 @@ def build_settings_items(settings_store, app_state, menu_actions, wifi_label, po
         MenuItem(
             label="POWER",
             submenu=power_menu,
+        ),
+        MenuItem(
+            label="DEVELOP",
+            submenu=definitions.DEVELOP_MENU,
         ),
         MenuItem(
             label="UPDATE",
