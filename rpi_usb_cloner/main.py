@@ -348,12 +348,10 @@ def main(argv=None):
                     screensaver_active = True
                     screensaver_mode = settings_store.get_setting("screensaver_mode", "random")
                     screensaver_gif = settings_store.get_setting("screensaver_gif")
-                    gif_path = None
-                    if screensaver_mode == "selected" and screensaver_gif:
-                        gif_path = screensaver.SCREENSAVER_DIR / screensaver_gif
                     screensaver_ran = screensaver.play_screensaver(
                         context,
-                        gif_path=gif_path,
+                        selected_gif=screensaver_gif,
+                        screensaver_mode=screensaver_mode,
                         input_checker=any_button_pressed,
                     )
                     if not screensaver_ran:
