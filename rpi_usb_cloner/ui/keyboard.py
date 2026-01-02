@@ -66,10 +66,14 @@ DEFAULT_LAYOUT = KeyboardLayout(
     ],
 )
 
-_keyboard_fonts: Optional[tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]] = None
+_keyboard_fonts: Optional[
+    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
+] = None
 
 
-def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]:
+def _get_keyboard_fonts() -> tuple[
+    ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont
+]:
     global _keyboard_fonts
     if _keyboard_fonts is not None:
         return _keyboard_fonts
@@ -86,7 +90,11 @@ def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, Ima
         sporty_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 8)
     except OSError:
         sporty_font = key_font
-    _keyboard_fonts = (input_font, key_font, sporty_font)
+    try:
+        sporty_icon_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 11)
+    except OSError:
+        sporty_icon_font = sporty_font
+    _keyboard_fonts = (input_font, key_font, sporty_font, sporty_icon_font)
     return _keyboard_fonts
 
 
@@ -138,7 +146,7 @@ def _render_keyboard(
         draw.text((context.x - 11, current_y), title, font=title_font, fill=255)
         current_y += _get_line_height(title_font) + display.TITLE_PADDING
 
-    input_font, key_font, sporty_font = _get_keyboard_fonts()
+    input_font, key_font, _sporty_font, sporty_icon_font = _get_keyboard_fonts()
     display_value = "*" * len(value) if masked else value
     input_left = context.x - 11
     input_right = context.width - padding
@@ -150,7 +158,7 @@ def _render_keyboard(
     draw.text((input_left + 2, input_top + 2), display_value, font=input_font, fill=0)
     current_y += input_height + padding
 
-    line_height = _get_line_height(key_font)
+    line_height = max(_get_line_height(key_font), _get_line_height(sporty_icon_font))
     row_height = line_height + 6
     strip_top = current_y
     strip_height = row_height
@@ -159,30 +167,34 @@ def _render_keyboard(
     strip_width = max(0, strip_right - strip_left)
 
     key_padding = 6
+    icon_padding = max(key_padding + 2, 8)
     key_metrics = []
     for key in keys:
         label = key
         label_font = key_font
+        label_padding = key_padding
         if key == KEY_SPACE:
             label = "SPACE"
         elif key == KEY_BACKSPACE:
             label = "⌫"
-            label_font = sporty_font
+            label_font = sporty_icon_font
+            label_padding = icon_padding
         elif key == KEY_CONFIRM:
             label = "✓"
-            label_font = sporty_font
+            label_font = sporty_icon_font
+            label_padding = icon_padding
         elif key == KEY_CANCEL:
             label = "CANCEL"
         elif key == KEY_SHIFT:
             label = "SYM" if layout_mode == "upper" else "ABC" if layout_mode == "symbols" else "SHF"
         text_bbox = draw.textbbox((0, 0), label, font=label_font)
         text_width = text_bbox[2] - text_bbox[0]
-        key_metrics.append((label, text_width, label_font))
+        key_metrics.append((label, text_width, label_font, label_padding))
 
     key_positions = []
     cursor_x = 0
-    for label, text_width, label_font in key_metrics:
-        key_width = text_width + key_padding
+    for label, text_width, label_font, label_padding in key_metrics:
+        key_width = text_width + label_padding
         key_positions.append((cursor_x, key_width, label, label_font))
         cursor_x += key_width
     total_width = cursor_x
@@ -231,10 +243,11 @@ def _render_keyboard(
         mode_positions.clear()
         cursor_x = 0
         for _, label in mode_items:
-            label_font = sporty_font if label in {"⌫", "✓"} else key_font
+            label_font = sporty_icon_font if label in {"⌫", "✓"} else key_font
             text_bbox = draw.textbbox((0, 0), label, font=label_font)
             text_width = text_bbox[2] - text_bbox[0]
-            item_width = text_width + attempt_padding
+            item_padding = icon_padding if label in {"⌫", "✓"} else attempt_padding
+            item_width = text_width + item_padding
             mode_positions.append((cursor_x, item_width, label, label_font))
             cursor_x += item_width + attempt_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
