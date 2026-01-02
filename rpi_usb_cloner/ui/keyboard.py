@@ -216,18 +216,24 @@ def _render_keyboard(
         ("lower", "a"),
         ("numbers", "123"),
         ("symbols", "!@#"),
-        ("back", "X"),
+        ("back", "✕"),
         ("ok", "✓"),
     ]
     mode_positions = []
-    cursor_x = 0
-    for _, label in mode_items:
-        text_bbox = draw.textbbox((0, 0), label, font=key_font)
-        text_width = text_bbox[2] - text_bbox[0]
-        item_width = text_width + key_padding
-        mode_positions.append((cursor_x, item_width, label))
-        cursor_x += item_width + 4
-    total_mode_width = cursor_x - 4 if mode_positions else 0
+    for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
+        mode_positions.clear()
+        cursor_x = 0
+        for _, label in mode_items:
+            text_bbox = draw.textbbox((0, 0), label, font=key_font)
+            text_width = text_bbox[2] - text_bbox[0]
+            item_width = text_width + attempt_padding
+            mode_positions.append((cursor_x, item_width, label))
+            cursor_x += item_width + attempt_gap
+        total_mode_width = cursor_x - attempt_gap if mode_positions else 0
+        if total_mode_width <= strip_width:
+            mode_padding = attempt_padding
+            mode_gap = attempt_gap
+            break
     mode_left = strip_left
     mode_top = current_y
     mode_height = row_height
