@@ -17,7 +17,7 @@ def build_settings_items(settings_store, app_state, menu_actions, wifi_label, po
     screensaver_state = "ON" if screensaver_enabled else "OFF"
     return [
         MenuItem(
-            label=wifi_label(),
+            label="WIFI",
             action=menu_actions.wifi_settings,
         ),
         MenuItem(
