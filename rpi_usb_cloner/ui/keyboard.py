@@ -239,20 +239,17 @@ def _render_keyboard(
         ("ok", "✓"),
     ]
     mode_positions = []
-    mode_label_metrics = []
-    for _, label in mode_items:
-        label_font = sporty_icon_font if label in {"⌫", "✓"} else key_font
-        text_bbox = draw.textbbox((0, 0), label, font=label_font)
-        text_width = text_bbox[2] - text_bbox[0]
-        mode_label_metrics.append((label, label_font, text_width))
-    max_mode_text_width = max(text_width for _, _, text_width in mode_label_metrics)
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
-        mode_item_width = max_mode_text_width + attempt_padding
-        for label, label_font, _ in mode_label_metrics:
-            mode_positions.append((cursor_x, mode_item_width, label, label_font))
-            cursor_x += mode_item_width + attempt_gap
+        for _, label in mode_items:
+            label_font = sporty_icon_font if label in {"⌫", "✓"} else key_font
+            text_bbox = draw.textbbox((0, 0), label, font=label_font)
+            text_width = text_bbox[2] - text_bbox[0]
+            item_padding = icon_padding if label in {"⌫", "✓"} else attempt_padding
+            item_width = text_width + item_padding
+            mode_positions.append((cursor_x, item_width, label, label_font))
+            cursor_x += item_width + attempt_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
         if total_mode_width <= strip_width:
             mode_padding = attempt_padding
@@ -264,7 +261,7 @@ def _render_keyboard(
     mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
     for item_index, (item_left, item_width, label, label_font) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
-        cell_right = cell_left + item_width
+        cell_right = cell_left + item_width - 1
         mode_key, _ = mode_items[item_index]
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
