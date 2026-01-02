@@ -74,8 +74,14 @@ def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont]:
     if _keyboard_fonts is not None:
         return _keyboard_fonts
     context = display.get_display_context()
-    input_font = context.fonts.get("keyboard", context.fontdisks)
-    key_font = context.fonts.get("keyboard", input_font)
+    try:
+        input_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
+    except OSError:
+        input_font = context.fontdisks
+    try:
+        key_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
+    except OSError:
+        key_font = input_font
     _keyboard_fonts = (input_font, key_font)
     return _keyboard_fonts
 
@@ -155,9 +161,9 @@ def _render_keyboard(
         if key == KEY_SPACE:
             label = "SPACE"
         elif key == KEY_BACKSPACE:
-            label = "⌫"
+            label = "BACK"
         elif key == KEY_CONFIRM:
-            label = "✓"
+            label = "OK"
         elif key == KEY_CANCEL:
             label = "CANCEL"
         elif key == KEY_SHIFT:
