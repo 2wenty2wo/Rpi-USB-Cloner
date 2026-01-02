@@ -57,6 +57,14 @@ TOOLS_MENU = MenuScreen(
     ],
 )
 
+DEVELOP_MENU = MenuScreen(
+    screen_id="develop",
+    title="DEVELOP",
+    items=[
+        menu_entry("KEYBOARD", action=menu_actions.keyboard_test),
+    ],
+)
+
 POWER_MENU = MenuScreen(
     screen_id="power",
     title="POWER",
@@ -74,6 +82,7 @@ SETTINGS_MENU = MenuScreen(
     items=[
         menu_entry("WIFI", action=menu_actions.wifi_settings),
         menu_entry("SCREENSAVER", action=menu_actions.screensaver_settings),
+        menu_entry("DEVELOP", submenu=DEVELOP_MENU),
         menu_entry("POWER", submenu=POWER_MENU),
     ],
 )
