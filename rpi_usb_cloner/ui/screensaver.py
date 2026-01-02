@@ -65,15 +65,25 @@ def play_screensaver(
     context: display.DisplayContext,
     *,
     gif_directory: Path = SCREENSAVER_DIR,
+    gif_path: Path | None = None,
     input_checker: Callable[[], bool] = _default_input_checker,
     rng: random.Random | None = None,
 ) -> bool:
-    gif_paths = _list_gif_paths(gif_directory)
+    if gif_path is not None:
+        gif_paths = [gif_path] if gif_path.exists() else []
+    else:
+        gif_paths = _list_gif_paths(gif_directory)
     if not gif_paths:
-        _render_placeholder(
-            context,
-            ["No GIFs found", "Add *.gif to", "ui/assets/gifs"],
-        )
+        if gif_path is not None:
+            _render_placeholder(
+                context,
+                ["Selected GIF missing", "Add *.gif to", "ui/assets/gifs"],
+            )
+        else:
+            _render_placeholder(
+                context,
+                ["No GIFs found", "Add *.gif to", "ui/assets/gifs"],
+            )
         while not input_checker():
             time.sleep(INPUT_POLL_INTERVAL)
         return True

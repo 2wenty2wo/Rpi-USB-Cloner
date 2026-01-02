@@ -7,7 +7,11 @@ from functools import partial
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
-from rpi_usb_cloner.app.menu_builders import build_device_items, build_settings_items
+from rpi_usb_cloner.app.menu_builders import (
+    build_device_items,
+    build_screensaver_items,
+    build_settings_items,
+)
 from rpi_usb_cloner.app.wifi_label import make_wifi_labeler
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
@@ -78,6 +82,12 @@ def main(argv=None):
         menu_actions,
         wifi_label,
         definitions.POWER_MENU,
+    )
+    get_screensaver_items = partial(
+        build_screensaver_items,
+        settings_store,
+        app_state,
+        menu_actions,
     )
 
     INPUT_POLL_INTERVAL = 0.03
@@ -195,6 +205,7 @@ def main(argv=None):
         items_providers={
             definitions.DRIVE_LIST_MENU.screen_id: get_device_items,
             definitions.SETTINGS_MENU.screen_id: get_settings_items,
+            definitions.SCREENSAVER_MENU.screen_id: get_screensaver_items,
         },
     )
 
@@ -335,8 +346,14 @@ def main(argv=None):
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SLEEP_TIMEOUT:
                     screensaver_active = True
+                    screensaver_mode = settings_store.get_setting("screensaver_mode", "random")
+                    screensaver_gif = settings_store.get_setting("screensaver_gif")
+                    gif_path = None
+                    if screensaver_mode == "selected" and screensaver_gif:
+                        gif_path = screensaver.SCREENSAVER_DIR / screensaver_gif
                     screensaver_ran = screensaver.play_screensaver(
                         context,
+                        gif_path=gif_path,
                         input_checker=any_button_pressed,
                     )
                     if not screensaver_ran:

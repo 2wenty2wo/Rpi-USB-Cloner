@@ -9,7 +9,7 @@ from typing import Callable, Optional
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.ui import display, keyboard, menus, screens
+from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 
 
 _SERVICE_NAME = "rpi-usb-cloner.service"
@@ -24,12 +24,57 @@ def wifi_settings() -> None:
 
 
 def screensaver_settings() -> None:
+    toggle_screensaver_enabled()
+
+
+def toggle_screensaver_enabled() -> None:
     enabled = settings.get_bool("screensaver_enabled", default=app_state.ENABLE_SLEEP)
     enabled = not enabled
     settings.set_bool("screensaver_enabled", enabled)
     app_state.ENABLE_SLEEP = enabled
     status = "ENABLED" if enabled else "DISABLED"
     screens.render_status_template("SCREENSAVER", f"Screensaver {status}")
+    time.sleep(1.5)
+
+
+def toggle_screensaver_mode() -> None:
+    mode = settings.get_setting("screensaver_mode", "random")
+    new_mode = "selected" if mode == "random" else "random"
+    settings.set_setting("screensaver_mode", new_mode)
+    status = "SELECTED" if new_mode == "selected" else "RANDOM"
+    screens.render_status_template("SCREENSAVER", f"Mode: {status}")
+    time.sleep(1.5)
+
+
+def select_screensaver_gif() -> None:
+    gif_directory = screensaver.SCREENSAVER_DIR
+    if not gif_directory.exists():
+        gif_paths = []
+    else:
+        gif_paths = sorted(
+            path
+            for path in gif_directory.iterdir()
+            if path.is_file() and path.suffix.lower() == ".gif"
+        )
+    if not gif_paths:
+        screens.render_status_template("SCREENSAVER", "No GIFs found")
+        time.sleep(1.5)
+        return
+    gif_names = [path.name for path in gif_paths]
+    current_selection = settings.get_setting("screensaver_gif")
+    selected_index = 0
+    if current_selection in gif_names:
+        selected_index = gif_names.index(current_selection)
+    selection = menus.render_menu_list(
+        "SELECT GIF",
+        gif_names,
+        selected_index=selected_index,
+    )
+    if selection is None:
+        return
+    selected_name = gif_names[selection]
+    settings.set_setting("screensaver_gif", selected_name)
+    screens.render_status_template("SCREENSAVER", f"Selected {selected_name}")
     time.sleep(1.5)
 
 
