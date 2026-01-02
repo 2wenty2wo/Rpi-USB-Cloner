@@ -131,6 +131,10 @@ def keyboard_test() -> None:
     settings_actions.keyboard_test()
 
 
+def font_awesome_demo() -> None:
+    settings_actions.font_awesome_demo()
+
+
 def update_version() -> None:
     context = _require_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
