@@ -160,7 +160,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
     dirty_tree = _has_dirty_working_tree(repo_root, log_debug=log_debug)
     if dirty_tree:
         _log_debug(log_debug, "Dirty working tree detected")
-        prompt = "Uncommitted changes found. Continue with update?"
+        prompt = "Continue with update?"
     else:
         prompt = "Are you sure you want to update?"
     if not _confirm_action(title, prompt, log_debug=log_debug):
