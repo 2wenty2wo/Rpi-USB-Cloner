@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -203,8 +204,37 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
     if not _confirm_action(title, prompt, log_debug=log_debug):
         _log_debug(log_debug, "Update canceled by confirmation prompt")
         return
-    screens.render_status_template(title, "Updating...", progress_line="Pulling...")
-    pull_result = _run_git_pull(repo_root, log_debug=log_debug)
+
+    def run_with_progress(lines: list[str], action: Callable[[], subprocess.CompletedProcess[str]]):
+        done = threading.Event()
+        result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
+        error_holder: dict[str, Exception] = {}
+
+        def worker() -> None:
+            try:
+                result_holder["result"] = action()
+            except Exception as exc:  # pragma: no cover - defensive for subprocess errors
+                error_holder["error"] = exc
+            finally:
+                done.set()
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        screens.render_progress_screen(
+            title,
+            lines,
+            progress_ratio=lambda: 1.0 if done.is_set() else None,
+            animate=True,
+        )
+        thread.join()
+        if "error" in error_holder:
+            raise error_holder["error"]
+        return result_holder["result"]
+
+    pull_result = run_with_progress(
+        ["Updating...", "Pulling..."],
+        lambda: _run_git_pull(repo_root, log_debug=log_debug),
+    )
     dubious_ownership = _is_dubious_ownership_error(pull_result.stderr)
     if dubious_ownership and _is_running_under_systemd(log_debug=log_debug):
         _log_debug(
@@ -215,7 +245,10 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
             log_debug=log_debug,
         )
-        pull_result = _run_git_pull(repo_root, log_debug=log_debug)
+        pull_result = run_with_progress(
+            ["Updating...", "Pulling again..."],
+            lambda: _run_git_pull(repo_root, log_debug=log_debug),
+        )
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
         output_lines = (
@@ -237,15 +270,24 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         )
         time.sleep(2)
         return
-    display.render_paginated_lines(
+    screens.render_progress_screen(
         title,
-        ["Update complete"] + output_lines,
-        page_index=0,
+        ["Update complete"],
+        progress_ratio=1.0,
+        animate=False,
     )
+    if output_lines:
+        display.render_paginated_lines(
+            title,
+            ["Update complete"] + output_lines,
+            page_index=0,
+        )
     time.sleep(1)
     if _is_running_under_systemd(log_debug=log_debug):
-        screens.render_status_template(title, "Restarting...", progress_line=_SERVICE_NAME)
-        restart_result = _restart_systemd_service(log_debug=log_debug)
+        restart_result = run_with_progress(
+            ["Restarting...", _SERVICE_NAME],
+            lambda: _restart_systemd_service(log_debug=log_debug),
+        )
         if restart_result.returncode != 0:
             _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
             display.render_paginated_lines(
