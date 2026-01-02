@@ -244,37 +244,38 @@ def _render_keyboard(
         label_font = sporty_icon_font if label in {"⌫", "✓"} else key_font
         text_bbox = draw.textbbox((0, 0), label, font=label_font)
         text_width = text_bbox[2] - text_bbox[0]
-        label_padding = icon_padding if label in {"⌫", "✓"} else key_padding
-        mode_label_metrics.append((label, label_font, text_width, label_padding))
-    max_mode_text_width = max(text_width + label_padding for _, _, text_width, label_padding in mode_label_metrics)
-    for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
+        mode_label_metrics.append((label, label_font, text_width))
+    mode_item_padding = 6
+    max_mode_text_width = max(text_width for _, _, text_width in mode_label_metrics)
+    mode_item_width = max_mode_text_width + mode_item_padding
+    mode_gap = 1
+    for attempt_gap in (4, 2, 1):
         mode_positions.clear()
         cursor_x = 0
-        mode_item_width = max_mode_text_width + attempt_padding
-        for label, label_font, _, _ in mode_label_metrics:
+        for label, label_font, _ in mode_label_metrics:
             mode_positions.append((cursor_x, mode_item_width, label, label_font))
             cursor_x += mode_item_width + attempt_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
         if total_mode_width <= strip_width:
-            mode_padding = attempt_padding
             mode_gap = attempt_gap
             break
     mode_left = strip_left
-    mode_top = current_y
+    mode_top = min(current_y, context.height - row_height)
+    mode_top = max(context.top, mode_top)
     mode_height = row_height
     mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
     for item_index, (item_left, item_width, label, label_font) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
-        cell_right = cell_left + item_width
+        cell_right = cell_left + item_width - 1
         mode_key, _ = mode_items[item_index]
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
         if is_selected or (is_active and selected_band != "modes"):
-            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=1)
+            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height - 1), outline=1, fill=1)
             text_fill = 0
         else:
             if is_active:
-                draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
+                draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height - 1), outline=1, fill=0)
             text_fill = 255
         text_bbox = draw.textbbox((0, 0), label, font=label_font)
         text_width = text_bbox[2] - text_bbox[0]
