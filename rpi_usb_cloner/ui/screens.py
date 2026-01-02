@@ -1,7 +1,5 @@
-import subprocess
 import threading
 import time
-from pathlib import Path
 
 from typing import Iterable, Optional
 
@@ -369,69 +367,3 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
         time.sleep(1.5)
         refresh_status_async()
 
-
-def _get_git_version(repo_root: Path) -> Optional[str]:
-    describe = subprocess.run(
-        ["git", "-C", str(repo_root), "describe", "--tags", "--always", "--dirty"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if describe.returncode == 0:
-        value = describe.stdout.strip()
-        if value:
-            return value
-    rev_parse = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--short", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if rev_parse.returncode == 0:
-        value = rev_parse.stdout.strip()
-        if value:
-            return value
-    return None
-
-
-def _get_app_version() -> str:
-    repo_root = Path(__file__).resolve().parents[2]
-    version = _get_git_version(repo_root)
-    if version:
-        return version
-    version_file = repo_root / "VERSION"
-    if version_file.exists():
-        value = version_file.read_text(encoding="utf-8").strip()
-        if value:
-            return value
-    return "unknown"
-
-
-def show_update_version(*, title: str = "UPDATE") -> None:
-    version = _get_app_version()
-    version_lines = [f"Version: {version}"]
-    content_top = menus.get_standard_content_top(title)
-    display.render_paginated_lines(
-        title,
-        version_lines,
-        page_index=0,
-        content_top=content_top,
-    )
-    while True:
-        selection = menus.render_menu_list(title, ["UPDATE", "BACK"], content_top=content_top)
-        if selection is None or selection == 1:
-            return
-        if selection == 0:
-            display.render_paginated_lines(
-                title,
-                ["Update not implemented yet."],
-                page_index=0,
-                content_top=content_top,
-            )
-            time.sleep(1.5)
-            display.render_paginated_lines(
-                title,
-                version_lines,
-                page_index=0,
-                content_top=content_top,
-            )
