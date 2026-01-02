@@ -123,7 +123,7 @@ def _render_keyboard(
     keys = layout.get_keys(layout_mode)
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
-    padding = 2
+    padding = 4
     if title:
         draw.text((context.x - 11, current_y), title, font=title_font, fill=255)
         current_y += _get_line_height(title_font) + display.TITLE_PADDING
@@ -133,7 +133,7 @@ def _render_keyboard(
     input_left = context.x - 11
     input_right = context.width - padding
     input_top = current_y
-    input_height = _get_line_height(input_font) + 4
+    input_height = _get_line_height(input_font) + 6
     draw.rectangle((input_left, input_top, input_right, input_top + input_height), outline=1, fill=1)
     available_width = max(0, input_right - input_left - 4)
     display_value = _truncate_text(draw, display_value, input_font, available_width)
@@ -141,14 +141,14 @@ def _render_keyboard(
     current_y += input_height + padding
 
     line_height = _get_line_height(key_font)
-    row_height = line_height + 4
+    row_height = line_height + 6
     strip_top = current_y
     strip_height = row_height
     strip_left = context.x - 11
     strip_right = context.width - padding
     strip_width = max(0, strip_right - strip_left)
 
-    key_padding = 4
+    key_padding = 6
     key_metrics = []
     for key in keys:
         label = key
