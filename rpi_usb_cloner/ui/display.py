@@ -87,9 +87,9 @@ def init_display() -> DisplayContext:
     bottom = height - padding
 
     font = ImageFont.load_default()
-    fontcopy = ImageFont.truetype(ASSETS_DIR / "rainyhearts.ttf", 16)
-    fontinsert = ImageFont.truetype(ASSETS_DIR / "slkscr.ttf", 16)
-    fontdisks = ImageFont.truetype(ASSETS_DIR / "slkscr.ttf", 8)
+    fontcopy = ImageFont.truetype(ASSETS_DIR / "fonts" / "rainyhearts.ttf", 16)
+    fontinsert = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 16)
+    fontdisks = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 8)
     fontmain = font
     fonts = {
         "title": fontcopy,
