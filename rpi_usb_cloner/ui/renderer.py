@@ -95,7 +95,8 @@ def render_menu_screen(
     if status_line:
         footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
-        footer_y = context.height - footer_height - 2
+        footer_padding = 1
+        footer_y = context.height - footer_height - footer_padding
         max_status_width = context.width - left_margin - 1
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=255)
