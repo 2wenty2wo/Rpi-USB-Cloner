@@ -47,15 +47,7 @@ def toggle_screensaver_mode() -> None:
 
 
 def select_screensaver_gif() -> None:
-    gif_directory = screensaver.SCREENSAVER_DIR
-    if not gif_directory.exists():
-        gif_paths = []
-    else:
-        gif_paths = sorted(
-            path
-            for path in gif_directory.iterdir()
-            if path.is_file() and path.suffix.lower() == ".gif"
-        )
+    gif_paths = screensaver.list_available_gifs()
     if not gif_paths:
         screens.render_status_template("SCREENSAVER", "No GIFs found")
         time.sleep(1.5)

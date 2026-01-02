@@ -23,6 +23,10 @@ def _list_gif_paths(directory: Path) -> list[Path]:
     )
 
 
+def list_available_gifs(directory: Path = SCREENSAVER_DIR) -> list[Path]:
+    return _list_gif_paths(directory)
+
+
 def _render_placeholder(context: display.DisplayContext, lines: list[str]) -> None:
     context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     y = context.top
@@ -65,31 +69,31 @@ def play_screensaver(
     context: display.DisplayContext,
     *,
     gif_directory: Path = SCREENSAVER_DIR,
-    gif_path: Path | None = None,
+    selected_gif: Path | str | None = None,
+    screensaver_mode: str = "random",
     input_checker: Callable[[], bool] = _default_input_checker,
     rng: random.Random | None = None,
 ) -> bool:
-    if gif_path is not None:
-        gif_paths = [gif_path] if gif_path.exists() else []
-    else:
-        gif_paths = _list_gif_paths(gif_directory)
-    if not gif_paths:
-        if gif_path is not None:
-            _render_placeholder(
-                context,
-                ["Selected GIF missing", "Add *.gif to", "ui/assets/gifs"],
-            )
-        else:
-            _render_placeholder(
-                context,
-                ["No GIFs found", "Add *.gif to", "ui/assets/gifs"],
-            )
+    gif_paths = _list_gif_paths(gif_directory)
+    chosen_path: Path | None = None
+    if screensaver_mode == "selected" and selected_gif:
+        candidate = Path(selected_gif)
+        if not candidate.is_absolute():
+            candidate = gif_directory / candidate
+        if candidate.exists():
+            chosen_path = candidate
+    if chosen_path is None and gif_paths:
+        rng = rng or random.Random()
+        chosen_path = rng.choice(gif_paths)
+    if chosen_path is None:
+        _render_placeholder(
+            context,
+            ["No GIFs found", "Add *.gif to", "ui/assets/gifs"],
+        )
         while not input_checker():
             time.sleep(INPUT_POLL_INTERVAL)
         return True
-    rng = rng or random.Random()
-    gif_path = rng.choice(gif_paths)
-    with Image.open(gif_path) as image:
+    with Image.open(chosen_path) as image:
         while True:
             for frame in ImageSequence.Iterator(image):
                 if input_checker():
