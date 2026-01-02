@@ -91,7 +91,7 @@ def _get_keyboard_fonts() -> tuple[
     except OSError:
         sporty_font = key_font
     try:
-        sporty_icon_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 11)
+        sporty_icon_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 16)
     except OSError:
         sporty_icon_font = sporty_font
     _keyboard_fonts = (input_font, key_font, sporty_font, sporty_icon_font)
@@ -167,7 +167,7 @@ def _render_keyboard(
     strip_width = max(0, strip_right - strip_left)
 
     key_padding = 6
-    icon_padding = max(key_padding + 2, 8)
+    icon_padding = max(key_padding + 6, 12)
     key_metrics = []
     for key in keys:
         label = key
@@ -244,13 +244,14 @@ def _render_keyboard(
         label_font = sporty_icon_font if label in {"⌫", "✓"} else key_font
         text_bbox = draw.textbbox((0, 0), label, font=label_font)
         text_width = text_bbox[2] - text_bbox[0]
-        mode_label_metrics.append((label, label_font, text_width))
-    max_mode_text_width = max(text_width for _, _, text_width in mode_label_metrics)
+        label_padding = icon_padding if label in {"⌫", "✓"} else key_padding
+        mode_label_metrics.append((label, label_font, text_width, label_padding))
+    max_mode_text_width = max(text_width + label_padding for _, _, text_width, label_padding in mode_label_metrics)
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
         mode_item_width = max_mode_text_width + attempt_padding
-        for label, label_font, _ in mode_label_metrics:
+        for label, label_font, _, _ in mode_label_metrics:
             mode_positions.append((cursor_x, mode_item_width, label, label_font))
             cursor_x += mode_item_width + attempt_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
