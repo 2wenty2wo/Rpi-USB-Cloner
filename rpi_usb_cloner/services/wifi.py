@@ -604,7 +604,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
                 continue
             device_type = parts[1]
             state = parts[2]
-            if device_type != "wifi" or state != "connected":
+            if device_type != "wifi" or not state.startswith("connected"):
                 continue
             connection = _nmcli_unescape(parts[3]) if len(parts) > 3 else ""
             ip_address = _nmcli_unescape(parts[4]) if len(parts) > 4 else ""
