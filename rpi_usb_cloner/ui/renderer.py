@@ -86,11 +86,12 @@ def render_menu_screen(
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
         row_top = current_y + row_index * row_height
+        text_y = row_top + max(0, (row_height - line_height) // 2)
         is_selected = item_index == selected_index
         if is_selected:
             draw.rectangle((0, row_top, context.width, row_top + row_height - 1), outline=0, fill=1)
         text_color = 0 if is_selected else 255
-        draw.text((left_margin, row_top + 1), items_list[item_index], font=list_font, fill=text_color)
+        draw.text((left_margin, text_y), items_list[item_index], font=list_font, fill=text_color)
 
     if status_line:
         footer_font = status_font or list_font
