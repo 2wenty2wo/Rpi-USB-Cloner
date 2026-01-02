@@ -208,10 +208,15 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
     def run_with_progress(lines: list[str], action: Callable[[], subprocess.CompletedProcess[str]]):
         done = threading.Event()
         result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
+        error_holder: dict[str, Exception] = {}
 
         def worker() -> None:
-            result_holder["result"] = action()
-            done.set()
+            try:
+                result_holder["result"] = action()
+            except Exception as exc:  # pragma: no cover - defensive for subprocess errors
+                error_holder["error"] = exc
+            finally:
+                done.set()
 
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
@@ -222,6 +227,8 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             animate=True,
         )
         thread.join()
+        if "error" in error_holder:
+            raise error_holder["error"]
         return result_holder["result"]
 
     pull_result = run_with_progress(
