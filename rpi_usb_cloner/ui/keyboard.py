@@ -262,12 +262,13 @@ def _render_keyboard(
         cell_right = cell_left + item_width - 1
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
-        if is_selected or (is_active and selected_band != "modes"):
+        if is_selected:
             draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=1)
             text_fill = 0
+        elif is_active and selected_band != "modes":
+            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
+            text_fill = 255
         else:
-            if is_active:
-                draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
             text_fill = 255
         text_bbox = draw.textbbox((0, 0), label, font=font)
         text_width = text_bbox[2] - text_bbox[0]
