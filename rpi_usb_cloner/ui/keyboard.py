@@ -66,10 +66,12 @@ DEFAULT_LAYOUT = KeyboardLayout(
     ],
 )
 
-_keyboard_fonts: Optional[tuple[ImageFont.ImageFont, ImageFont.ImageFont]] = None
+_keyboard_fonts: Optional[
+    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
+] = None
 
 
-def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont]:
+def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]:
     global _keyboard_fonts
     if _keyboard_fonts is not None:
         return _keyboard_fonts
@@ -82,7 +84,14 @@ def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont]:
         key_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
     except OSError:
         key_font = input_font
-    _keyboard_fonts = (input_font, key_font)
+    try:
+        icon_font = ImageFont.truetype(
+            display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf",
+            16,
+        )
+    except OSError:
+        icon_font = key_font
+    _keyboard_fonts = (input_font, key_font, icon_font)
     return _keyboard_fonts
 
 
@@ -134,7 +143,7 @@ def _render_keyboard(
         draw.text((context.x - 11, current_y), title, font=title_font, fill=255)
         current_y += _get_line_height(title_font) + display.TITLE_PADDING
 
-    input_font, key_font = _get_keyboard_fonts()
+    input_font, key_font, icon_font = _get_keyboard_fonts()
     display_value = "*" * len(value) if masked else value
     input_left = context.x - 11
     input_right = context.width - padding
@@ -212,19 +221,19 @@ def _render_keyboard(
     current_y += strip_height + padding
 
     mode_items = [
-        ("upper", "A"),
-        ("lower", "a"),
-        ("numbers", "123"),
-        ("symbols", "!@#"),
-        ("back", "✕"),
-        ("ok", "✓"),
+        ("upper", "A", key_font),
+        ("lower", "a", key_font),
+        ("numbers", "123", key_font),
+        ("symbols", "!@#", key_font),
+        ("back", "\uf060", icon_font),
+        ("ok", "\uf00c", icon_font),
     ]
     mode_positions = []
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
-        for _, label in mode_items:
-            text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        for _, label, font in mode_items:
+            text_bbox = draw.textbbox((0, 0), label, font=font)
             text_width = text_bbox[2] - text_bbox[0]
             item_width = text_width + attempt_padding
             mode_positions.append((cursor_x, item_width, label))
@@ -241,7 +250,7 @@ def _render_keyboard(
     for item_index, (item_left, item_width, label) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
         cell_right = cell_left + item_width - 1
-        mode_key, _ = mode_items[item_index]
+        mode_key, _, font = mode_items[item_index]
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
         if is_selected or (is_active and selected_band != "modes"):
@@ -251,12 +260,12 @@ def _render_keyboard(
             if is_active:
                 draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
             text_fill = 255
-        text_bbox = draw.textbbox((0, 0), label, font=key_font)
+        text_bbox = draw.textbbox((0, 0), label, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         text_x = cell_left + max(0, (item_width - text_width) // 2)
         text_y = mode_top + max(0, (mode_height - text_height) // 2)
-        draw.text((text_x, text_y), label, font=key_font, fill=text_fill)
+        draw.text((text_x, text_y), label, font=font, fill=text_fill)
     context.disp.display(context.image)
 
 
