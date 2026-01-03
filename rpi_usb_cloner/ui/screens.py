@@ -68,11 +68,13 @@ def _show_icon_font_demo(title: str, font_path, *, icons: Optional[Iterable[str]
     icons = list(icons)
     sizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30]
     label_font = context.fontdisks
-    fa_line_height = display._get_line_height(
-        ImageFont.truetype(font_path, max(sizes))
-    )
+    icon_font = ImageFont.truetype(font_path, max(sizes))
+    max_icon_height = 0
+    for glyph in icons:
+        bbox = context.draw.textbbox((0, 0), glyph, font=icon_font)
+        max_icon_height = max(max_icon_height, bbox[3] - bbox[1])
     label_line_height = display._get_line_height(label_font)
-    line_step = max(fa_line_height, label_line_height) + 2
+    line_step = max(max_icon_height, label_line_height) + 2
     rows_per_page = max(1, (context.height - content_top - 2) // line_step)
     max_offset = max(0, len(sizes) - rows_per_page)
     scroll_offset = 0
