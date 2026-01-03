@@ -12,7 +12,6 @@ from rpi_usb_cloner.app.menu_builders import (
     build_screensaver_items,
     build_settings_items,
 )
-from rpi_usb_cloner.app.wifi_label import make_wifi_labeler
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import drives, wifi
@@ -69,7 +68,6 @@ def main(argv=None):
         log_debug(f"USB snapshot: {snapshot}")
         return snapshot
 
-    wifi_label = make_wifi_labeler(display, renderer, wifi)
     get_device_items = partial(
         build_device_items,
         drives,
@@ -81,7 +79,6 @@ def main(argv=None):
         settings_store,
         app_state,
         menu_actions,
-        wifi_label,
         definitions.POWER_MENU,
     )
     get_screensaver_items = partial(
