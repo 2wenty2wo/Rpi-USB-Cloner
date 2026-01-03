@@ -86,7 +86,7 @@ def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, Ima
         key_font = input_font
     try:
         icon_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf",
+            display.ASSETS_DIR / "fonts" / "lucide.ttf",
             16,
         )
     except OSError:
@@ -230,8 +230,8 @@ def _render_keyboard(
         ("symbols", "!@#", key_font),
     ]
     mode_actions = [
-        ("back", "\uf060", icon_font),
-        ("ok", "\uf00c", icon_font),
+        ("back", "\ue0ae", icon_font),
+        ("ok", "\ue06c", icon_font),
     ]
     mode_items = mode_selectors + mode_actions
     inter_group_gap = 8
