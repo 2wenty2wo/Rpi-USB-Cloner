@@ -152,7 +152,10 @@ def _render_keyboard(
     draw.rectangle((input_left, input_top, input_right, input_top + input_height), outline=1, fill=1)
     available_width = max(0, input_right - input_left - 4)
     display_value = _truncate_text(draw, display_value, input_font, available_width)
-    draw.text((input_left + 2, input_top + 2), display_value, font=input_font, fill=0)
+    text_bbox = draw.textbbox((0, 0), display_value, font=input_font)
+    text_height = text_bbox[3] - text_bbox[1]
+    text_y = input_top + max(0, (input_height - text_height) // 2)
+    draw.text((input_left + 2, text_y), display_value, font=input_font, fill=0)
     current_y += input_height + padding
 
     line_height = _get_line_height(key_font)
