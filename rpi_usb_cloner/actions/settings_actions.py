@@ -136,10 +136,6 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if selection is None:
             return
         if selection == 0:
-            if check_done.is_set() and "result" in result_holder:
-                status, last_checked = result_holder["result"]
-                version = _get_app_version(log_debug=log_debug)
-                continue
             checking_lines = _build_update_info_lines(version, "Checking...", last_checked)
             display.render_paginated_lines(
                 title,
@@ -147,14 +143,10 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 page_index=0,
                 title_icon=title_icon,
             )
-            if not check_done.is_set():
-                check_done.wait()
-            if "result" in result_holder:
-                status, last_checked = result_holder["result"]
-            elif "error" in error_holder:
-                status = "Unable to check"
-                last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+            status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
+            result_holder["result"] = (status, last_checked)
+            check_done.set()
             continue
         if selection == 1:
             _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
