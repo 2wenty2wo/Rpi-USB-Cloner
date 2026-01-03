@@ -21,6 +21,7 @@ KEY_BACKSPACE = "BACK"
 KEY_CONFIRM = "OK"
 KEY_CANCEL = "CANCEL"
 KEY_SHIFT = "SHIFT"
+PASSWORD_ICON_GLYPH = ""
 
 
 @dataclass(frozen=True)
@@ -141,19 +142,24 @@ def _render_keyboard(
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
     padding = 4
+    input_font, key_font, icon_font = _get_keyboard_fonts()
+    resolved_title_icon = title_icon if masked else None
+    if masked and resolved_title_icon is None:
+        resolved_title_icon = PASSWORD_ICON_GLYPH
+    resolved_title_icon_font = title_icon_font
+    if resolved_title_icon and resolved_title_icon_font is None:
+        resolved_title_icon_font = icon_font
     if title:
         layout_info = display.draw_title_with_icon(
             title,
             title_font=title_font,
-            icon=title_icon,
-            icon_font=title_icon_font,
+            icon=resolved_title_icon,
+            icon_font=resolved_title_icon_font,
             extra_gap=0,
             left_margin=context.x - 11,
             draw=draw,
         )
         current_y = layout_info.content_top
-
-    input_font, key_font, icon_font = _get_keyboard_fonts()
     display_value = "*" * len(value) if masked else value
     input_left = context.x - 11
     input_right = context.width - padding
