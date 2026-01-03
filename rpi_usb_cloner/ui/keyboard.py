@@ -236,11 +236,11 @@ def _render_keyboard(
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
-        for item_index, (_, label, font) in enumerate(mode_items):
+        for item_index, (mode_key, label, font) in enumerate(mode_items):
             text_bbox = draw.textbbox((0, 0), label, font=font)
             text_width = text_bbox[2] - text_bbox[0]
             item_width = text_width + attempt_padding
-            mode_positions.append((cursor_x, item_width, label))
+            mode_positions.append((cursor_x, item_width, label, font, mode_key))
             cursor_x += item_width + attempt_gap
             if item_index == len(mode_selectors) - 1:
                 cursor_x += inter_group_gap
@@ -253,10 +253,13 @@ def _render_keyboard(
     mode_top = current_y
     mode_height = row_height
     mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
-    for item_index, (item_left, item_width, label) in enumerate(mode_positions):
+    icon_x_adjust = {
+        "back": 1,
+        "ok": 1,
+    }
+    for item_index, (item_left, item_width, label, font, mode_key) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
         cell_right = cell_left + item_width - 1
-        mode_key, _, font = mode_items[item_index]
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
         if is_selected or (is_active and selected_band != "modes"):
@@ -270,6 +273,7 @@ def _render_keyboard(
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         text_x = cell_left + max(0, (item_width - text_width) // 2)
+        text_x += icon_x_adjust.get(mode_key, 0)
         text_y = mode_top + max(0, (mode_height - text_height) // 2)
         draw.text((text_x, text_y), label, font=font, fill=text_fill)
     context.disp.display(context.image)
