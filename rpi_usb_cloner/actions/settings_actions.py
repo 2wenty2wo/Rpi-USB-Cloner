@@ -87,6 +87,10 @@ def lucide_demo() -> None:
     screens.show_lucide_demo()
 
 
+def heroicons_demo() -> None:
+    screens.show_heroicons_demo()
+
+
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
     repo_root = Path(__file__).resolve().parents[2]

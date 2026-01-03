@@ -139,6 +139,10 @@ def lucide_demo() -> None:
     settings_actions.lucide_demo()
 
 
+def heroicons_demo() -> None:
+    settings_actions.heroicons_demo()
+
+
 def update_version() -> None:
     context = _require_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))

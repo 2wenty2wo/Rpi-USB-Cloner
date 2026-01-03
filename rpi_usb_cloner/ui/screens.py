@@ -165,6 +165,12 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
     _show_icon_font_demo(title, font_path, icons=lucide_icons)
 
 
+def show_heroicons_demo(title: str = "HEROICONS") -> None:
+    font_path = display.ASSETS_DIR / "fonts" / "his.ttf"
+    heroicons_icons = [chr(0xE934), chr(0xE963), chr(0xE964), chr(0xEA27)]
+    _show_icon_font_demo(title, font_path, icons=heroicons_icons)
+
+
 def render_status_screen(
     title: str,
     status: str = "Running...",
