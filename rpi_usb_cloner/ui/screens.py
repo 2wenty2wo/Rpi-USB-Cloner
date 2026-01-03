@@ -250,10 +250,19 @@ def render_confirmation_screen(
     prompt_line_step = prompt_line_height + 2
     prompt_height = max(prompt_line_height, len(prompt_lines) * prompt_line_step - 2)
     button_height = max(16, display._get_line_height(button_font) + 6)
-    button_label = "YES"
+    icon_font = display._get_lucide_font()
+    icon_padding = 5
+    button_icons = {"NO": chr(57476), "YES": chr(57894)}
+    button_labels = ("NO", "YES")
+    max_content_width = 0
+    for button_label in button_labels:
+        button_icon = button_icons[button_label]
+        icon_width = display._measure_text_width(draw, button_icon, icon_font)
+        label_width = display._measure_text_width(draw, button_label, button_font)
+        max_content_width = max(max_content_width, icon_width + icon_padding + label_width)
     button_width = max(
         36,
-        display._measure_text_width(draw, button_label, button_font) + 16,
+        max_content_width + 16,
     )
     button_y = int(content_top + (context.height - content_top) * 0.55)
     prompt_area_height = max(0, button_y - content_top - 6)
@@ -280,11 +289,21 @@ def render_confirmation_screen(
             draw.rectangle(rect, outline=255, fill=255)
         else:
             draw.rectangle(rect, outline=255, fill=0)
+        icon = button_icons[label]
+        icon_width = display._measure_text_width(draw, icon, icon_font)
         text_width = display._measure_text_width(draw, label, button_font)
         text_height = display._get_line_height(button_font)
-        text_x = int(x_pos + (button_width - text_width) / 2)
-        text_y = int(button_y + (button_height - text_height) / 2)
-        draw.text((text_x, text_y), label, font=button_font, fill=0 if is_selected else 255)
+        icon_height = display._get_line_height(icon_font)
+        content_width = icon_width + icon_padding + text_width
+        content_height = max(icon_height, text_height)
+        content_x = int(x_pos + (button_width - content_width) / 2)
+        content_y = int(button_y + (button_height - content_height) / 2)
+        icon_y = content_y + max(0, (content_height - icon_height) // 2)
+        text_y = content_y + max(0, (content_height - text_height) // 2)
+        fill = 0 if is_selected else 255
+        draw.text((content_x, icon_y), icon, font=icon_font, fill=fill)
+        text_x = int(content_x + icon_width + icon_padding)
+        draw.text((text_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
 
 
