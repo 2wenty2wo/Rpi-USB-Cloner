@@ -216,15 +216,24 @@ def render_confirmation_screen(
     prompt: str,
     *,
     selected_index: int = 0,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
-    draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
     prompt_font = context.fontdisks
     button_font = context.fontcopy
-    content_top = menus.get_standard_content_top(title, title_font=title_font)
+    layout = display.draw_title_with_icon(
+        title,
+        title_font=title_font,
+        icon=title_icon,
+        icon_font=title_icon_font,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
+    content_top = layout.content_top
     prompt_lines = display._wrap_lines_to_width(
         [prompt],
         prompt_font,

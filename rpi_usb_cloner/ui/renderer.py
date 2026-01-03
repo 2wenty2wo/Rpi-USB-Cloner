@@ -47,6 +47,8 @@ def render_menu_screen(
     status_line: Optional[str] = None,
     visible_rows: int = 4,
     title_font=None,
+    title_icon: Optional[str] = None,
+    title_icon_font=None,
     items_font=None,
     status_font=None,
 ) -> None:
@@ -58,11 +60,15 @@ def render_menu_screen(
     extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        max_title_width = context.width - (context.x - 11) - 1
-        title_text = _truncate_text(title, header_font, max_title_width)
-        draw.text((context.x - 11, current_y), title_text, font=header_font, fill=255)
-        title_height = _get_line_height(header_font)
-        current_y += title_height + display.TITLE_PADDING + extra_gap
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=header_font,
+            icon=title_icon,
+            icon_font=title_icon_font,
+            extra_gap=extra_gap,
+            left_margin=context.x - 11,
+        )
+        current_y = layout.content_top
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     line_height = _get_line_height(list_font)
@@ -71,10 +77,12 @@ def render_menu_screen(
 
     max_visible_rows = calculate_visible_rows(
         title=title,
+        title_icon=title_icon,
         status_line=status_line,
         title_font=title_font,
         items_font=items_font,
         status_font=status_font,
+        title_icon_font=title_icon_font,
     )
     visible_rows = min(visible_rows, max_visible_rows)
 
@@ -107,10 +115,12 @@ def render_menu_screen(
 
 def calculate_visible_rows(
     title: str,
+    title_icon: Optional[str] = None,
     status_line: Optional[str] = None,
     title_font=None,
     items_font=None,
     status_font=None,
+    title_icon_font=None,
     padding: int = 1,
 ) -> int:
     context = display.get_display_context()
@@ -118,7 +128,11 @@ def calculate_visible_rows(
     extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        title_height = _get_line_height(header_font)
+        icon_height = 0
+        if title_icon:
+            icon_font = title_icon_font or display._get_lucide_font()
+            icon_height = _get_line_height(icon_font)
+        title_height = max(_get_line_height(header_font), icon_height)
         current_y += title_height + display.TITLE_PADDING + extra_gap
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)

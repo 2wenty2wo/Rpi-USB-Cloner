@@ -131,6 +131,8 @@ def _render_keyboard(
     selected_col: int,
     selected_band: str,
     mode_index: int,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -140,8 +142,16 @@ def _render_keyboard(
     title_font = context.fonts.get("title", context.fontdisks)
     padding = 4
     if title:
-        draw.text((context.x - 11, current_y), title, font=title_font, fill=255)
-        current_y += _get_line_height(title_font) + display.TITLE_PADDING
+        layout_info = display.draw_title_with_icon(
+            title,
+            title_font=title_font,
+            icon=title_icon,
+            icon_font=title_icon_font,
+            extra_gap=0,
+            left_margin=context.x - 11,
+            draw=draw,
+        )
+        current_y = layout_info.content_top
 
     input_font, key_font, icon_font = _get_keyboard_fonts()
     display_value = "*" * len(value) if masked else value
@@ -287,6 +297,8 @@ def prompt_text(
     initial: str = "",
     masked: bool = False,
     layout: KeyboardLayout = DEFAULT_LAYOUT,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
 ) -> Optional[str]:
     value = initial
     selected_col = 0
@@ -317,6 +329,8 @@ def prompt_text(
             selected_col,
             selected_band,
             mode_index,
+            title_icon,
+            title_icon_font,
         )
         now = time.monotonic()
         current_u = read_button(PIN_U)
