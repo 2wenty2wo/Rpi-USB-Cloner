@@ -587,6 +587,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             password = keyboard.prompt_text(
                 "PASSWORD",
                 masked=True,
+                title_icon=keyboard.PASSWORD_ICON_GLYPH,
             )
             if password is None:
                 continue
