@@ -28,6 +28,7 @@ from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
+from rpi_usb_cloner.menu.model import get_screen_icon
 
 
 def main(argv=None):
@@ -229,6 +230,7 @@ def main(argv=None):
             status_line = get_screen_status_line(screen)
         return renderer.calculate_visible_rows(
             title=screen.title,
+            title_icon=get_screen_icon(screen.screen_id),
             status_line=status_line,
         )
 
@@ -262,6 +264,7 @@ def main(argv=None):
                 scroll_offset=menu_navigator.current_state().scroll_offset,
                 status_line=status_line,
                 visible_rows=dynamic_visible_rows,
+                title_icon=get_screen_icon(current_screen.screen_id),
             )
             last_render_state["key"] = render_key
 

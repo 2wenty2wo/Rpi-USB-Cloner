@@ -10,6 +10,7 @@ from typing import Callable, Optional
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 
 
@@ -93,28 +94,35 @@ def heroicons_demo() -> None:
 
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
+    title_icon = get_screen_icon("update")
     repo_root = Path(__file__).resolve().parents[2]
     status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
     version = _get_app_version(log_debug=log_debug)
     while True:
         version_lines = _build_update_info_lines(version, status, last_checked)
-        content_top = _get_update_menu_top(title, version_lines)
+        content_top = _get_update_menu_top(title, version_lines, title_icon=title_icon)
         selection = menus.render_menu_list(
             title,
             ["CHECK FOR UPDATES", "UPDATE"],
             content_top=content_top,
             header_lines=version_lines,
+            title_icon=title_icon,
         )
         if selection is None:
             return
         if selection == 0:
             checking_lines = _build_update_info_lines(version, "Checking...", last_checked)
-            display.render_paginated_lines(title, checking_lines, page_index=0)
+            display.render_paginated_lines(
+                title,
+                checking_lines,
+                page_index=0,
+                title_icon=title_icon,
+            )
             status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
             continue
         if selection == 1:
-            _run_update_flow(title, log_debug=log_debug)
+            _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
             status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
             continue
@@ -197,14 +205,24 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
         time.sleep(1)
 
 
-def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) -> None:
+def _run_update_flow(
+    title: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    title_icon: Optional[str] = None,
+) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     _log_debug(log_debug, f"Repo root detection: {repo_root}")
     is_repo = _is_git_repo(repo_root)
     _log_debug(log_debug, f"Repo root is git repo: {is_repo}")
     if not is_repo:
         _log_debug(log_debug, "Update aborted: repo not found")
-        display.display_lines(["UPDATE", "Repo not found"])
+        display.render_paginated_lines(
+            title,
+            ["Repo not found"],
+            page_index=0,
+            title_icon=title_icon,
+        )
         time.sleep(2)
         return
     dirty_tree = _has_dirty_working_tree(repo_root, log_debug=log_debug)
@@ -279,6 +297,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             title,
             ["Update failed"] + output_lines,
             page_index=0,
+            title_icon=title_icon,
         )
         time.sleep(2)
         return
@@ -293,6 +312,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
             title,
             ["Update complete"] + output_lines,
             page_index=0,
+            title_icon=title_icon,
         )
     time.sleep(1)
     if _is_running_under_systemd(log_debug=log_debug):
@@ -307,6 +327,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
                 ["Restart failed"]
                 + _format_command_output(restart_result.stdout, restart_result.stderr),
                 page_index=0,
+                title_icon=title_icon,
             )
             time.sleep(2)
             return
@@ -315,6 +336,7 @@ def _run_update_flow(title: str, *, log_debug: Optional[Callable[[str], None]]) 
         title,
         ["Restart needed", "Please restart"],
         page_index=0,
+        title_icon=title_icon,
     )
     time.sleep(2)
 
@@ -379,7 +401,12 @@ def _build_update_info_lines(version: str, status: str, last_checked: str | None
     return [f"Version: {version}", f"Status: {status}"]
 
 
-def _get_update_menu_top(title: str, info_lines: list[str]) -> int:
+def _get_update_menu_top(
+    title: str,
+    info_lines: list[str],
+    *,
+    title_icon: Optional[str] = None,
+) -> int:
     context = display.get_display_context()
     items_font = context.fontdisks
     left_margin = context.x - 11
@@ -387,7 +414,7 @@ def _get_update_menu_top(title: str, info_lines: list[str]) -> int:
     wrapped_lines = display._wrap_lines_to_width(info_lines, items_font, available_width)
     line_height = display._get_line_height(items_font)
     line_step = line_height + 2
-    base_top = menus.get_standard_content_top(title)
+    base_top = menus.get_standard_content_top(title, title_icon=title_icon)
     return base_top + (line_step * len(wrapped_lines)) + line_step
 
 
