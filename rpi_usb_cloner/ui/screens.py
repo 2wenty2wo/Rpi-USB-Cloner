@@ -264,6 +264,18 @@ def render_confirmation_screen(
         36,
         max_content_width + 16,
     )
+    button_gap = 8
+    block_width = button_width * 2 + button_gap
+    available_width = context.width - 4
+    min_button_gap = 2
+    if block_width > available_width:
+        max_gap = max(min_button_gap, available_width - button_width * 2)
+        button_gap = min(button_gap, max_gap)
+        block_width = button_width * 2 + button_gap
+        if block_width > available_width:
+            max_button_width = max(1, int((available_width - button_gap) / 2))
+            button_width = min(button_width, max_button_width)
+            block_width = button_width * 2 + button_gap
     button_y = int(content_top + (context.height - content_top) * 0.55)
     prompt_area_height = max(0, button_y - content_top - 6)
     prompt_start_y = content_top + max(0, (prompt_area_height - prompt_height) // 2)
@@ -271,8 +283,8 @@ def render_confirmation_screen(
     min_button_y = int(prompt_bottom + 4)
     max_button_y = context.height - button_height - 4
     button_y = max(min_button_y, min(button_y, max_button_y))
-    left_x = int(context.width * 0.25 - button_width / 2)
-    right_x = int(context.width * 0.75 - button_width / 2)
+    left_x = int((context.width - block_width) / 2)
+    right_x = left_x + button_width + button_gap
 
     current_y = prompt_start_y
     for line in prompt_lines:
