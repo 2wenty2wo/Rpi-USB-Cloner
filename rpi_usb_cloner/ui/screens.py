@@ -64,12 +64,7 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
     title_font = context.fonts.get("title", context.fontdisks)
     content_top = menus.get_standard_content_top(title, title_font=title_font)
     font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
-    icons = [
-        ("delete-left", "\uf55a"),
-        ("arrow-left", "\uf060"),
-        ("left-long", "\uf30a"),
-        ("check", "\uf00c"),
-    ]
+    icons = ["\uf55a", "\uf060", "\uf30a", "\uf00c"]
     sizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30]
     label_font = context.fontdisks
     fa_line_height = display._get_line_height(
@@ -78,14 +73,12 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
     label_line_height = display._get_line_height(label_font)
     line_step = max(fa_line_height, label_line_height) + 2
     rows_per_page = max(1, (context.height - content_top - 2) // line_step)
-    page_index = 0
+    max_offset = max(0, len(sizes) - rows_per_page)
+    scroll_offset = 0
 
-    def render(page: int) -> tuple[int, int]:
-        total_pages = max(1, (len(sizes) + rows_per_page - 1) // rows_per_page)
-        page = max(0, min(page, total_pages - 1))
-        start_index = page * rows_per_page
-        end_index = start_index + rows_per_page
-        page_sizes = sizes[start_index:end_index]
+    def render(offset: int) -> int:
+        offset = max(0, min(offset, max_offset))
+        page_sizes = sizes[offset : offset + rows_per_page]
 
         draw = context.draw
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
@@ -98,27 +91,19 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
             icon_height = display._get_line_height(icon_font)
             icon_y = current_y + max(0, (line_step - icon_height) // 2)
             label_y = current_y + max(0, (line_step - label_line_height) // 2)
-            draw.text((left_x, label_y), f"{size}px", font=label_font, fill=255)
-            current_x = left_x + display._measure_text_width(
-                draw, f"{size}px", label_font
-            ) + 6
-            for label, glyph in icons:
-                label_text = f"{label} "
-                label_width = display._measure_text_width(draw, label_text, label_font)
+            label_text = f"{size}px"
+            draw.text((left_x, label_y), label_text, font=label_font, fill=255)
+            label_width = display._measure_text_width(draw, label_text, label_font)
+            current_x = left_x + label_width + 6
+            for glyph in icons:
                 glyph_width = display._measure_text_width(draw, glyph, icon_font)
-                if current_x + label_width + glyph_width > context.width - 2:
+                if current_x + glyph_width > context.width - 2:
                     break
-                draw.text((current_x, label_y), label_text, font=label_font, fill=255)
-                draw.text(
-                    (current_x + label_width, icon_y),
-                    glyph,
-                    font=icon_font,
-                    fill=255,
-                )
-                current_x += label_width + glyph_width + 10
+                draw.text((current_x, icon_y), glyph, font=icon_font, fill=255)
+                current_x += glyph_width + 6
             current_y += line_step
 
-        if total_pages > 1:
+        if len(sizes) > rows_per_page:
             footer_text = "▲▼ to scroll"
             footer_height = display._get_line_height(label_font)
             footer_y = context.height - footer_height - 1
@@ -126,9 +111,9 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
             draw.text((footer_x, footer_y), footer_text, font=label_font, fill=255)
 
         context.disp.display(context.image)
-        return total_pages, page
+        return offset
 
-    total_pages, page_index = render(page_index)
+    scroll_offset = render(scroll_offset)
     menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
@@ -149,17 +134,14 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
         if prev_states["L"] and not current_l:
             return
         current_r = gpio.read_button(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
-            page_index = min(total_pages - 1, page_index + 1)
-            total_pages, page_index = render(page_index)
         current_u = gpio.read_button(gpio.PIN_U)
         if prev_states["U"] and not current_u:
-            page_index = max(0, page_index - 1)
-            total_pages, page_index = render(page_index)
+            scroll_offset = max(0, scroll_offset - 1)
+            scroll_offset = render(scroll_offset)
         current_d = gpio.read_button(gpio.PIN_D)
         if prev_states["D"] and not current_d:
-            page_index = min(total_pages - 1, page_index + 1)
-            total_pages, page_index = render(page_index)
+            scroll_offset = min(max_offset, scroll_offset + 1)
+            scroll_offset = render(scroll_offset)
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["L"] = current_l
