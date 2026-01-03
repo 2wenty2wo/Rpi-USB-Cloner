@@ -95,7 +95,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     current_y = context.top
     if menu.title:
         title_font = menu.title_font or fonts["title"]
-        title_icon = menu.title_icon or get_screen_icon(menu.screen_id) if menu.screen_id else None
+        title_icon = menu.title_icon or get_screen_icon(menu.screen_id)
         layout = display.draw_title_with_icon(
             menu.title,
             title_font=title_font,
