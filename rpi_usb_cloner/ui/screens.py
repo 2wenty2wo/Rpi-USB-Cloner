@@ -61,51 +61,68 @@ def show_coming_soon(title="COMING SOON", delay=1) -> None:
 
 def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
     context = display.get_display_context()
-    draw = context.draw
-    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
-    draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
-
     content_top = menus.get_standard_content_top(title, title_font=title_font)
     font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
     # Font Awesome "delete-left" (aka backspace) glyph in FA7 Free Solid.
     icon_glyph = "\u232b"
-    size_candidates = [10, 12, 14, 16, 18, 20]
+    sizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30]
     label_font = context.fontdisks
-    line_gap = 1
-    available_height = max(0, context.height - content_top - 1)
-    sizes = list(size_candidates)
+    fa_line_height = display._get_line_height(
+        ImageFont.truetype(font_path, max(sizes))
+    )
+    label_line_height = display._get_line_height(label_font)
+    line_step = max(fa_line_height, label_line_height) + 2
+    rows_per_page = max(1, (context.height - content_top - 2) // line_step)
+    page_index = 0
 
-    while sizes:
-        line_heights = [
-            display._get_line_height(ImageFont.truetype(font_path, size)) for size in sizes
-        ]
-        total_height = sum(line_heights) + line_gap * (len(sizes) - 1)
-        if total_height <= available_height or len(sizes) <= 2:
-            break
-        sizes.pop()
+    def render(page: int) -> tuple[int, int]:
+        total_pages = max(1, (len(sizes) + rows_per_page - 1) // rows_per_page)
+        page = max(0, min(page, total_pages - 1))
+        start_index = page * rows_per_page
+        end_index = start_index + rows_per_page
+        page_sizes = sizes[start_index:end_index]
 
-    current_y = content_top
-    left_x = context.x - 11
-    label_height = display._get_line_height(label_font)
-    for size in sizes:
-        icon_font = ImageFont.truetype(font_path, size)
-        icon_height = display._get_line_height(icon_font)
-        line_height = max(icon_height, label_height)
-        icon_width = display._measure_text_width(draw, icon_glyph, icon_font)
-        icon_y = current_y + max(0, (line_height - icon_height) // 2)
-        label_y = current_y + max(0, (line_height - label_height) // 2)
-        draw.text((left_x, icon_y), icon_glyph, font=icon_font, fill=255)
-        draw.text((left_x + icon_width + 4, label_y), f"{size}px", font=label_font, fill=255)
-        current_y += line_height + line_gap
-        if current_y >= context.height:
-            break
-    context.disp.display(context.image)
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+        draw = context.draw
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+
+        current_y = content_top
+        left_x = context.x - 11
+        for size in page_sizes:
+            icon_font = ImageFont.truetype(font_path, size)
+            icon_height = display._get_line_height(icon_font)
+            icon_width = display._measure_text_width(draw, icon_glyph, icon_font)
+            icon_y = current_y + max(0, (line_step - icon_height) // 2)
+            label_y = current_y + max(0, (line_step - label_line_height) // 2)
+            draw.text((left_x, icon_y), icon_glyph, font=icon_font, fill=255)
+            draw.text(
+                (left_x + icon_width + 4, label_y),
+                f"{size}px",
+                font=label_font,
+                fill=255,
+            )
+            current_y += line_step
+
+        if total_pages > 1:
+            footer_text = "▲▼ to scroll"
+            footer_height = display._get_line_height(label_font)
+            footer_y = context.height - footer_height - 1
+            footer_x = left_x
+            draw.text((footer_x, footer_y), footer_text, font=label_font, fill=255)
+
+        context.disp.display(context.image)
+        return total_pages, page
+
+    total_pages, page_index = render(page_index)
+    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
         "B": gpio.read_button(gpio.PIN_B),
         "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "U": gpio.read_button(gpio.PIN_U),
+        "D": gpio.read_button(gpio.PIN_D),
     }
     while True:
         current_a = gpio.read_button(gpio.PIN_A)
@@ -117,9 +134,24 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
         current_l = gpio.read_button(gpio.PIN_L)
         if prev_states["L"] and not current_l:
             return
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            page_index = min(total_pages - 1, page_index + 1)
+            total_pages, page_index = render(page_index)
+        current_u = gpio.read_button(gpio.PIN_U)
+        if prev_states["U"] and not current_u:
+            page_index = max(0, page_index - 1)
+            total_pages, page_index = render(page_index)
+        current_d = gpio.read_button(gpio.PIN_D)
+        if prev_states["D"] and not current_d:
+            page_index = min(total_pages - 1, page_index + 1)
+            total_pages, page_index = render(page_index)
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
         time.sleep(0.05)
 
 
