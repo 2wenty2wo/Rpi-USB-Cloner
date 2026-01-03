@@ -100,12 +100,25 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     last_checked: str | None = None
     version = _get_app_version(log_debug=log_debug)
     check_done = threading.Event()
+    git_lock = threading.Lock()
     result_holder: dict[str, tuple[str, str]] = {}
     error_holder: dict[str, Exception] = {}
 
+    def apply_check_results() -> tuple[str, str | None]:
+        if "result" in result_holder:
+            return result_holder["result"][0], result_holder["result"][1]
+        if "error" in error_holder:
+            _log_debug(
+                log_debug,
+                f"Update status check failed: {error_holder['error']}",
+            )
+            return "Unable to check", time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        return status, last_checked
+
     def run_check_in_background() -> None:
         try:
-            result_holder["result"] = _check_update_status(repo_root, log_debug=log_debug)
+            with git_lock:
+                result_holder["result"] = _check_update_status(repo_root, log_debug=log_debug)
         except Exception as exc:  # pragma: no cover - defensive for subprocess errors
             error_holder["error"] = exc
         finally:
@@ -115,15 +128,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     thread.start()
     while True:
         if check_done.is_set():
-            if "result" in result_holder:
-                status, last_checked = result_holder["result"]
-            elif "error" in error_holder:
-                status = "Unable to check"
-                last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
-                _log_debug(
-                    log_debug,
-                    f"Update status check failed: {error_holder['error']}",
-                )
+            status, last_checked = apply_check_results()
         version_lines = _build_update_info_lines(version, status, last_checked)
         content_top = _get_update_menu_top(title, version_lines, title_icon=title_icon)
         selection = menus.render_menu_list(
@@ -143,14 +148,30 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 page_index=0,
                 title_icon=title_icon,
             )
-            status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
-            version = _get_app_version(log_debug=log_debug)
-            result_holder["result"] = (status, last_checked)
-            check_done.set()
+            if not check_done.is_set():
+                check_done.wait()
+                status, last_checked = apply_check_results()
+            else:
+                with git_lock:
+                    status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
+                version = _get_app_version(log_debug=log_debug)
+                result_holder["result"] = (status, last_checked)
+                check_done.set()
             continue
         if selection == 1:
-            _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
-            status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
+            if not check_done.is_set():
+                waiting_lines = _build_update_info_lines(version, "Waiting on check...", last_checked)
+                display.render_paginated_lines(
+                    title,
+                    waiting_lines,
+                    page_index=0,
+                    title_icon=title_icon,
+                )
+                check_done.wait()
+                status, last_checked = apply_check_results()
+            with git_lock:
+                _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
+                status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
             result_holder["result"] = (status, last_checked)
             check_done.set()
