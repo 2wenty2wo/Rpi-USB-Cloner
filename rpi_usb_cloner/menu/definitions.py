@@ -63,6 +63,7 @@ DEVELOP_MENU = MenuScreen(
     items=[
         menu_entry("KEYBOARD", action=menu_actions.keyboard_test),
         menu_entry("FONT AWESOME", action=menu_actions.font_awesome_demo),
+        menu_entry("LUCIDE", action=menu_actions.lucide_demo),
     ],
 )
 

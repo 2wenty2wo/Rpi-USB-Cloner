@@ -83,6 +83,10 @@ def font_awesome_demo() -> None:
     screens.show_font_awesome_demo()
 
 
+def lucide_demo() -> None:
+    screens.show_lucide_demo()
+
+
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
     repo_root = Path(__file__).resolve().parents[2]
