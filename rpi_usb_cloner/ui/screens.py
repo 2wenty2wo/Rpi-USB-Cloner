@@ -64,8 +64,12 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
     title_font = context.fonts.get("title", context.fontdisks)
     content_top = menus.get_standard_content_top(title, title_font=title_font)
     font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
-    # Font Awesome "delete-left" (aka backspace) glyph in FA7 Free Solid.
-    icon_glyph = "\u232b"
+    icons = [
+        ("delete-left", "\uf55a"),
+        ("arrow-left", "\uf060"),
+        ("left-long", "\uf30a"),
+        ("check", "\uf00c"),
+    ]
     sizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30]
     label_font = context.fontdisks
     fa_line_height = display._get_line_height(
@@ -92,16 +96,26 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
         for size in page_sizes:
             icon_font = ImageFont.truetype(font_path, size)
             icon_height = display._get_line_height(icon_font)
-            icon_width = display._measure_text_width(draw, icon_glyph, icon_font)
             icon_y = current_y + max(0, (line_step - icon_height) // 2)
             label_y = current_y + max(0, (line_step - label_line_height) // 2)
-            draw.text((left_x, icon_y), icon_glyph, font=icon_font, fill=255)
-            draw.text(
-                (left_x + icon_width + 4, label_y),
-                f"{size}px",
-                font=label_font,
-                fill=255,
-            )
+            draw.text((left_x, label_y), f"{size}px", font=label_font, fill=255)
+            current_x = left_x + display._measure_text_width(
+                draw, f"{size}px", label_font
+            ) + 6
+            for label, glyph in icons:
+                label_text = f"{label} "
+                label_width = display._measure_text_width(draw, label_text, label_font)
+                glyph_width = display._measure_text_width(draw, glyph, icon_font)
+                if current_x + label_width + glyph_width > context.width - 2:
+                    break
+                draw.text((current_x, label_y), label_text, font=label_font, fill=255)
+                draw.text(
+                    (current_x + label_width, icon_y),
+                    glyph,
+                    font=icon_font,
+                    fill=255,
+                )
+                current_x += label_width + glyph_width + 10
             current_y += line_step
 
         if total_pages > 1:
