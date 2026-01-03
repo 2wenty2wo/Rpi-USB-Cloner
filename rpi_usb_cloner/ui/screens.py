@@ -67,9 +67,9 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
     draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
 
     content_top = menus.get_standard_content_top(title, title_font=title_font)
-    font_path = display.ASSETS_DIR / "fonts" / "fontawesome-webfont.ttf"
-    # Font Awesome "delete-left" (aka backspace) glyph in the bundled webfont.
-    icon_glyph = "\uf55a"
+    font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
+    # Font Awesome "delete-left" (aka backspace) glyph in FA7 Free Solid.
+    icon_glyph = "\u232b"
     size_candidates = [10, 12, 14, 16, 18, 20]
     label_font = context.fontdisks
     line_gap = 1
