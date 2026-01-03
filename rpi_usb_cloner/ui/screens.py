@@ -59,11 +59,10 @@ def show_coming_soon(title="COMING SOON", delay=1) -> None:
         time.sleep(delay)
 
 
-def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
+def _show_icon_font_demo(title: str, font_path) -> None:
     context = display.get_display_context()
     title_font = context.fonts.get("title", context.fontdisks)
     content_top = menus.get_standard_content_top(title, title_font=title_font)
-    font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
     icons = ["\uf55a", "\uf060", "\uf30a", "\uf00c"]
     sizes = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30]
     label_font = context.fontdisks
@@ -149,6 +148,16 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
         prev_states["U"] = current_u
         prev_states["D"] = current_d
         time.sleep(0.05)
+
+
+def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
+    font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
+    _show_icon_font_demo(title, font_path)
+
+
+def show_lucide_demo(title: str = "LUCIDE") -> None:
+    font_path = display.ASSETS_DIR / "fonts" / "lucide.ttf"
+    _show_icon_font_demo(title, font_path)
 
 
 def render_status_screen(
