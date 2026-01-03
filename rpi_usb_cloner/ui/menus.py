@@ -15,6 +15,7 @@ from rpi_usb_cloner.hardware.gpio import (
     is_pressed,
     read_button,
 )
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.ui import display
 
@@ -34,6 +35,7 @@ class Menu:
     selected_index: int = 0
     title: Optional[str] = None
     title_icon: Optional[str] = None
+    screen_id: Optional[str] = None
     title_font: Optional[ImageFont.ImageFont] = None
     footer: Optional[List[str]] = None
     footer_selected_index: Optional[int] = None
@@ -63,6 +65,8 @@ def get_standard_content_top(
     title: str,
     *,
     title_font: Optional[ImageFont.ImageFont] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
     extra_gap: int = 2,
 ) -> int:
     # Use this helper for new pages to avoid title overlap.
@@ -71,7 +75,12 @@ def get_standard_content_top(
         return context.top
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     title_height = _get_text_height(context.draw, title, header_font)
-    return context.top + title_height + display.TITLE_PADDING + extra_gap
+    icon_height = 0
+    if title_icon:
+        icon_font = title_icon_font or display._get_lucide_font()
+        icon_height = _get_line_height(icon_font)
+    line_height = max(title_height, icon_height)
+    return context.top + line_height + display.TITLE_PADDING + extra_gap
 
 
 def _get_default_footer_positions(width: int, footer: List[str]) -> List[int]:
@@ -86,10 +95,11 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     current_y = context.top
     if menu.title:
         title_font = menu.title_font or fonts["title"]
+        title_icon = menu.title_icon or get_screen_icon(menu.screen_id) if menu.screen_id else None
         layout = display.draw_title_with_icon(
             menu.title,
             title_font=title_font,
-            icon=menu.title_icon,
+            icon=title_icon,
             extra_gap=2,
             left_margin=context.x - 11,
             draw=draw,
@@ -148,6 +158,8 @@ def select_list(
     title: str,
     items: List[str],
     *,
+    screen_id: Optional[str] = None,
+    title_icon: Optional[str] = None,
     title_font: Optional[ImageFont.ImageFont] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
@@ -166,7 +178,7 @@ def select_list(
     content_top = (
         content_top
         if content_top is not None
-        else get_standard_content_top(title, title_font=title_font)
+        else get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
     )
     footer_height = 15 if footer else 0
     line_height = _get_line_height(items_font)
@@ -180,7 +192,11 @@ def select_list(
         page_items = items[offset : offset + items_per_page]
         menu_items = [MenuItem([line]) for line in page_items]
         if header_lines:
-            header_content_top = get_standard_content_top(title, title_font=title_font)
+            header_content_top = get_standard_content_top(
+                title,
+                title_font=title_font,
+                title_icon=title_icon,
+            )
             display.render_paginated_lines(
                 title,
                 header_lines,
@@ -188,11 +204,14 @@ def select_list(
                 content_top=header_content_top,
                 title_font=title_font,
                 items_font=items_font,
+                title_icon=title_icon,
             )
         menu = Menu(
             items=menu_items,
             selected_index=selected - offset,
             title=None if header_lines else title,
+            title_icon=title_icon,
+            screen_id=screen_id,
             title_font=title_font,
             content_top=content_top,
             footer=footer,
@@ -323,6 +342,8 @@ def render_menu_list(
     title: str,
     items: List[str],
     *,
+    screen_id: Optional[str] = None,
+    title_icon: Optional[str] = None,
     title_font: Optional[ImageFont.ImageFont] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
@@ -335,13 +356,17 @@ def render_menu_list(
 ) -> Optional[int]:
     context = display.get_display_context()
     title_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title_icon is None and screen_id:
+        title_icon = get_screen_icon(screen_id)
     if content_top is None:
-        content_top = get_standard_content_top(title, title_font=title_font)
+        content_top = get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
     if footer and footer_positions is None:
         footer_positions = _get_default_footer_positions(context.width, footer)
     return select_list(
         title,
         items,
+        screen_id=screen_id,
+        title_icon=title_icon,
         title_font=title_font,
         footer=footer,
         footer_positions=footer_positions,

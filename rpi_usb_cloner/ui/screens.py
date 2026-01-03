@@ -7,6 +7,7 @@ from PIL import ImageFont
 
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import wifi
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, keyboard, menus
 
 _WIFI_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
@@ -195,12 +196,17 @@ def render_info_screen(
     lines: Iterable[str],
     *,
     page_index: int = 0,
+    title_icon: Optional[str] = None,
     title_font=None,
     body_font=None,
     content_top: Optional[int] = None,
 ) -> tuple[int, int]:
     if content_top is None:
-        content_top = menus.get_standard_content_top(title, title_font=title_font)
+        content_top = menus.get_standard_content_top(
+            title,
+            title_font=title_font,
+            title_icon=title_icon,
+        )
     return display.render_paginated_lines(
         title,
         list(lines),
@@ -208,6 +214,7 @@ def render_info_screen(
         title_font=title_font,
         items_font=body_font,
         content_top=content_top,
+        title_icon=title_icon,
     )
 
 
@@ -379,12 +386,13 @@ def render_progress_screen(
 
 def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
     page_index = 0
+    title_icon = get_screen_icon("logs")
 
     def render(page: int) -> tuple[int, int]:
         lines = list(app_context.log_buffer)[-max_lines:]
         if not lines:
             lines = ["No logs yet."]
-        return render_info_screen(title, lines, page_index=page)
+        return render_info_screen(title, lines, page_index=page, title_icon=title_icon)
 
     total_pages, page_index = render(page_index)
     menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
@@ -424,7 +432,8 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
 
 
 def show_wifi_settings(*, title: str = "WIFI") -> None:
-    content_top = menus.get_standard_content_top(title)
+    title_icon = get_screen_icon("wifi")
+    content_top = menus.get_standard_content_top(title, title_icon=title_icon)
     status_updated = threading.Event()
     status_thread = None
     status_thread_lock = threading.Lock()
@@ -460,6 +469,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             [spinner_frames[0]],
             page_index=0,
             content_top=content_top,
+            title_icon=title_icon,
         )
 
         result: dict[str, list[wifi.WifiNetwork]] = {"networks": []}
@@ -481,6 +491,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                 [frame],
                 page_index=0,
                 content_top=content_top,
+                title_icon=title_icon,
             )
             frame_index += 1
             time.sleep(refresh_interval_s)
@@ -547,6 +558,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             menu_lines,
             content_top=content_top,
             refresh_callback=refresh_menu_if_status_ready,
+            title_icon=title_icon,
         )
         menu_lines, status_lines, visible_networks, disconnect_index = menu_state
         search_index = len(status_lines) + (1 if disconnect_index is not None else 0)
