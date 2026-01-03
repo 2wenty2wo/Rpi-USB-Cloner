@@ -101,6 +101,26 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
         if current_y >= context.height:
             break
     context.disp.display(context.image)
+    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    prev_states = {
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+        "L": gpio.read_button(gpio.PIN_L),
+    }
+    while True:
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            return
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            return
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        prev_states["L"] = current_l
+        time.sleep(0.05)
 
 
 def render_status_screen(
