@@ -220,24 +220,30 @@ def _render_keyboard(
 
     current_y += strip_height + padding
 
-    mode_items = [
+    mode_selectors = [
         ("upper", "A", key_font),
         ("lower", "a", key_font),
         ("numbers", "123", key_font),
         ("symbols", "!@#", key_font),
+    ]
+    mode_actions = [
         ("back", "\uf060", icon_font),
         ("ok", "\uf00c", icon_font),
     ]
+    mode_items = mode_selectors + mode_actions
+    inter_group_gap = 8
     mode_positions = []
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
-        for _, label, font in mode_items:
+        for item_index, (_, label, font) in enumerate(mode_items):
             text_bbox = draw.textbbox((0, 0), label, font=font)
             text_width = text_bbox[2] - text_bbox[0]
             item_width = text_width + attempt_padding
             mode_positions.append((cursor_x, item_width, label))
             cursor_x += item_width + attempt_gap
+            if item_index == len(mode_selectors) - 1:
+                cursor_x += inter_group_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
         if total_mode_width <= strip_width:
             mode_padding = attempt_padding
