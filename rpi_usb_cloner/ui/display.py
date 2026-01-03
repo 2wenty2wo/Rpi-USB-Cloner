@@ -39,6 +39,19 @@ _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TITLE_PADDING = 2
+TITLE_ICON_PADDING = 2
+LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
+LUCIDE_FONT_SIZE = 16
+_lucide_font: Optional[ImageFont.ImageFont] = None
+
+
+@dataclass(frozen=True)
+class TitleLayout:
+    content_top: int
+    title_x: int
+    max_title_width: int
+    icon_width: int
+    icon_height: int
 
 
 def configure_display_helpers(log_debug=None):
@@ -186,12 +199,75 @@ def _wrap_lines_to_width(lines, font, available_width):
     return wrapped_lines
 
 
+def _get_lucide_font() -> ImageFont.ImageFont:
+    global _lucide_font
+    if _lucide_font is not None:
+        return _lucide_font
+    try:
+        _lucide_font = ImageFont.truetype(LUCIDE_FONT_PATH, LUCIDE_FONT_SIZE)
+    except OSError:
+        _lucide_font = get_display_context().fontdisks
+    return _lucide_font
+
+
+def draw_title_with_icon(
+    title: str,
+    *,
+    title_font: Optional[ImageFont.ImageFont] = None,
+    icon: Optional[str] = None,
+    icon_font: Optional[ImageFont.ImageFont] = None,
+    extra_gap: int = 2,
+    left_margin: Optional[int] = None,
+    max_width: Optional[int] = None,
+    draw: Optional[ImageDraw.ImageDraw] = None,
+) -> TitleLayout:
+    context = get_display_context()
+    draw = draw or context.draw
+    left_margin = context.x - 11 if left_margin is None else left_margin
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    icon_width = 0
+    icon_height = 0
+    if title and icon:
+        icon_font = icon_font or _get_lucide_font()
+        icon_width = _measure_text_width(draw, icon, icon_font)
+        icon_height = _get_line_height(icon_font)
+        draw.text((left_margin, context.top), icon, font=icon_font, fill=255)
+
+    title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
+    if not title:
+        return TitleLayout(
+            content_top=context.top,
+            title_x=title_x,
+            max_title_width=0,
+            icon_width=icon_width,
+            icon_height=icon_height,
+        )
+
+    available_width = (
+        max_width if max_width is not None else max(0, context.width - title_x - 1)
+    )
+    title_text = _truncate_text(draw, title, header_font, available_width)
+    draw.text((title_x, context.top), title_text, font=header_font, fill=255)
+    title_height = _get_line_height(header_font)
+    line_height = max(title_height, icon_height)
+    content_top = context.top + line_height + TITLE_PADDING + extra_gap
+    return TitleLayout(
+        content_top=content_top,
+        title_x=title_x,
+        max_title_width=available_width,
+        icon_width=icon_width,
+        icon_height=icon_height,
+    )
+
+
 def render_paginated_lines(
     title,
     lines,
     page_index=0,
     items_font=None,
     title_font=None,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
     content_top: Optional[int] = None,
 ):
     context = get_display_context()
@@ -200,10 +276,15 @@ def render_paginated_lines(
     current_y = context.top
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        draw.text((context.x - 11, current_y), title, font=header_font, fill=255)
-        from rpi_usb_cloner.ui import menus
-
-        current_y = menus.get_standard_content_top(title, title_font=header_font)
+        layout = draw_title_with_icon(
+            title,
+            title_font=header_font,
+            icon=title_icon,
+            icon_font=title_icon_font,
+            extra_gap=2,
+            left_margin=context.x - 11,
+        )
+        current_y = layout.content_top
     if content_top is not None:
         current_y = max(current_y, content_top)
     items_font = items_font or context.fontdisks

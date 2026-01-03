@@ -33,6 +33,7 @@ class Menu:
     items: List[MenuItem]
     selected_index: int = 0
     title: Optional[str] = None
+    title_icon: Optional[str] = None
     title_font: Optional[ImageFont.ImageFont] = None
     footer: Optional[List[str]] = None
     footer_selected_index: Optional[int] = None
@@ -85,8 +86,15 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     current_y = context.top
     if menu.title:
         title_font = menu.title_font or fonts["title"]
-        draw.text((context.x - 11, current_y), menu.title, font=title_font, fill=255)
-        current_y = get_standard_content_top(menu.title, title_font=title_font)
+        layout = display.draw_title_with_icon(
+            menu.title,
+            title_font=title_font,
+            icon=menu.title_icon,
+            extra_gap=2,
+            left_margin=context.x - 11,
+            draw=draw,
+        )
+        current_y = layout.content_top
     if menu.content_top is not None:
         current_y = max(current_y, menu.content_top)
 
