@@ -20,16 +20,16 @@ class MenuScreen:
 
 
 SCREEN_ICONS: Dict[str, str] = {
-    "settings": "",
+    "settings": chr(57925),
     "develop": "",
     "update": "",
     "power": "",
     "screensaver": "",
     "wifi": "",
-    "tools": "",
+    "tools": chr(57580),
     "logs": "",
-    "images": "",
-    "drives": "",
+    "images": chr(57559),
+    "drives": chr(58198),
 }
 
 
