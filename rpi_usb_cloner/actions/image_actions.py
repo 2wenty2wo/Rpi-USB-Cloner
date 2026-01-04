@@ -124,7 +124,15 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         clonezilla.restore_clonezilla_image(plan, target.get("name") or "")
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore failed: {error}")
-        screens.render_status_template("WRITE", "Failed", progress_line="Check logs.")
+        error_lines = _format_restore_error_lines(error)
+        progress_line = error_lines[0] if error_lines else "Restore failed"
+        extra_lines = error_lines[1:] if len(error_lines) > 1 else None
+        screens.render_status_template(
+            "WRITE",
+            "Failed",
+            progress_line=progress_line,
+            extra_lines=extra_lines,
+        )
         time.sleep(1)
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
@@ -202,3 +210,35 @@ def _collect_mountpoints(device: dict) -> set[str]:
             mountpoints.add(mountpoint)
         stack.extend(devices.get_children(current))
     return mountpoints
+
+
+def _format_restore_error_lines(error: Exception) -> list[str]:
+    message = str(error).strip()
+    if not message:
+        return ["Restore failed"]
+    lower = message.lower()
+    if "partition table apply failed" in lower:
+        step_line = "Partition table failed"
+    elif "partition restore failed" in lower:
+        step_line = "Partition restore failed"
+    else:
+        step_line = "Restore failed"
+    reason = _short_restore_reason(message)
+    if reason and reason != step_line:
+        return [step_line, reason]
+    return [step_line]
+
+
+def _short_restore_reason(message: str) -> str:
+    lower = message.lower()
+    if "partclone tool not found" in lower or "partclone." in lower and "not found" in lower:
+        return "Missing partclone tool"
+    for tool in ("sfdisk", "parted", "sgdisk", "dd", "gzip", "pigz"):
+        if f"{tool} not found" in lower:
+            return f"Missing {tool} tool"
+    if ":" in message:
+        prefix, suffix = message.split(":", 1)
+        suffix = suffix.strip()
+        if suffix:
+            return suffix
+    return message
