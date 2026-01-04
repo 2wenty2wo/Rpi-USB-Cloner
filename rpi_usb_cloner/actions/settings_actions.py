@@ -101,8 +101,11 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     version = _get_app_version(log_debug=log_debug)
     check_done = threading.Event()
     git_lock = threading.Lock()
+    results_applied = False
     result_holder: dict[str, tuple[str, str]] = {}
     error_holder: dict[str, Exception] = {}
+    menu_items = ["CHECK FOR UPDATES", "UPDATE"]
+    header_lines: list[str] = []
 
     def apply_check_results() -> tuple[str, str | None]:
         if "result" in result_holder:
@@ -114,6 +117,21 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
             )
             return "Unable to check", time.strftime("%Y-%m-%d %H:%M", time.localtime())
         return status, last_checked
+
+    def apply_check_results_to_state() -> None:
+        nonlocal status, last_checked, results_applied
+        status, last_checked = apply_check_results()
+        results_applied = True
+
+    def update_header_lines() -> None:
+        header_lines[:] = _build_update_info_lines(version, status, last_checked)
+
+    def refresh_update_menu() -> Optional[list[str]]:
+        if check_done.is_set() and not results_applied:
+            apply_check_results_to_state()
+            update_header_lines()
+            return list(menu_items)
+        return None
 
     def run_check_in_background() -> None:
         try:
@@ -128,15 +146,16 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     thread.start()
     while True:
         if check_done.is_set():
-            status, last_checked = apply_check_results()
-        version_lines = _build_update_info_lines(version, status, last_checked)
-        content_top = _get_update_menu_top(title, version_lines, title_icon=title_icon)
+            apply_check_results_to_state()
+        update_header_lines()
+        content_top = _get_update_menu_top(title, header_lines, title_icon=title_icon)
         selection = menus.render_menu_list(
             title,
-            ["CHECK FOR UPDATES", "UPDATE"],
+            menu_items,
             content_top=content_top,
-            header_lines=version_lines,
+            header_lines=header_lines,
             title_icon=title_icon,
+            refresh_callback=refresh_update_menu,
         )
         if selection is None:
             return
@@ -150,13 +169,14 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
             )
             if not check_done.is_set():
                 check_done.wait()
-                status, last_checked = apply_check_results()
+                apply_check_results_to_state()
             else:
                 with git_lock:
                     status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
                 version = _get_app_version(log_debug=log_debug)
                 result_holder["result"] = (status, last_checked)
                 check_done.set()
+                results_applied = True
             continue
         if selection == 1:
             if not check_done.is_set():
@@ -168,13 +188,14 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                     title_icon=title_icon,
                 )
                 check_done.wait()
-                status, last_checked = apply_check_results()
+                apply_check_results_to_state()
             with git_lock:
                 _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
                 status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
             version = _get_app_version(log_debug=log_debug)
             result_holder["result"] = (status, last_checked)
             check_done.set()
+            results_applied = True
             continue
 
 
