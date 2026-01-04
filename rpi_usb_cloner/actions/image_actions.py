@@ -133,7 +133,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             progress_line=progress_line,
             extra_lines=extra_lines,
         )
-        time.sleep(1)
+        screens.wait_for_ack()
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
     time.sleep(1)
