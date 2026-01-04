@@ -26,7 +26,14 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
         return None
     partition_node = f"/dev/{name}"
     mount.mount_partition(partition_node, name=name)
-    mounted_partition = devices.get_device_by_name(name)
+    mounted_partition = None
+    for device in devices.list_usb_disks():
+        for child in _iter_partitions(device):
+            if child.get("name") == name:
+                mounted_partition = child
+                break
+        if mounted_partition:
+            break
     if not mounted_partition:
         return None
     mountpoint = mounted_partition.get("mountpoint")
