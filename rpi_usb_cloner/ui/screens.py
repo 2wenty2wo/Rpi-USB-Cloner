@@ -252,7 +252,7 @@ def render_confirmation_screen(
     button_height = max(16, display._get_line_height(button_font) + 6)
     icon_font = display._get_lucide_font()
     icon_padding = 5
-    button_icons = {"NO": chr(57476), "YES": chr(57894)}
+    button_icons = {"NO": chr(57778), "YES": chr(57452)}
     button_labels = ("NO", "YES")
     max_content_width = 0
     for button_label in button_labels:
