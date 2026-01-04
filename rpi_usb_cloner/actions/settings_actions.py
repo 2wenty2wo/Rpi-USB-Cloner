@@ -105,6 +105,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     result_holder: dict[str, tuple[str, str]] = {}
     error_holder: dict[str, Exception] = {}
     menu_items = ["CHECK FOR UPDATES", "UPDATE"]
+    header_lines: list[str] = []
 
     def apply_check_results() -> tuple[str, str | None]:
         if "result" in result_holder:
@@ -122,9 +123,13 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         status, last_checked = apply_check_results()
         results_applied = True
 
+    def update_header_lines() -> None:
+        header_lines[:] = _build_update_info_lines(version, status, last_checked)
+
     def refresh_update_menu() -> Optional[list[str]]:
         if check_done.is_set() and not results_applied:
             apply_check_results_to_state()
+            update_header_lines()
             return list(menu_items)
         return None
 
@@ -142,13 +147,13 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     while True:
         if check_done.is_set():
             apply_check_results_to_state()
-        version_lines = _build_update_info_lines(version, status, last_checked)
-        content_top = _get_update_menu_top(title, version_lines, title_icon=title_icon)
+        update_header_lines()
+        content_top = _get_update_menu_top(title, header_lines, title_icon=title_icon)
         selection = menus.render_menu_list(
             title,
             menu_items,
             content_top=content_top,
-            header_lines=version_lines,
+            header_lines=header_lines,
             title_icon=title_icon,
             refresh_callback=refresh_update_menu,
         )
