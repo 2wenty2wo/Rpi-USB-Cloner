@@ -304,24 +304,13 @@ def render_confirmation_screen(
         icon = button_icons[label]
         icon_width = display._measure_text_width(draw, icon, icon_font)
         text_width = display._measure_text_width(draw, label, button_font)
-        icon_left, icon_top, icon_right, icon_bottom = draw.textbbox(
-            (0, 0),
-            icon,
-            font=icon_font,
-        )
-        text_left, text_top, text_right, text_bottom = draw.textbbox(
-            (0, 0),
-            label,
-            font=button_font,
-        )
-        icon_height = icon_bottom - icon_top
-        text_height = text_bottom - text_top
+        icon_height = display._get_line_height(icon_font)
+        text_height = display._get_line_height(button_font)
         content_width = icon_width + icon_padding + text_width
-        content_height = max(icon_height, text_height)
         content_x = int(x_pos + (button_width - content_width) / 2)
-        content_y = int(button_y + (button_height - content_height) / 2)
-        icon_y = content_y + (content_height - icon_height) / 2 - icon_top
-        text_y = content_y + (content_height - text_height) / 2 - text_top
+        content_center_y = button_y + button_height / 2
+        icon_y = int(content_center_y - icon_height / 2)
+        text_y = int(content_center_y - text_height / 2)
         fill = 0 if is_selected else 255
         draw.text((content_x, icon_y), icon, font=icon_font, fill=fill)
         text_x = int(content_x + icon_width + icon_padding)
