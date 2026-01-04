@@ -164,7 +164,10 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
         )
     for op in plan.disk_layout_ops:
-        _apply_disk_layout_op(op, target_node)
+        try:
+            _apply_disk_layout_op(op, target_node)
+        except Exception as exc:
+            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
     time.sleep(2)
     refreshed = devices.get_device_by_name(target_name) or target_info
     if not refreshed:
@@ -176,7 +179,10 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
         if not target_part:
             raise RuntimeError(f"Missing target partition for {op.partition}")
         title = f"PART {index}/{total_parts}"
-        _restore_partition_op(op, target_part, title=title)
+        try:
+            _restore_partition_op(op, target_part, title=title)
+        except Exception as exc:
+            raise RuntimeError(f"Partition restore failed ({title}): {exc}") from exc
 
 
 def _is_clonezilla_image_dir(path: Path) -> bool:
