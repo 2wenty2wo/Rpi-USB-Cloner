@@ -18,19 +18,15 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ## Installation & Usage
 
-## Screensaver GIFs
-Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
+### Installation
 
-## Font assets
-The OLED demo uses the Font Awesome Free `fontawesome-webfont.ttf` font. The font is licensed under the SIL OFL 1.1; see `rpi_usb_cloner/ui/assets/fonts/LICENSE-FONT-AWESOME.txt` for details.
-
-### 1) Clone the repository
+#### 1) Clone the repository
 ```sh
 git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
 cd Rpi-USB-Cloner
 ```
 
-### 2) Install dependencies and prepare the Pi
+#### 2) Install dependencies and prepare the Pi
 1. Flash Raspberry Pi OS (Lite is fine) to your microSD and boot the Pi Zero.
 2. Update packages:
    ```sh
@@ -67,12 +63,14 @@ cd Rpi-USB-Cloner
      python3 -m pip install --upgrade pip --break-system-packages
      ```
 
-### 3) Hardware setup
+#### 3) Hardware setup
 1. Attach the Adafruit OLED Bonnet (OLED + buttons) to the Pi Zero GPIO header.
 2. Attach the Zero4U USB Hub to the Pi Zero (per the Zero4U instructions).
 3. Connect power and boot the Pi.
 
-### 4) Start the cloner script
+### Usage
+
+#### 4) Start the cloner script
 From the repo directory:
 ```sh
 sudo -E python3 rpi-usb-cloner.py
@@ -83,17 +81,17 @@ sudo -E python3 rpi-usb-cloner.py --debug
 ```
 The erase workflow requires root permissions; if you start without `sudo`, the OLED will prompt you to run as root.
 
-### 5) Stop the running process
+#### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
 
-### 6) Restart the process
+#### 6) Restart the process
 1. Stop it (Ctrl+C).
 2. Start it again:
    ```sh
    sudo -E python3 rpi-usb-cloner.py
    ```
 
-### 7) Auto-start on boot (systemd)
+#### 7) Auto-start on boot (systemd)
 Create a systemd unit so the cloner starts automatically at boot. Update paths as needed for your install location.
 
 1. Create `/etc/systemd/system/rpi-usb-cloner.service`:
@@ -129,7 +127,7 @@ Create a systemd unit so the cloner starts automatically at boot. Update paths a
    sudo journalctl -u rpi-usb-cloner.service -f
    ```
 
-### 8) Update the software
+#### 8) Update the software
 From the repo directory:
 ```sh
 git pull
@@ -137,3 +135,11 @@ python3 -m pip install --upgrade luma.oled pillow
 ```
 If you used Option B above, append `--break-system-packages` to the pip command.
 `mount.py` ships with this repository, so no separate install is needed.
+
+## Assets & Customization
+
+### Screensaver GIFs
+Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
+
+### Font assets
+The OLED demo uses the Font Awesome Free `fontawesome-webfont.ttf` font. The font is licensed under the SIL OFL 1.1; see `rpi_usb_cloner/ui/assets/fonts/LICENSE-FONT-AWESOME.txt` for details.
