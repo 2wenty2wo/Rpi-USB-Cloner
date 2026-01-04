@@ -55,14 +55,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             break
     if refreshed_target is not None:
         target = refreshed_target
-    target_mounts = {
-        mountpoint
-        for mountpoint in [
-            target.get("mountpoint"),
-            *[child.get("mountpoint") for child in devices.get_children(target)],
-        ]
-        if mountpoint
-    }
+    target_mounts = _collect_mountpoints(target)
     filtered_repos = [
         repo for repo in repos if not any(str(repo).startswith(mount) for mount in target_mounts)
     ]
@@ -184,3 +177,15 @@ def _confirm_destructive_action(
         prev_states["B"] = current_b
         screens.render_confirmation_screen(title, prompt, selected_index=selection)
         time.sleep(menus.BUTTON_POLL_DELAY)
+
+
+def _collect_mountpoints(device: dict) -> set[str]:
+    mountpoints: set[str] = set()
+    stack = [device]
+    while stack:
+        current = stack.pop()
+        mountpoint = current.get("mountpoint")
+        if mountpoint:
+            mountpoints.add(mountpoint)
+        stack.extend(devices.get_children(current))
+    return mountpoints
