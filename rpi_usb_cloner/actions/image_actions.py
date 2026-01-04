@@ -157,9 +157,9 @@ def _confirm_destructive_action(
     prompt_lines: Iterable[str],
 ) -> bool:
     title = "⚠ DATA LOST"
-    prompt = " | ".join(prompt_lines)
+    prompt_lines_list = list(prompt_lines)
     selection = app_state.CONFIRM_NO
-    screens.render_confirmation_screen(title, prompt, selected_index=selection)
+    screens.render_confirmation_screen(title, prompt_lines_list, selected_index=selection)
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
@@ -188,7 +188,7 @@ def _confirm_destructive_action(
         prev_states["L"] = current_l
         prev_states["A"] = current_a
         prev_states["B"] = current_b
-        screens.render_confirmation_screen(title, prompt, selected_index=selection)
+        screens.render_confirmation_screen(title, prompt_lines_list, selected_index=selection)
         time.sleep(menus.BUTTON_POLL_DELAY)
 
 

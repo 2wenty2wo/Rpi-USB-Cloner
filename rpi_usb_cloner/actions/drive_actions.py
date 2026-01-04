@@ -37,7 +37,7 @@ def copy_drive(
     confirm_selection = app_state.CONFIRM_NO
     screens.render_confirmation_screen(
         title,
-        prompt,
+        [prompt],
         selected_index=confirm_selection,
     )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
@@ -100,7 +100,7 @@ def copy_drive(
             prev_states["C"] = current_C
             screens.render_confirmation_screen(
                 title,
-                prompt,
+                [prompt],
                 selected_index=confirm_selection,
             )
     except KeyboardInterrupt:
@@ -269,7 +269,7 @@ def _confirm_destructive_action(
     confirm_selection = app_state.CONFIRM_NO
     screens.render_confirmation_screen(
         title,
-        prompt,
+        [prompt],
         selected_index=confirm_selection,
     )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
@@ -311,7 +311,7 @@ def _confirm_destructive_action(
         prev_states["C"] = current_C
         screens.render_confirmation_screen(
             title,
-            prompt,
+            [prompt],
             selected_index=confirm_selection,
         )
 

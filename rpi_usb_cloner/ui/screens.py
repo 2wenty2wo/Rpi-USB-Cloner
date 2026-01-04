@@ -220,7 +220,7 @@ def render_info_screen(
 
 def render_confirmation_screen(
     title: str,
-    prompt: str,
+    prompt_lines: Iterable[str],
     *,
     selected_index: int = 0,
     title_icon: Optional[str] = None,
@@ -241,15 +241,37 @@ def render_confirmation_screen(
         left_margin=context.x - 11,
     )
     content_top = layout.content_top
-    prompt_lines = display._wrap_lines_to_width(
-        [prompt],
+    if isinstance(prompt_lines, str):
+        line_list = [prompt_lines]
+    else:
+        line_list = list(prompt_lines)
+    wrapped_prompt_lines = display._wrap_lines_to_width(
+        line_list,
         prompt_font,
         context.width - 8,
     )
     prompt_line_height = display._get_line_height(prompt_font)
     prompt_line_step = prompt_line_height + 2
-    prompt_height = max(prompt_line_height, len(prompt_lines) * prompt_line_step - 2)
     button_height = max(14, display._get_line_height(button_font) + 2)
+    max_button_y = context.height - button_height - 4
+    max_prompt_height = max(0, max_button_y - content_top - 6)
+    max_prompt_lines = max(1, int((max_prompt_height + 2) / prompt_line_step))
+    if wrapped_prompt_lines:
+        if len(wrapped_prompt_lines) > max_prompt_lines:
+            wrapped_prompt_lines = wrapped_prompt_lines[:max_prompt_lines]
+            last_line = f"{wrapped_prompt_lines[-1]}…"
+            wrapped_prompt_lines[-1] = display._truncate_text(
+                draw,
+                last_line,
+                prompt_font,
+                context.width - 8,
+            )
+    else:
+        wrapped_prompt_lines = [""]
+    prompt_height = max(
+        prompt_line_height,
+        len(wrapped_prompt_lines) * prompt_line_step - 2,
+    )
     icon_font = display._get_lucide_font()
     icon_padding = 5
     button_icons = {"NO": chr(57778), "YES": chr(57452)}
@@ -281,13 +303,12 @@ def render_confirmation_screen(
     prompt_start_y = content_top + max(0, (prompt_area_height - prompt_height) // 2)
     prompt_bottom = prompt_start_y + prompt_height
     min_button_y = int(prompt_bottom + 4)
-    max_button_y = context.height - button_height - 4
     button_y = max(min_button_y, min(button_y, max_button_y))
     left_x = int((context.width - block_width) / 2)
     right_x = left_x + button_width + button_gap
 
     current_y = prompt_start_y
-    for line in prompt_lines:
+    for line in wrapped_prompt_lines:
         text_width = display._measure_text_width(draw, line, prompt_font)
         line_x = int((context.width - text_width) / 2)
         draw.text((line_x, current_y), line, font=prompt_font, fill=255)
