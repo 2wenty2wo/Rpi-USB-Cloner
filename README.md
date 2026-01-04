@@ -150,6 +150,7 @@ Create a systemd unit so the cloner starts automatically at boot. Update paths a
    ```
 
 #### 8) Update the software
+You can also trigger updates from the OLED UI via Settings → Update.
 From the repo directory:
 ```sh
 git pull
