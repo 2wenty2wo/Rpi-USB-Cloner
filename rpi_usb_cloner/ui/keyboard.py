@@ -272,10 +272,6 @@ def _render_keyboard(
     mode_top = current_y
     mode_height = row_height
     mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
-    icon_x_adjust = {
-        "back": 1,
-        "ok": 1,
-    }
     for item_index, (item_left, item_width, label, font, mode_key) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
         cell_right = cell_left + item_width - 1
@@ -290,8 +286,7 @@ def _render_keyboard(
         text_bbox = draw.textbbox((0, 0), label, font=font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
-        text_x = cell_left + max(0, (item_width - text_width) // 2)
-        text_x += icon_x_adjust.get(mode_key, 0)
+        text_x = cell_left + max(0, (item_width - text_width) // 2) - text_bbox[0]
         text_y = mode_top + max(0, (mode_height - text_height) // 2)
         draw.text((text_x, text_y), label, font=font, fill=text_fill)
     context.disp.display(context.image)
