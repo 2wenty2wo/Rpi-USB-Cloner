@@ -2,7 +2,7 @@ import time
 from typing import Callable, Optional
 
 from rpi_usb_cloner.app.context import AppContext
-from rpi_usb_cloner.storage import clonezilla, devices
+from rpi_usb_cloner.storage import clonezilla, devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 
 
@@ -37,18 +37,34 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         display.display_lines(["TARGET", "MISSING"])
         time.sleep(1)
         return
-    repo_path = None
-    for device in usb_devices:
-        if device.get("name") == target.get("name"):
-            continue
-        repo_path = clonezilla.find_image_repository(device)
-        if repo_path:
-            break
-    if not repo_path:
+    repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
+    target_mounts = {
+        mountpoint
+        for mountpoint in [
+            target.get("mountpoint"),
+            *[child.get("mountpoint") for child in devices.get_children(target)],
+        ]
+        if mountpoint
+    }
+    filtered_repos = [
+        repo for repo in repos if not any(str(repo).startswith(mount) for mount in target_mounts)
+    ]
+    if not filtered_repos:
         display.display_lines(["IMAGE REPO", "NOT FOUND"])
         time.sleep(1)
         return
-    image_dirs = clonezilla.list_clonezilla_image_dirs(repo_path)
+    if len(filtered_repos) > 1:
+        selected_repo = menus.select_list(
+            "IMG REPO",
+            [repo.name for repo in filtered_repos],
+            footer=["BACK", "OK"],
+        )
+        if selected_repo is None:
+            return
+        repo_path = filtered_repos[selected_repo]
+    else:
+        repo_path = filtered_repos[0]
+    image_dirs = image_repo.list_clonezilla_images(repo_path)
     if not image_dirs:
         display.display_lines(["NO IMAGES", "FOUND"])
         time.sleep(1)
