@@ -249,7 +249,7 @@ def render_confirmation_screen(
     prompt_line_height = display._get_line_height(prompt_font)
     prompt_line_step = prompt_line_height + 2
     prompt_height = max(prompt_line_height, len(prompt_lines) * prompt_line_step - 2)
-    button_height = max(16, display._get_line_height(button_font) + 6)
+    button_height = max(14, display._get_line_height(button_font) + 2)
     icon_font = display._get_lucide_font()
     icon_padding = 5
     button_icons = {"NO": chr(57778), "YES": chr(57452)}
@@ -264,7 +264,7 @@ def render_confirmation_screen(
         36,
         max_content_width + 16,
     )
-    button_gap = 8
+    button_gap = 12
     block_width = button_width * 2 + button_gap
     available_width = context.width - 4
     min_button_gap = 2
