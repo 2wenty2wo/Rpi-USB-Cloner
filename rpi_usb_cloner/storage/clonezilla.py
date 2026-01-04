@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import struct
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from rpi_usb_cloner.storage import devices
+from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import get_partition_number, resolve_device_node
 
 
@@ -144,6 +145,40 @@ def restore_image(
         progress_callback("Finalizing...")
 
 
+def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
+    if os.geteuid() != 0:
+        raise RuntimeError("Run as root")
+    target_node = resolve_device_node(target_device)
+    target_name = Path(target_node).name
+    target_info = devices.get_device_by_name(target_name)
+    if target_info:
+        devices.unmount_device(target_info)
+    required_size = _estimate_required_size_bytes(plan.disk_layout_ops)
+    target_size = _get_device_size_bytes(target_info, target_node)
+    if required_size is None:
+        raise RuntimeError("Unable to determine required image size")
+    if target_size is None:
+        raise RuntimeError("Unable to determine target device size")
+    if target_size < required_size:
+        raise RuntimeError(
+            f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
+        )
+    for op in plan.disk_layout_ops:
+        _apply_disk_layout_op(op, target_node)
+    time.sleep(2)
+    refreshed = devices.get_device_by_name(target_name) or target_info
+    if not refreshed:
+        raise RuntimeError("Unable to refresh target device")
+    target_parts = _map_target_partitions(plan.parts, refreshed)
+    total_parts = len(plan.partition_ops)
+    for index, op in enumerate(plan.partition_ops, start=1):
+        target_part = target_parts.get(op.partition)
+        if not target_part:
+            raise RuntimeError(f"Missing target partition for {op.partition}")
+        title = f"PART {index}/{total_parts}"
+        _restore_partition_op(op, target_part, title=title)
+
+
 def _is_clonezilla_image_dir(path: Path) -> bool:
     parts_file = path / "parts"
     if not parts_file.exists():
@@ -159,8 +194,12 @@ def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
         path = image_dir / name
         if path.exists():
             disk_layout_ops.append(_read_disk_layout_op(kind, path))
+    for path in sorted(image_dir.glob("*-pt.sf")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.sf", path))
     for path in sorted(image_dir.glob("*-pt.parted")):
         disk_layout_ops.append(_read_disk_layout_op("pt.parted", path))
+    for path in sorted(image_dir.glob("*-pt.sgdisk")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.sgdisk", path))
     for path in sorted(image_dir.glob("*-mbr")):
         disk_layout_ops.append(_read_disk_layout_op("mbr", path))
     for path in sorted(image_dir.glob("*-gpt")):
@@ -200,6 +239,158 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
             compressed=_is_gzip_compressed(dd_files),
         )
     return None
+
+
+def _estimate_required_size_bytes(disk_layout_ops: list[DiskLayoutOp]) -> Optional[int]:
+    sector_size = 512
+    max_sector = None
+    for op in disk_layout_ops:
+        if not op.contents:
+            if op.kind == "pt.sgdisk":
+                max_lba = _estimate_last_lba_from_sgdisk_backup(op.path)
+                if max_lba is not None and (max_sector is None or max_lba > max_sector):
+                    max_sector = max_lba
+            continue
+        contents = op.contents.splitlines()
+        for line in contents:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("sector-size:"):
+                match = re.search(r"sector-size:\s*(\d+)", line)
+                if match:
+                    sector_size = int(match.group(1))
+            if line.startswith("last-lba:"):
+                match = re.search(r"last-lba:\s*(\d+)", line)
+                if match:
+                    last_lba = int(match.group(1))
+                    if max_sector is None or last_lba > max_sector:
+                        max_sector = last_lba
+            start_match = re.search(r"start=\s*(\d+)", line)
+            size_match = re.search(r"size=\s*(\d+)", line)
+            if start_match and size_match:
+                start = int(start_match.group(1))
+                size = int(size_match.group(1))
+                end = start + max(size - 1, 0)
+                if max_sector is None or end > max_sector:
+                    max_sector = end
+            if ":" in line and line.lstrip().startswith("/dev/"):
+                fields = [field.strip() for field in line.split(":")]
+                if len(fields) > 1 and fields[1].endswith("s"):
+                    total_sectors = int(fields[1][:-1])
+                    end_sector = max(total_sectors - 1, 0)
+                    if max_sector is None or end_sector > max_sector:
+                        max_sector = end_sector
+            if line[0].isdigit() and ":" in line:
+                fields = [field.strip() for field in line.split(":")]
+                if len(fields) > 2 and fields[1].endswith("s") and fields[2].endswith("s"):
+                    end_sector = int(fields[2][:-1])
+                    if max_sector is None or end_sector > max_sector:
+                        max_sector = end_sector
+    if max_sector is None:
+        return None
+    return (max_sector + 1) * sector_size
+
+
+def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
+    if target_info and target_info.get("size"):
+        return int(target_info.get("size"))
+    blockdev = shutil.which("blockdev")
+    if not blockdev:
+        return None
+    result = subprocess.run(
+        [blockdev, "--getsize64", target_node],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        return int(result.stdout.strip())
+    except ValueError:
+        return None
+
+
+def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
+    if op.kind in {"disk", "sfdisk", "pt.sf"}:
+        if not op.contents:
+            raise RuntimeError("Missing sfdisk data")
+        sfdisk = shutil.which("sfdisk")
+        if not sfdisk:
+            raise RuntimeError("sfdisk not found")
+        clone.run_checked_command([sfdisk, "--force", target_node], input_text=op.contents)
+        return
+    if op.kind == "pt.parted":
+        if not op.contents:
+            raise RuntimeError("Missing parted data")
+        parted = shutil.which("parted")
+        if not parted:
+            raise RuntimeError("parted not found")
+        result = subprocess.run(
+            [parted, "--script", target_node],
+            input=op.contents,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "parted failed"
+            raise RuntimeError(message)
+        return
+    if op.kind in {"mbr", "gpt"}:
+        dd_path = shutil.which("dd")
+        if not dd_path:
+            raise RuntimeError("dd not found")
+        result = subprocess.run(
+            [
+                dd_path,
+                f"if={op.path}",
+                f"of={target_node}",
+                "bs=1",
+                f"count={op.size_bytes}",
+                "conv=fsync",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "dd failed"
+            raise RuntimeError(message)
+        return
+    if op.kind == "pt.sgdisk":
+        sgdisk = shutil.which("sgdisk")
+        if not sgdisk:
+            raise RuntimeError("sgdisk not found")
+        result = subprocess.run(
+            [sgdisk, f"--load-backup={op.path}", target_node],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "sgdisk failed"
+            raise RuntimeError(message)
+        return
+    raise RuntimeError(f"Unsupported disk layout op: {op.kind}")
+
+
+def _estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
+    data = path.read_bytes()
+    signature = b"EFI PART"
+    offset = data.find(signature)
+    if offset == -1 or len(data) < offset + 56:
+        return None
+    current_lba = struct.unpack_from("<Q", data, offset + 24)[0]
+    backup_lba = struct.unpack_from("<Q", data, offset + 32)[0]
+    last_usable = struct.unpack_from("<Q", data, offset + 48)[0]
+    return max(current_lba, backup_lba, last_usable)
+
+
+def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: str) -> None:
+    restore_command = _build_restore_command_from_plan(op, target_part)
+    _run_restore_pipeline(op.image_files, restore_command, title=title)
 
 
 def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
@@ -346,6 +537,19 @@ def _get_partclone_tool(fstype: str) -> Optional[str]:
     return shutil.which(tool)
 
 
+def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -> list[str]:
+    if op.tool == "partclone":
+        fstype = (op.fstype or "").lower()
+        tool = _get_partclone_tool(fstype)
+        if not tool:
+            raise RuntimeError(f"partclone tool not found for filesystem '{fstype}'")
+        return [tool, "-r", "-s", "-", "-o", target_part, "-f"]
+    dd_path = shutil.which("dd")
+    if not dd_path:
+        raise RuntimeError("dd not found")
+    return [dd_path, f"of={target_part}", "bs=4M", "status=progress", "conv=fsync"]
+
+
 def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_progress: bool) -> None:
     if not image_files:
         raise RuntimeError("No image files")
@@ -384,3 +588,46 @@ def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_
         raise RuntimeError(message)
     if supports_progress:
         return
+
+
+def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *, title: str) -> None:
+    if not image_files:
+        raise RuntimeError("No image files")
+    cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
+    upstream = cat_proc.stdout
+    decompress_proc = None
+    if _is_gzip_compressed(image_files):
+        gzip_path = shutil.which("pigz") or shutil.which("gzip")
+        if not gzip_path:
+            raise RuntimeError("gzip not found")
+        decompress_proc = subprocess.Popen(
+            [gzip_path, "-dc"],
+            stdin=upstream,
+            stdout=subprocess.PIPE,
+        )
+        upstream = decompress_proc.stdout
+    if upstream is None:
+        raise RuntimeError("Restore pipeline failed")
+    error: Optional[Exception] = None
+    try:
+        clone.run_checked_with_progress(
+            restore_command,
+            title=title,
+            stdin_source=upstream,
+        )
+    except Exception as exc:
+        error = exc
+    finally:
+        if cat_proc.stdout:
+            cat_proc.stdout.close()
+        cat_proc.wait()
+        if decompress_proc:
+            if decompress_proc.stdout:
+                decompress_proc.stdout.close()
+            decompress_proc.wait()
+    if error:
+        raise error
+    if cat_proc.returncode != 0:
+        raise RuntimeError("Image stream failed")
+    if decompress_proc and decompress_proc.returncode != 0:
+        raise RuntimeError("Image decompression failed")

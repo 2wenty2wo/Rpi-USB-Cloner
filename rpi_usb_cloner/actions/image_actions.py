@@ -1,7 +1,9 @@
 import time
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
+from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
+from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import clonezilla, devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 
@@ -84,8 +86,13 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if selected_index is None:
         return
     selected_dir = image_dirs[selected_index]
+    if not _confirm_destructive_action(
+        log_debug=log_debug,
+        prompt_lines=[f"WRITE {target.get('name')}", f"IMG {selected_dir.name}"],
+    ):
+        return
     try:
-        image = clonezilla.load_image(selected_dir)
+        plan = clonezilla.parse_clonezilla_image(selected_dir)
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore load failed: {error}")
         display.display_lines(["IMAGE", "INVALID"])
@@ -93,13 +100,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         return
     screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
     try:
-        clonezilla.restore_image(
-            image,
-            target,
-            progress_callback=lambda line: screens.render_status_template(
-                "WRITE", "Running...", progress_line=line
-            ),
-        )
+        clonezilla.restore_clonezilla_image(plan, target.get("name") or "")
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore failed: {error}")
         screens.render_status_template("WRITE", "Failed", progress_line="Check logs.")
@@ -107,3 +108,44 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
     time.sleep(1)
+
+
+def _confirm_destructive_action(
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    prompt_lines: Iterable[str],
+) -> bool:
+    title = "⚠ DATA LOST"
+    prompt = " ".join(prompt_lines)
+    selection = app_state.CONFIRM_NO
+    screens.render_confirmation_screen(title, prompt, selected_index=selection)
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+    }
+    while True:
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if selection == app_state.CONFIRM_NO:
+                selection = app_state.CONFIRM_YES
+                _log_debug(log_debug, f"Write confirmation changed: {selection}")
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if selection == app_state.CONFIRM_YES:
+                selection = app_state.CONFIRM_NO
+                _log_debug(log_debug, f"Write confirmation changed: {selection}")
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return False
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            return selection == app_state.CONFIRM_YES
+        prev_states["R"] = current_r
+        prev_states["L"] = current_l
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        screens.render_confirmation_screen(title, prompt, selected_index=selection)
+        time.sleep(menus.BUTTON_POLL_DELAY)
