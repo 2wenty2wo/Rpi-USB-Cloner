@@ -16,7 +16,7 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ![Picture of the menu](rpi_usb_cloner/ui/assets/menu.jpg)
 
-## Prerequisites
+## ✅ Prerequisites
 
 **Hardware**
 - Raspberry Pi Zero
@@ -26,7 +26,7 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 **OS**
 - Raspberry Pi OS
 
-## Quickstart
+## 🚀 Quickstart
 
 Minimal clone/install/run (see full steps below for I2C setup, options, and services):
 ```sh
@@ -38,9 +38,9 @@ python3 -m pip install --upgrade pip luma.oled pillow
 sudo -E python3 rpi-usb-cloner.py
 ```
 
-## Installation & Usage
+## 🧰 Installation & Usage
 
-### Installation
+### 🧱 Installation
 
 #### 1) Clone the repository
 ```sh
@@ -90,7 +90,7 @@ cd Rpi-USB-Cloner
 2. Attach the Zero4U USB Hub to the Pi Zero (per the Zero4U instructions).
 3. Connect power and boot the Pi.
 
-### Usage
+### ▶️ Usage
 
 #### 4) Start the cloner script
 From the repo directory:
@@ -159,10 +159,10 @@ python3 -m pip install --upgrade luma.oled pillow
 If you used Option B above, append `--break-system-packages` to the pip command.
 `mount.py` ships with this repository, so no separate install is needed.
 
-## Assets & Customization
+## 🎨 Assets & Customization
 
-### Screensaver GIFs
+### 🖼️ Screensaver GIFs
 Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
 
-### Font assets
+### 🔤 Font assets
 The OLED demo uses the Font Awesome Free `fontawesome-webfont.ttf` font. The font is licensed under the SIL OFL 1.1; see `rpi_usb_cloner/ui/assets/fonts/LICENSE-FONT-AWESOME.txt` for details.
