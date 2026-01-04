@@ -620,9 +620,10 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
                 _log_debug(f"nmcli ip lookup failed: {error}")
             if not ip_value:
                 ip_value = get_ip_address()
+            active_ssid = get_active_ssid()
             status = {
                 "connected": True,
-                "ssid": connection or None,
+                "ssid": active_ssid or connection or None,
                 "ip": ip_value,
             }
             break
