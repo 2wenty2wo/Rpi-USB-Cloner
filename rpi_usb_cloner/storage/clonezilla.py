@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import struct
 import subprocess
 import time
 from dataclasses import dataclass
@@ -193,8 +194,12 @@ def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
         path = image_dir / name
         if path.exists():
             disk_layout_ops.append(_read_disk_layout_op(kind, path))
+    for path in sorted(image_dir.glob("*-pt.sf")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.sf", path))
     for path in sorted(image_dir.glob("*-pt.parted")):
         disk_layout_ops.append(_read_disk_layout_op("pt.parted", path))
+    for path in sorted(image_dir.glob("*-pt.sgdisk")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.sgdisk", path))
     for path in sorted(image_dir.glob("*-mbr")):
         disk_layout_ops.append(_read_disk_layout_op("mbr", path))
     for path in sorted(image_dir.glob("*-gpt")):
@@ -241,6 +246,10 @@ def _estimate_required_size_bytes(disk_layout_ops: list[DiskLayoutOp]) -> Option
     max_sector = None
     for op in disk_layout_ops:
         if not op.contents:
+            if op.kind == "pt.sgdisk":
+                max_lba = _estimate_last_lba_from_sgdisk_backup(op.path)
+                if max_lba is not None and (max_sector is None or max_lba > max_sector):
+                    max_sector = max_lba
             continue
         contents = op.contents.splitlines()
         for line in contents:
@@ -304,7 +313,7 @@ def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Opt
 
 
 def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
-    if op.kind in {"disk", "sfdisk"}:
+    if op.kind in {"disk", "sfdisk", "pt.sf"}:
         if not op.contents:
             raise RuntimeError("Missing sfdisk data")
         sfdisk = shutil.which("sfdisk")
@@ -350,7 +359,33 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
             message = result.stderr.strip() or result.stdout.strip() or "dd failed"
             raise RuntimeError(message)
         return
+    if op.kind == "pt.sgdisk":
+        sgdisk = shutil.which("sgdisk")
+        if not sgdisk:
+            raise RuntimeError("sgdisk not found")
+        result = subprocess.run(
+            [sgdisk, f"--load-backup={op.path}", target_node],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = result.stderr.strip() or result.stdout.strip() or "sgdisk failed"
+            raise RuntimeError(message)
+        return
     raise RuntimeError(f"Unsupported disk layout op: {op.kind}")
+
+
+def _estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
+    data = path.read_bytes()
+    signature = b"EFI PART"
+    offset = data.find(signature)
+    if offset == -1 or len(data) < offset + 56:
+        return None
+    current_lba = struct.unpack_from("<Q", data, offset + 24)[0]
+    backup_lba = struct.unpack_from("<Q", data, offset + 32)[0]
+    last_usable = struct.unpack_from("<Q", data, offset + 48)[0]
+    return max(current_lba, backup_lba, last_usable)
 
 
 def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: str) -> None:
