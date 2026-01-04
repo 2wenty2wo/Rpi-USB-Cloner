@@ -21,6 +21,55 @@ class ClonezillaImage:
     partition_table: Optional[Path]
 
 
+@dataclass(frozen=True)
+class DiskLayoutOp:
+    kind: str
+    path: Path
+    contents: Optional[str]
+    size_bytes: int
+
+
+@dataclass(frozen=True)
+class PartitionRestoreOp:
+    partition: str
+    image_files: list[Path]
+    tool: str
+    fstype: Optional[str]
+    compressed: bool
+
+
+@dataclass(frozen=True)
+class RestorePlan:
+    image_dir: Path
+    parts: list[str]
+    disk_layout_ops: list[DiskLayoutOp]
+    partition_ops: list[PartitionRestoreOp]
+
+
+def parse_clonezilla_image(image_dir: Path) -> RestorePlan:
+    if not image_dir.is_dir():
+        raise RuntimeError("Image folder not found")
+    parts_path = image_dir / "parts"
+    if not parts_path.exists():
+        raise RuntimeError("Clonezilla parts file missing")
+    parts = [item.strip() for item in parts_path.read_text().split() if item.strip()]
+    if not parts:
+        raise RuntimeError("Clonezilla parts list empty")
+    disk_layout_ops = _collect_disk_layout_ops(image_dir)
+    partition_ops = []
+    for part_name in parts:
+        partition_op = _build_partition_restore_op(image_dir, part_name)
+        if not partition_op:
+            raise RuntimeError(f"Image data missing for {part_name}")
+        partition_ops.append(partition_op)
+    return RestorePlan(
+        image_dir=image_dir,
+        parts=parts,
+        disk_layout_ops=disk_layout_ops,
+        partition_ops=partition_ops,
+    )
+
+
 def get_mountpoint(device: dict) -> Optional[str]:
     if device.get("mountpoint"):
         return device.get("mountpoint")
@@ -102,6 +151,70 @@ def _is_clonezilla_image_dir(path: Path) -> bool:
     has_table = _find_partition_table(path) is not None
     has_images = any(path.glob("*-ptcl-img*")) or any(path.glob("*dd-img*"))
     return has_table or has_images
+
+
+def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
+    disk_layout_ops: list[DiskLayoutOp] = []
+    for name, kind in (("disk", "disk"), ("sfdisk", "sfdisk")):
+        path = image_dir / name
+        if path.exists():
+            disk_layout_ops.append(_read_disk_layout_op(kind, path))
+    for path in sorted(image_dir.glob("*-pt.parted")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.parted", path))
+    for path in sorted(image_dir.glob("*-mbr")):
+        disk_layout_ops.append(_read_disk_layout_op("mbr", path))
+    for path in sorted(image_dir.glob("*-gpt")):
+        disk_layout_ops.append(_read_disk_layout_op("gpt", path))
+    return disk_layout_ops
+
+
+def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
+    data = path.read_bytes()
+    size_bytes = len(data)
+    contents: Optional[str]
+    if b"\x00" in data[:1024]:
+        contents = None
+    else:
+        contents = data.decode("utf-8", errors="replace")
+    return DiskLayoutOp(kind=kind, path=path, contents=contents, size_bytes=size_bytes)
+
+
+def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[PartitionRestoreOp]:
+    partclone_files = _find_image_files(image_dir, part_name, "ptcl-img")
+    if partclone_files:
+        fstype = _extract_partclone_fstype(part_name, partclone_files[0].name)
+        return PartitionRestoreOp(
+            partition=part_name,
+            image_files=partclone_files,
+            tool="partclone",
+            fstype=fstype,
+            compressed=_is_gzip_compressed(partclone_files),
+        )
+    dd_files = _find_image_files(image_dir, part_name, "img")
+    if dd_files:
+        return PartitionRestoreOp(
+            partition=part_name,
+            image_files=dd_files,
+            tool="dd",
+            fstype=None,
+            compressed=_is_gzip_compressed(dd_files),
+        )
+    return None
+
+
+def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
+    if suffix == "ptcl-img":
+        pattern = f"{part_name}.*-{suffix}*"
+    else:
+        pattern = f"{part_name}.{suffix}*"
+    return sorted(image_dir.glob(pattern))
+
+
+def _extract_partclone_fstype(part_name: str, file_name: str) -> Optional[str]:
+    match = re.search(rf"{re.escape(part_name)}\.(.+?)-ptcl-img", file_name)
+    if not match:
+        return None
+    return match.group(1)
 
 
 def _find_partition_table(image_dir: Path) -> Optional[Path]:
