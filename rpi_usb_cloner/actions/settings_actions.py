@@ -305,6 +305,7 @@ def _run_update_flow(
             lines,
             progress_ratio=lambda: 1.0 if done.is_set() else None,
             animate=True,
+            title_icon=title_icon,
         )
         thread.join()
         if "error" in error_holder:
@@ -356,6 +357,7 @@ def _run_update_flow(
         ["Update complete"],
         progress_ratio=1.0,
         animate=False,
+        title_icon=title_icon,
     )
     if output_lines:
         display.render_paginated_lines(

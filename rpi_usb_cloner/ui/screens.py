@@ -335,11 +335,18 @@ def render_progress_screen(
     *,
     progress_ratio: Optional[float] = None,
     animate: bool = False,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[ImageFont.ImageFont] = None,
 ) -> None:
     context = display.get_display_context()
     title_font = context.fonts.get("title", context.fontdisks)
     body_font = context.fontdisks
-    content_top = menus.get_standard_content_top(title, title_font=title_font)
+    content_top = menus.get_standard_content_top(
+        title,
+        title_font=title_font,
+        title_icon=title_icon,
+        title_icon_font=title_icon_font,
+    )
     wrapped_lines = display._wrap_lines_to_width(
         list(lines),
         body_font,
@@ -362,7 +369,19 @@ def render_progress_screen(
     def render_frame(current_ratio: Optional[float], phase: float = 0.0) -> None:
         draw = context.draw
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+        if title:
+            if title_icon:
+                display.draw_title_with_icon(
+                    title,
+                    title_font=title_font,
+                    icon=title_icon,
+                    icon_font=title_icon_font,
+                    extra_gap=2,
+                    left_margin=context.x - 11,
+                    draw=draw,
+                )
+            else:
+                draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
 
         current_y = text_start_y
         for line in wrapped_lines:
