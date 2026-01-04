@@ -425,8 +425,9 @@ def list_networks() -> List[WifiNetwork]:
     return _scan_with_iw()
 
 
-def get_active_ssid() -> Optional[str]:
-    interface = _select_active_interface()
+def get_active_ssid(interface: Optional[str] = None) -> Optional[str]:
+    if interface is None:
+        interface = _select_active_interface()
     if not interface:
         return None
     try:
@@ -620,7 +621,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
                 _log_debug(f"nmcli ip lookup failed: {error}")
             if not ip_value:
                 ip_value = get_ip_address()
-            active_ssid = get_active_ssid()
+            active_ssid = get_active_ssid(device)
             status = {
                 "connected": True,
                 "ssid": active_ssid or connection or None,
