@@ -154,6 +154,24 @@ def wait_for_buttons_release(buttons, poll_delay=BUTTON_POLL_DELAY):
         time.sleep(poll_delay)
 
 
+def _get_header_content_top(
+    title: str,
+    header_lines: List[str],
+    *,
+    title_icon: Optional[str],
+    title_font: ImageFont.ImageFont,
+    items_font: ImageFont.ImageFont,
+) -> int:
+    context = display.get_display_context()
+    left_margin = context.x - 11
+    available_width = max(0, context.width - left_margin)
+    wrapped_lines = display._wrap_lines_to_width(header_lines, items_font, available_width)
+    line_height = display._get_line_height(items_font)
+    line_step = line_height + 2
+    base_top = get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
+    return base_top + (line_step * len(wrapped_lines)) + line_step
+
+
 def select_list(
     title: str,
     items: List[str],
@@ -175,19 +193,32 @@ def select_list(
         return None
     items_font = items_font or context.fontdisks
     title_font = title_font or context.fonts.get("title", context.fontdisks)
-    content_top = (
-        content_top
-        if content_top is not None
-        else get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
-    )
     footer_height = 15 if footer else 0
     line_height = _get_line_height(items_font)
     row_height = line_height + 2
-    available_height = context.height - content_top - footer_height
-    items_per_page = max(1, available_height // row_height)
+    items_per_page = 1
+    content_top_value = content_top
     selected_index = max(0, min(selected_index, len(items) - 1))
 
     def render(selected: int) -> None:
+        nonlocal items_per_page, content_top_value
+        content_top_value = (
+            _get_header_content_top(
+                title,
+                header_lines,
+                title_icon=title_icon,
+                title_font=title_font,
+                items_font=items_font,
+            )
+            if header_lines and content_top is None
+            else (
+                content_top
+                if content_top is not None
+                else get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
+            )
+        )
+        available_height = context.height - content_top_value - footer_height
+        items_per_page = max(1, available_height // row_height)
         offset = (selected // items_per_page) * items_per_page
         page_items = items[offset : offset + items_per_page]
         menu_items = [MenuItem([line]) for line in page_items]
@@ -213,7 +244,7 @@ def select_list(
             title_icon=title_icon,
             screen_id=screen_id,
             title_font=title_font,
-            content_top=content_top,
+            content_top=content_top_value,
             footer=footer,
             footer_positions=footer_positions,
             items_font=items_font,

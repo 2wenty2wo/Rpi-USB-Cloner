@@ -148,11 +148,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if check_done.is_set():
             apply_check_results_to_state()
         update_header_lines()
-        content_top = _get_update_menu_top(title, header_lines, title_icon=title_icon)
         selection = menus.render_menu_list(
             title,
             menu_items,
-            content_top=content_top,
             header_lines=header_lines,
             title_icon=title_icon,
             refresh_callback=refresh_update_menu,
@@ -472,23 +470,6 @@ def _check_update_status(
 
 def _build_update_info_lines(version: str, status: str, last_checked: str | None) -> list[str]:
     return [f"Version: {version}", f"Status: {status}"]
-
-
-def _get_update_menu_top(
-    title: str,
-    info_lines: list[str],
-    *,
-    title_icon: Optional[str] = None,
-) -> int:
-    context = display.get_display_context()
-    items_font = context.fontdisks
-    left_margin = context.x - 11
-    available_width = max(0, context.width - left_margin)
-    wrapped_lines = display._wrap_lines_to_width(info_lines, items_font, available_width)
-    line_height = display._get_line_height(items_font)
-    line_step = line_height + 2
-    base_top = menus.get_standard_content_top(title, title_icon=title_icon)
-    return base_top + (line_step * len(wrapped_lines)) + line_step
 
 
 def _format_command_output(stdout: str, stderr: str) -> list[str]:
