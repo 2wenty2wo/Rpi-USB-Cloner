@@ -38,6 +38,13 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         time.sleep(1)
         return
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
+    refreshed_target = None
+    for device in devices.list_usb_disks():
+        if device.get("name") == app_context.active_drive:
+            refreshed_target = device
+            break
+    if refreshed_target is not None:
+        target = refreshed_target
     target_mounts = {
         mountpoint
         for mountpoint in [
