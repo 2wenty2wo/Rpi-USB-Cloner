@@ -591,7 +591,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
                 "nmcli",
                 "-t",
                 "-f",
-                "DEVICE,TYPE,STATE,CONNECTION,IP4.ADDRESS",
+                "DEVICE,TYPE,STATE,CONNECTION",
                 "device",
                 "status",
             ]
@@ -599,18 +599,27 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
         for line in result.stdout.splitlines():
             if not line:
                 continue
-            parts = _split_nmcli_line(line, separator=":", maxsplit=4)
+            parts = _split_nmcli_line(line, separator=":", maxsplit=3)
             if len(parts) < 3:
                 continue
+            device = parts[0]
             device_type = parts[1]
             state = parts[2]
-            if device_type != "wifi" or state != "connected":
+            if device_type != "wifi" or not state.strip().lower().startswith("connected"):
                 continue
             connection = _nmcli_unescape(parts[3]) if len(parts) > 3 else ""
-            ip_address = _nmcli_unescape(parts[4]) if len(parts) > 4 else ""
             ip_value = None
-            if ip_address:
-                ip_value = ip_address.split(",", 1)[0].split("/", 1)[0]
+            try:
+                ip_result = _run_command(
+                    ["nmcli", "-g", "IP4.ADDRESS", "device", "show", device]
+                )
+                ip_address = ip_result.stdout.strip()
+                if ip_address:
+                    ip_value = ip_address.split(",", 1)[0].split("/", 1)[0]
+            except (FileNotFoundError, subprocess.CalledProcessError) as error:
+                _log_debug(f"nmcli ip lookup failed: {error}")
+            if not ip_value:
+                ip_value = get_ip_address()
             status = {
                 "connected": True,
                 "ssid": connection or None,
