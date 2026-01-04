@@ -108,6 +108,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         prompt_lines=[
             f"IMG {selected_dir.name}",
             f"SRC {_format_size(source_size)}",
+            f"DEV {devices.format_device_label(target)}",
             f"TGT {_format_size(target_size)}",
         ],
     ):
