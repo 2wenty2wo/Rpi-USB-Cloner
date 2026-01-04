@@ -9,9 +9,12 @@ REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
 
 
 def _iter_partitions(device: dict) -> Iterable[dict]:
-    for child in devices.get_children(device):
+    stack = list(devices.get_children(device))
+    while stack:
+        child = stack.pop()
         if child.get("type") == "part":
             yield child
+        stack.extend(devices.get_children(child))
 
 
 def _resolve_mountpoint(partition: dict) -> Optional[Path]:
