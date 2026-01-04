@@ -60,6 +60,25 @@ def show_coming_soon(title="COMING SOON", delay=1) -> None:
         time.sleep(delay)
 
 
+def wait_for_ack(
+    *,
+    buttons: Optional[Iterable[int]] = None,
+    poll_delay: float = menus.BUTTON_POLL_DELAY,
+) -> None:
+    if buttons is None:
+        buttons = (gpio.PIN_A, gpio.PIN_B)
+    buttons = tuple(buttons)
+    menus.wait_for_buttons_release(buttons, poll_delay=poll_delay)
+    prev_states = {pin: gpio.read_button(pin) for pin in buttons}
+    while True:
+        for pin in buttons:
+            current = gpio.read_button(pin)
+            if prev_states[pin] and not current:
+                return
+            prev_states[pin] = current
+        time.sleep(poll_delay)
+
+
 def _show_icon_font_demo(title: str, font_path, *, icons: Optional[Iterable[str]] = None) -> None:
     context = display.get_display_context()
     title_font = context.fonts.get("title", context.fontdisks)
