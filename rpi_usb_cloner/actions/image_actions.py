@@ -25,20 +25,28 @@ def backup_image() -> None:
 
 
 def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
-    if not app_context.active_drive:
-        display.display_lines(["NO DRIVE", "SELECTED"])
-        time.sleep(1)
-        return
     usb_devices = devices.list_usb_disks()
-    target = None
-    for device in usb_devices:
-        if device.get("name") == app_context.active_drive:
-            target = device
-            break
-    if not target:
-        display.display_lines(["TARGET", "MISSING"])
+    if not usb_devices:
+        display.display_lines(["NO USB", "DRIVES"])
         time.sleep(1)
         return
+    target = None
+    if app_context.active_drive:
+        for device in usb_devices:
+            if device.get("name") == app_context.active_drive:
+                target = device
+                break
+    if not target:
+        selected_index = menus.select_usb_drive(
+            "TARGET USB",
+            usb_devices,
+            footer=["BACK", "OK"],
+            selected_name=app_context.active_drive,
+        )
+        if selected_index is None:
+            return
+        target = usb_devices[selected_index]
+        app_context.active_drive = target.get("name")
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     refreshed_target = None
     for device in devices.list_usb_disks():
@@ -86,17 +94,24 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if selected_index is None:
         return
     selected_dir = image_dirs[selected_index]
-    if not _confirm_destructive_action(
-        log_debug=log_debug,
-        prompt_lines=[f"WRITE {target.get('name')}", f"IMG {selected_dir.name}"],
-    ):
-        return
     try:
         plan = clonezilla.parse_clonezilla_image(selected_dir)
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore load failed: {error}")
         display.display_lines(["IMAGE", "INVALID"])
         time.sleep(1)
+        return
+    source_size = _estimate_source_size(plan)
+    target_size = _get_target_size(target)
+    if not _confirm_destructive_action(
+        log_debug=log_debug,
+        prompt_lines=[
+            f"IMG {selected_dir.name}",
+            f"SRC {_format_size(source_size)}",
+            f"DEV {devices.format_device_label(target)}",
+            f"TGT {_format_size(target_size)}",
+        ],
+    ):
         return
     screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
     try:
@@ -110,13 +125,33 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     time.sleep(1)
 
 
+def _estimate_source_size(plan: clonezilla.RestorePlan) -> Optional[int]:
+    return clonezilla._estimate_required_size_bytes(plan.disk_layout_ops)
+
+
+def _get_target_size(target: dict) -> Optional[int]:
+    size = target.get("size")
+    if size is None:
+        return None
+    try:
+        return int(size)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_size(size_bytes: Optional[int]) -> str:
+    if size_bytes is None:
+        return "Unknown"
+    return devices.human_size(size_bytes)
+
+
 def _confirm_destructive_action(
     *,
     log_debug: Optional[Callable[[str], None]],
     prompt_lines: Iterable[str],
 ) -> bool:
     title = "⚠ DATA LOST"
-    prompt = " ".join(prompt_lines)
+    prompt = " | ".join(prompt_lines)
     selection = app_state.CONFIRM_NO
     screens.render_confirmation_screen(title, prompt, selected_index=selection)
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
