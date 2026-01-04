@@ -16,6 +16,28 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ![Picture of the menu](rpi_usb_cloner/ui/assets/menu.jpg)
 
+## Prerequisites
+
+**Hardware**
+- Raspberry Pi Zero
+- Adafruit 128x64 1.3" OLED Bonnet
+- Zero4U USB Hub
+
+**OS**
+- Raspberry Pi OS
+
+## Quickstart
+
+Minimal clone/install/run (see full steps below for I2C setup, options, and services):
+```sh
+git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
+cd Rpi-USB-Cloner
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip luma.oled pillow
+sudo -E python3 rpi-usb-cloner.py
+```
+
 ## Installation & Usage
 
 ### Installation
