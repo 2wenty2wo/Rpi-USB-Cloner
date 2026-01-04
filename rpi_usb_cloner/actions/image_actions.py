@@ -25,29 +25,43 @@ def backup_image() -> None:
 
 
 def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
+    if not repos:
+        display.display_lines(["IMAGE REPO", "NOT FOUND"])
+        time.sleep(1)
+        return
     usb_devices = devices.list_usb_disks()
     if not usb_devices:
         display.display_lines(["NO USB", "DRIVES"])
         time.sleep(1)
         return
+    repo_devices = set()
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
+            repo_devices.add(device.get("name"))
+    target_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
+    if not target_candidates:
+        display.display_lines(["TARGET IS", "REPO DRIVE"])
+        time.sleep(1)
+        return
     target = None
     if app_context.active_drive:
-        for device in usb_devices:
+        for device in target_candidates:
             if device.get("name") == app_context.active_drive:
                 target = device
                 break
     if not target:
         selected_index = menus.select_usb_drive(
             "TARGET USB",
-            usb_devices,
+            target_candidates,
             footer=["BACK", "OK"],
             selected_name=app_context.active_drive,
         )
         if selected_index is None:
             return
-        target = usb_devices[selected_index]
+        target = target_candidates[selected_index]
         app_context.active_drive = target.get("name")
-    repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     refreshed_target = None
     for device in devices.list_usb_disks():
         if device.get("name") == app_context.active_drive:
@@ -60,7 +74,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         repo for repo in repos if not any(str(repo).startswith(mount) for mount in target_mounts)
     ]
     if not filtered_repos:
-        display.display_lines(["IMAGE REPO", "NOT FOUND"])
+        display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
         return
     if len(filtered_repos) > 1:
