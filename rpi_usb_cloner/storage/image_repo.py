@@ -26,7 +26,13 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
         return None
     partition_node = f"/dev/{name}"
     mount.mount_partition(partition_node, name=name)
-    return Path(mount.get_media_path(name))
+    mounted_partition = devices.get_device_by_name(name)
+    if not mounted_partition:
+        return None
+    mountpoint = mounted_partition.get("mountpoint")
+    if not mountpoint:
+        return None
+    return Path(mountpoint)
 
 
 def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[Path]:
