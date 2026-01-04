@@ -205,6 +205,12 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
 def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
     if suffix == "ptcl-img":
         pattern = f"{part_name}.*-{suffix}*"
+    elif suffix == "img":
+        patterns = [f"{part_name}.dd-img*", f"{part_name}.{suffix}*"]
+        matches = []
+        for candidate in patterns:
+            matches.extend(image_dir.glob(candidate))
+        return sorted({path for path in matches})
     else:
         pattern = f"{part_name}.{suffix}*"
     return sorted(image_dir.glob(pattern))
