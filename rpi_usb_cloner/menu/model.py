@@ -31,6 +31,8 @@ SCREEN_ICONS: Dict[str, str] = {
     "logs": "",
     "images": chr(57559),
     "drives": chr(58198),
+    # Lucide decimal 57922.
+    "icons": chr(57922),
 }
 
 
