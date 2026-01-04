@@ -96,7 +96,6 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     selected_index = menus.select_list(
         "RESTORE IMG",
         [path.name for path in image_dirs],
-        footer=["BACK", "OK"],
     )
     if selected_index is None:
         return
