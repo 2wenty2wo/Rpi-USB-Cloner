@@ -17,6 +17,7 @@ from rpi_usb_cloner.hardware.gpio import (
 )
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
+from rpi_usb_cloner.storage.devices import format_device_label
 from rpi_usb_cloner.ui import display
 
 INITIAL_REPEAT_DELAY = 0.3
@@ -376,6 +377,32 @@ def render_menu_list(
         header_lines=header_lines,
         refresh_callback=refresh_callback,
         refresh_interval=refresh_interval,
+    )
+
+
+def select_usb_drive(
+    title: str,
+    devices_list: List[dict],
+    *,
+    footer: Optional[List[str]] = None,
+    selected_name: Optional[str] = None,
+    header_lines: Optional[List[str]] = None,
+) -> Optional[int]:
+    if not devices_list:
+        return None
+    items = [format_device_label(device) for device in devices_list]
+    selected_index = 0
+    if selected_name:
+        for index, device in enumerate(devices_list):
+            if device.get("name") == selected_name:
+                selected_index = index
+                break
+    return select_list(
+        title,
+        items,
+        footer=footer,
+        selected_index=selected_index,
+        header_lines=header_lines,
     )
 
 
