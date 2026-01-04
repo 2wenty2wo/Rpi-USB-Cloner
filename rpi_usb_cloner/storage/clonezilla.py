@@ -201,6 +201,7 @@ def _build_restore_command(descriptor: dict, target_part: str) -> tuple[list[str
         tool = _get_partclone_tool(fstype)
         if tool:
             return [tool, "-r", "-s", "-", "-o", target_part], True
+        raise RuntimeError(f"partclone tool not found for filesystem '{fstype}'")
     dd_path = shutil.which("dd")
     if not dd_path:
         raise RuntimeError("dd not found")
