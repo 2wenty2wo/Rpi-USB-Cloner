@@ -283,11 +283,18 @@ def parse_progress(stderr_output, total_bytes=None, title="WORKING"):
             display_lines([title, f"{percent_match.group(1)}%"])
 
 
-def run_checked_with_progress(command, total_bytes=None, title="WORKING", stdout_target=None):
+def run_checked_with_progress(
+    command,
+    total_bytes=None,
+    title="WORKING",
+    stdout_target=None,
+    stdin_source=None,
+):
     display_lines([title, "Starting..."])
     log_debug(f"Running command: {' '.join(command)}")
     result = subprocess.run(
         command,
+        stdin=stdin_source,
         stdout=stdout_target or subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
