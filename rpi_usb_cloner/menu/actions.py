@@ -96,7 +96,8 @@ def backup_image() -> None:
 
 
 def write_image() -> None:
-    _run_operation(image_actions.write_image)
+    context = _require_context()
+    _run_operation(lambda: image_actions.write_image(app_context=context.app_context, log_debug=context.log_debug))
 
 
 def tools_coming_soon() -> None:
