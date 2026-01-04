@@ -240,10 +240,10 @@ def _render_keyboard(
     current_y += strip_height + padding
 
     mode_selectors = [
-        ("upper", "\ue3f2", icon_font),
-        ("lower", "\ue3f0", icon_font),
+        ("upper", chr(58330), icon_font),
+        ("lower", chr(58328), icon_font),
         ("numbers", "\ue0ef", icon_font),
-        ("symbols", "\ue06e", icon_font),
+        ("symbols", chr(57422), icon_font),
     ]
     mode_actions = [
         ("back", "\ue0ae", icon_font),
