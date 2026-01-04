@@ -162,7 +162,7 @@ def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
 
 def show_lucide_demo(title: str = "LUCIDE") -> None:
     font_path = display.ASSETS_DIR / "fonts" / "lucide.ttf"
-    lucide_icons = [chr(57518), chr(57778), chr(57452)]
+    lucide_icons = [chr(57684), chr(57669), chr(57774)]
     _show_icon_font_demo(title, font_path, icons=lucide_icons)
 
 
