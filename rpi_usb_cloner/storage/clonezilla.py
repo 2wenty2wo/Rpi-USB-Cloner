@@ -153,13 +153,15 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
     target_info = devices.get_device_by_name(target_name)
     if target_info:
         devices.unmount_device(target_info)
-    required_size = _estimate_required_size_bytes(plan.disk_layout_ops)
+    required_size = _estimate_required_size_bytes(
+        plan.disk_layout_ops,
+        image_dir=plan.image_dir,
+        partition_ops=plan.partition_ops,
+    )
     target_size = _get_device_size_bytes(target_info, target_node)
-    if required_size is None:
-        raise RuntimeError("Unable to determine required image size")
-    if target_size is None:
-        raise RuntimeError("Unable to determine target device size")
-    if target_size < required_size:
+    if required_size is None or target_size is None:
+        print("Warning: unable to determine size information; skipping size check.")
+    elif target_size < required_size:
         raise RuntimeError(
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
         )
@@ -194,7 +196,7 @@ def _is_clonezilla_image_dir(path: Path) -> bool:
     return has_table or has_images
 
 
-def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
+def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
     disk_layout_ops: list[DiskLayoutOp] = []
     for name, kind in (("disk", "disk"), ("sfdisk", "sfdisk")):
         path = image_dir / name
@@ -210,7 +212,9 @@ def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
         disk_layout_ops.append(_read_disk_layout_op("mbr", path))
     for path in sorted(image_dir.glob("*-gpt")):
         disk_layout_ops.append(_read_disk_layout_op("gpt", path))
-    return _select_disk_layout_ops(disk_layout_ops)
+    if select:
+        return _select_disk_layout_ops(disk_layout_ops)
+    return disk_layout_ops
 
 
 def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLayoutOp]:
@@ -258,10 +262,23 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
     return None
 
 
-def _estimate_required_size_bytes(disk_layout_ops: list[DiskLayoutOp]) -> Optional[int]:
+def _estimate_required_size_bytes(
+    disk_layout_ops: list[DiskLayoutOp],
+    *,
+    image_dir: Optional[Path] = None,
+    partition_ops: Optional[Iterable[PartitionRestoreOp]] = None,
+) -> Optional[int]:
+    ops = list(disk_layout_ops)
+    if image_dir:
+        extra_ops = _collect_disk_layout_ops(image_dir, select=False)
+        seen_paths = {op.path for op in ops}
+        for op in extra_ops:
+            if op.path not in seen_paths:
+                ops.append(op)
+                seen_paths.add(op.path)
     sector_size = 512
     max_sector = None
-    for op in disk_layout_ops:
+    for op in ops:
         if not op.contents:
             if op.kind == "pt.sgdisk":
                 max_lba = _estimate_last_lba_from_sgdisk_backup(op.path)
@@ -305,6 +322,16 @@ def _estimate_required_size_bytes(disk_layout_ops: list[DiskLayoutOp]) -> Option
                     if max_sector is None or end_sector > max_sector:
                         max_sector = end_sector
     if max_sector is None:
+        if partition_ops:
+            total_size = 0
+            for partition_op in partition_ops:
+                for image_file in partition_op.image_files:
+                    try:
+                        total_size += image_file.stat().st_size
+                    except OSError:
+                        continue
+            if total_size > 0:
+                return total_size
         return None
     return (max_sector + 1) * sector_size
 
