@@ -156,7 +156,6 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
     required_size = _estimate_required_size_bytes(
         plan.disk_layout_ops,
         image_dir=plan.image_dir,
-        partition_ops=plan.partition_ops,
     )
     target_size = _get_device_size_bytes(target_info, target_node)
     if required_size is None or target_size is None:
@@ -266,7 +265,6 @@ def _estimate_required_size_bytes(
     disk_layout_ops: list[DiskLayoutOp],
     *,
     image_dir: Optional[Path] = None,
-    partition_ops: Optional[Iterable[PartitionRestoreOp]] = None,
 ) -> Optional[int]:
     ops = list(disk_layout_ops)
     if image_dir:
@@ -322,16 +320,6 @@ def _estimate_required_size_bytes(
                     if max_sector is None or end_sector > max_sector:
                         max_sector = end_sector
     if max_sector is None:
-        if partition_ops:
-            total_size = 0
-            for partition_op in partition_ops:
-                for image_file in partition_op.image_files:
-                    try:
-                        total_size += image_file.stat().st_size
-                    except OSError:
-                        continue
-            if total_size > 0:
-                return total_size
         return None
     return (max_sector + 1) * sector_size
 
