@@ -210,7 +210,18 @@ def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
         disk_layout_ops.append(_read_disk_layout_op("mbr", path))
     for path in sorted(image_dir.glob("*-gpt")):
         disk_layout_ops.append(_read_disk_layout_op("gpt", path))
-    return disk_layout_ops
+    return _select_disk_layout_ops(disk_layout_ops)
+
+
+def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLayoutOp]:
+    if not disk_layout_ops:
+        return []
+    priority = ["pt.sgdisk", "gpt", "mbr", "pt.parted", "pt.sf", "sfdisk", "disk"]
+    for kind in priority:
+        for op in disk_layout_ops:
+            if op.kind == kind:
+                return [op]
+    return [disk_layout_ops[0]]
 
 
 def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
@@ -343,7 +354,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if not parted:
             raise RuntimeError("parted not found")
         result = subprocess.run(
-            [parted, "--script", target_node],
+            [parted, "-s", target_node],
             input=op.contents,
             text=True,
             stdout=subprocess.PIPE,
@@ -353,7 +364,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
             message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
         return
-    if op.kind in {"mbr", "gpt"}:
+    if op.kind == "mbr":
         dd_path = shutil.which("dd")
         if not dd_path:
             raise RuntimeError("dd not found")
@@ -372,6 +383,20 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         )
         if result.returncode != 0:
             message = _format_command_failure("dd failed", result.args, result)
+            raise RuntimeError(message)
+        return
+    if op.kind == "gpt":
+        sgdisk = shutil.which("sgdisk")
+        if not sgdisk:
+            raise RuntimeError("sgdisk not found")
+        result = subprocess.run(
+            [sgdisk, f"--load-backup={op.path}", target_node],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = _format_command_failure("sgdisk failed", result.args, result)
             raise RuntimeError(message)
         return
     if op.kind == "pt.sgdisk":
