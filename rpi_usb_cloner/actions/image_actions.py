@@ -135,7 +135,10 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
 
 
 def _estimate_source_size(plan: clonezilla.RestorePlan) -> Optional[int]:
-    return clonezilla._estimate_required_size_bytes(plan.disk_layout_ops)
+    return clonezilla._estimate_required_size_bytes(
+        plan.disk_layout_ops,
+        image_dir=plan.image_dir,
+    )
 
 
 def _get_target_size(target: dict) -> Optional[int]:
