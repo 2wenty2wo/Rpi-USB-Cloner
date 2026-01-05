@@ -1,3 +1,4 @@
+import re
 import time
 from typing import Callable, Iterable, Optional
 
@@ -220,7 +221,7 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
         step_line = "Partition restore failed"
     else:
         step_line = "Restore failed"
-    reason = _short_restore_reason(message)
+    reason = _extract_stderr_message(message) or _short_restore_reason(message)
     if reason and reason != step_line:
         return [step_line, reason]
     return [step_line]
@@ -239,3 +240,11 @@ def _short_restore_reason(message: str) -> str:
         if suffix:
             return suffix
     return message
+
+
+def _extract_stderr_message(message: str) -> Optional[str]:
+    match = re.search(r"stderr:\s*(.*?)(?:\s*(?:stdout:|$))", message, re.IGNORECASE | re.DOTALL)
+    if not match:
+        return None
+    stderr = " ".join(match.group(1).strip().split())
+    return stderr or None

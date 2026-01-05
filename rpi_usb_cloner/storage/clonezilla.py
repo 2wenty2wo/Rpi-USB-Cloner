@@ -325,7 +325,16 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         sfdisk = shutil.which("sfdisk")
         if not sfdisk:
             raise RuntimeError("sfdisk not found")
-        clone.run_checked_command([sfdisk, "--force", target_node], input_text=op.contents)
+        result = subprocess.run(
+            [sfdisk, "--force", target_node],
+            input=op.contents,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            message = _format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
+            raise RuntimeError(message)
         return
     if op.kind == "pt.parted":
         if not op.contents:
@@ -341,7 +350,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = result.stderr.strip() or result.stdout.strip() or "parted failed"
+            message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
         return
     if op.kind in {"mbr", "gpt"}:
@@ -362,7 +371,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
             text=True,
         )
         if result.returncode != 0:
-            message = result.stderr.strip() or result.stdout.strip() or "dd failed"
+            message = _format_command_failure("dd failed", result.args, result)
             raise RuntimeError(message)
         return
     if op.kind == "pt.sgdisk":
@@ -376,10 +385,23 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
             text=True,
         )
         if result.returncode != 0:
-            message = result.stderr.strip() or result.stdout.strip() or "sgdisk failed"
+            message = _format_command_failure("sgdisk failed", result.args, result)
             raise RuntimeError(message)
         return
     raise RuntimeError(f"Unsupported disk layout op: {op.kind}")
+
+
+def _format_command_failure(summary: str, command: list[str], result: subprocess.CompletedProcess) -> str:
+    stderr = " ".join(result.stderr.strip().split())
+    stdout = " ".join(result.stdout.strip().split())
+    details = []
+    if stderr:
+        details.append(f"stderr: {stderr}")
+    if stdout:
+        details.append(f"stdout: {stdout}")
+    if details:
+        return f"{summary} ({' '.join(command)}): {' | '.join(details)}"
+    return f"{summary} ({' '.join(command)})"
 
 
 def _estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
