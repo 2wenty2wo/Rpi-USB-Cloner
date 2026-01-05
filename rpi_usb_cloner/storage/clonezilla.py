@@ -602,7 +602,14 @@ def _get_partclone_tool(fstype: str) -> Optional[str]:
     tool = partclone_tools.get(fstype)
     if not tool:
         return None
-    return shutil.which(tool)
+    found = shutil.which(tool)
+    if found:
+        return found
+    for prefix in ("/usr/sbin", "/sbin", "/usr/local/sbin"):
+        candidate = Path(prefix) / tool
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -> list[str]:

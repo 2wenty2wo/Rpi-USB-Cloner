@@ -112,12 +112,12 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     target_size = _get_target_size(target)
     if not _confirm_destructive_action(
         log_debug=log_debug,
-        prompt_lines=[
-            f"IMG {selected_dir.name}",
-            f"SRC {_format_size(source_size)}",
-            f"DEV {devices.format_device_label(target)}",
-            f"TGT {_format_size(target_size)}",
-        ],
+        prompt_lines=_build_confirmation_lines(
+            image_name=selected_dir.name,
+            source_size=source_size,
+            target=target,
+            target_size=target_size,
+        ),
     ):
         return
     screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
@@ -233,7 +233,10 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
 
 def _short_restore_reason(message: str) -> str:
     lower = message.lower()
-    if "partclone tool not found" in lower or "partclone." in lower and "not found" in lower:
+    if "partclone tool not found" in lower or ("partclone." in lower and "not found" in lower):
+        fstype_match = re.search(r"filesystem ['\"]?([^'\"]+)['\"]?", message, re.IGNORECASE)
+        if fstype_match:
+            return f"Missing partclone.{fstype_match.group(1).lower()}"
         return "Missing partclone tool"
     for tool in ("sfdisk", "parted", "sgdisk", "dd", "gzip", "pigz"):
         if f"{tool} not found" in lower:
@@ -252,3 +255,20 @@ def _extract_stderr_message(message: str) -> Optional[str]:
         return None
     stderr = " ".join(match.group(1).strip().split())
     return stderr or None
+
+
+def _build_confirmation_lines(
+    *,
+    image_name: str,
+    source_size: Optional[int],
+    target: dict,
+    target_size: Optional[int],
+) -> list[str]:
+    target_label = target.get("name") or devices.format_device_label(target)
+    lines = [
+        f"IMG {image_name}",
+        f"SRC {_format_size(source_size)}",
+        f"TGT {_format_size(target_size)}",
+        f"DEV {target_label}",
+    ]
+    return [line for line in lines if line.strip()]
