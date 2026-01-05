@@ -125,12 +125,9 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         clonezilla.restore_clonezilla_image(plan, target.get("name") or "")
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore failed: {error}")
-        error_lines = _format_restore_error_lines(error)
-        progress_line = error_lines[0] if error_lines else "Restore failed"
-        extra_lines = error_lines[1:] if len(error_lines) > 1 else []
         screens.wait_for_paginated_input(
             "WRITE",
-            ["Failed", progress_line, *extra_lines],
+            ["FAILED", *_format_restore_error_lines(error)],
         )
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
@@ -223,8 +220,12 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
         step_line = "Restore failed"
     reason = _extract_stderr_message(message) or _short_restore_reason(message)
     if reason and reason != step_line:
-        return [step_line, reason]
-    return [step_line]
+        lines = [step_line, reason]
+    else:
+        lines = [step_line]
+    if message not in lines:
+        lines.append(message)
+    return lines
 
 
 def _short_restore_reason(message: str) -> str:
