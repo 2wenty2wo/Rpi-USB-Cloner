@@ -216,7 +216,7 @@ def _collect_disk_layout_ops(image_dir: Path) -> list[DiskLayoutOp]:
 def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLayoutOp]:
     if not disk_layout_ops:
         return []
-    priority = ["pt.sgdisk", "gpt", "mbr", "pt.parted", "pt.sf", "sfdisk", "disk"]
+    priority = ["pt.sgdisk", "gpt", "pt.parted", "pt.sf", "mbr", "sfdisk", "disk"]
     for kind in priority:
         for op in disk_layout_ops:
             if op.kind == kind:
