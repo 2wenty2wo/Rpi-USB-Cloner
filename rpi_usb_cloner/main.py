@@ -311,9 +311,11 @@ def main(argv=None):
             force_render = False
             now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
-                log_debug(f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)")
                 current_devices = get_usb_snapshot()
                 if current_devices != app_context.discovered_drives:
+                    log_debug(
+                        f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)"
+                    )
                     log_debug(
                         f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
                     )
