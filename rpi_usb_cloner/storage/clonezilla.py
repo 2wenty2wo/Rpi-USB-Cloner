@@ -240,16 +240,26 @@ def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
 
 def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[PartitionRestoreOp]:
     partclone_files = _find_image_files(image_dir, part_name, "ptcl-img")
+    dd_files = _find_image_files(image_dir, part_name, "img")
     if partclone_files:
         fstype = _extract_partclone_fstype(part_name, partclone_files[0].name)
-        return PartitionRestoreOp(
-            partition=part_name,
-            image_files=partclone_files,
-            tool="partclone",
-            fstype=fstype,
-            compressed=_is_gzip_compressed(partclone_files),
-        )
-    dd_files = _find_image_files(image_dir, part_name, "img")
+        if not dd_files:
+            return PartitionRestoreOp(
+                partition=part_name,
+                image_files=partclone_files,
+                tool="partclone",
+                fstype=fstype,
+                compressed=_is_gzip_compressed(partclone_files),
+            )
+        tool = _get_partclone_tool((fstype or "").lower())
+        if tool:
+            return PartitionRestoreOp(
+                partition=part_name,
+                image_files=partclone_files,
+                tool="partclone",
+                fstype=fstype,
+                compressed=_is_gzip_compressed(partclone_files),
+            )
     if dd_files:
         return PartitionRestoreOp(
             partition=part_name,
@@ -258,6 +268,8 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
             fstype=None,
             compressed=_is_gzip_compressed(dd_files),
         )
+    if _has_partition_image_files(image_dir, part_name):
+        raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
     return None
 
 
@@ -463,16 +475,49 @@ def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: st
 
 def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
     if suffix == "ptcl-img":
-        pattern = f"{part_name}.*-{suffix}*"
+        pattern = f"*-{part_name}.*-{suffix}*"
+        return _sorted_clonezilla_volumes(image_dir.glob(pattern))
     elif suffix == "img":
-        patterns = [f"{part_name}.dd-img*", f"{part_name}.{suffix}*"]
-        matches = []
-        for candidate in patterns:
-            matches.extend(image_dir.glob(candidate))
-        return sorted({path for path in matches})
+        dd_matches = list(image_dir.glob(f"*-{part_name}.*-dd-img*"))
+        if dd_matches:
+            return _sorted_clonezilla_volumes(dd_matches)
+        img_matches = list(image_dir.glob(f"*-{part_name}.*.img*"))
+        return _sorted_clonezilla_volumes(img_matches)
     else:
-        pattern = f"{part_name}.{suffix}*"
-    return sorted(image_dir.glob(pattern))
+        pattern = f"*-{part_name}.*.{suffix}*"
+    return _sorted_clonezilla_volumes(image_dir.glob(pattern))
+
+
+def _has_partition_image_files(image_dir: Path, part_name: str) -> bool:
+    return any(image_dir.glob(f"*-{part_name}.*-img*"))
+
+
+def _extract_volume_suffix(path: Path) -> Optional[str]:
+    match = re.search(r"\.([a-z]{2})$", path.name)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def _volume_suffix_index(suffix: Optional[str]) -> int:
+    if not suffix:
+        return -1
+    first = ord(suffix[0]) - ord("a")
+    second = ord(suffix[1]) - ord("a")
+    if first < 0 or first > 25 or second < 0 or second > 25:
+        return -1
+    return first * 26 + second
+
+
+def _sorted_clonezilla_volumes(paths: Iterable[Path]) -> list[Path]:
+    def sort_key(path: Path) -> tuple[str, int, str]:
+        suffix = _extract_volume_suffix(path)
+        base = path.name
+        if suffix:
+            base = base[: -len(suffix) - 1]
+        return (base, _volume_suffix_index(suffix), path.name)
+
+    return sorted({path for path in paths}, key=sort_key)
 
 
 def _extract_partclone_fstype(part_name: str, file_name: str) -> Optional[str]:
@@ -542,10 +587,27 @@ def _map_target_partitions(parts: Iterable[str], target_device: dict) -> dict[st
 
 
 def _restore_partition(image_dir: Path, part_name: str, target_part: str) -> None:
-    image_files = sorted(image_dir.glob(f"{part_name}.*-img*"))
-    if not image_files:
+    partclone_files = _find_image_files(image_dir, part_name, "ptcl-img")
+    dd_files = _find_image_files(image_dir, part_name, "img")
+    if not partclone_files and not dd_files:
+        if _has_partition_image_files(image_dir, part_name):
+            raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
         raise RuntimeError(f"Image data missing for {part_name}")
-    descriptor = _get_partition_descriptor(part_name, image_files)
+    if partclone_files:
+        fstype = _extract_partclone_fstype(part_name, partclone_files[0].name)
+        if not dd_files or _get_partclone_tool((fstype or "").lower()):
+            descriptor = {
+                "mode": "partclone",
+                "fstype": fstype,
+                "compressed": _is_gzip_compressed(partclone_files),
+            }
+            image_files = partclone_files
+        else:
+            descriptor = {"mode": "dd", "compressed": _is_gzip_compressed(dd_files)}
+            image_files = dd_files
+    else:
+        descriptor = {"mode": "dd", "compressed": _is_gzip_compressed(dd_files)}
+        image_files = dd_files
     command, supports_progress = _build_restore_command(descriptor, target_part)
     _run_pipeline(image_files, command, supports_progress)
 
@@ -628,6 +690,7 @@ def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -
 def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_progress: bool) -> None:
     if not image_files:
         raise RuntimeError("No image files")
+    image_files = _sorted_clonezilla_volumes(image_files)
     cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
     upstream = cat_proc.stdout
     decompress_proc = None
@@ -670,6 +733,7 @@ def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_
 def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *, title: str) -> None:
     if not image_files:
         raise RuntimeError("No image files")
+    image_files = _sorted_clonezilla_volumes(image_files)
     cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
     upstream = cat_proc.stdout
     decompress_proc = None
