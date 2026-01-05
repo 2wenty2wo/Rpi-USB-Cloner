@@ -58,14 +58,19 @@ def main(argv=None):
         "screensaver_enabled",
         default=app_state.ENABLE_SLEEP,
     )
+    last_usb_snapshot = None
+
     def get_usb_snapshot():
+        nonlocal last_usb_snapshot
         try:
             devices_list = drives.list_media_drive_names()
         except Exception as error:
             log_debug(f"Failed to list media devices: {error}")
             return []
         snapshot = sorted(devices_list)
-        log_debug(f"USB snapshot: {snapshot}")
+        if snapshot != last_usb_snapshot:
+            log_debug(f"USB snapshot: {snapshot}")
+            last_usb_snapshot = snapshot
         return snapshot
 
     get_device_items = partial(
