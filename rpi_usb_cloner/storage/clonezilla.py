@@ -607,7 +607,7 @@ def _get_partclone_tool(fstype: str) -> Optional[str]:
         return found
     for prefix in ("/usr/sbin", "/sbin", "/usr/local/sbin"):
         candidate = Path(prefix) / tool
-        if candidate.exists():
+        if candidate.is_file() and os.access(candidate, os.X_OK):
             return str(candidate)
     return None
 
