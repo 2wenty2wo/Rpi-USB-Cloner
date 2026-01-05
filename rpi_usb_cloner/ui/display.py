@@ -172,6 +172,27 @@ def _truncate_text(draw, text, font, max_width):
     return ""
 
 
+def _split_long_word(draw, word, font, available_width):
+    if available_width <= 0:
+        return [""]
+    chunks = []
+    current = ""
+    for char in word:
+        candidate = f"{current}{char}"
+        if _measure_text_width(draw, candidate, font) <= available_width:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = char
+        else:
+            chunks.append(char)
+            current = ""
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _wrap_lines_to_width(lines, font, available_width):
     context = get_display_context()
     draw = context.draw
@@ -193,7 +214,9 @@ def _wrap_lines_to_width(lines, font, available_width):
             if _measure_text_width(draw, word, font) <= available_width:
                 current = word
             else:
-                wrapped_lines.append(_truncate_text(draw, word, font, available_width))
+                chunks = _split_long_word(draw, word, font, available_width)
+                wrapped_lines.extend(chunks[:-1])
+                current = chunks[-1] if chunks else ""
         if current:
             wrapped_lines.append(current)
     return wrapped_lines
