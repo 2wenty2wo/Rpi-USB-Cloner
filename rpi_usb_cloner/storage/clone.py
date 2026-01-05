@@ -298,6 +298,8 @@ def run_checked_with_progress(
         stdout=stdout_target or subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     parse_progress(result.stderr, total_bytes=total_bytes, title=title)
     if result.returncode != 0:

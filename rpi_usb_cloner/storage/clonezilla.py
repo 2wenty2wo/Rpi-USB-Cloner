@@ -649,6 +649,8 @@ def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     stdout, stderr = restore_proc.communicate()
     if cat_proc.stdout:
