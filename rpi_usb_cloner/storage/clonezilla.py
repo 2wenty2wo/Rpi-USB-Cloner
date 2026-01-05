@@ -249,7 +249,7 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
                 image_files=partclone_files,
                 tool="partclone",
                 fstype=fstype,
-                compressed=_is_gzip_compressed(partclone_files),
+                compressed=_is_compressed(partclone_files),
             )
         tool = _get_partclone_tool((fstype or "").lower())
         if tool:
@@ -258,7 +258,7 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
                 image_files=partclone_files,
                 tool="partclone",
                 fstype=fstype,
-                compressed=_is_gzip_compressed(partclone_files),
+                compressed=_is_compressed(partclone_files),
             )
     if dd_files:
         return PartitionRestoreOp(
@@ -266,7 +266,7 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
             image_files=dd_files,
             tool="dd",
             fstype=None,
-            compressed=_is_gzip_compressed(dd_files),
+            compressed=_is_compressed(dd_files),
         )
     if _has_partition_image_files(image_dir, part_name):
         raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
@@ -599,14 +599,14 @@ def _restore_partition(image_dir: Path, part_name: str, target_part: str) -> Non
             descriptor = {
                 "mode": "partclone",
                 "fstype": fstype,
-                "compressed": _is_gzip_compressed(partclone_files),
+                "compressed": _is_compressed(partclone_files),
             }
             image_files = partclone_files
         else:
-            descriptor = {"mode": "dd", "compressed": _is_gzip_compressed(dd_files)}
+            descriptor = {"mode": "dd", "compressed": _is_compressed(dd_files)}
             image_files = dd_files
     else:
-        descriptor = {"mode": "dd", "compressed": _is_gzip_compressed(dd_files)}
+        descriptor = {"mode": "dd", "compressed": _is_compressed(dd_files)}
         image_files = dd_files
     command, supports_progress = _build_restore_command(descriptor, target_part)
     _run_pipeline(image_files, command, supports_progress)
@@ -619,11 +619,11 @@ def _get_partition_descriptor(part_name: str, image_files: list[Path]) -> dict:
         return {
             "mode": "partclone",
             "fstype": partclone_match.group(1),
-            "compressed": _is_gzip_compressed(image_files),
+            "compressed": _is_compressed(image_files),
         }
     if "dd-img" in file_name:
-        return {"mode": "dd", "compressed": _is_gzip_compressed(image_files)}
-    return {"mode": "dd", "compressed": _is_gzip_compressed(image_files)}
+        return {"mode": "dd", "compressed": _is_compressed(image_files)}
+    return {"mode": "dd", "compressed": _is_compressed(image_files)}
 
 
 def _is_gzip_compressed(image_files: list[Path]) -> bool:
@@ -633,6 +633,27 @@ def _is_gzip_compressed(image_files: list[Path]) -> bool:
         if image_file.name.endswith(".gz"):
             return True
     return False
+
+
+def _is_zstd_compressed(image_files: list[Path]) -> bool:
+    for image_file in image_files:
+        if ".zst" in image_file.suffixes:
+            return True
+        if image_file.name.endswith(".zst"):
+            return True
+    return False
+
+
+def _get_compression_type(image_files: list[Path]) -> Optional[str]:
+    if _is_zstd_compressed(image_files):
+        return "zstd"
+    if _is_gzip_compressed(image_files):
+        return "gzip"
+    return None
+
+
+def _is_compressed(image_files: list[Path]) -> bool:
+    return _get_compression_type(image_files) is not None
 
 
 def _build_restore_command(descriptor: dict, target_part: str) -> tuple[list[str], bool]:
@@ -694,12 +715,23 @@ def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_
     cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
     upstream = cat_proc.stdout
     decompress_proc = None
-    if _is_gzip_compressed(image_files):
+    compression_type = _get_compression_type(image_files)
+    if compression_type == "gzip":
         gzip_path = shutil.which("pigz") or shutil.which("gzip")
         if not gzip_path:
             raise RuntimeError("gzip not found")
         decompress_proc = subprocess.Popen(
             [gzip_path, "-dc"],
+            stdin=upstream,
+            stdout=subprocess.PIPE,
+        )
+        upstream = decompress_proc.stdout
+    elif compression_type == "zstd":
+        zstd_path = shutil.which("pzstd") or shutil.which("zstd")
+        if not zstd_path:
+            raise RuntimeError("zstd not found")
+        decompress_proc = subprocess.Popen(
+            [zstd_path, "-dc"],
             stdin=upstream,
             stdout=subprocess.PIPE,
         )
@@ -737,12 +769,23 @@ def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *
     cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
     upstream = cat_proc.stdout
     decompress_proc = None
-    if _is_gzip_compressed(image_files):
+    compression_type = _get_compression_type(image_files)
+    if compression_type == "gzip":
         gzip_path = shutil.which("pigz") or shutil.which("gzip")
         if not gzip_path:
             raise RuntimeError("gzip not found")
         decompress_proc = subprocess.Popen(
             [gzip_path, "-dc"],
+            stdin=upstream,
+            stdout=subprocess.PIPE,
+        )
+        upstream = decompress_proc.stdout
+    elif compression_type == "zstd":
+        zstd_path = shutil.which("pzstd") or shutil.which("zstd")
+        if not zstd_path:
+            raise RuntimeError("zstd not found")
+        decompress_proc = subprocess.Popen(
+            [zstd_path, "-dc"],
             stdin=upstream,
             stdout=subprocess.PIPE,
         )
