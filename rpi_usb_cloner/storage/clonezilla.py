@@ -618,7 +618,7 @@ def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -
         tool = _get_partclone_tool(fstype)
         if not tool:
             raise RuntimeError(f"partclone tool not found for filesystem '{fstype}'")
-        return [tool, "-r", "-s", "-", "-o", target_part, "-f"]
+        return [tool, "-r", "-s", "-", "-o", target_part, "-F"]
     dd_path = shutil.which("dd")
     if not dd_path:
         raise RuntimeError("dd not found")
