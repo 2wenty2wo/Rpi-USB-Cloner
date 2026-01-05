@@ -376,7 +376,7 @@ def clone_partclone(source, target):
         display_lines([f"PART {index}/{len(source_parts)}", tool])
         with open(dst_part, "wb") as dst_handle:
             run_checked_with_progress(
-                [tool_path, "-s", src_part, "-o", "-", "-f"],
+                [tool_path, "-s", src_part, "-o", "-", "-F"],
                 total_bytes=part.get("size"),
                 title=f"PART {index}/{len(source_parts)}",
                 stdout_target=dst_handle,
