@@ -206,13 +206,11 @@ def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     restart_result = _restart_systemd_service(log_debug=log_debug)
     if restart_result.returncode != 0:
         _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
-        display.render_paginated_lines(
+        screens.wait_for_paginated_input(
             title,
             ["Service restart failed"]
             + _format_command_output(restart_result.stdout, restart_result.stderr),
-            page_index=0,
         )
-        time.sleep(2)
         return
     display.clear_display()
     sys.exit(0)
@@ -225,12 +223,10 @@ def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     stop_result = _stop_systemd_service(log_debug=log_debug)
     if stop_result.returncode != 0:
         _log_debug(log_debug, f"Service stop failed with return code {stop_result.returncode}")
-        display.render_paginated_lines(
+        screens.wait_for_paginated_input(
             title,
             ["Service stop failed"] + _format_command_output(stop_result.stdout, stop_result.stderr),
-            page_index=0,
         )
-        time.sleep(2)
         return
     display.clear_display()
     sys.exit(0)
@@ -245,12 +241,10 @@ def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     reboot_result = _reboot_system(log_debug=log_debug)
     if reboot_result.returncode != 0:
         _log_debug(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
-        display.render_paginated_lines(
+        screens.wait_for_paginated_input(
             title,
             ["System reboot failed"] + _format_command_output(reboot_result.stdout, reboot_result.stderr),
-            page_index=0,
         )
-        time.sleep(2)
 
 
 def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
@@ -262,13 +256,11 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     shutdown_result = _poweroff_system(log_debug=log_debug)
     if shutdown_result.returncode != 0:
         _log_debug(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
-        display.render_paginated_lines(
+        screens.wait_for_paginated_input(
             title,
             ["System poweroff failed"]
             + _format_command_output(shutdown_result.stdout, shutdown_result.stderr),
-            page_index=0,
         )
-        time.sleep(2)
         return
     display.clear_display()
     display.display_lines(["Shutdown initiated", "Safe to remove power"])
@@ -288,13 +280,11 @@ def _run_update_flow(
     _log_debug(log_debug, f"Repo root is git repo: {is_repo}")
     if not is_repo:
         _log_debug(log_debug, "Update aborted: repo not found")
-        display.render_paginated_lines(
+        screens.wait_for_paginated_input(
             title,
             ["Repo not found"],
-            page_index=0,
             title_icon=title_icon,
         )
-        time.sleep(2)
         return
     dirty_tree = _has_dirty_working_tree(repo_root, log_debug=log_debug)
     if dirty_tree:

@@ -126,14 +126,11 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         _log_debug(log_debug, f"Restore failed: {error}")
         error_lines = _format_restore_error_lines(error)
         progress_line = error_lines[0] if error_lines else "Restore failed"
-        extra_lines = error_lines[1:] if len(error_lines) > 1 else None
-        screens.render_status_template(
+        extra_lines = error_lines[1:] if len(error_lines) > 1 else []
+        screens.wait_for_paginated_input(
             "WRITE",
-            "Failed",
-            progress_line=progress_line,
-            extra_lines=extra_lines,
+            ["Failed", progress_line, *extra_lines],
         )
-        screens.wait_for_ack()
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
     time.sleep(1)
