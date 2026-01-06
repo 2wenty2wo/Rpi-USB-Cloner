@@ -66,11 +66,23 @@ ICONS_MENU = MenuScreen(
     ],
 )
 
+SCREENS_MENU = MenuScreen(
+    screen_id="screens",
+    title="SCREENS",
+    items=[
+        menu_entry("KEYBOARD", action=menu_actions.keyboard_test),
+        menu_entry("CONFIRMATION", action=menu_actions.demo_confirmation_screen),
+        menu_entry("STATUS", action=menu_actions.demo_status_screen),
+        menu_entry("INFO", action=menu_actions.demo_info_screen),
+        menu_entry("PROGRESS", action=menu_actions.demo_progress_screen),
+    ],
+)
+
 DEVELOP_MENU = MenuScreen(
     screen_id="develop",
     title="DEVELOP",
     items=[
-        menu_entry("KEYBOARD", action=menu_actions.keyboard_test),
+        menu_entry("SCREENS", submenu=SCREENS_MENU),
         menu_entry("ICONS", submenu=ICONS_MENU),
     ],
 )

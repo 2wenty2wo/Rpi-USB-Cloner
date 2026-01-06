@@ -136,6 +136,22 @@ def keyboard_test() -> None:
     settings_actions.keyboard_test()
 
 
+def demo_confirmation_screen() -> None:
+    settings_actions.demo_confirmation_screen()
+
+
+def demo_status_screen() -> None:
+    settings_actions.demo_status_screen()
+
+
+def demo_info_screen() -> None:
+    settings_actions.demo_info_screen()
+
+
+def demo_progress_screen() -> None:
+    settings_actions.demo_progress_screen()
+
+
 def font_awesome_demo() -> None:
     settings_actions.font_awesome_demo()
 
