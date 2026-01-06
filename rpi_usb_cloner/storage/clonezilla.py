@@ -489,11 +489,26 @@ def _build_partition_mode_layout_ops(
     if partition_mode in {"k", "k2"}:
         return []
     if partition_mode == "k1" and target_size:
-        for op in disk_layout_ops:
+        scaled = _build_scaled_sfdisk_layout(disk_layout_ops, target_size)
+        if scaled:
+            return [scaled]
+    return list(disk_layout_ops)
+
+
+def _build_scaled_sfdisk_layout(
+    disk_layout_ops: list[DiskLayoutOp],
+    target_size: int,
+) -> Optional[DiskLayoutOp]:
+    for op in disk_layout_ops:
+        if op.kind in {"disk", "sfdisk", "pt.sf"}:
             scaled = _scale_sfdisk_layout(op, target_size)
             if scaled:
-                return [scaled]
-    return list(disk_layout_ops)
+                return scaled
+        if op.kind == "pt.parted":
+            scaled = _scale_parted_layout(op, target_size)
+            if scaled:
+                return scaled
+    return None
 
 
 def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
@@ -502,6 +517,7 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
     lines = op.contents.splitlines()
     sector_size = 512
     partitions: list[dict[str, int | str]] = []
+    last_lba_index = None
     for index, line in enumerate(lines):
         stripped = line.strip()
         if not stripped:
@@ -512,10 +528,7 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
                 sector_size = int(match.group(1))
             continue
         if stripped.startswith("last-lba:"):
-            last_lba_line = {
-                "index": index,
-                "prefix": line[: line.index("last-lba:")],
-            }
+            last_lba_index = index
             continue
         if not stripped.startswith("/dev/") or ":" not in stripped:
             continue
@@ -536,30 +549,234 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
         )
     if not partitions:
         return None
-    max_end = max(int(part["start"]) + int(part["size"]) - 1 for part in partitions)
     target_sectors = target_size // sector_size
-    if target_sectors <= max_end + 1:
+    scaled = _scale_partition_geometry(
+        partitions,
+        target_sectors=target_sectors,
+        sector_size=sector_size,
+        layout_label="sfdisk",
+    )
+    if not scaled:
         return None
-    scale = target_sectors / float(max_end + 1)
-    last_end = -1
-    for part in partitions:
-        start = int(part["start"])
-        size = int(part["size"])
-        scaled_start = max(1, int(round(start * scale)))
-        scaled_size = max(1, int(round(size * scale)))
-        if scaled_start <= last_end:
-            scaled_start = last_end + 1
-        if scaled_start + scaled_size > target_sectors:
-            scaled_size = max(1, target_sectors - scaled_start)
-        last_end = scaled_start + scaled_size - 1
-        part["start"] = scaled_start
-        part["size"] = scaled_size
-        part["fields"] = _set_sfdisk_field(part["fields"], "start", str(scaled_start))
-        part["fields"] = _set_sfdisk_field(part["fields"], "size", str(scaled_size))
+    for part in scaled:
+        part["fields"] = _set_sfdisk_field(part["fields"], "start", str(part["new_start"]))
+        part["fields"] = _set_sfdisk_field(part["fields"], "size", str(part["new_size"]))
         lines[part["index"]] = _format_sfdisk_line(part["prefix"], part["fields"])
-    if last_lba_line:
-        lines[last_lba_line["index"]] = f"{last_lba_line['prefix']}last-lba: {target_sectors - 1}"
-    return DiskLayoutOp(kind=op.kind, path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
+    if last_lba_index is not None:
+        lines[last_lba_index] = f"last-lba: {target_sectors - 1}"
+    return DiskLayoutOp(kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
+
+
+def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+    if op.kind != "pt.parted" or not op.contents:
+        return None
+    layout = _parse_parted_layout(op.contents)
+    if not layout:
+        return None
+    sector_size, label, partitions = layout
+    target_sectors = target_size // sector_size
+    scaled = _scale_partition_geometry(
+        partitions,
+        target_sectors=target_sectors,
+        sector_size=sector_size,
+        layout_label="parted",
+    )
+    if not scaled:
+        return None
+    sfdisk_contents = _build_sfdisk_script_from_parted(
+        label=label,
+        sector_size=sector_size,
+        partitions=scaled,
+    )
+    if not sfdisk_contents:
+        return None
+    return DiskLayoutOp(kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes)
+
+
+def _parse_parted_layout(contents: str) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
+    sector_size = 512
+    label: Optional[str] = None
+    script_partitions: list[dict[str, int | str | list[str]]] = []
+    print_partitions: list[dict[str, int | str | list[str]]] = []
+    unit_is_sectors = False
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if "Sector size" in stripped:
+            match = re.search(r"Sector size .*?:\s*(\d+)B", stripped)
+            if match:
+                sector_size = int(match.group(1))
+        if stripped.startswith("Partition Table:"):
+            label = stripped.split(":", 1)[1].strip()
+        if stripped.startswith("unit "):
+            unit_is_sectors = stripped.split()[-1] == "s"
+        if stripped.startswith("mklabel"):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                label = parts[1].strip()
+        if stripped.startswith("mkpart"):
+            match = re.search(r"(\d+)s\s+(\d+)s", stripped)
+            if match:
+                start = int(match.group(1))
+                end = int(match.group(2))
+                size = end - start + 1
+                if size > 0:
+                    script_partitions.append(
+                        {
+                            "number": len(script_partitions) + 1,
+                            "start": start,
+                            "size": size,
+                            "flags": [],
+                            "fstype": None,
+                        }
+                    )
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if not stripped or not stripped[:1].isdigit():
+            continue
+        columns = re.split(r"\s+", stripped)
+        if len(columns) < 4 or not columns[0].isdigit():
+            continue
+        start = _parse_parted_sector(columns[1], unit_is_sectors)
+        end = _parse_parted_sector(columns[2], unit_is_sectors)
+        if start is None or end is None:
+            continue
+        size = end - start + 1
+        if size <= 0:
+            continue
+        number = int(columns[0])
+        fstype = None
+        flags: list[str] = []
+        for column in columns[4:]:
+            if "," in column:
+                flags.extend(flag.strip() for flag in column.split(",") if flag.strip())
+            elif column in {"boot", "esp", "bios_grub", "legacy_boot"}:
+                flags.append(column)
+            elif fstype is None:
+                fstype = column
+        print_partitions.append(
+            {
+                "number": number,
+                "start": start,
+                "size": size,
+                "flags": flags,
+                "fstype": fstype,
+            }
+        )
+    partitions = print_partitions or script_partitions
+    if not partitions:
+        return None
+    return sector_size, label, partitions
+
+
+def _parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
+    match = re.match(r"(\d+)(s)?$", value)
+    if not match:
+        return None
+    if match.group(2) or unit_is_sectors:
+        return int(match.group(1))
+    return None
+
+
+def _build_sfdisk_script_from_parted(
+    *,
+    label: Optional[str],
+    sector_size: int,
+    partitions: list[dict[str, int | str | list[str]]],
+) -> Optional[str]:
+    normalized_label = _normalize_parted_label(label)
+    if not normalized_label:
+        return None
+    lines = [
+        f"label: {normalized_label}",
+        "unit: sectors",
+    ]
+    if sector_size:
+        lines.append(f"sector-size: {sector_size}")
+    for index, part in enumerate(sorted(partitions, key=lambda item: int(item["start"]))):
+        start = int(part["new_start"])
+        size = int(part["new_size"])
+        fields: list[tuple[str, str]] = [
+            ("start", str(start)),
+            ("size", str(size)),
+        ]
+        flags = [flag.lower() for flag in part.get("flags") or []]
+        fstype = str(part.get("fstype") or "").lower()
+        if normalized_label == "gpt" and ("esp" in flags or (fstype == "fat32" and "boot" in flags)):
+            fields.append(("type", "EF00"))
+        if normalized_label == "dos" and "boot" in flags:
+            fields.append(("bootable", ""))
+        part_number = int(part.get("number") or index + 1)
+        prefix = f"/dev/sda{part_number}"
+        lines.append(_format_sfdisk_line(prefix, fields))
+    return "\n".join(lines)
+
+
+def _normalize_parted_label(label: Optional[str]) -> Optional[str]:
+    if not label:
+        return None
+    label = label.strip().lower()
+    if label in {"msdos", "mbr"}:
+        return "dos"
+    if label in {"gpt", "dos"}:
+        return label
+    return None
+
+
+def _scale_partition_geometry(
+    partitions: list[dict[str, int | str | list[str]]],
+    *,
+    target_sectors: int,
+    sector_size: int,
+    layout_label: str,
+) -> Optional[list[dict[str, int | str | list[str]]]]:
+    if not partitions:
+        return None
+    source_sectors = max(int(part["start"]) + int(part["size"]) for part in partitions)
+    if target_sectors <= source_sectors:
+        return None
+    scale = target_sectors / float(source_sectors)
+    logger.info(
+        "Scaling %s partition layout from %s to %s sectors (scale %.3f).",
+        layout_label,
+        source_sectors,
+        target_sectors,
+        scale,
+    )
+    ordered = sorted(partitions, key=lambda item: int(item["start"]))
+    last_end = -1
+    for index, part in enumerate(ordered, start=1):
+        orig_start = int(part["start"])
+        orig_size = int(part["size"])
+        scaled_size = max(1, int(round(orig_size * scale)))
+        start = orig_start if orig_start > last_end else last_end + 1
+        if start >= target_sectors:
+            raise RuntimeError("Scaled partition start exceeds target disk size.")
+        if index == len(ordered):
+            size = max(1, target_sectors - start)
+        else:
+            size = scaled_size
+            if start + size > target_sectors:
+                size = max(1, target_sectors - start)
+        end = start + size - 1
+        if end >= target_sectors:
+            raise RuntimeError("Scaled partition exceeds target disk size.")
+        part["new_start"] = start
+        part["new_size"] = size
+        label = part.get("prefix") or part.get("number") or index
+        logger.info(
+            "Partition %s resize: start %ss size %ss (%s) -> start %ss size %ss (%s)",
+            label,
+            orig_start,
+            orig_size,
+            devices.human_size(orig_size * sector_size),
+            start,
+            size,
+            devices.human_size(size * sector_size),
+        )
+        last_end = end
+    return ordered
 
 
 def _parse_sfdisk_fields(rest: str) -> list[tuple[str, str]]:
