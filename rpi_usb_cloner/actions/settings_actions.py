@@ -39,11 +39,11 @@ def select_restore_partition_mode() -> None:
             selected_index = index
             break
     selection = menus.render_menu_list(
-        "RESTORE PT",
+        "Partitions",
         [label for _, label in options],
-        footer=["BACK", "OK"],
         selected_index=selected_index,
         header_lines=["Partition table mode"],
+        title_icon=chr(57451),
     )
     if selection is None:
         return
