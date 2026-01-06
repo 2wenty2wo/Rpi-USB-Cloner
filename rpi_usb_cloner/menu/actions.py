@@ -112,6 +112,10 @@ def wifi_settings() -> None:
     settings_actions.wifi_settings()
 
 
+def select_restore_partition_mode() -> None:
+    settings_actions.select_restore_partition_mode()
+
+
 def screensaver_settings() -> None:
     settings_actions.screensaver_settings()
 

@@ -25,6 +25,34 @@ def wifi_settings() -> None:
     screens.show_wifi_settings(title="WIFI")
 
 
+def select_restore_partition_mode() -> None:
+    options = [
+        ("k0", "USE SOURCE (-k0)"),
+        ("k", "SKIP TABLE (-k)"),
+        ("k1", "RESIZE TABLE (-k1)"),
+        ("k2", "MANUAL TABLE (-k2)"),
+    ]
+    current_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
+    selected_index = 0
+    for index, (value, _) in enumerate(options):
+        if value == current_mode:
+            selected_index = index
+            break
+    selection = menus.render_menu_list(
+        "RESTORE PT",
+        [label for _, label in options],
+        footer=["BACK", "OK"],
+        selected_index=selected_index,
+        header_lines=["Partition table mode"],
+    )
+    if selection is None:
+        return
+    selected_value, selected_label = options[selection]
+    settings.set_setting("restore_partition_mode", selected_value)
+    screens.render_status_template("RESTORE PT", f"Set: {selected_label}")
+    time.sleep(1.5)
+
+
 def screensaver_settings() -> None:
     toggle_screensaver_enabled()
 
