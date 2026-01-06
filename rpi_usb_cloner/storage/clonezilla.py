@@ -475,13 +475,31 @@ def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: st
 
 def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
     if suffix == "ptcl-img":
-        pattern = f"*-{part_name}.*-{suffix}*"
-        return _sorted_clonezilla_volumes(image_dir.glob(pattern))
+        patterns = [
+            f"*-{part_name}.*-{suffix}*",
+            f"{part_name}.*-{suffix}*",
+        ]
+        matches = []
+        for pattern in patterns:
+            matches.extend(image_dir.glob(pattern))
+        return _sorted_clonezilla_volumes(matches)
     elif suffix == "img":
-        dd_matches = list(image_dir.glob(f"*-{part_name}.*-dd-img*"))
+        dd_patterns = [
+            f"*-{part_name}.*-dd-img*",
+            f"{part_name}.*-dd-img*",
+        ]
+        dd_matches = []
+        for pattern in dd_patterns:
+            dd_matches.extend(image_dir.glob(pattern))
         if dd_matches:
             return _sorted_clonezilla_volumes(dd_matches)
-        img_matches = list(image_dir.glob(f"*-{part_name}.*.img*"))
+        img_patterns = [
+            f"*-{part_name}.*.img*",
+            f"{part_name}.*.img*",
+        ]
+        img_matches = []
+        for pattern in img_patterns:
+            img_matches.extend(image_dir.glob(pattern))
         return _sorted_clonezilla_volumes(img_matches)
     else:
         pattern = f"*-{part_name}.*.{suffix}*"
