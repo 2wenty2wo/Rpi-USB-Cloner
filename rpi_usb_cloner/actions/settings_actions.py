@@ -320,7 +320,7 @@ def _run_update_flow(
         prompt = "Continue with update?"
     else:
         prompt = "Are you sure you want to update?"
-    if not _confirm_action(title, prompt, log_debug=log_debug):
+    if not _confirm_action(title, prompt, log_debug=log_debug, title_icon=title_icon):
         _log_debug(log_debug, "Update canceled by confirmation prompt")
         return
 
@@ -584,9 +584,15 @@ def _confirm_action(
     prompt: str,
     *,
     log_debug: Optional[Callable[[str], None]],
+    title_icon: Optional[str] = None,
 ) -> bool:
     selection = app_state.CONFIRM_NO
-    screens.render_confirmation_screen(title, [prompt], selected_index=selection)
+    screens.render_confirmation_screen(
+        title,
+        [prompt],
+        selected_index=selection,
+        title_icon=title_icon,
+    )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
@@ -615,7 +621,12 @@ def _confirm_action(
         prev_states["L"] = current_l
         prev_states["A"] = current_a
         prev_states["B"] = current_b
-        screens.render_confirmation_screen(title, [prompt], selected_index=selection)
+        screens.render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection,
+            title_icon=title_icon,
+        )
         time.sleep(menus.BUTTON_POLL_DELAY)
 
 
