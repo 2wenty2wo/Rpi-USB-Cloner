@@ -184,16 +184,17 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             timeout_seconds=10,
             allow_short=True,
         )
-        if observed_count == required_partitions:
+        if observed_count >= required_partitions:
             break
-        logger.warning(
-            "Partition count mismatch after %s layout op (expected %s, saw %s).",
-            op.kind,
-            required_partitions,
-            observed_count,
-        )
-        attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
-        applied_layout = False
+        if observed_count < required_partitions:
+            logger.warning(
+                "Partition count mismatch after %s layout op (expected %s, saw %s).",
+                op.kind,
+                required_partitions,
+                observed_count,
+            )
+            attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
+            applied_layout = False
     if plan.disk_layout_ops and not applied_layout:
         attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
         raise RuntimeError(
