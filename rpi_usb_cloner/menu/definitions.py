@@ -44,7 +44,6 @@ IMAGES_MENU = MenuScreen(
     items=[
         menu_entry("BACKUP IMAGE", action=menu_actions.backup_image),
         menu_entry("WRITE IMAGE", action=menu_actions.write_image),
-        menu_entry("COMING SOON", action=menu_actions.images_coming_soon),
     ],
 )
 
