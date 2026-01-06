@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -13,6 +14,7 @@ from typing import Callable, Iterable, Optional
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import get_partition_number, resolve_device_node
 
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ClonezillaImage:
@@ -164,11 +166,16 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
         raise RuntimeError(
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
         )
+    applied_layout = False
     for op in plan.disk_layout_ops:
         try:
-            _apply_disk_layout_op(op, target_node)
+            applied_layout = _apply_disk_layout_op(op, target_node)
         except Exception as exc:
             raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
+        if applied_layout:
+            break
+    if plan.disk_layout_ops and not applied_layout:
+        raise RuntimeError("Partition table apply failed: no usable disk layout operations found.")
     _reread_partition_table(target_node)
     _settle_udev()
     _wait_for_partition_count(
@@ -293,11 +300,11 @@ def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLay
     if not disk_layout_ops:
         return []
     priority = ["pt.sgdisk", "gpt", "pt.parted", "pt.sf", "mbr", "sfdisk", "disk"]
-    for kind in priority:
-        for op in disk_layout_ops:
-            if op.kind == kind:
-                return [op]
-    return [disk_layout_ops[0]]
+    priority_index = {kind: index for index, kind in enumerate(priority)}
+    return sorted(
+        disk_layout_ops,
+        key=lambda op: priority_index.get(op.kind, len(priority)),
+    )
 
 
 def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
@@ -429,7 +436,7 @@ def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Opt
         return None
 
 
-def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
+def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
     if op.kind in {"disk", "sfdisk", "pt.sf"}:
         if not op.contents:
             raise RuntimeError("Missing sfdisk data")
@@ -446,10 +453,16 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if result.returncode != 0:
             message = _format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
             raise RuntimeError(message)
-        return
+        return True
     if op.kind == "pt.parted":
         if not op.contents:
             raise RuntimeError("Missing parted data")
+        if _is_parted_print_output(op.contents):
+            logger.debug(
+                "Skipping parted layout op %s: detected parted print output instead of script.",
+                op.path,
+            )
+            return False
         parted = shutil.which("parted")
         if not parted:
             raise RuntimeError("parted not found")
@@ -463,7 +476,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if result.returncode != 0:
             message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
-        return
+        return True
     if op.kind == "mbr":
         dd_path = shutil.which("dd")
         if not dd_path:
@@ -484,7 +497,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if result.returncode != 0:
             message = _format_command_failure("dd failed", result.args, result)
             raise RuntimeError(message)
-        return
+        return True
     if op.kind == "gpt":
         sgdisk = shutil.which("sgdisk")
         if not sgdisk:
@@ -498,7 +511,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if result.returncode != 0:
             message = _format_command_failure("sgdisk failed", result.args, result)
             raise RuntimeError(message)
-        return
+        return True
     if op.kind == "pt.sgdisk":
         sgdisk = shutil.which("sgdisk")
         if not sgdisk:
@@ -512,8 +525,19 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> None:
         if result.returncode != 0:
             message = _format_command_failure("sgdisk failed", result.args, result)
             raise RuntimeError(message)
-        return
+        return True
     raise RuntimeError(f"Unsupported disk layout op: {op.kind}")
+
+
+def _is_parted_print_output(contents: str) -> bool:
+    stripped = contents.lstrip()
+    if stripped.startswith("Model:"):
+        return True
+    if "Partition Table:" in contents:
+        return True
+    if re.search(r"^Number\s+Start", contents, flags=re.MULTILINE):
+        return True
+    return False
 
 
 def _format_command_failure(summary: str, command: list[str], result: subprocess.CompletedProcess) -> str:
