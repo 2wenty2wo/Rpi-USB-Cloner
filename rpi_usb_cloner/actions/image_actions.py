@@ -110,17 +110,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         display.display_lines(["IMAGE", "INVALID"])
         time.sleep(1)
         return
-    source_size = _estimate_source_size(plan)
-    target_size = _get_target_size(target)
-    if not _confirm_destructive_action(
-        log_debug=log_debug,
-        prompt_lines=_build_confirmation_lines(
-            image_name=selected_dir.name,
-            source_size=source_size,
-            target=target,
-            target_size=target_size,
-        ),
-    ):
+    if not _confirm_destructive_action(log_debug=log_debug):
         return
     partition_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
     if partition_mode == "k2":
@@ -145,38 +135,12 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     time.sleep(1)
 
 
-def _estimate_source_size(plan: clonezilla.RestorePlan) -> Optional[int]:
-    return clonezilla._estimate_required_size_bytes(
-        plan.disk_layout_ops,
-        image_dir=plan.image_dir,
-    )
-
-
-def _get_target_size(target: dict) -> Optional[int]:
-    size = target.get("size")
-    if size is None:
-        return None
-    try:
-        return int(size)
-    except (TypeError, ValueError):
-        return None
-
-
-def _format_size(size_bytes: Optional[int]) -> str:
-    if size_bytes is None:
-        return "Unknown"
-    return devices.human_size(size_bytes)
-
-
-def _confirm_destructive_action(
-    *,
-    log_debug: Optional[Callable[[str], None]],
-    prompt_lines: Iterable[str],
-) -> bool:
+def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -> bool:
     return _confirm_prompt(
         log_debug=log_debug,
-        title="⚠ DATA LOST",
-        prompt_lines=prompt_lines,
+        title="WARNING!",
+        title_icon=chr(57747),
+        prompt_lines=["Data will be overwritten!", "All data will lost!"],
         default=app_state.CONFIRM_NO,
     )
 
@@ -202,10 +166,16 @@ def _confirm_prompt(
     title: str,
     prompt_lines: Iterable[str],
     default: int,
+    title_icon: Optional[str] = None,
 ) -> bool:
     prompt_lines_list = list(prompt_lines)
     selection = default
-    screens.render_confirmation_screen(title, prompt_lines_list, selected_index=selection)
+    screens.render_confirmation_screen(
+        title,
+        prompt_lines_list,
+        selected_index=selection,
+        title_icon=title_icon,
+    )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
@@ -234,7 +204,12 @@ def _confirm_prompt(
         prev_states["L"] = current_l
         prev_states["A"] = current_a
         prev_states["B"] = current_b
-        screens.render_confirmation_screen(title, prompt_lines_list, selected_index=selection)
+        screens.render_confirmation_screen(
+            title,
+            prompt_lines_list,
+            selected_index=selection,
+            title_icon=title_icon,
+        )
         time.sleep(menus.BUTTON_POLL_DELAY)
 
 
@@ -341,20 +316,3 @@ def _extract_stderr_message(message: str) -> Optional[str]:
         return None
     stderr = " ".join(match.group(1).strip().split())
     return stderr or None
-
-
-def _build_confirmation_lines(
-    *,
-    image_name: str,
-    source_size: Optional[int],
-    target: dict,
-    target_size: Optional[int],
-) -> list[str]:
-    target_label = target.get("name") or devices.format_device_label(target)
-    lines = [
-        f"IMG {image_name}",
-        f"SRC {_format_size(source_size)}",
-        f"TGT {_format_size(target_size)}",
-        f"DEV {target_label}",
-    ]
-    return [line for line in lines if line.strip()]
