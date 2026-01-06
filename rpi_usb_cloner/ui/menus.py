@@ -28,6 +28,7 @@ BUTTON_POLL_DELAY = 0.01
 @dataclass
 class MenuItem:
     lines: List[str]
+    line_widths: Optional[List[int]] = None
 
 
 @dataclass
@@ -43,6 +44,11 @@ class Menu:
     footer_positions: Optional[List[int]] = None
     content_top: Optional[int] = None
     items_font: Optional[ImageFont.ImageFont] = None
+    enable_horizontal_scroll: bool = False
+    scroll_speed: float = 30.0
+    scroll_gap: int = 20
+    scroll_start_time: Optional[float] = None
+    max_width: Optional[int] = None
 
 
 def _get_text_height(draw, text, font):
@@ -113,6 +119,9 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     line_height = _get_line_height(items_font)
     row_height_per_line = line_height + 2
 
+    left_margin = context.x - 11
+    max_width = menu.max_width if menu.max_width is not None else (context.width - left_margin - 1)
+    now = time.monotonic()
     for item_index, item in enumerate(menu.items):
         lines = item.lines
         row_height = max(len(lines), 1) * row_height_per_line
@@ -122,8 +131,24 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             draw.rectangle((0, row_top, width, row_top + row_height - 1), outline=0, fill=1)
         for line_index, line in enumerate(lines):
             text_color = 0 if is_selected else 255
+            x_offset = 0
+            if (
+                is_selected
+                and menu.enable_horizontal_scroll
+                and menu.screen_id == "images"
+                and menu.scroll_start_time is not None
+            ):
+                line_widths = item.line_widths or []
+                line_width = line_widths[line_index] if line_index < len(line_widths) else None
+                if line_width is None:
+                    line_width = display._measure_text_width(draw, line, items_font)
+                if line_width > max_width:
+                    elapsed = max(0.0, now - menu.scroll_start_time)
+                    cycle_width = line_width + menu.scroll_gap
+                    if cycle_width > 0:
+                        x_offset = -int((elapsed * menu.scroll_speed) % cycle_width)
             draw.text(
-                (context.x - 11, row_top + 1 + line_index * row_height_per_line),
+                (left_margin + x_offset, row_top + 1 + line_index * row_height_per_line),
                 line,
                 font=items_font,
                 fill=text_color,
@@ -170,6 +195,11 @@ def select_list(
     header_lines: Optional[List[str]] = None,
     refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
     refresh_interval: float = 0.25,
+    scroll_mode: Optional[str] = None,
+    enable_horizontal_scroll: bool = False,
+    scroll_speed: float = 30.0,
+    scroll_gap: int = 20,
+    scroll_refresh_interval: float = 0.08,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -187,11 +217,17 @@ def select_list(
     available_height = context.height - content_top - footer_height
     items_per_page = max(1, available_height // row_height)
     selected_index = max(0, min(selected_index, len(items) - 1))
+    enable_scroll = enable_horizontal_scroll or (scroll_mode == "horizontal")
+    left_margin = context.x - 11
+    max_width = context.width - left_margin - 1
 
-    def render(selected: int) -> None:
+    def render(selected: int, *, scroll_start_time: Optional[float] = None) -> None:
         offset = (selected // items_per_page) * items_per_page
         page_items = items[offset : offset + items_per_page]
-        menu_items = [MenuItem([line]) for line in page_items]
+        menu_items = []
+        for line in page_items:
+            line_width = display._measure_text_width(context.draw, line, items_font)
+            menu_items.append(MenuItem([line], [int(line_width)]))
         if header_lines:
             header_content_top = get_standard_content_top(
                 title,
@@ -218,6 +254,11 @@ def select_list(
             footer=footer,
             footer_positions=footer_positions,
             items_font=items_font,
+            enable_horizontal_scroll=enable_scroll,
+            scroll_speed=scroll_speed,
+            scroll_gap=scroll_gap,
+            scroll_start_time=scroll_start_time,
+            max_width=max_width,
         )
         render_menu(
             menu,
@@ -229,9 +270,11 @@ def select_list(
         )
         context.disp.display(context.image)
 
-    render(selected_index)
+    scroll_start_time = time.monotonic() if enable_scroll else None
+    render(selected_index, scroll_start_time=scroll_start_time)
     last_rendered_index = selected_index
     last_refresh_time = time.monotonic()
+    last_scroll_render = time.monotonic()
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": read_button(PIN_U),
@@ -248,6 +291,10 @@ def select_list(
         now = time.monotonic()
         action_taken = False
         refresh_needed = False
+        if enable_scroll and screen_id == "images":
+            if now - last_scroll_render >= scroll_refresh_interval:
+                refresh_needed = True
+                last_scroll_render = now
         if refresh_callback and now - last_refresh_time >= refresh_interval:
             new_items = refresh_callback()
             last_refresh_time = now
@@ -257,7 +304,8 @@ def select_list(
                     return None
                 if selected_index >= len(items):
                     selected_index = len(items) - 1
-                render(selected_index)
+                scroll_start_time = time.monotonic() if enable_scroll else None
+                render(selected_index, scroll_start_time=scroll_start_time)
                 last_rendered_index = selected_index
         current_u = read_button(PIN_U)
         if prev_states["U"] and not current_u:
@@ -265,6 +313,7 @@ def select_list(
             next_index = max(0, selected_index - 1)
             if next_index != selected_index:
                 selected_index = next_index
+                scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["U"] = now
             last_repeat_time["U"] = now
         elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
@@ -273,6 +322,7 @@ def select_list(
                 next_index = max(0, selected_index - 1)
                 if next_index != selected_index:
                     selected_index = next_index
+                    scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["U"] = now
         current_d = read_button(PIN_D)
         if prev_states["D"] and not current_d:
@@ -280,6 +330,7 @@ def select_list(
             next_index = min(len(items) - 1, selected_index + 1)
             if next_index != selected_index:
                 selected_index = next_index
+                scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["D"] = now
             last_repeat_time["D"] = now
         elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
@@ -288,6 +339,7 @@ def select_list(
                 next_index = min(len(items) - 1, selected_index + 1)
                 if next_index != selected_index:
                     selected_index = next_index
+                    scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["D"] = now
         current_l = read_button(PIN_L)
         if prev_states["L"] and not current_l:
@@ -295,6 +347,7 @@ def select_list(
             next_index = max(0, selected_index - items_per_page)
             if next_index != selected_index:
                 selected_index = next_index
+                scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["L"] = now
             last_repeat_time["L"] = now
         elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
@@ -303,6 +356,7 @@ def select_list(
                 next_index = max(0, selected_index - items_per_page)
                 if next_index != selected_index:
                     selected_index = next_index
+                    scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["L"] = now
         current_r = read_button(PIN_R)
         if prev_states["R"] and not current_r:
@@ -310,6 +364,7 @@ def select_list(
             next_index = min(len(items) - 1, selected_index + items_per_page)
             if next_index != selected_index:
                 selected_index = next_index
+                scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["R"] = now
             last_repeat_time["R"] = now
         elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
@@ -318,6 +373,7 @@ def select_list(
                 next_index = min(len(items) - 1, selected_index + items_per_page)
                 if next_index != selected_index:
                     selected_index = next_index
+                    scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["R"] = now
         current_a = read_button(PIN_A)
         if prev_states["A"] and not current_a:
@@ -334,7 +390,7 @@ def select_list(
         prev_states["B"] = current_b
         prev_states["C"] = current_c
         if (selected_index != last_rendered_index and action_taken) or refresh_needed:
-            render(selected_index)
+            render(selected_index, scroll_start_time=scroll_start_time)
             last_rendered_index = selected_index
         time.sleep(BUTTON_POLL_DELAY)
 
