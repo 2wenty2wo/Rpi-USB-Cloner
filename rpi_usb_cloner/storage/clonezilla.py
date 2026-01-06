@@ -178,45 +178,56 @@ def restore_clonezilla_image(
         partition_mode=partition_mode,
         target_size=target_size,
     )
-    applied_layout = False
-    attempt_results: list[str] = []
-    for op in disk_layout_ops:
-        try:
-            applied_layout = _apply_disk_layout_op(op, target_node)
-        except Exception as exc:
-            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
-        if not applied_layout:
-            continue
-        _reread_partition_table(target_node)
-        _settle_udev()
-        _, observed_count = _wait_for_partition_count(
+    if partition_mode == "k":
+        refreshed, observed_count = _wait_for_partition_count(
             target_name,
             required_partitions,
             timeout_seconds=10,
             allow_short=True,
         )
-        if observed_count >= required_partitions:
-            break
         if observed_count < required_partitions:
-            logger.warning(
-                "Partition count mismatch after %s layout op (expected %s, saw %s).",
-                op.kind,
+            raise RuntimeError("target partition table missing required partitions for restore in -k mode")
+        target_parts = _map_target_partitions(plan.parts, refreshed)
+    else:
+        applied_layout = False
+        attempt_results: list[str] = []
+        for op in disk_layout_ops:
+            try:
+                applied_layout = _apply_disk_layout_op(op, target_node)
+            except Exception as exc:
+                raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
+            if not applied_layout:
+                continue
+            _reread_partition_table(target_node)
+            _settle_udev()
+            _, observed_count = _wait_for_partition_count(
+                target_name,
                 required_partitions,
-                observed_count,
+                timeout_seconds=10,
+                allow_short=True,
             )
-            attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
-            applied_layout = False
-    if disk_layout_ops and not applied_layout:
-        attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
-        raise RuntimeError(
-            "Partition table apply failed to produce expected partition count "
-            f"(expected {required_partitions}). Attempts: {attempts}."
+            if observed_count >= required_partitions:
+                break
+            if observed_count < required_partitions:
+                logger.warning(
+                    "Partition count mismatch after %s layout op (expected %s, saw %s).",
+                    op.kind,
+                    required_partitions,
+                    observed_count,
+                )
+                attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
+                applied_layout = False
+        if disk_layout_ops and not applied_layout:
+            attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
+            raise RuntimeError(
+                "Partition table apply failed to produce expected partition count "
+                f"(expected {required_partitions}). Attempts: {attempts}."
+            )
+        refreshed, target_parts = _wait_for_target_partitions(
+            target_name,
+            plan.parts,
+            timeout_seconds=10,
         )
-    refreshed, target_parts = _wait_for_target_partitions(
-        target_name,
-        plan.parts,
-        timeout_seconds=10,
-    )
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
         target_part = target_parts.get(op.partition)
