@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -344,36 +345,71 @@ def _run_update_flow(
         _log_debug(log_debug, "Update canceled by confirmation prompt")
         return
 
-    def run_with_progress(lines: list[str], action: Callable[[], subprocess.CompletedProcess[str]]):
+    def run_with_progress(
+        lines: list[str],
+        action: Callable[[Callable[[float], None]], subprocess.CompletedProcess[str]],
+        *,
+        running_ratio: float | None = 0.5,
+    ):
         done = threading.Event()
         result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
         error_holder: dict[str, Exception] = {}
+        progress_lock = threading.Lock()
+        progress_ratio = 0.0
+
+        def update_progress(value: float) -> None:
+            nonlocal progress_ratio
+            clamped = max(0.0, min(1.0, float(value)))
+            with progress_lock:
+                progress_ratio = clamped
+
+        def current_progress() -> float:
+            with progress_lock:
+                return progress_ratio
 
         def worker() -> None:
             try:
-                result_holder["result"] = action()
+                if running_ratio is not None:
+                    update_progress(running_ratio)
+                result_holder["result"] = action(update_progress)
             except Exception as exc:  # pragma: no cover - defensive for subprocess errors
                 error_holder["error"] = exc
             finally:
+                update_progress(1.0)
                 done.set()
 
         thread = threading.Thread(target=worker, daemon=True)
         thread.start()
+        update_progress(0.0)
+        while not done.is_set():
+            screens.render_progress_screen(
+                title,
+                lines,
+                progress_ratio=current_progress(),
+                animate=False,
+                title_icon=title_icon,
+            )
+            time.sleep(0.1)
+        thread.join()
         screens.render_progress_screen(
             title,
             lines,
-            progress_ratio=lambda: 1.0 if done.is_set() else None,
-            animate=True,
+            progress_ratio=current_progress(),
+            animate=False,
             title_icon=title_icon,
         )
-        thread.join()
         if "error" in error_holder:
             raise error_holder["error"]
         return result_holder["result"]
 
     pull_result = run_with_progress(
         ["Updating...", "Pulling..."],
-        lambda: _run_git_pull(repo_root, log_debug=log_debug),
+        lambda update_progress: _run_git_pull(
+            repo_root,
+            log_debug=log_debug,
+            progress_callback=update_progress,
+        ),
+        running_ratio=None,
     )
     dubious_ownership = _is_dubious_ownership_error(pull_result.stderr)
     if dubious_ownership and _is_running_under_systemd(log_debug=log_debug):
@@ -387,7 +423,12 @@ def _run_update_flow(
         )
         pull_result = run_with_progress(
             ["Updating...", "Pulling again..."],
-            lambda: _run_git_pull(repo_root, log_debug=log_debug),
+            lambda update_progress: _run_git_pull(
+                repo_root,
+                log_debug=log_debug,
+                progress_callback=update_progress,
+            ),
+            running_ratio=None,
         )
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
@@ -429,7 +470,7 @@ def _run_update_flow(
     if _is_running_under_systemd(log_debug=log_debug):
         restart_result = run_with_progress(
             ["Restarting...", _SERVICE_NAME],
-            lambda: _restart_systemd_service(log_debug=log_debug),
+            lambda update_progress: _restart_systemd_service(log_debug=log_debug),
         )
         if restart_result.returncode != 0:
             _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
@@ -464,9 +505,71 @@ def _has_dirty_working_tree(repo_root: Path, *, log_debug: Optional[Callable[[st
 
 
 def _run_git_pull(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+    repo_root: Path,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    progress_callback: Optional[Callable[[float], None]] = None,
 ) -> subprocess.CompletedProcess[str]:
-    return _run_command(["git", "pull"], cwd=repo_root, log_debug=log_debug)
+    if progress_callback is None:
+        return _run_command(["git", "pull"], cwd=repo_root, log_debug=log_debug)
+    process = subprocess.Popen(
+        ["git", "pull", "--progress"],
+        cwd=repo_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+
+    def read_stdout() -> None:
+        assert process.stdout is not None
+        for line in process.stdout:
+            stdout_lines.append(line)
+
+    def read_stderr() -> None:
+        assert process.stderr is not None
+        for line in process.stderr:
+            stderr_lines.append(line)
+            ratio = _parse_git_progress_ratio(line)
+            if ratio is not None:
+                progress_callback(ratio)
+
+    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    return_code = process.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+    return subprocess.CompletedProcess(
+        process.args,
+        return_code,
+        stdout="".join(stdout_lines),
+        stderr="".join(stderr_lines),
+    )
+
+
+_GIT_PROGRESS_STAGES = {
+    "Receiving objects": 0,
+    "Resolving deltas": 1,
+    "Updating files": 2,
+}
+
+
+def _parse_git_progress_ratio(line: str) -> float | None:
+    match = re.search(
+        r"^(Receiving objects|Resolving deltas|Updating files):\s+(\d+)%", line
+    )
+    if not match:
+        return None
+    stage, percent_text = match.groups()
+    if not percent_text.isdigit():
+        return None
+    percent = int(percent_text)
+    total_stages = len(_GIT_PROGRESS_STAGES)
+    stage_index = _GIT_PROGRESS_STAGES[stage]
+    return (stage_index + percent / 100.0) / total_stages
 
 
 def _get_update_status(
