@@ -179,10 +179,12 @@ def restore_clonezilla_image(
         target_size=target_size,
     )
     if partition_mode == "k":
-        refreshed = devices.get_device_by_name(target_name) or target_info
-        if not refreshed:
-            raise RuntimeError("Unable to refresh target device for restore.")
-        observed_count = _count_target_partitions(refreshed)
+        refreshed, observed_count = _wait_for_partition_count(
+            target_name,
+            required_partitions,
+            timeout_seconds=10,
+            allow_short=True,
+        )
         if observed_count < required_partitions:
             raise RuntimeError("target partition table missing required partitions for restore in -k mode")
         target_parts = _map_target_partitions(plan.parts, refreshed)
