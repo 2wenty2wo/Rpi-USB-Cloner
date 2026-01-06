@@ -473,15 +473,27 @@ def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: st
     _run_restore_pipeline(op.image_files, restore_command, title=title)
 
 
+def _select_clonezilla_volume_set(primary: list[Path], secondary: list[Path]) -> list[Path]:
+    if primary and secondary:
+        return primary if len(primary) >= len(secondary) else secondary
+    return primary or secondary
+
+
 def _find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]:
     if suffix == "ptcl-img":
-        pattern = f"*-{part_name}.*-{suffix}*"
-        return _sorted_clonezilla_volumes(image_dir.glob(pattern))
+        prefixed_matches = list(image_dir.glob(f"*-{part_name}.*-{suffix}*"))
+        direct_matches = list(image_dir.glob(f"{part_name}.*-{suffix}*"))
+        matches = _select_clonezilla_volume_set(direct_matches, prefixed_matches)
+        return _sorted_clonezilla_volumes(matches)
     elif suffix == "img":
-        dd_matches = list(image_dir.glob(f"*-{part_name}.*-dd-img*"))
+        dd_prefixed = list(image_dir.glob(f"*-{part_name}.*-dd-img*"))
+        dd_direct = list(image_dir.glob(f"{part_name}.*-dd-img*"))
+        dd_matches = _select_clonezilla_volume_set(dd_direct, dd_prefixed)
         if dd_matches:
             return _sorted_clonezilla_volumes(dd_matches)
-        img_matches = list(image_dir.glob(f"*-{part_name}.*.img*"))
+        img_prefixed = list(image_dir.glob(f"*-{part_name}.*.img*"))
+        img_direct = list(image_dir.glob(f"{part_name}.*.img*"))
+        img_matches = _select_clonezilla_volume_set(img_direct, img_prefixed)
         return _sorted_clonezilla_volumes(img_matches)
     else:
         pattern = f"*-{part_name}.*.{suffix}*"
