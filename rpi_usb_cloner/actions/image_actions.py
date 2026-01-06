@@ -56,6 +56,9 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if selected_index is None:
         return
     selected_dir = image_dirs[selected_index]
+    partition_mode = _prompt_restore_partition_mode()
+    if partition_mode is None:
+        return
     usb_devices = devices.list_usb_disks()
     if not usb_devices:
         display.display_lines(["NO USB", "DRIVES"])
@@ -102,7 +105,6 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         return
     if not _confirm_destructive_action(log_debug=log_debug):
         return
-    partition_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
     if partition_mode == "k2":
         _show_manual_partition_instructions(target)
         if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
@@ -123,6 +125,35 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         return
     screens.render_status_template("WRITE", "Done", progress_line="Image written.")
     time.sleep(1)
+
+
+def _prompt_restore_partition_mode() -> Optional[str]:
+    options = [
+        ("k0", "USE SOURCE (-k0)"),
+        ("k", "SKIP TABLE (-k)"),
+        ("k1", "RESIZE TABLE (-k1)"),
+        ("k2", "MANUAL TABLE (-k2)"),
+    ]
+    current_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
+    selected_index = 0
+    for index, (value, _) in enumerate(options):
+        if value == current_mode:
+            selected_index = index
+            break
+    selection = menus.render_menu_list(
+        "RESTORE PT",
+        [label for _, label in options],
+        footer=["BACK", "OK"],
+        selected_index=selected_index,
+        header_lines=["Partition table mode"],
+    )
+    if selection is None:
+        return None
+    selected_value, selected_label = options[selection]
+    settings.set_setting("restore_partition_mode", selected_value)
+    screens.render_status_template("RESTORE PT", f"Set: {selected_label}")
+    time.sleep(1.5)
+    return selected_value.lstrip("-")
 
 
 def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -> bool:
