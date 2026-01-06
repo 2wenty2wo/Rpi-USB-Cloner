@@ -125,34 +125,43 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     title_icon = get_screen_icon("update")
     repo_root = Path(__file__).resolve().parents[2]
     status = "Checking..."
+    behind_count: int | None = None
     last_checked: str | None = None
     version = _get_app_version(log_debug=log_debug)
     check_done = threading.Event()
     git_lock = threading.Lock()
     results_applied = False
-    result_holder: dict[str, tuple[str, str]] = {}
+    result_holder: dict[str, tuple[str, int | None, str]] = {}
     error_holder: dict[str, Exception] = {}
     menu_items = ["CHECK FOR UPDATES", "UPDATE"]
     header_lines: list[str] = []
 
-    def apply_check_results() -> tuple[str, str | None]:
+    def apply_check_results() -> tuple[str, int | None, str | None]:
         if "result" in result_holder:
-            return result_holder["result"][0], result_holder["result"][1]
+            return (
+                result_holder["result"][0],
+                result_holder["result"][1],
+                result_holder["result"][2],
+            )
         if "error" in error_holder:
             _log_debug(
                 log_debug,
                 f"Update status check failed: {error_holder['error']}",
             )
-            return "Unable to check", time.strftime("%Y-%m-%d %H:%M", time.localtime())
-        return status, last_checked
+            return (
+                "Unable to check",
+                None,
+                time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+            )
+        return status, behind_count, last_checked
 
     def apply_check_results_to_state() -> None:
-        nonlocal status, last_checked, results_applied
-        status, last_checked = apply_check_results()
+        nonlocal status, behind_count, last_checked, results_applied
+        status, behind_count, last_checked = apply_check_results()
         results_applied = True
 
     def update_header_lines() -> None:
-        header_lines[:] = _build_update_info_lines(version, status, last_checked)
+        header_lines[:] = _build_update_info_lines(version, status, behind_count, last_checked)
 
     def refresh_update_menu() -> Optional[list[str]]:
         if check_done.is_set() and not results_applied:
@@ -188,7 +197,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if selection is None:
             return
         if selection == 0:
-            checking_lines = _build_update_info_lines(version, "Checking...", last_checked)
+            checking_lines = _build_update_info_lines(version, "Checking...", None, last_checked)
             display.render_paginated_lines(
                 title,
                 checking_lines,
@@ -200,15 +209,23 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 apply_check_results_to_state()
             else:
                 with git_lock:
-                    status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
+                    status, behind_count, last_checked = _check_update_status(
+                        repo_root,
+                        log_debug=log_debug,
+                    )
                 version = _get_app_version(log_debug=log_debug)
-                result_holder["result"] = (status, last_checked)
+                result_holder["result"] = (status, behind_count, last_checked)
                 check_done.set()
                 results_applied = True
             continue
         if selection == 1:
             if not check_done.is_set():
-                waiting_lines = _build_update_info_lines(version, "Waiting on check...", last_checked)
+                waiting_lines = _build_update_info_lines(
+                    version,
+                    "Waiting on check...",
+                    None,
+                    last_checked,
+                )
                 display.render_paginated_lines(
                     title,
                     waiting_lines,
@@ -219,9 +236,12 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 apply_check_results_to_state()
             with git_lock:
                 _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
-                status, last_checked = _check_update_status(repo_root, log_debug=log_debug)
+                status, behind_count, last_checked = _check_update_status(
+                    repo_root,
+                    log_debug=log_debug,
+                )
             version = _get_app_version(log_debug=log_debug)
-            result_holder["result"] = (status, last_checked)
+            result_holder["result"] = (status, behind_count, last_checked)
             check_done.set()
             results_applied = True
             continue
@@ -449,14 +469,16 @@ def _run_git_pull(
     return _run_command(["git", "pull"], cwd=repo_root, log_debug=log_debug)
 
 
-def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> str:
+def _get_update_status(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> tuple[str, int | None]:
     if not _is_git_repo(repo_root):
         _log_debug(log_debug, "Update status check: repo not found")
-        return "Repo not found"
+        return "Repo not found", None
     fetch = _run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
     if fetch.returncode != 0:
         _log_debug(log_debug, f"Update status check: fetch failed {fetch.returncode}")
-        return "Unable to check"
+        return "Unable to check", None
     upstream = _run_command(
         ["git", "rev-parse", "--abbrev-ref", "@{u}"],
         cwd=repo_root,
@@ -465,7 +487,7 @@ def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], N
     upstream_ref = upstream.stdout.strip()
     if upstream.returncode != 0 or not upstream_ref:
         _log_debug(log_debug, "Update status check: upstream missing")
-        return "No upstream configured"
+        return "No upstream configured", None
     behind = _run_command(
         ["git", "rev-list", "--count", "HEAD..@{u}"],
         cwd=repo_root,
@@ -473,23 +495,35 @@ def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], N
     )
     if behind.returncode != 0:
         _log_debug(log_debug, "Update status check: rev-list failed")
-        return "Unable to check"
+        return "Unable to check", None
     count = behind.stdout.strip()
     _log_debug(log_debug, f"Update status check: behind count={count!r}")
-    return "Update available" if count.isdigit() and int(count) > 0 else "Up to date"
+    if count.isdigit():
+        behind_count = int(count)
+        status = "Update available" if behind_count > 0 else "Up to date"
+        return status, behind_count
+    return "Up to date", None
 
 
 def _check_update_status(
     repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, str]:
-    status = _get_update_status(repo_root, log_debug=log_debug)
+) -> tuple[str, int | None, str]:
+    status, behind_count = _get_update_status(repo_root, log_debug=log_debug)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
     _log_debug(log_debug, f"Update status check complete at {last_checked}: {status}")
-    return status, last_checked
+    return status, behind_count, last_checked
 
 
-def _build_update_info_lines(version: str, status: str, last_checked: str | None) -> list[str]:
-    return [f"Version: {version}", f"Status: {status}"]
+def _build_update_info_lines(
+    version: str,
+    status: str,
+    behind_count: int | None,
+    last_checked: str | None,
+) -> list[str]:
+    lines = [f"Version: {version}", f"Status: {status}"]
+    if behind_count is not None and behind_count > 0:
+        lines.append(f"Commits behind: {behind_count}")
+    return lines
 
 
 def _get_update_menu_top(
