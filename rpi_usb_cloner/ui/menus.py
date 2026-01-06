@@ -384,6 +384,7 @@ def select_usb_drive(
     title: str,
     devices_list: List[dict],
     *,
+    title_icon: Optional[str] = None,
     footer: Optional[List[str]] = None,
     selected_name: Optional[str] = None,
     header_lines: Optional[List[str]] = None,
@@ -400,6 +401,7 @@ def select_usb_drive(
     return select_list(
         title,
         items,
+        title_icon=title_icon,
         footer=footer,
         selected_index=selected_index,
         header_lines=header_lines,

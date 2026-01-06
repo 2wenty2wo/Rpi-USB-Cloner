@@ -50,7 +50,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     selected_index = menus.select_usb_drive(
         "TARGET USB",
         target_candidates,
-        footer=["BACK", "OK"],
+        title_icon=chr(57516),
         selected_name=app_context.active_drive,
     )
     if selected_index is None:
