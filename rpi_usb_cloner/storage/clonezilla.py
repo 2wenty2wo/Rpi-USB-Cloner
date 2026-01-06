@@ -171,6 +171,11 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
     _reread_partition_table(target_node)
     _settle_udev()
+    _wait_for_partition_count(
+        target_name,
+        len(plan.parts),
+        timeout_seconds=10,
+    )
     refreshed, target_parts = _wait_for_target_partitions(
         target_name,
         plan.parts,
@@ -236,6 +241,31 @@ def _wait_for_target_partitions(
     missing = [part for part in parts if not last_mapping.get(part)]
     missing_label = ", ".join(missing) if missing else "unknown"
     raise RuntimeError(f"Timed out waiting for partitions to appear: {missing_label}")
+
+
+def _wait_for_partition_count(
+    target_name: str,
+    required_count: int,
+    *,
+    timeout_seconds: int,
+    poll_interval: float = 0.5,
+) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    last_info = None
+    last_count = 0
+    while time.monotonic() < deadline:
+        last_info = devices.get_device_by_name(target_name)
+        if last_info:
+            last_count = _count_target_partitions(last_info)
+            if last_count >= required_count:
+                return last_info
+        time.sleep(poll_interval)
+    if not last_info:
+        raise RuntimeError("Unable to refresh target device after partition table update.")
+    raise RuntimeError(
+        "Partition table applied but kernel did not create all partitions "
+        f"(expected {required_count}, saw {last_count})."
+    )
 
 
 def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
@@ -639,6 +669,10 @@ def _map_target_partitions(parts: Iterable[str], target_device: dict) -> dict[st
             continue
         mapping[part_name] = target_by_number.get(number)
     return mapping
+
+
+def _count_target_partitions(target_device: dict) -> int:
+    return sum(1 for child in devices.get_children(target_device) if child.get("type") == "part")
 
 
 def _restore_partition(image_dir: Path, part_name: str, target_part: str) -> None:
