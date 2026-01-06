@@ -707,7 +707,8 @@ def _build_sfdisk_script_from_parted(
             fields.append(("type", "EF00"))
         if normalized_label == "dos" and "boot" in flags:
             fields.append(("bootable", ""))
-        prefix = f"/dev/sda{index + 1}"
+        part_number = int(part.get("number") or index + 1)
+        prefix = f"/dev/sda{part_number}"
         lines.append(_format_sfdisk_line(prefix, fields))
     return "\n".join(lines)
 
