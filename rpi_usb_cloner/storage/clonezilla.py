@@ -147,9 +147,15 @@ def restore_image(
         progress_callback("Finalizing...")
 
 
-def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
+def restore_clonezilla_image(
+    plan: RestorePlan,
+    target_device: str,
+    *,
+    partition_mode: str = "k0",
+) -> None:
     if os.geteuid() != 0:
         raise RuntimeError("Run as root")
+    partition_mode = _normalize_partition_mode(partition_mode)
     target_node = resolve_device_node(target_device)
     target_name = Path(target_node).name
     target_info = devices.get_device_by_name(target_name)
@@ -167,9 +173,14 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
         )
     required_partitions = len(plan.parts)
+    disk_layout_ops = _build_partition_mode_layout_ops(
+        plan.disk_layout_ops,
+        partition_mode=partition_mode,
+        target_size=target_size,
+    )
     applied_layout = False
     attempt_results: list[str] = []
-    for op in plan.disk_layout_ops:
+    for op in disk_layout_ops:
         try:
             applied_layout = _apply_disk_layout_op(op, target_node)
         except Exception as exc:
@@ -195,7 +206,7 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             )
             attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
             applied_layout = False
-    if plan.disk_layout_ops and not applied_layout:
+    if disk_layout_ops and not applied_layout:
         attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
         raise RuntimeError(
             "Partition table apply failed to produce expected partition count "
@@ -455,6 +466,139 @@ def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Opt
         return int(result.stdout.strip())
     except ValueError:
         return None
+
+
+def _normalize_partition_mode(partition_mode: Optional[str]) -> str:
+    if not partition_mode:
+        return "k0"
+    normalized = str(partition_mode).strip().lower()
+    if normalized.startswith("-"):
+        normalized = normalized[1:]
+    return normalized
+
+
+def _build_partition_mode_layout_ops(
+    disk_layout_ops: list[DiskLayoutOp],
+    *,
+    partition_mode: str,
+    target_size: Optional[int],
+) -> list[DiskLayoutOp]:
+    if partition_mode not in {"k0", "k", "k1", "k2"}:
+        raise RuntimeError(f"Unsupported partition mode: {partition_mode}")
+    if partition_mode in {"k", "k2"}:
+        return []
+    if partition_mode == "k1" and target_size:
+        for op in disk_layout_ops:
+            scaled = _scale_sfdisk_layout(op, target_size)
+            if scaled:
+                return [scaled]
+    return list(disk_layout_ops)
+
+
+def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+    if op.kind not in {"disk", "sfdisk", "pt.sf"} or not op.contents:
+        return None
+    lines = op.contents.splitlines()
+    sector_size = 512
+    partitions: list[dict[str, int | str]] = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("sector-size:"):
+            match = re.search(r"sector-size:\s*(\d+)", stripped)
+            if match:
+                sector_size = int(match.group(1))
+            continue
+        if not stripped.startswith("/dev/") or ":" not in stripped:
+            continue
+        prefix, rest = stripped.split(":", 1)
+        fields = _parse_sfdisk_fields(rest)
+        start = _get_sfdisk_int_field(fields, "start")
+        size = _get_sfdisk_int_field(fields, "size")
+        if start is None or size is None or size <= 0:
+            continue
+        partitions.append(
+            {
+                "index": index,
+                "prefix": prefix.strip(),
+                "fields": fields,
+                "start": start,
+                "size": size,
+            }
+        )
+    if not partitions:
+        return None
+    max_end = max(int(part["start"]) + int(part["size"]) - 1 for part in partitions)
+    target_sectors = target_size // sector_size
+    if target_sectors <= max_end + 1:
+        return None
+    scale = target_sectors / float(max_end + 1)
+    last_end = -1
+    for part in partitions:
+        start = int(part["start"])
+        size = int(part["size"])
+        scaled_start = max(1, int(round(start * scale)))
+        scaled_size = max(1, int(round(size * scale)))
+        if scaled_start <= last_end:
+            scaled_start = last_end + 1
+        if scaled_start + scaled_size > target_sectors:
+            scaled_size = max(1, target_sectors - scaled_start)
+        last_end = scaled_start + scaled_size - 1
+        part["start"] = scaled_start
+        part["size"] = scaled_size
+        part["fields"] = _set_sfdisk_field(part["fields"], "start", str(scaled_start))
+        part["fields"] = _set_sfdisk_field(part["fields"], "size", str(scaled_size))
+        lines[part["index"]] = _format_sfdisk_line(part["prefix"], part["fields"])
+    return DiskLayoutOp(kind=op.kind, path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
+
+
+def _parse_sfdisk_fields(rest: str) -> list[tuple[str, str]]:
+    fields: list[tuple[str, str]] = []
+    for entry in rest.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        if "=" in entry:
+            key, value = entry.split("=", 1)
+            fields.append((key.strip(), value.strip()))
+        else:
+            fields.append((entry, ""))
+    return fields
+
+
+def _get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> Optional[int]:
+    for field_key, value in fields:
+        if field_key != key:
+            continue
+        match = re.match(r"^(\d+)s?$", value)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _set_sfdisk_field(fields: list[tuple[str, str]], key: str, value: str) -> list[tuple[str, str]]:
+    updated = []
+    found = False
+    for field_key, field_value in fields:
+        if field_key == key:
+            updated.append((field_key, value))
+            found = True
+        else:
+            updated.append((field_key, field_value))
+    if not found:
+        updated.append((key, value))
+    return updated
+
+
+def _format_sfdisk_line(prefix: str, fields: list[tuple[str, str]]) -> str:
+    rendered = []
+    for key, value in fields:
+        if value:
+            rendered.append(f"{key}={value}")
+        else:
+            rendered.append(key)
+    return f"{prefix} : {', '.join(rendered)}"
 
 
 def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:

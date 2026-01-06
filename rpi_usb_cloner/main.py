@@ -33,8 +33,43 @@ from rpi_usb_cloner.menu.model import get_screen_icon
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
+    parser.add_argument(
+        "--restore-partition-mode",
+        choices=["k0", "k", "k1", "k2"],
+        help="Partition table restore mode (k0, k, k1, k2)",
+    )
+    parser.add_argument(
+        "-k",
+        dest="restore_partition_mode",
+        action="store_const",
+        const="k",
+        help="Restore without creating a partition table",
+    )
+    parser.add_argument(
+        "-k0",
+        dest="restore_partition_mode",
+        action="store_const",
+        const="k0",
+        help="Restore using the source partition table",
+    )
+    parser.add_argument(
+        "-k1",
+        dest="restore_partition_mode",
+        action="store_const",
+        const="k1",
+        help="Restore with proportional partition table for larger disks",
+    )
+    parser.add_argument(
+        "-k2",
+        dest="restore_partition_mode",
+        action="store_const",
+        const="k2",
+        help="Restore after manual partition table creation",
+    )
     args = parser.parse_args(argv)
     debug_enabled = args.debug
+    if args.restore_partition_mode:
+        settings_store.set_setting("restore_partition_mode", args.restore_partition_mode)
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
     app_context = AppContext()

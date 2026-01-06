@@ -4,6 +4,7 @@ from typing import Callable, Iterable, Optional
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
+from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import clonezilla, devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
@@ -120,9 +121,16 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         ),
     ):
         return
+    partition_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
+    if partition_mode == "k2" and not _confirm_manual_partition_setup(log_debug=log_debug):
+        return
     screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
     try:
-        clonezilla.restore_clonezilla_image(plan, target.get("name") or "")
+        clonezilla.restore_clonezilla_image(
+            plan,
+            target.get("name") or "",
+            partition_mode=partition_mode,
+        )
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore failed: {error}")
         screens.wait_for_paginated_input(
@@ -162,9 +170,37 @@ def _confirm_destructive_action(
     log_debug: Optional[Callable[[str], None]],
     prompt_lines: Iterable[str],
 ) -> bool:
-    title = "⚠ DATA LOST"
+    return _confirm_prompt(
+        log_debug=log_debug,
+        title="⚠ DATA LOST",
+        prompt_lines=prompt_lines,
+        default=app_state.CONFIRM_NO,
+    )
+
+
+def _confirm_manual_partition_setup(*, log_debug: Optional[Callable[[str], None]]) -> bool:
+    return _confirm_prompt(
+        log_debug=log_debug,
+        title="MANUAL PT",
+        prompt_lines=[
+            "Create partition table",
+            "on target now.",
+            "Press YES to continue",
+            "or NO to cancel.",
+        ],
+        default=app_state.CONFIRM_NO,
+    )
+
+
+def _confirm_prompt(
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    title: str,
+    prompt_lines: Iterable[str],
+    default: int,
+) -> bool:
     prompt_lines_list = list(prompt_lines)
-    selection = app_state.CONFIRM_NO
+    selection = default
     screens.render_confirmation_screen(title, prompt_lines_list, selected_index=selection)
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
@@ -178,12 +214,12 @@ def _confirm_destructive_action(
         if prev_states["R"] and not current_r:
             if selection == app_state.CONFIRM_NO:
                 selection = app_state.CONFIRM_YES
-                _log_debug(log_debug, f"Write confirmation changed: {selection}")
+                _log_debug(log_debug, f"Confirmation changed: {selection}")
         current_l = gpio.read_button(gpio.PIN_L)
         if prev_states["L"] and not current_l:
             if selection == app_state.CONFIRM_YES:
                 selection = app_state.CONFIRM_NO
-                _log_debug(log_debug, f"Write confirmation changed: {selection}")
+                _log_debug(log_debug, f"Confirmation changed: {selection}")
         current_a = gpio.read_button(gpio.PIN_A)
         if prev_states["A"] and not current_a:
             return False

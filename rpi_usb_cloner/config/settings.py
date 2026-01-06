@@ -18,6 +18,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "screensaver_enabled": False,
     "screensaver_mode": "random",
     "screensaver_gif": None,
+    "restore_partition_mode": "k0",
 }
 
 
