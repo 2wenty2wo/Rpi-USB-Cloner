@@ -47,23 +47,16 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
         return
-    target = None
-    if app_context.active_drive:
-        for device in target_candidates:
-            if device.get("name") == app_context.active_drive:
-                target = device
-                break
-    if not target:
-        selected_index = menus.select_usb_drive(
-            "TARGET USB",
-            target_candidates,
-            footer=["BACK", "OK"],
-            selected_name=app_context.active_drive,
-        )
-        if selected_index is None:
-            return
-        target = target_candidates[selected_index]
-        app_context.active_drive = target.get("name")
+    selected_index = menus.select_usb_drive(
+        "TARGET USB",
+        target_candidates,
+        footer=["BACK", "OK"],
+        selected_name=app_context.active_drive,
+    )
+    if selected_index is None:
+        return
+    target = target_candidates[selected_index]
+    app_context.active_drive = target.get("name")
     refreshed_target = None
     for device in devices.list_usb_disks():
         if device.get("name") == app_context.active_drive:
