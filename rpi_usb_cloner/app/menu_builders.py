@@ -15,21 +15,10 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         default=app_state.ENABLE_SLEEP,
     )
     screensaver_state = "ON" if screensaver_enabled else "OFF"
-    restore_mode = settings_store.get_setting("restore_partition_mode", "k0")
-    restore_label = {
-        "k0": "SOURCE",
-        "k": "SKIP",
-        "k1": "RESIZE",
-        "k2": "MANUAL",
-    }.get(str(restore_mode).lstrip("-"), "SOURCE")
     return [
         MenuItem(
             label="WIFI",
             action=menu_actions.wifi_settings,
-        ),
-        MenuItem(
-            label=f"RESTORE PT: {restore_label}",
-            action=menu_actions.select_restore_partition_mode,
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
