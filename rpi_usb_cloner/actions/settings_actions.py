@@ -109,6 +109,33 @@ def keyboard_test() -> None:
     time.sleep(1.5)
 
 
+def demo_confirmation_screen() -> None:
+    screens.render_confirmation_screen("CONFIRM", ["Demo prompt line 1", "Demo line 2"])
+    screens.wait_for_ack()
+
+
+def demo_status_screen() -> None:
+    screens.render_status_template("STATUS", "Running...", progress_line="Demo progress")
+    screens.wait_for_ack()
+
+
+def demo_info_screen() -> None:
+    lines = [
+        "Line 1",
+        "Line 2",
+        "Line 3",
+        "Line 4",
+        "Line 5",
+    ]
+    screens.render_info_screen("INFO", lines)
+    screens.wait_for_paginated_input("INFO", lines)
+
+
+def demo_progress_screen() -> None:
+    screens.render_progress_screen("PROGRESS", ["Working..."], progress_ratio=0.6)
+    screens.wait_for_ack()
+
+
 def font_awesome_demo() -> None:
     screens.show_font_awesome_demo()
 
