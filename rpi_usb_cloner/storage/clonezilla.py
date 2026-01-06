@@ -399,6 +399,7 @@ def _estimate_required_size_bytes(
                 ops.append(op)
                 seen_paths.add(op.path)
     sector_size = 512
+    last_lba_line = None
     max_sector = None
     for op in ops:
         if not op.contents:
@@ -510,6 +511,12 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
             if match:
                 sector_size = int(match.group(1))
             continue
+        if stripped.startswith("last-lba:"):
+            last_lba_line = {
+                "index": index,
+                "prefix": line[: line.index("last-lba:")],
+            }
+            continue
         if not stripped.startswith("/dev/") or ":" not in stripped:
             continue
         prefix, rest = stripped.split(":", 1)
@@ -550,6 +557,8 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
         part["fields"] = _set_sfdisk_field(part["fields"], "start", str(scaled_start))
         part["fields"] = _set_sfdisk_field(part["fields"], "size", str(scaled_size))
         lines[part["index"]] = _format_sfdisk_line(part["prefix"], part["fields"])
+    if last_lba_line:
+        lines[last_lba_line["index"]] = f"{last_lba_line['prefix']}last-lba: {target_sectors - 1}"
     return DiskLayoutOp(kind=op.kind, path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
 
 
