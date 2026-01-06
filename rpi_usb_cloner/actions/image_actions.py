@@ -6,7 +6,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.storage import clonezilla, devices, image_repo
+from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 
 
@@ -122,8 +122,10 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     ):
         return
     partition_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
-    if partition_mode == "k2" and not _confirm_manual_partition_setup(log_debug=log_debug):
-        return
+    if partition_mode == "k2":
+        _show_manual_partition_instructions(target)
+        if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
+            return
     screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
     try:
         clonezilla.restore_clonezilla_image(
@@ -178,17 +180,18 @@ def _confirm_destructive_action(
     )
 
 
-def _confirm_manual_partition_setup(*, log_debug: Optional[Callable[[str], None]]) -> bool:
-    return _confirm_prompt(
-        log_debug=log_debug,
-        title="MANUAL PT",
-        prompt_lines=[
-            "Create partition table",
-            "on target now.",
-            "Press YES to continue",
-            "or NO to cancel.",
+def _show_manual_partition_instructions(target: dict) -> None:
+    target_label = target.get("name") or devices.format_device_label(target)
+    screens.wait_for_paginated_input(
+        "MANUAL PT",
+        [
+            "Manual partitioning",
+            "is required.",
+            f"Target {target_label}",
+            "Use fdisk/parted",
+            "to create partitions.",
+            "Press A/B to continue.",
         ],
-        default=app_state.CONFIRM_NO,
     )
 
 
@@ -244,6 +247,52 @@ def _collect_mountpoints(device: dict) -> set[str]:
             mountpoints.add(mountpoint)
         stack.extend(devices.get_children(current))
     return mountpoints
+
+
+def _wait_for_manual_partitions(
+    plan: clonezilla.RestorePlan,
+    target: dict,
+    *,
+    log_debug: Optional[Callable[[str], None]] = None,
+) -> bool:
+    target_name = target.get("name") or ""
+    deadline = time.monotonic() + 10
+    last_missing: list[str] = []
+    while time.monotonic() < deadline:
+        refreshed = devices.get_device_by_name(target_name)
+        if not refreshed:
+            last_missing = ["target device missing"]
+        else:
+            last_missing = _find_missing_partitions(plan.parts, refreshed)
+            if not last_missing:
+                return True
+        time.sleep(1)
+    _log_debug(log_debug, f"Manual partition check failed: {last_missing}")
+    if last_missing and last_missing != ["target device missing"]:
+        lines = ["Missing partitions:", ", ".join(last_missing)]
+    else:
+        lines = ["Target device missing."]
+    screens.wait_for_paginated_input(
+        "MANUAL PT",
+        [*lines, "Create partitions", "and retry."],
+    )
+    return False
+
+
+def _find_missing_partitions(required_parts: Iterable[str], target: dict) -> list[str]:
+    available_numbers = {
+        clone.get_partition_number(child.get("name"))
+        for child in devices.get_children(target)
+        if child.get("type") == "part"
+    }
+    missing: list[str] = []
+    for part in required_parts:
+        number = clone.get_partition_number(part)
+        if number is None:
+            continue
+        if number not in available_numbers:
+            missing.append(part)
+    return missing
 
 
 def _format_restore_error_lines(error: Exception) -> list[str]:
