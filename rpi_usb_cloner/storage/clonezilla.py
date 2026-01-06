@@ -166,23 +166,40 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
         raise RuntimeError(
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"
         )
+    required_partitions = len(plan.parts)
     applied_layout = False
+    attempt_results: list[str] = []
     for op in plan.disk_layout_ops:
         try:
             applied_layout = _apply_disk_layout_op(op, target_node)
         except Exception as exc:
             raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
-        if applied_layout:
+        if not applied_layout:
+            continue
+        _reread_partition_table(target_node)
+        _settle_udev()
+        _, observed_count = _wait_for_partition_count(
+            target_name,
+            required_partitions,
+            timeout_seconds=10,
+            allow_short=True,
+        )
+        if observed_count == required_partitions:
             break
+        logger.warning(
+            "Partition count mismatch after %s layout op (expected %s, saw %s).",
+            op.kind,
+            required_partitions,
+            observed_count,
+        )
+        attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
+        applied_layout = False
     if plan.disk_layout_ops and not applied_layout:
-        raise RuntimeError("Partition table apply failed: no usable disk layout operations found.")
-    _reread_partition_table(target_node)
-    _settle_udev()
-    _wait_for_partition_count(
-        target_name,
-        len(plan.parts),
-        timeout_seconds=10,
-    )
+        attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
+        raise RuntimeError(
+            "Partition table apply failed to produce expected partition count "
+            f"(expected {required_partitions}). Attempts: {attempts}."
+        )
     refreshed, target_parts = _wait_for_target_partitions(
         target_name,
         plan.parts,
@@ -256,7 +273,8 @@ def _wait_for_partition_count(
     *,
     timeout_seconds: int,
     poll_interval: float = 0.5,
-) -> dict:
+    allow_short: bool = False,
+) -> tuple[dict, int]:
     deadline = time.monotonic() + timeout_seconds
     last_info = None
     last_count = 0
@@ -265,10 +283,12 @@ def _wait_for_partition_count(
         if last_info:
             last_count = _count_target_partitions(last_info)
             if last_count >= required_count:
-                return last_info
+                return last_info, last_count
         time.sleep(poll_interval)
     if not last_info:
         raise RuntimeError("Unable to refresh target device after partition table update.")
+    if allow_short:
+        return last_info, last_count
     raise RuntimeError(
         "Partition table applied but kernel did not create all partitions "
         f"(expected {required_count}, saw {last_count})."
