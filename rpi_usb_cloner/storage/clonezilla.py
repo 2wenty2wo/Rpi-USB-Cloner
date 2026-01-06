@@ -169,11 +169,13 @@ def restore_clonezilla_image(plan: RestorePlan, target_device: str) -> None:
             _apply_disk_layout_op(op, target_node)
         except Exception as exc:
             raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
-    time.sleep(2)
-    refreshed = devices.get_device_by_name(target_name) or target_info
-    if not refreshed:
-        raise RuntimeError("Unable to refresh target device")
-    target_parts = _map_target_partitions(plan.parts, refreshed)
+    _reread_partition_table(target_node)
+    _settle_udev()
+    refreshed, target_parts = _wait_for_target_partitions(
+        target_name,
+        plan.parts,
+        timeout_seconds=10,
+    )
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
         target_part = target_parts.get(op.partition)
@@ -193,6 +195,47 @@ def _is_clonezilla_image_dir(path: Path) -> bool:
     has_table = _find_partition_table(path) is not None
     has_images = any(path.glob("*-ptcl-img*")) or any(path.glob("*dd-img*"))
     return has_table or has_images
+
+
+def _reread_partition_table(target_node: str) -> None:
+    partprobe = shutil.which("partprobe")
+    if partprobe:
+        subprocess.run([partprobe, target_node], check=False)
+        return
+    blockdev = shutil.which("blockdev")
+    if blockdev:
+        subprocess.run([blockdev, "--rereadpt", target_node], check=False)
+
+
+def _settle_udev() -> None:
+    udevadm = shutil.which("udevadm")
+    if udevadm:
+        subprocess.run([udevadm, "settle"], check=False)
+
+
+def _wait_for_target_partitions(
+    target_name: str,
+    parts: Iterable[str],
+    *,
+    timeout_seconds: int,
+    poll_interval: float = 1.0,
+) -> tuple[dict, dict[str, str]]:
+    deadline = time.monotonic() + timeout_seconds
+    last_info = None
+    last_mapping: dict[str, str] = {}
+    while time.monotonic() < deadline:
+        last_info = devices.get_device_by_name(target_name)
+        if last_info:
+            last_mapping = _map_target_partitions(parts, last_info)
+            missing = [part for part in parts if not last_mapping.get(part)]
+            if not missing:
+                return last_info, last_mapping
+        time.sleep(poll_interval)
+    if not last_info:
+        raise RuntimeError("Unable to refresh target device after partition table update.")
+    missing = [part for part in parts if not last_mapping.get(part)]
+    missing_label = ", ".join(missing) if missing else "unknown"
+    raise RuntimeError(f"Timed out waiting for partitions to appear: {missing_label}")
 
 
 def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
