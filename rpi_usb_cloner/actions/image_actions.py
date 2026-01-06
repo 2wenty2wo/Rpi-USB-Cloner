@@ -32,6 +32,30 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         display.display_lines(["IMAGE REPO", "NOT FOUND"])
         time.sleep(1)
         return
+    if len(repos) > 1:
+        selected_repo = menus.select_list(
+            "IMG REPO",
+            [repo.name for repo in repos],
+            footer=["BACK", "OK"],
+        )
+        if selected_repo is None:
+            return
+        repo_path = repos[selected_repo]
+    else:
+        repo_path = repos[0]
+    image_dirs = image_repo.list_clonezilla_images(repo_path)
+    if not image_dirs:
+        display.display_lines(["NO IMAGES", "FOUND"])
+        time.sleep(1)
+        return
+    selected_index = menus.select_list(
+        "CHOOSE IMAGE",
+        [path.name for path in image_dirs],
+        screen_id="images",
+    )
+    if selected_index is None:
+        return
+    selected_dir = image_dirs[selected_index]
     usb_devices = devices.list_usb_disks()
     if not usb_devices:
         display.display_lines(["NO USB", "DRIVES"])
@@ -65,37 +89,10 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if refreshed_target is not None:
         target = refreshed_target
     target_mounts = _collect_mountpoints(target)
-    filtered_repos = [
-        repo for repo in repos if not any(str(repo).startswith(mount) for mount in target_mounts)
-    ]
-    if not filtered_repos:
+    if any(str(repo_path).startswith(mount) for mount in target_mounts):
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
         return
-    if len(filtered_repos) > 1:
-        selected_repo = menus.select_list(
-            "IMG REPO",
-            [repo.name for repo in filtered_repos],
-            footer=["BACK", "OK"],
-        )
-        if selected_repo is None:
-            return
-        repo_path = filtered_repos[selected_repo]
-    else:
-        repo_path = filtered_repos[0]
-    image_dirs = image_repo.list_clonezilla_images(repo_path)
-    if not image_dirs:
-        display.display_lines(["NO IMAGES", "FOUND"])
-        time.sleep(1)
-        return
-    selected_index = menus.select_list(
-        "CHOOSE IMAGE",
-        [path.name for path in image_dirs],
-        screen_id="images",
-    )
-    if selected_index is None:
-        return
-    selected_dir = image_dirs[selected_index]
     try:
         plan = clonezilla.parse_clonezilla_image(selected_dir)
     except RuntimeError as error:
