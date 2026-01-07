@@ -317,8 +317,39 @@ def run_checked_with_streaming_progress(
     title="WORKING",
     stdout_target=None,
     stdin_source=None,
+    progress_callback=None,
 ):
-    display_lines(format_progress_display(title, None, None, 0 if total_bytes else None, total_bytes, None, None, None))
+    def emit_progress(lines, ratio=None):
+        if progress_callback:
+            progress_callback(lines, ratio)
+        else:
+            display_lines(lines)
+
+    def clamp_ratio(value):
+        if value is None:
+            return None
+        return max(0.0, min(1.0, float(value)))
+
+    def compute_ratio(bytes_copied, percent_value):
+        if bytes_copied is not None and total_bytes:
+            return clamp_ratio(bytes_copied / total_bytes)
+        if percent_value is not None:
+            return clamp_ratio(percent_value / 100.0)
+        return None
+
+    emit_progress(
+        format_progress_display(
+            title,
+            None,
+            None,
+            0 if total_bytes else None,
+            total_bytes,
+            None,
+            None,
+            None,
+        ),
+        ratio=compute_ratio(0 if total_bytes else None, None),
+    )
     log_debug(f"Running command: {' '.join(command)}")
     process = subprocess.Popen(
         command,
@@ -376,7 +407,7 @@ def run_checked_with_streaming_progress(
                 last_percent = float(percent_match.group(1))
             rate_display = rate if rate is not None else last_rate
             eta_display = eta if eta is not None else last_eta
-            display_lines(
+            emit_progress(
                 format_progress_display(
                     title,
                     None,
@@ -387,12 +418,13 @@ def run_checked_with_streaming_progress(
                     rate_display,
                     eta_display,
                     spinner_frames[spinner_index],
-                )
+                ),
+                ratio=compute_ratio(bytes_copied, last_percent),
             )
             last_update = now
         if now - last_update >= refresh_interval:
             spinner_index = (spinner_index + 1) % len(spinner_frames)
-            display_lines(
+            emit_progress(
                 format_progress_display(
                     title,
                     None,
@@ -403,7 +435,8 @@ def run_checked_with_streaming_progress(
                     last_rate,
                     last_eta,
                     spinner_frames[spinner_index],
-                )
+                ),
+                ratio=compute_ratio(last_bytes, last_percent),
             )
             last_update = now
         if process.poll() is not None and not line:
@@ -421,7 +454,7 @@ def run_checked_with_streaming_progress(
         stdout = stdout_data.strip()
         message = stderr or stdout or "Command failed"
         raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
-    display_lines([title, "Complete"])
+    emit_progress([title, "Complete"], ratio=1.0)
     return subprocess.CompletedProcess(command, process.returncode, stdout=stdout_data, stderr=stderr_output)
 
 

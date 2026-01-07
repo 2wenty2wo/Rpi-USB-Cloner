@@ -152,6 +152,7 @@ def restore_clonezilla_image(
     target_device: str,
     *,
     partition_mode: str = "k0",
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> None:
     if os.geteuid() != 0:
         raise RuntimeError("Run as root")
@@ -240,6 +241,7 @@ def restore_clonezilla_image(
                 target_part["node"],
                 title=title,
                 total_bytes=target_part.get("size_bytes"),
+                progress_callback=progress_callback,
             )
         except Exception as exc:
             raise RuntimeError(f"Partition restore failed ({title}): {exc}") from exc
@@ -982,9 +984,16 @@ def _restore_partition_op(
     *,
     title: str,
     total_bytes: Optional[int] = None,
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> None:
     restore_command = _build_restore_command_from_plan(op, target_part)
-    _run_restore_pipeline(op.image_files, restore_command, title=title, total_bytes=total_bytes)
+    _run_restore_pipeline(
+        op.image_files,
+        restore_command,
+        title=title,
+        total_bytes=total_bytes,
+        progress_callback=progress_callback,
+    )
 
 
 def _select_clonezilla_volume_set(primary: list[Path], secondary: list[Path]) -> list[Path]:
@@ -1307,6 +1316,7 @@ def _run_restore_pipeline(
     *,
     title: str,
     total_bytes: Optional[int] = None,
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> None:
     if not image_files:
         raise RuntimeError("No image files")
@@ -1344,6 +1354,7 @@ def _run_restore_pipeline(
             title=title,
             total_bytes=total_bytes,
             stdin_source=upstream,
+            progress_callback=progress_callback,
         )
     except Exception as exc:
         error = exc
