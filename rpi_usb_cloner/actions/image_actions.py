@@ -53,6 +53,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         [path.name for path in image_dirs],
         screen_id="images",
         enable_horizontal_scroll=True,
+        scroll_start_delay=1.5,
     )
     if selected_index is None:
         return
