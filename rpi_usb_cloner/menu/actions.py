@@ -164,6 +164,10 @@ def heroicons_demo() -> None:
     settings_actions.heroicons_demo()
 
 
+def preview_title_font() -> None:
+    settings_actions.preview_title_font()
+
+
 def update_version() -> None:
     context = _require_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
