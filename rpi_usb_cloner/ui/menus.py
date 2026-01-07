@@ -472,7 +472,6 @@ def select_clone_mode(current_mode=None):
     selected_index = render_menu_list(
         "CLONE MODE",
         [mode.upper() for mode in modes],
-        footer=["BACK", "OK"],
         selected_index=modes.index(selected_mode),
     )
     if selected_index is None:
