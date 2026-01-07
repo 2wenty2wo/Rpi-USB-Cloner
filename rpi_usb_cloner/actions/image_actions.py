@@ -132,7 +132,6 @@ def _prompt_restore_partition_mode() -> Optional[str]:
         ("k0", "USE SOURCE (-k0)"),
         ("k", "SKIP TABLE (-k)"),
         ("k1", "RESIZE TABLE (-k1)"),
-        ("k2", "MANUAL TABLE (-k2)"),
     ]
     current_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
     selected_index = 0
