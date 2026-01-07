@@ -244,7 +244,7 @@ def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -
     return _confirm_prompt(
         log_debug=log_debug,
         title="WARNING!",
-        title_icon=chr(57747),
+        title_icon=chr(57746),
         prompt_lines=["Data will be overwritten!", "All data will lost!"],
         default=app_state.CONFIRM_NO,
     )
