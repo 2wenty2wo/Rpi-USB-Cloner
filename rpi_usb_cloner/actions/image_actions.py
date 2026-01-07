@@ -225,7 +225,7 @@ def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
             selected_index = index
             break
     selection = menus.render_menu_list(
-        "Partitions",
+        "PARTITIONS",
         [label for _, label in options],
         selected_index=selected_index,
         title_icon=chr(57451),
