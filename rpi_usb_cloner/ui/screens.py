@@ -370,6 +370,11 @@ def render_confirmation_screen(
     title_font = context.fonts.get("title", context.fontdisks)
     prompt_font = context.fontdisks
     button_font = context.fontcopy
+    confirmation_font_path = display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"
+    try:
+        button_font = ImageFont.truetype(confirmation_font_path, 14)
+    except OSError:
+        button_font = context.fontcopy
     layout = display.draw_title_with_icon(
         title,
         title_font=title_font,
@@ -390,7 +395,7 @@ def render_confirmation_screen(
     )
     prompt_line_height = display._get_line_height(prompt_font)
     prompt_line_step = prompt_line_height + 2
-    button_height = max(14, display._get_line_height(button_font) + 2)
+    button_height = max(10, display._get_line_height(button_font) + 1)
     max_button_y = context.height - button_height - 4
     max_prompt_height = max(0, max_button_y - content_top - 6)
     max_prompt_lines = max(1, int((max_prompt_height + 2) / prompt_line_step))
@@ -410,21 +415,16 @@ def render_confirmation_screen(
         prompt_line_height,
         len(wrapped_prompt_lines) * prompt_line_step - 2,
     )
-    icon_font = display._get_lucide_font()
-    icon_padding = 5
-    button_icons = {"NO": chr(57778), "YES": chr(57452)}
     button_labels = ("NO", "YES")
-    max_content_width = 0
+    max_label_width = 0
     for button_label in button_labels:
-        button_icon = button_icons[button_label]
-        icon_width = display._measure_text_width(draw, button_icon, icon_font)
         label_width = display._measure_text_width(draw, button_label, button_font)
-        max_content_width = max(max_content_width, icon_width + icon_padding + label_width)
+        max_label_width = max(max_label_width, label_width)
     button_width = max(
         36,
-        max_content_width + 16,
+        max_label_width + 16,
     )
-    button_gap = 12
+    button_gap = 18
     block_width = button_width * 2 + button_gap
     available_width = context.width - 4
     min_button_gap = 2
@@ -460,22 +460,14 @@ def render_confirmation_screen(
             draw.rectangle(rect, outline=255, fill=255)
         else:
             draw.rectangle(rect, outline=255, fill=0)
-        icon = button_icons[label]
-        icon_width = display._measure_text_width(draw, icon, icon_font)
         text_width = display._measure_text_width(draw, label, button_font)
-        icon_bbox = draw.textbbox((0, 0), icon, font=icon_font)
         text_bbox = draw.textbbox((0, 0), label, font=button_font)
-        icon_height = icon_bbox[3] - icon_bbox[1]
         text_height = text_bbox[3] - text_bbox[1]
-        content_width = icon_width + icon_padding + text_width
-        content_x = int(x_pos + (button_width - content_width) / 2)
+        content_x = int(x_pos + (button_width - text_width) / 2)
         content_center_y = button_y + button_height / 2
-        icon_y = int(content_center_y - icon_height / 2 - icon_bbox[1])
         text_y = int(content_center_y - text_height / 2 - text_bbox[1])
         fill = 0 if is_selected else 255
-        draw.text((content_x, icon_y), icon, font=icon_font, fill=fill)
-        text_x = int(content_x + icon_width + icon_padding)
-        draw.text((text_x, text_y), label, font=button_font, fill=fill)
+        draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
 
 
