@@ -10,6 +10,8 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 
+WRITE_TITLE_ICON = chr(58597)
+
 
 def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
     if log_debug:
@@ -164,17 +166,30 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     thread.start()
     while not done.is_set():
         lines, ratio = current_progress()
-        screens.render_progress_screen("WRITE", lines, progress_ratio=ratio, animate=False)
+        screens.render_progress_screen(
+            "WRITE",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=WRITE_TITLE_ICON,
+        )
         time.sleep(0.1)
     thread.join()
     lines, ratio = current_progress()
-    screens.render_progress_screen("WRITE", lines, progress_ratio=ratio, animate=False)
+    screens.render_progress_screen(
+        "WRITE",
+        lines,
+        progress_ratio=ratio,
+        animate=False,
+        title_icon=WRITE_TITLE_ICON,
+    )
     if "error" in error_holder:
         error = error_holder["error"]
         _log_debug(log_debug, f"Restore failed: {error}")
         screens.wait_for_paginated_input(
             "WRITE",
             ["FAILED", *_format_restore_error_lines(error)],
+            title_icon=WRITE_TITLE_ICON,
         )
         return
     elapsed_seconds = time.monotonic() - start_time
@@ -187,7 +202,11 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         written_percent=progress_written_percent,
         ratio=progress_ratio_snapshot,
     )
-    screens.render_status_template("WRITE", "SUCCESS", extra_lines=summary_lines)
+    screens.render_status_template(
+        "WRITE",
+        "SUCCESS",
+        extra_lines=summary_lines,
+    )
     screens.wait_for_ack()
 
 
