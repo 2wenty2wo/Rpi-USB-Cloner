@@ -134,6 +134,8 @@ def _prompt_restore_partition_mode() -> Optional[str]:
         ("k1", "RESIZE TABLE (-k1)"),
     ]
     current_mode = str(settings.get_setting("restore_partition_mode", "k0")).lstrip("-")
+    if current_mode not in {value for value, _ in options}:
+        options = [("__stored__", "KEEP STORED MODE"), *options]
     selected_index = 0
     for index, (value, _) in enumerate(options):
         if value == current_mode:
@@ -148,7 +150,10 @@ def _prompt_restore_partition_mode() -> Optional[str]:
     if selection is None:
         return None
     selected_value, selected_label = options[selection]
-    settings.set_setting("restore_partition_mode", selected_value)
+    if selected_value == "__stored__":
+        selected_value = current_mode
+    else:
+        settings.set_setting("restore_partition_mode", selected_value)
     screens.render_status_template("RESTORE PT", f"Set: {selected_label}")
     time.sleep(1.5)
     return selected_value.lstrip("-")
