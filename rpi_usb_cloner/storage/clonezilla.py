@@ -142,7 +142,7 @@ def restore_image(
             raise RuntimeError(f"Missing target partition for {part_name}")
         if progress_callback:
             progress_callback(f"Restoring {part_name} {index}/{total_parts}")
-        _restore_partition(image.path, part_name, target_part)
+        _restore_partition(image.path, part_name, target_part["node"])
     if progress_callback:
         progress_callback("Finalizing...")
 
@@ -235,7 +235,12 @@ def restore_clonezilla_image(
             raise RuntimeError(f"Missing target partition for {op.partition}")
         title = f"PART {index}/{total_parts}"
         try:
-            _restore_partition_op(op, target_part, title=title)
+            _restore_partition_op(
+                op,
+                target_part["node"],
+                title=title,
+                total_bytes=target_part.get("size_bytes"),
+            )
         except Exception as exc:
             raise RuntimeError(f"Partition restore failed ({title}): {exc}") from exc
 
@@ -271,10 +276,10 @@ def _wait_for_target_partitions(
     *,
     timeout_seconds: int,
     poll_interval: float = 1.0,
-) -> tuple[dict, dict[str, str]]:
+) -> tuple[dict, dict[str, Optional[dict[str, Optional[int]]]]]:
     deadline = time.monotonic() + timeout_seconds
     last_info = None
-    last_mapping: dict[str, str] = {}
+    last_mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
     while time.monotonic() < deadline:
         last_info = devices.get_device_by_name(target_name)
         if last_info:
@@ -460,14 +465,12 @@ def _estimate_required_size_bytes(
     return (max_sector + 1) * sector_size
 
 
-def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
-    if target_info and target_info.get("size"):
-        return int(target_info.get("size"))
+def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
     blockdev = shutil.which("blockdev")
     if not blockdev:
         return None
     result = subprocess.run(
-        [blockdev, "--getsize64", target_node],
+        [blockdev, "--getsize64", device_node],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -478,6 +481,12 @@ def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Opt
         return int(result.stdout.strip())
     except ValueError:
         return None
+
+
+def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
+    if target_info and target_info.get("size"):
+        return int(target_info.get("size"))
+    return _get_blockdev_size_bytes(target_node)
 
 
 def _normalize_partition_mode(partition_mode: Optional[str]) -> str:
@@ -967,9 +976,15 @@ def _estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
     return max(current_lba, backup_lba, last_usable)
 
 
-def _restore_partition_op(op: PartitionRestoreOp, target_part: str, *, title: str) -> None:
+def _restore_partition_op(
+    op: PartitionRestoreOp,
+    target_part: str,
+    *,
+    title: str,
+    total_bytes: Optional[int] = None,
+) -> None:
     restore_command = _build_restore_command_from_plan(op, target_part)
-    _run_restore_pipeline(op.image_files, restore_command, title=title)
+    _run_restore_pipeline(op.image_files, restore_command, title=title, total_bytes=total_bytes)
 
 
 def _select_clonezilla_volume_set(primary: list[Path], secondary: list[Path]) -> list[Path]:
@@ -1080,15 +1095,24 @@ def _write_partition_table(table_path: Path, target_node: str) -> None:
     raise RuntimeError("Unsupported partition table")
 
 
-def _map_target_partitions(parts: Iterable[str], target_device: dict) -> dict[str, str]:
+def _map_target_partitions(
+    parts: Iterable[str],
+    target_device: dict,
+) -> dict[str, Optional[dict[str, Optional[int]]]]:
     target_children = [child for child in devices.get_children(target_device) if child.get("type") == "part"]
-    target_by_number = {}
+    target_by_number: dict[int, dict[str, Optional[int]]] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
         if number is None:
             continue
-        target_by_number[number] = f"/dev/{child.get('name')}"
-    mapping = {}
+        node = f"/dev/{child.get('name')}"
+        size_bytes = child.get("size")
+        if size_bytes is None:
+            size_bytes = _get_blockdev_size_bytes(node)
+        else:
+            size_bytes = int(size_bytes)
+        target_by_number[number] = {"node": node, "size_bytes": size_bytes}
+    mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
     for part_name in parts:
         number = get_partition_number(part_name)
         if number is None:
@@ -1277,7 +1301,13 @@ def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_
         return
 
 
-def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *, title: str) -> None:
+def _run_restore_pipeline(
+    image_files: list[Path],
+    restore_command: list[str],
+    *,
+    title: str,
+    total_bytes: Optional[int] = None,
+) -> None:
     if not image_files:
         raise RuntimeError("No image files")
     image_files = _sorted_clonezilla_volumes(image_files)
@@ -1312,6 +1342,7 @@ def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *
         clone.run_checked_with_streaming_progress(
             restore_command,
             title=title,
+            total_bytes=total_bytes,
             stdin_source=upstream,
         )
     except Exception as exc:
