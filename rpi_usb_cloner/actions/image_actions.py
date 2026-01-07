@@ -36,7 +36,6 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.name for repo in repos],
-            footer=["BACK", "OK"],
         )
         if selected_repo is None:
             return
@@ -144,7 +143,6 @@ def _prompt_restore_partition_mode() -> Optional[str]:
     selection = menus.render_menu_list(
         "RESTORE PT",
         [label for _, label in options],
-        footer=["BACK", "OK"],
         selected_index=selected_index,
         header_lines=["Partition table mode"],
     )
