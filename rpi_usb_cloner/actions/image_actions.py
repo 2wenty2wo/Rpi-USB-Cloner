@@ -58,9 +58,10 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if selected_index is None:
         return
     selected_dir = image_dirs[selected_index]
-    partition_mode = _prompt_restore_partition_mode()
-    if partition_mode is None:
+    partition_selection = _prompt_restore_partition_mode()
+    if partition_selection is None:
         return
+    partition_mode, partition_label = partition_selection
     usb_devices = devices.list_usb_disks()
     if not usb_devices:
         display.display_lines(["NO USB", "DRIVES"])
@@ -111,6 +112,8 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         _show_manual_partition_instructions(target)
         if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
             return
+    screens.render_status_template("RESTORE PT", f"Set: {partition_label}")
+    time.sleep(1.5)
     done = threading.Event()
     result_holder: dict[str, None] = {}
     error_holder: dict[str, Exception] = {}
@@ -167,7 +170,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     time.sleep(1)
 
 
-def _prompt_restore_partition_mode() -> Optional[str]:
+def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
     options = [
         ("k0", "USE SOURCE (-k0)"),
         ("k", "SKIP TABLE (-k)"),
@@ -194,9 +197,7 @@ def _prompt_restore_partition_mode() -> Optional[str]:
         selected_value = current_mode
     else:
         settings.set_setting("restore_partition_mode", selected_value)
-    screens.render_status_template("RESTORE PT", f"Set: {selected_label}")
-    time.sleep(1.5)
-    return selected_value.lstrip("-")
+    return selected_value.lstrip("-"), selected_label
 
 
 def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -> bool:
