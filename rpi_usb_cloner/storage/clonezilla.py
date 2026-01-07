@@ -1309,7 +1309,7 @@ def _run_restore_pipeline(image_files: list[Path], restore_command: list[str], *
         raise RuntimeError("Restore pipeline failed")
     error: Optional[Exception] = None
     try:
-        clone.run_checked_with_progress(
+        clone.run_checked_with_streaming_progress(
             restore_command,
             title=title,
             stdin_source=upstream,
