@@ -1,5 +1,6 @@
 import threading
 import time
+from pathlib import Path
 
 from typing import Iterable, Optional
 
@@ -264,6 +265,49 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
     font_path = display.ASSETS_DIR / "fonts" / "his.ttf"
     heroicons_icons = [chr(0xE934), chr(0xE963), chr(0xE964), chr(0xEA27)]
     _show_icon_font_demo(title, font_path, icons=heroicons_icons)
+
+
+def _format_font_label(font_path: Path) -> str:
+    return font_path.stem.replace("_", " ").replace("-", " ").upper()
+
+
+def show_title_font_preview(title: str = "TITLE FONT PREVIEW") -> None:
+    context = display.get_display_context()
+    fonts_dir = display.ASSETS_DIR / "fonts"
+    font_paths = sorted(
+        [path for path in fonts_dir.glob("*") if path.suffix.lower() in {".ttf", ".otf"}]
+    )
+    if not font_paths:
+        display.display_lines([title, "No fonts found"])
+        time.sleep(1.5)
+        return
+
+    reset_label = "RESET TO DEFAULT"
+    items = [reset_label] + [_format_font_label(path) for path in font_paths]
+    selected_index = 0
+    default_size = getattr(context.fontcopy, "size", 16)
+
+    while True:
+        selection = menus.render_menu_list(title, items, selected_index=selected_index)
+        if selection is None:
+            return
+        selected_index = selection
+        if selection == 0:
+            context.fonts["title"] = context.fontcopy
+            display.display_lines([title, "Reset to default"])
+            time.sleep(1)
+            continue
+
+        font_path = font_paths[selection - 1]
+        try:
+            preview_font = ImageFont.truetype(str(font_path), default_size)
+        except Exception:
+            display.display_lines([title, "Load failed"])
+            time.sleep(1.5)
+            continue
+        context.fonts["title"] = preview_font
+        display.display_lines([title, "Preview applied"])
+        time.sleep(1)
 
 
 def render_status_screen(

@@ -148,6 +148,10 @@ def heroicons_demo() -> None:
     screens.show_heroicons_demo()
 
 
+def preview_title_font() -> None:
+    screens.show_title_font_preview()
+
+
 def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     title = "UPDATE"
     title_icon = get_screen_icon("update")
