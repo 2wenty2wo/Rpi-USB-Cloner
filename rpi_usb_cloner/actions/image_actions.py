@@ -206,7 +206,6 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         "WRITE",
         "SUCCESS",
         extra_lines=summary_lines,
-        title_icon=WRITE_TITLE_ICON,
     )
     screens.wait_for_ack()
 
