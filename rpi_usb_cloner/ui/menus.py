@@ -48,6 +48,7 @@ class Menu:
     scroll_speed: float = 30.0
     scroll_gap: int = 20
     scroll_start_time: Optional[float] = None
+    scroll_start_delay: float = 0.0
     max_width: Optional[int] = None
 
 
@@ -132,6 +133,9 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
         for line_index, line in enumerate(lines):
             text_color = 0 if is_selected else 255
             x_offset = 0
+            display_line = line
+            if menu.screen_id == "images" and not is_selected:
+                display_line = display._truncate_text(draw, line, items_font, max_width)
             if (
                 is_selected
                 and menu.enable_horizontal_scroll
@@ -143,13 +147,16 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                 if line_width is None:
                     line_width = display._measure_text_width(draw, line, items_font)
                 if line_width > max_width:
-                    elapsed = max(0.0, now - menu.scroll_start_time)
+                    delay = max(0.0, menu.scroll_start_delay)
+                    elapsed = now - menu.scroll_start_time - delay
+                    if elapsed < 0.0:
+                        elapsed = 0.0
                     cycle_width = line_width + menu.scroll_gap
                     if cycle_width > 0:
                         x_offset = -int((elapsed * menu.scroll_speed) % cycle_width)
             draw.text(
                 (left_margin + x_offset, row_top + 1 + line_index * row_height_per_line),
-                line,
+                display_line,
                 font=items_font,
                 fill=text_color,
             )
@@ -200,6 +207,7 @@ def select_list(
     scroll_speed: float = 30.0,
     scroll_gap: int = 20,
     scroll_refresh_interval: float = 0.08,
+    scroll_start_delay: float = 0.0,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -258,6 +266,7 @@ def select_list(
             scroll_speed=scroll_speed,
             scroll_gap=scroll_gap,
             scroll_start_time=scroll_start_time,
+            scroll_start_delay=scroll_start_delay,
             max_width=max_width,
         )
         render_menu(
