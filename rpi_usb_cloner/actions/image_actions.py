@@ -120,9 +120,13 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     progress_lock = threading.Lock()
     progress_lines = ["Preparing media..."]
     progress_ratio: Optional[float] = 0.0
+    progress_written_bytes: Optional[str] = None
+    progress_written_percent: Optional[str] = None
+    progress_ratio_snapshot: Optional[float] = 0.0
+    start_time = time.monotonic()
 
     def update_progress(lines: list[str], ratio: Optional[float]) -> None:
-        nonlocal progress_lines, progress_ratio
+        nonlocal progress_lines, progress_ratio, progress_written_bytes, progress_written_percent, progress_ratio_snapshot
         clamped = None
         if ratio is not None:
             clamped = max(0.0, min(1.0, float(ratio)))
@@ -130,6 +134,13 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             progress_lines = lines
             if clamped is not None:
                 progress_ratio = clamped
+                progress_ratio_snapshot = clamped
+            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            if wrote_line:
+                match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
+                if match:
+                    progress_written_bytes = match.group(1)
+                    progress_written_percent = match.group(2)
 
     def current_progress() -> tuple[list[str], Optional[float]]:
         with progress_lock:
@@ -166,8 +177,18 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             ["FAILED", *_format_restore_error_lines(error)],
         )
         return
-    screens.render_status_template("WRITE", "Done", progress_line="Image written.")
-    time.sleep(1)
+    elapsed_seconds = time.monotonic() - start_time
+    summary_lines = _build_restore_summary_lines(
+        image_name=selected_dir.name,
+        target=target,
+        partition_label=partition_label,
+        elapsed_seconds=elapsed_seconds,
+        written_bytes=progress_written_bytes,
+        written_percent=progress_written_percent,
+        ratio=progress_ratio_snapshot,
+    )
+    screens.render_status_template("WRITE", "SUCCESS", extra_lines=summary_lines)
+    screens.wait_for_ack()
 
 
 def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
@@ -381,3 +402,46 @@ def _extract_stderr_message(message: str) -> Optional[str]:
         return None
     stderr = " ".join(match.group(1).strip().split())
     return stderr or None
+
+
+def _format_elapsed_duration(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
+def _build_restore_summary_lines(
+    *,
+    image_name: str,
+    target: dict,
+    partition_label: str,
+    elapsed_seconds: float,
+    written_bytes: Optional[str],
+    written_percent: Optional[str],
+    ratio: Optional[float],
+) -> list[str]:
+    percent_display = written_percent
+    if not percent_display and ratio is not None:
+        percent_display = f"{ratio * 100:.1f}%"
+    if written_bytes and percent_display:
+        written_line = f"Wrote {written_bytes} {percent_display}"
+    elif written_bytes:
+        written_line = f"Wrote {written_bytes}"
+    elif percent_display:
+        written_line = f"Wrote {percent_display}"
+    else:
+        written_line = "Wrote: --"
+    target_label = devices.format_device_label(target)
+    return [
+        f"Image {image_name}",
+        f"Target {target_label}",
+        f"Mode {partition_label}",
+        f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
+        written_line,
+        "Press A/B to continue.",
+    ]
