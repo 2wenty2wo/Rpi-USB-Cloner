@@ -1,4 +1,5 @@
 import re
+import threading
 import time
 from typing import Callable, Iterable, Optional
 
@@ -109,14 +110,52 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         _show_manual_partition_instructions(target)
         if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
             return
-    screens.render_status_template("WRITE", "Running...", progress_line="Preparing media...")
-    try:
-        clonezilla.restore_clonezilla_image(
-            plan,
-            target.get("name") or "",
-            partition_mode=partition_mode,
-        )
-    except RuntimeError as error:
+    done = threading.Event()
+    result_holder: dict[str, None] = {}
+    error_holder: dict[str, Exception] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Preparing media..."]
+    progress_ratio: Optional[float] = 0.0
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        clamped = None
+        if ratio is not None:
+            clamped = max(0.0, min(1.0, float(ratio)))
+        with progress_lock:
+            progress_lines = lines
+            if clamped is not None:
+                progress_ratio = clamped
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            clonezilla.restore_clonezilla_image(
+                plan,
+                target.get("name") or "",
+                partition_mode=partition_mode,
+                progress_callback=update_progress,
+            )
+            result_holder["result"] = None
+        except Exception as exc:
+            error_holder["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen("WRITE", lines, progress_ratio=ratio, animate=False)
+        time.sleep(0.1)
+    thread.join()
+    lines, ratio = current_progress()
+    screens.render_progress_screen("WRITE", lines, progress_ratio=ratio, animate=False)
+    if "error" in error_holder:
+        error = error_holder["error"]
         _log_debug(log_debug, f"Restore failed: {error}")
         screens.wait_for_paginated_input(
             "WRITE",
