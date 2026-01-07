@@ -179,6 +179,8 @@ def restore_clonezilla_image(
         partition_mode=partition_mode,
         target_size=target_size,
     )
+    post_layout_ops = [op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"]
+    layout_ops = [op for op in disk_layout_ops if op.kind != "hidden-data-after-mbr"]
     if partition_mode == "k":
         refreshed, observed_count = _wait_for_partition_count(
             target_name,
@@ -192,7 +194,7 @@ def restore_clonezilla_image(
     else:
         applied_layout = False
         attempt_results: list[str] = []
-        for op in disk_layout_ops:
+        for op in layout_ops:
             try:
                 applied_layout = _apply_disk_layout_op(op, target_node)
             except Exception as exc:
@@ -218,7 +220,7 @@ def restore_clonezilla_image(
                 )
                 attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
                 applied_layout = False
-        if disk_layout_ops and not applied_layout:
+        if layout_ops and not applied_layout:
             attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
             raise RuntimeError(
                 "Partition table apply failed to produce expected partition count "
@@ -229,6 +231,11 @@ def restore_clonezilla_image(
             plan.parts,
             timeout_seconds=10,
         )
+    for op in post_layout_ops:
+        try:
+            _apply_disk_layout_op(op, target_node)
+        except Exception as exc:
+            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
         target_part = target_parts.get(op.partition)
@@ -331,14 +338,20 @@ def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[Di
         path = image_dir / name
         if path.exists():
             disk_layout_ops.append(_read_disk_layout_op(kind, path))
+    for path in sorted(image_dir.glob("*-pt.parted.compact")):
+        disk_layout_ops.append(_read_disk_layout_op("pt.parted.compact", path))
     for path in sorted(image_dir.glob("*-pt.sf")):
         disk_layout_ops.append(_read_disk_layout_op("pt.sf", path))
+    for path in sorted(image_dir.glob("*-chs.sf")):
+        disk_layout_ops.append(_read_disk_layout_op("chs.sf", path))
     for path in sorted(image_dir.glob("*-pt.parted")):
         disk_layout_ops.append(_read_disk_layout_op("pt.parted", path))
     for path in sorted(image_dir.glob("*-pt.sgdisk")):
         disk_layout_ops.append(_read_disk_layout_op("pt.sgdisk", path))
     for path in sorted(image_dir.glob("*-mbr")):
         disk_layout_ops.append(_read_disk_layout_op("mbr", path))
+    for path in sorted(image_dir.glob("*-hidden-data-after-mbr")):
+        disk_layout_ops.append(_read_disk_layout_op("hidden-data-after-mbr", path))
     for path in sorted(image_dir.glob("*-gpt")):
         disk_layout_ops.append(_read_disk_layout_op("gpt", path))
     if select:
@@ -349,7 +362,18 @@ def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[Di
 def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLayoutOp]:
     if not disk_layout_ops:
         return []
-    priority = ["pt.sgdisk", "gpt", "pt.parted", "pt.sf", "mbr", "sfdisk", "disk"]
+    priority = [
+        "pt.sgdisk",
+        "gpt",
+        "pt.parted",
+        "pt.parted.compact",
+        "pt.sf",
+        "chs.sf",
+        "mbr",
+        "hidden-data-after-mbr",
+        "sfdisk",
+        "disk",
+    ]
     priority_index = {kind: index for index, kind in enumerate(priority)}
     return sorted(
         disk_layout_ops,
@@ -867,6 +891,26 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             message = _format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
             raise RuntimeError(message)
         return True
+    if op.kind == "chs.sf":
+        if not op.contents:
+            raise RuntimeError("chs.sf data missing or unreadable")
+        if not _looks_like_sfdisk_script(op.contents):
+            logger.warning("Skipping chs.sf layout op %s: does not look like sfdisk input.", op.path)
+            return False
+        sfdisk = shutil.which("sfdisk")
+        if not sfdisk:
+            raise RuntimeError("sfdisk not found")
+        result = subprocess.run(
+            [sfdisk, "--force", target_node],
+            input=op.contents,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            message = _format_command_failure("sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result)
+            raise RuntimeError(message)
+        return True
     if op.kind == "pt.parted":
         if not op.contents:
             raise RuntimeError("Missing parted data")
@@ -890,6 +934,26 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
         return True
+    if op.kind == "pt.parted.compact":
+        if not op.contents:
+            raise RuntimeError("Missing compact parted data")
+        expanded = _expand_parted_compact_script(op.contents)
+        if _is_parted_print_output(expanded):
+            raise RuntimeError("Compact parted file appears to contain print output, not a script")
+        parted = shutil.which("parted")
+        if not parted:
+            raise RuntimeError("parted not found")
+        result = subprocess.run(
+            [parted, "-s", target_node],
+            input=expanded,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 0:
+            message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
+            raise RuntimeError(message)
+        return True
     if op.kind == "mbr":
         dd_path = shutil.which("dd")
         if not dd_path:
@@ -900,6 +964,30 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
                 f"if={op.path}",
                 f"of={target_node}",
                 "bs=1",
+                f"count={op.size_bytes}",
+                "conv=fsync",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            message = _format_command_failure("dd failed", result.args, result)
+            raise RuntimeError(message)
+        return True
+    if op.kind == "hidden-data-after-mbr":
+        if op.size_bytes <= 0:
+            raise RuntimeError("hidden-data-after-mbr file is empty")
+        dd_path = shutil.which("dd")
+        if not dd_path:
+            raise RuntimeError("dd not found")
+        result = subprocess.run(
+            [
+                dd_path,
+                f"if={op.path}",
+                f"of={target_node}",
+                "bs=1",
+                "seek=512",
                 f"count={op.size_bytes}",
                 "conv=fsync",
             ],
@@ -950,6 +1038,31 @@ def _is_parted_print_output(contents: str) -> bool:
         return True
     if re.search(r"^Number\s+Start", contents, flags=re.MULTILINE):
         return True
+    return False
+
+
+def _expand_parted_compact_script(contents: str) -> str:
+    cleaned = contents.strip()
+    if not cleaned:
+        raise RuntimeError("Compact parted file is empty")
+    commands: list[str] = []
+    for line in cleaned.splitlines():
+        for fragment in line.split(";"):
+            command = fragment.strip()
+            if command:
+                commands.append(command)
+    if not commands:
+        raise RuntimeError("Compact parted file does not contain any commands")
+    return "\n".join(commands)
+
+
+def _looks_like_sfdisk_script(contents: str) -> bool:
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith(("/dev/", "label:", "label-id:", "unit:", "sector-size:", "first-lba:", "last-lba:")):
+            return True
     return False
 
 

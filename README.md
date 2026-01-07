@@ -103,6 +103,16 @@ sudo -E python3 rpi-usb-cloner.py --debug
 ```
 The erase workflow requires root permissions; if you start without `sudo`, the OLED will prompt you to run as root.
 
+### 💾 Clonezilla restore artifacts
+During Clonezilla restores, the cloner recognizes the following image metadata artifacts (when present):
+- `disk`, `sfdisk`
+- `*-pt.sf`
+- `*-chs.sf` (applied as sfdisk input when it matches; otherwise treated as metadata-only and ignored)
+- `*-pt.parted`, `*-pt.parted.compact`
+- `*-pt.sgdisk`, `*-gpt`
+- `*-mbr`
+- `*-hidden-data-after-mbr` (raw bytes restored immediately after the MBR)
+
 #### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
 
