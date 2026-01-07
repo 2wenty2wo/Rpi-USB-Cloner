@@ -395,7 +395,16 @@ def render_confirmation_screen(
     )
     prompt_line_height = display._get_line_height(prompt_font)
     prompt_line_step = prompt_line_height + 2
-    button_height = max(10, display._get_line_height(button_font) + 1)
+    button_labels = ("NO", "YES")
+    max_label_width = 0
+    max_text_height = 0
+    for button_label in button_labels:
+        label_width = display._measure_text_width(draw, button_label, button_font)
+        max_label_width = max(max_label_width, label_width)
+        text_bbox = draw.textbbox((0, 0), button_label, font=button_font)
+        text_height = text_bbox[3] - text_bbox[1]
+        max_text_height = max(max_text_height, text_height)
+    button_height = max(10, max_text_height + 4)
     max_button_y = context.height - button_height - 4
     max_prompt_height = max(0, max_button_y - content_top - 6)
     max_prompt_lines = max(1, int((max_prompt_height + 2) / prompt_line_step))
@@ -415,11 +424,6 @@ def render_confirmation_screen(
         prompt_line_height,
         len(wrapped_prompt_lines) * prompt_line_step - 2,
     )
-    button_labels = ("NO", "YES")
-    max_label_width = 0
-    for button_label in button_labels:
-        label_width = display._measure_text_width(draw, button_label, button_font)
-        max_label_width = max(max_label_width, label_width)
     button_width = max(
         36,
         max_label_width + 16,
@@ -464,8 +468,7 @@ def render_confirmation_screen(
         text_bbox = draw.textbbox((0, 0), label, font=button_font)
         text_height = text_bbox[3] - text_bbox[1]
         content_x = int(x_pos + (button_width - text_width) / 2)
-        content_center_y = button_y + button_height / 2
-        text_y = int(content_center_y - text_height / 2 - text_bbox[1])
+        text_y = button_y + (button_height - text_height) // 2 - text_bbox[1]
         fill = 0 if is_selected else 255
         draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
