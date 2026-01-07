@@ -179,6 +179,8 @@ def restore_clonezilla_image(
         partition_mode=partition_mode,
         target_size=target_size,
     )
+    post_layout_ops = [op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"]
+    layout_ops = [op for op in disk_layout_ops if op.kind != "hidden-data-after-mbr"]
     if partition_mode == "k":
         refreshed, observed_count = _wait_for_partition_count(
             target_name,
@@ -192,7 +194,7 @@ def restore_clonezilla_image(
     else:
         applied_layout = False
         attempt_results: list[str] = []
-        for op in disk_layout_ops:
+        for op in layout_ops:
             try:
                 applied_layout = _apply_disk_layout_op(op, target_node)
             except Exception as exc:
@@ -218,7 +220,7 @@ def restore_clonezilla_image(
                 )
                 attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
                 applied_layout = False
-        if disk_layout_ops and not applied_layout:
+        if layout_ops and not applied_layout:
             attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
             raise RuntimeError(
                 "Partition table apply failed to produce expected partition count "
@@ -229,6 +231,11 @@ def restore_clonezilla_image(
             plan.parts,
             timeout_seconds=10,
         )
+    for op in post_layout_ops:
+        try:
+            _apply_disk_layout_op(op, target_node)
+        except Exception as exc:
+            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
         target_part = target_parts.get(op.partition)
