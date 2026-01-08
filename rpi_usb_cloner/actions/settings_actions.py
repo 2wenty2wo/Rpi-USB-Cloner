@@ -276,11 +276,27 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                     apply_check_results_to_state()
                     update_header_lines()
                 else:
+                    status = "Checking..."
+                    behind_count = None
+                    update_header_lines()
+                    screens.render_update_buttons_screen(
+                        title,
+                        header_lines,
+                        selected_index=selection,
+                        title_icon=title_icon,
+                    )
                     with git_lock:
                         status, behind_count, last_checked = _check_update_status(
                             repo_root,
                             log_debug=log_debug,
                         )
+                    update_header_lines()
+                    screens.render_update_buttons_screen(
+                        title,
+                        header_lines,
+                        selected_index=selection,
+                        title_icon=title_icon,
+                    )
                     version = _get_app_version(log_debug=log_debug)
                     result_holder["result"] = (status, behind_count, last_checked)
                     check_done.set()
