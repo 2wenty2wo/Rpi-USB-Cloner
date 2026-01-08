@@ -330,3 +330,11 @@ Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the scr
 
 ### 🔤 Font assets
 The OLED demo uses Lucide icons; see <https://lucide.dev/license> or `rpi_usb_cloner/ui/assets/fonts/Lucide-LICENSE.txt` for license details.
+
+Fonts currently bundled in `rpi_usb_cloner/ui/assets/fonts/`:
+- `lucide.ttf` (Lucide icons)
+- `his.ttf` (Heroicons)
+- `Born2bSportyFS.otf` (button text)
+- `dogicapixel.ttf` / `dogicapixelbold.ttf` (pixel font)
+- `rainyhearts.ttf` (title font)
+- `slkscr.ttf` (status text font)
