@@ -34,7 +34,7 @@ git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
 cd Rpi-USB-Cloner
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip luma.oled pillow
+pip install -r requirements.txt
 sudo -E python3 rpi-usb-cloner.py
 ```
 
@@ -75,14 +75,11 @@ cd Rpi-USB-Cloner
      ```sh
      python3 -m venv .venv
      source .venv/bin/activate
-     python3 -m pip install --upgrade pip
-     python3 -m pip install luma.oled pillow
+     pip install -r requirements.txt
      ```
    - **Option B (single-use device):** install into system Python with the PEP 668 override.
      ```sh
-     sudo python3 -m pip install --break-system-packages luma.oled
-     sudo python3 -m pip install --break-system-packages pillow
-     python3 -m pip install --upgrade pip --break-system-packages
+     sudo pip install --break-system-packages -r requirements.txt
      ```
 
 #### 3) Hardware setup
@@ -164,9 +161,12 @@ You can also trigger updates from the OLED UI via Settings → Update.
 From the repo directory:
 ```sh
 git pull
-python3 -m pip install --upgrade luma.oled pillow
+pip install -r requirements.txt
 ```
-If you used Option B above, append `--break-system-packages` to the pip command.
+If you used Option B above (system Python), use:
+```sh
+sudo pip install --break-system-packages -r requirements.txt
+```
 `mount.py` ships with this repository, so no separate install is needed.
 
 ## 🎨 Assets & Customization
