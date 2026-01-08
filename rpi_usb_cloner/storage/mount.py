@@ -1,13 +1,66 @@
 #!/usr/bin/env python
+"""Legacy USB device mounting utilities (vendored from mount.py).
 
-# Author: Christian Vallentin <mail@vallentinsource.com>
-# Website: http://vallentinsource.com
-# Repository: https://github.com/MrVallentin/mount.py
-#
-# Date Created: March 25, 2016
-# Last Modified: March 27, 2016
-#
-# Developed and tested using Python 3.5.1
+SECURITY WARNING: This module contains known security vulnerabilities and uses
+deprecated patterns. It is vendored from an external source (last updated 2016)
+and should be refactored before production use.
+
+Module Purpose:
+    Provides utilities for listing, mounting, and querying USB storage devices on
+    Linux systems. Originally designed as a standalone tool but integrated into
+    the Rpi-USB-Cloner project.
+
+Critical Security Issues:
+    1. COMMAND INJECTION (HIGH): Uses os.system() with string interpolation
+       - Line 55: os.system("fdisk -l %s > output" % device)
+       - Line 68: os.system("mkdir -p " + path)
+       - Line 69: os.system("mount %s %s" % (partition, path))
+       - Line 74: os.system("umount " + path)
+
+       All of these allow arbitrary command execution if device/path contains
+       shell metacharacters. Since this runs as root, this is critical.
+
+    2. FILE HANDLING: Creates "output" file in current working directory without:
+       - Cleanup after use
+       - Error handling if file exists
+       - Protection against symlink attacks
+
+    3. NO ERROR CHECKING: Commands executed via os.system() don't check return codes,
+       so failures are silently ignored.
+
+Deprecation Notes:
+    - os.system() is deprecated in favor of subprocess module
+    - String interpolation in shell commands is unsafe
+    - Hardcoded "output" filename is poor practice
+    - This file should not be modified in-place; it should be replaced
+
+Functions:
+    - list_media_devices(): List all disk devices (major number 8)
+    - get_device_name(): Extract device name from path
+    - get_size(): Get device size in bytes
+    - get_model(): Get device model string
+    - get_vendor(): Get device vendor string
+    - get_partition_list(): List partitions on a device (UNSAFE)
+    - mount_partition(): Mount a partition (UNSAFE)
+    - unmount_partition(): Unmount a partition (UNSAFE)
+
+Recommended Actions:
+    1. Replace os.system() calls with subprocess.run() using argument lists
+    2. Add proper error checking and exception handling
+    3. Use tempfile.mkdtemp() instead of hardcoded "output" file
+    4. Validate and sanitize all device/path inputs
+    5. Add unit tests for edge cases
+
+For details on the security issues, see the code analysis report.
+
+Original Attribution:
+    Author: Christian Vallentin <mail@vallentinsource.com>
+    Website: http://vallentinsource.com
+    Repository: https://github.com/MrVallentin/mount.py
+    Date Created: March 25, 2016
+    Last Modified: March 27, 2016
+    Developed and tested using Python 3.5.1
+"""
 
 import os
 

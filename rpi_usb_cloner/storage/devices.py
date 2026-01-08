@@ -1,3 +1,67 @@
+"""USB device detection, management, and filtering using lsblk.
+
+This module provides utilities for detecting, querying, and managing USB storage devices
+on Raspberry Pi systems. It uses the lsblk command to gather device information and
+implements filtering logic to identify safe-to-modify removable devices.
+
+Device Detection:
+    Uses lsblk with JSON output to enumerate block devices and their properties:
+    - Device name (e.g., sda, sdb)
+    - Size in bytes
+    - Mountpoints (if any)
+    - Filesystem type
+    - Partition information
+    - Vendor and model strings
+    - Removable device flag
+    - USB subsystem detection via /sys/block/*/device path checking
+
+Filtering Logic:
+    The module implements safety filters to prevent accidental modification of system
+    disks:
+
+    1. Must be marked as removable (rm=1 in lsblk output)
+    2. Must NOT be mounted to critical system paths (/, /boot, /boot/firmware)
+    3. Must NOT have child partitions mounted to system paths
+    4. Must be accessible via USB subsystem (/sys/block/*/device contains "usb")
+
+    This filtering is critical for safety but is NOT foolproof. The module does not
+    verify device nodes against /sys/block/*/removable before destructive operations.
+
+Operations:
+    - list_media_drive_names(): Get list of removable USB device names
+    - get_device_by_name(): Retrieve detailed device information
+    - unmount_device(): Unmount device and all partitions
+    - format_device_label(): Create human-readable device labels
+    - human_size(): Convert bytes to human-readable format (KB/MB/GB)
+
+Mount Management:
+    The unmount_device() function attempts to unmount all partitions of a device before
+    operations. However, it silently ignores unmount failures (see lines 133-142),
+    which can lead to data corruption if operations proceed on mounted devices.
+
+Security Issues:
+    1. Silent umount failures - operations may proceed on mounted devices
+    2. No validation that source != destination before cloning
+    3. No verification that device is actually removable before destructive ops
+    4. Race conditions possible between detection and operation
+
+Example:
+    >>> from rpi_usb_cloner.storage.devices import list_media_drive_names
+    >>> usb_devices = list_media_drive_names()
+    >>> print(f"Found {len(usb_devices)} USB drives: {usb_devices}")
+    Found 2 USB drives: ['sda', 'sdb']
+
+    >>> from rpi_usb_cloner.storage.devices import get_device_by_name
+    >>> device = get_device_by_name('sda')
+    >>> print(f"Device: {device['name']}, Size: {human_size(device['size'])}")
+    Device: sda, Size: 7.5GB
+
+Implementation Notes:
+    - Relies on lsblk command availability (standard on Raspberry Pi OS)
+    - Uses JSON parsing for structured output
+    - Global _log_debug and _error_handler for debugging and error reporting
+    - Must be configured with configure_device_helpers() before use
+"""
 import json
 import re
 import subprocess

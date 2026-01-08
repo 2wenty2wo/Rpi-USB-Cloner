@@ -1,3 +1,96 @@
+"""Main application entry point and event loop for Rpi-USB-Cloner.
+
+This module implements the main event loop for the USB cloning application, handling:
+- Hardware initialization (GPIO, OLED display)
+- Menu navigation and user input via GPIO buttons
+- USB device detection and monitoring
+- Screensaver activation on idle timeout
+- Application state management
+
+Architecture Overview:
+    The application follows an event-driven architecture with a main polling loop that:
+
+    1. Polls GPIO buttons for user input (every INPUT_POLL_INTERVAL)
+    2. Checks for USB device changes (every USB_REFRESH_INTERVAL)
+    3. Handles screensaver activation after idle timeout
+    4. Dispatches actions based on menu selections
+    5. Updates OLED display with current state
+
+    The loop is complex (~167 lines, lines 328-494) and handles:
+    - Button repeat logic for smooth navigation
+    - USB hotplug detection
+    - Menu state management
+    - Screen rendering coordination
+
+Button Mapping:
+    UP/DOWN:    Navigate menu items (with repeat for fast scrolling)
+    LEFT:       Go back in menu hierarchy
+    RIGHT:      Activate/enter selected menu item
+    A:          Back/Cancel (same as LEFT)
+    B:          Select/Confirm current item (same as RIGHT)
+    C:          Context-specific action (varies by screen)
+
+Command Line Arguments:
+    --debug:                    Enable verbose debug logging to console
+    --restore-partition-mode:   Set Clonezilla partition mode (k0/k/k1/k2)
+                               for image restoration operations
+
+Application Flow:
+    1. Parse arguments
+    2. Initialize hardware (GPIO pins, I2C OLED display)
+    3. Configure logging and error handlers
+    4. Load persisted settings from ~/.config/rpi-usb-cloner/settings.json
+    5. Build menu structure with device-specific actions
+    6. Enter main event loop (runs until Ctrl+C or system shutdown)
+    7. Cleanup GPIO and display on exit
+
+State Management:
+    - AppContext: Stores runtime state (discovered drives, active drive, etc.)
+    - AppState: Configuration and timing values (intervals, timeouts)
+    - MenuNavigator: Tracks current menu position and history
+    - Settings: Persistent configuration (screensaver, WiFi, etc.)
+
+Device Monitoring:
+    USB devices are polled every 2 seconds (USB_REFRESH_INTERVAL). When devices
+    change:
+    - Menu items are rebuilt to reflect current drives
+    - Active drive selection is preserved if still present
+    - Display is updated to show new device list
+
+Screensaver:
+    After SLEEP_TIMEOUT seconds of inactivity:
+    - Random or configured GIF is displayed on OLED
+    - Any button press wakes display
+    - If no GIFs available, shows blank screen
+    - Timer resets on any user interaction
+
+Error Handling:
+    - Uncaught exceptions displayed on OLED as "ERROR"
+    - GPIO cleanup ensured via try/finally
+    - Display cleared on abnormal exit
+
+Performance Notes:
+    - Main loop runs with 100ms sleep (INPUT_POLL_INTERVAL)
+    - Button repeat starts after 0.5s initial delay
+    - Repeat interval is 0.1s for smooth scrolling
+    - USB polling at 2s intervals keeps CPU usage low
+
+Example Usage:
+    $ sudo -E python3 rpi-usb-cloner.py
+    $ sudo -E python3 rpi-usb-cloner.py --debug
+    $ sudo -E python3 rpi-usb-cloner.py --restore-partition-mode k0
+
+Security Considerations:
+    - Must run as root for disk operations
+    - No device validation before destructive operations
+    - Settings file not validated or sandboxed
+    - GPIO cleanup not guaranteed on hard crashes
+
+See Also:
+    - rpi_usb_cloner.storage.clone: Cloning operations
+    - rpi_usb_cloner.menu.definitions: Menu structure
+    - rpi_usb_cloner.hardware.gpio: Button input handling
+"""
 import argparse
 import os
 import time

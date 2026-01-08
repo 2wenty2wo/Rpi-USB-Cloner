@@ -1,3 +1,51 @@
+"""USB drive cloning operations with verification and progress tracking.
+
+This module implements the core USB drive cloning functionality for the Rpi-USB-Cloner,
+supporting multiple cloning modes with real-time progress display and verification.
+
+Cloning Modes:
+    smart:  Intelligent partition-aware cloning using partclone for filesystem-specific
+            operations. Copies only used blocks for efficiency. Automatically handles
+            partition tables and filesystem-specific operations.
+
+    exact:  Raw block-level cloning using dd. Creates bit-for-bit copies of entire
+            devices regardless of filesystem or used space. Slower but more thorough.
+
+    verify: Performs smart clone followed by SHA256 verification of source and target
+            to ensure data integrity. Adds verification time but guarantees accuracy.
+
+Progress Monitoring:
+    All operations provide real-time progress feedback on the OLED display, including:
+    - Current operation and percentage complete
+    - Data transfer rate and throughput
+    - Estimated time remaining
+    - Spinner animations for long-running tasks
+
+Operations:
+    - clone_device(): Main entry point for cloning with mode selection
+    - clone_dd(): Raw block-level copy with progress tracking
+    - clone_partclone(): Filesystem-aware partition cloning
+    - erase_device(): Quick or full disk erasure
+    - verify_devices(): SHA256 hash verification
+
+Implementation Details:
+    - Uses subprocess pipelines for efficient data streaming
+    - Monitors stderr for progress information using regex patterns
+    - Handles partition table copying with sfdisk
+    - Automatically unmounts devices before operations
+    - Supports progress callbacks for UI updates
+
+Security Notes:
+    - All operations require root privileges
+    - Devices should be validated before cloning to prevent system disk overwrites
+    - No input validation on device nodes (see security analysis)
+
+Example:
+    >>> from rpi_usb_cloner.storage.clone import clone_device
+    >>> source_device = {"name": "sda", "size": 8000000000}
+    >>> target_device = {"name": "sdb", "size": 8000000000}
+    >>> success = clone_device(source_device, target_device, mode="smart")
+"""
 import os
 import re
 import select
