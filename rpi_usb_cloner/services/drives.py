@@ -1,3 +1,69 @@
+"""Drive listing and selection utilities for USB device management.
+
+This module provides high-level utilities for working with USB drives, building on
+the lower-level device detection in rpi_usb_cloner.storage.devices and
+rpi_usb_cloner.storage.mount.
+
+Purpose:
+    Acts as a service layer between the UI and storage layers, providing:
+    - Simplified drive listing functions
+    - Drive selection logic
+    - Human-readable drive labels
+    - Drive state snapshots
+
+Functions:
+    - list_media_drive_names(): Get list of device names (e.g., ['sda', 'sdb'])
+    - list_media_drive_labels(): Get formatted labels (e.g., ['sda 8.00GB', 'sdb 16.00GB'])
+    - list_usb_disk_labels(): Get USB disk labels with vendor/model info
+    - select_active_drive(): Choose active drive from list with validation
+
+DriveSnapshot:
+    Dataclass for capturing drive state at a point in time:
+    - discovered: List of all detected drive names
+    - active: Currently selected drive (None if no selection)
+
+    Used for detecting changes in USB device connectivity.
+
+Drive Selection Logic:
+    select_active_drive() implements safe drive selection:
+    1. If no drives available, return None
+    2. If index out of range, return None
+    3. Otherwise return drive at index
+
+    This prevents index errors when drives are hotplugged/unplugged.
+
+Label Formatting:
+    Drive labels include human-readable information:
+    - Device name (sda, sdb, etc.)
+    - Size in GB with 2 decimal places
+    - Vendor and model (when available)
+
+    Format: "sda 8.00GB" or "sda Kingston DataTraveler (8.00GB)"
+
+Example:
+    >>> from rpi_usb_cloner.services import drives
+    >>> drive_names = drives.list_media_drive_names()
+    >>> print(f"Found drives: {drive_names}")
+    Found drives: ['sda', 'sdb']
+
+    >>> labels = drives.list_media_drive_labels()
+    >>> print(labels)
+    ['sda 8.00GB', 'sdb 16.00GB']
+
+    >>> active = drives.select_active_drive(drive_names, index=0)
+    >>> print(f"Selected: {active}")
+    Selected: sda
+
+Implementation Notes:
+    - Delegates device detection to storage.devices and storage.mount
+    - Does not cache results; queries devices on each call
+    - Thread-safe if underlying device queries are thread-safe
+    - Performance: Each call executes lsblk command
+
+See Also:
+    - rpi_usb_cloner.storage.devices: Low-level device detection
+    - rpi_usb_cloner.storage.mount: Device mounting utilities
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass

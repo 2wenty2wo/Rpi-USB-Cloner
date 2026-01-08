@@ -1,3 +1,89 @@
+"""Clonezilla disk image restoration with partition table scaling and verification.
+
+This module provides comprehensive support for restoring Clonezilla disk images created
+with the Clonezilla backup tool, handling complex partition table operations, filesystem
+restoration, and automatic partition scaling.
+
+Clonezilla Image Format:
+    Clonezilla images consist of multiple files storing partition data and metadata:
+    - Partition images: sda1.*, sda2.*, etc. (compressed with gzip/zstd)
+    - Partition tables: *-pt.sf (sfdisk), *-pt.parted, *-pt.sgdisk, *-gpt
+    - Boot sectors: *-mbr, *-hidden-data-after-mbr
+    - Geometry: *-chs.sf, disk metadata files
+
+    The module automatically detects and applies partition table files in the correct
+    order based on Clonezilla conventions.
+
+Partition Table Scaling:
+    One of the most complex features is automatic partition table scaling when restoring
+    to disks of different sizes. The module implements intelligent algorithms to:
+
+    1. Parse partition tables from sfdisk/parted/sgdisk formats
+    2. Calculate sector offsets and sizes for each partition
+    3. Proportionally scale partition sizes to fit target disk
+    4. Maintain partition alignment and gaps
+    5. Handle different partition modes (k0, k, k1, k2) that control how partition
+       tables are applied and scaled
+
+    Partition Modes:
+        k0: Create partition table with scaled sectors (proportional to disk size)
+        k:  Create partition table with original sectors (no scaling)
+        k1: Create partition table up to maximum supported by target disk
+        k2: Use existing partition table on target disk
+
+Restoration Process:
+    1. Scan image directory for partition metadata files
+    2. Build restoration plan with disk layout operations
+    3. Apply partition tables (sfdisk/parted/sgdisk)
+    4. Write boot sectors (MBR, hidden data)
+    5. Restore partition contents using partclone/cat/dd
+    6. Wait for udev to recognize new partitions
+    7. Verify partition count matches expected
+
+Supported Tools:
+    - partclone.* (ext2/3/4, ntfs, fat, btrfs, etc.)
+    - dd (for unsupported filesystems)
+    - cat (for decompression)
+    - sfdisk (MBR partition tables)
+    - parted (GPT partition tables)
+    - sgdisk (GPT partition tables)
+
+Progress Tracking:
+    Real-time progress feedback is provided for:
+    - Partition table creation
+    - Each partition restore operation
+    - Overall restore completion percentage
+
+Error Handling:
+    - Retries partition table application on failure
+    - Waits for udev device availability
+    - Validates partition count after restoration
+    - Reports detailed error messages for troubleshooting
+
+Security Considerations:
+    - No validation that target is a removable device
+    - Partition mode strings not validated against allowed set
+    - Path traversal possible via symlinks in image repos
+
+Example:
+    >>> from pathlib import Path
+    >>> from rpi_usb_cloner.storage.clonezilla import restore_clonezilla_image
+    >>> image_path = Path("/mnt/images/2024-backup")
+    >>> target_device = "/dev/sdb"
+    >>> success = restore_clonezilla_image(
+    ...     image_path, target_device, partition_mode="k0"
+    ... )
+
+Implementation Notes:
+    The partition table scaling logic (lines 773-825) is particularly complex and
+    involves:
+    - Sector-level calculations for disk geometry
+    - Floating-point arithmetic for proportional scaling
+    - Gap preservation between partitions
+    - Alignment handling for optimal performance
+
+    This code would benefit significantly from unit testing to prevent regressions.
+"""
 from __future__ import annotations
 
 import logging

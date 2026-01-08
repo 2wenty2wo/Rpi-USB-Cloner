@@ -1,3 +1,86 @@
+"""OLED display management and rendering utilities for 128x64 SSD1306 displays.
+
+This module provides the display abstraction layer for the Adafruit 128x64 OLED Bonnet,
+handling:
+- Display initialization and configuration
+- Text rendering with custom fonts
+- Icon rendering from icon fonts (Lucide, Font Awesome, Heroicons)
+- Simple multi-line text display
+- Display context management
+
+Hardware Configuration:
+    - Display: SSD1306 OLED (128x64 pixels, I2C interface)
+    - I2C Address: 0x3C or 0x3D (configurable in code)
+    - Interface: i2c via luma.oled library
+    - Bus: I2C bus 1 (standard on Raspberry Pi)
+
+Display Context:
+    The DisplayContext dataclass encapsulates all display-related resources:
+    - disp: luma.oled device instance
+    - draw: PIL ImageDraw object for rendering
+    - image: PIL Image buffer (1-bit monochrome)
+    - fonts: Dictionary of loaded TrueType fonts
+    - Geometry: width, height, x, top, bottom coordinates
+
+Font Assets:
+    The module uses custom fonts from the assets/fonts directory:
+    - lucide.ttf: Lucide icon font for UI icons
+    - Font-Awesome-7-Free-Solid-900.otf: Font Awesome icons
+    - his.ttf: Heroicons icon font
+
+    Icon fonts are rendered using Unicode codepoints that map to glyphs.
+    Standard text uses PIL's default font.
+
+Key Functions:
+    - initialize_display(): Create and configure SSD1306 device
+    - get_display_context(): Retrieve singleton display context
+    - display_lines(): Simple text output for status messages
+    - clear_display(): Blank the screen
+    - get_lucide_font(): Load Lucide icon font with size
+
+Rendering Pipeline:
+    1. Create PIL Image buffer (1-bit mode for monochrome)
+    2. Use ImageDraw to render text/shapes to buffer
+    3. Call disp.display(image) to push buffer to hardware
+    4. Hardware updates visible pixels
+
+Display Layout:
+    - Resolution: 128x64 pixels
+    - Typical layout:
+      - Title bar: Top 12-16 pixels (with optional icon)
+      - Content area: Remaining space for text/menus
+      - Status line: Bottom row for context info
+
+Performance Notes:
+    - Full screen refresh takes ~50ms
+    - Avoid excessive redraws (causes flicker)
+    - Cache font objects to avoid repeated loading
+    - Use dirty region tracking where possible (not implemented)
+
+Initialization:
+    Display must be initialized before use via initialize_display().
+    Subsequent calls return the cached DisplayContext singleton.
+
+Example:
+    >>> from rpi_usb_cloner.ui import display
+    >>> display.initialize_display()
+    >>> display.display_lines(["USB Cloner", "Ready"])
+    >>> # Display now shows two lines of text
+
+Thread Safety:
+    This module is NOT thread-safe. All display operations must occur
+    on the main thread. Concurrent display updates will corrupt output.
+
+Error Handling:
+    - I2C errors are not caught; will propagate to caller
+    - Missing fonts will raise FileNotFoundError
+    - Invalid display operations will raise luma.oled exceptions
+
+See Also:
+    - rpi_usb_cloner.ui.screens: Higher-level screen rendering
+    - rpi_usb_cloner.ui.menus: Menu rendering utilities
+    - luma.oled documentation: https://luma-oled.readthedocs.io/
+"""
 import time
 from dataclasses import dataclass
 from datetime import datetime
