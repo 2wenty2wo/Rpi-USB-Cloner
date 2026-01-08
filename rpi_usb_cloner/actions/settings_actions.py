@@ -263,6 +263,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
             if selection == 0:
                 if not check_done.is_set():
                     status = "Checking..."
+                    behind_count = None
                     update_header_lines()
                     while not check_done.is_set():
                         screens.render_update_buttons_screen(
@@ -273,6 +274,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                         )
                         time.sleep(menus.BUTTON_POLL_DELAY)
                     apply_check_results_to_state()
+                    update_header_lines()
                 else:
                     with git_lock:
                         status, behind_count, last_checked = _check_update_status(
