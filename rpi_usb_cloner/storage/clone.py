@@ -76,6 +76,60 @@ def log_debug(message: str) -> None:
         _log_debug(message)
 
 
+def get_partition_display_name(part):
+    """Get a friendly display name for a partition.
+
+    Returns the partition label if available, otherwise the partition name.
+    """
+    # Try partition label first (GPT)
+    partlabel = part.get("partlabel", "").strip()
+    if partlabel:
+        return partlabel
+
+    # Try filesystem label
+    label = part.get("label", "").strip()
+    if label:
+        return label
+
+    # Fall back to partition name (e.g., "sda1")
+    name = part.get("name", "")
+    if name:
+        return name
+
+    return "partition"
+
+
+def format_filesystem_type(fstype):
+    """Convert filesystem type to user-friendly display name.
+
+    Args:
+        fstype: Filesystem type string (e.g., "ext4", "vfat", "ntfs")
+
+    Returns:
+        Friendly display name (e.g., "ext4", "FAT32", "NTFS")
+    """
+    if not fstype:
+        return "unknown"
+
+    fstype_lower = fstype.lower()
+
+    # Map filesystem types to friendly names
+    friendly_names = {
+        "vfat": "FAT32",
+        "fat16": "FAT16",
+        "fat32": "FAT32",
+        "ntfs": "NTFS",
+        "exfat": "exFAT",
+        "ext2": "ext2",
+        "ext3": "ext3",
+        "ext4": "ext4",
+        "xfs": "XFS",
+        "btrfs": "Btrfs",
+    }
+
+    return friendly_names.get(fstype_lower, fstype)
+
+
 def normalize_clone_mode(mode):
     if not mode:
         return "smart"
@@ -177,13 +231,15 @@ def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, 
     return lines[:6]
 
 
-def format_progress_display(title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None):
+def format_progress_display(title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None, subtitle=None):
     lines = []
     if title:
         title_line = title
         if spinner:
             title_line = f"{title} {spinner}"
         lines.append(title_line)
+    if subtitle:
+        lines.append(subtitle)
     if device:
         lines.append(device)
     if mode:
@@ -366,6 +422,7 @@ def run_checked_with_streaming_progress(
     stdout_target=None,
     stdin_source=None,
     progress_callback=None,
+    subtitle=None,
 ):
     def emit_progress(lines, ratio=None):
         if progress_callback:
@@ -395,6 +452,7 @@ def run_checked_with_streaming_progress(
             None,
             None,
             None,
+            subtitle=subtitle,
         ),
         ratio=compute_ratio(0 if total_bytes else None, None),
     )
@@ -466,6 +524,7 @@ def run_checked_with_streaming_progress(
                     rate_display,
                     eta_display,
                     spinner_frames[spinner_index],
+                    subtitle=subtitle,
                 ),
                 ratio=compute_ratio(bytes_copied, last_percent),
             )
@@ -483,6 +542,7 @@ def run_checked_with_streaming_progress(
                     last_rate,
                     last_eta,
                     spinner_frames[spinner_index],
+                    subtitle=subtitle,
                 ),
                 ratio=compute_ratio(last_bytes, last_percent),
             )
@@ -506,16 +566,17 @@ def run_checked_with_streaming_progress(
     return subprocess.CompletedProcess(command, process.returncode, stdout=stdout_data, stderr=stderr_output)
 
 
-def clone_dd(src, dst, total_bytes=None, title="CLONING"):
+def clone_dd(src, dst, total_bytes=None, title="CLONING", subtitle=None):
     dd_path = shutil.which("dd")
     if not dd_path:
         raise RuntimeError("dd not found")
     src_node = resolve_device_node(src)
     dst_node = resolve_device_node(dst)
-    run_checked_with_progress(
+    run_checked_with_streaming_progress(
         [dd_path, f"if={src_node}", f"of={dst_node}", "bs=4M", "status=progress", "conv=fsync"],
         total_bytes=total_bytes,
         title=title,
+        subtitle=subtitle,
     )
 
 
@@ -567,15 +628,35 @@ def clone_partclone(source, target):
         fstype = (part.get("fstype") or "").lower()
         tool = partclone_tools.get(fstype)
         tool_path = shutil.which(tool) if tool else None
+
+        # Get friendly partition information for display
+        part_name = get_partition_display_name(part)
+        part_size_str = human_size(part.get("size")) if part.get("size") else ""
+        fs_friendly = format_filesystem_type(fstype)
+
+        # Build title line: "partition_name (1/4)"
+        title_line = f"{part_name} ({index}/{len(source_parts)})"
+
+        # Build info line: "8.2GB ext4" or "512MB FAT32"
+        info_parts = []
+        if part_size_str:
+            info_parts.append(part_size_str)
+        if fs_friendly:
+            info_parts.append(fs_friendly)
+        info_line = " ".join(info_parts) if info_parts else ""
+
         if not tool_path:
-            clone_dd(src_part, dst_part, total_bytes=part.get("size"), title=f"DD {index}/{len(source_parts)}")
+            # Use raw copy when no partclone tool available
+            clone_dd(src_part, dst_part, total_bytes=part.get("size"), title=title_line, subtitle=info_line)
             continue
-        display_lines([f"PART {index}/{len(source_parts)}", tool])
+
+        display_lines([title_line, info_line])
         with open(dst_part, "wb") as dst_handle:
             run_checked_with_progress(
                 [tool_path, "-s", src_part, "-o", "-", "-F"],
                 total_bytes=part.get("size"),
-                title=f"PART {index}/{len(source_parts)}",
+                title=title_line,
+                subtitle=info_line,
                 stdout_target=dst_handle,
             )
 

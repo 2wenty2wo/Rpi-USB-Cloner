@@ -98,6 +98,34 @@ def render_progress_screen(
                 outline=255,
                 fill=255,
             )
+
+        # Draw percentage text centered on the progress bar
+        if current_ratio is not None:
+            percent_text = f"{int(current_ratio * 100)}%"
+            # Use a slightly smaller font for the percentage if available
+            percent_font = body_font
+
+            # Calculate text dimensions and center position
+            text_bbox = draw.textbbox((0, 0), percent_text, font=percent_font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+
+            # Center the text on the progress bar
+            text_x = bar_x + (bar_width - text_width) // 2
+            text_y = bar_y + (bar_height - text_height) // 2 - text_bbox[1]
+
+            # Draw the text in white first
+            draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
+
+            # Invert pixels where text overlaps with filled bar region
+            # Get the pixels that need to be inverted
+            pixels = context.image.load()
+            text_right = text_x + text_width
+            for y in range(max(inner_top, text_y), min(inner_bottom, text_y + text_height + 1)):
+                for x in range(max(fill_left, text_x), min(fill_right, text_right)):
+                    if pixels[x, y]:  # If pixel is white (255)
+                        pixels[x, y] = 0  # Make it black
+
         context.disp.display(context.image)
 
     if not animate:
