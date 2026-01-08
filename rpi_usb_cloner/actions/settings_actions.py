@@ -261,15 +261,17 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         current_b = gpio.read_button(gpio.PIN_B)
         if prev_states["B"] and not current_b:
             if selection == 0:
-                checking_lines = _build_update_info_lines(version, "Checking...", None, last_checked)
-                display.render_paginated_lines(
-                    title,
-                    checking_lines,
-                    page_index=0,
-                    title_icon=title_icon,
-                )
                 if not check_done.is_set():
-                    check_done.wait()
+                    status = "Checking..."
+                    update_header_lines()
+                    while not check_done.is_set():
+                        screens.render_update_buttons_screen(
+                            title,
+                            header_lines,
+                            selected_index=selection,
+                            title_icon=title_icon,
+                        )
+                        time.sleep(menus.BUTTON_POLL_DELAY)
                     apply_check_results_to_state()
                 else:
                     with git_lock:
@@ -284,19 +286,16 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 refresh_needed = True
             if selection == 1:
                 if not check_done.is_set():
-                    waiting_lines = _build_update_info_lines(
-                        version,
-                        "Waiting on check...",
-                        None,
-                        last_checked,
-                    )
-                    display.render_paginated_lines(
-                        title,
-                        waiting_lines,
-                        page_index=0,
-                        title_icon=title_icon,
-                    )
-                    check_done.wait()
+                    status = "Waiting on check..."
+                    update_header_lines()
+                    while not check_done.is_set():
+                        screens.render_update_buttons_screen(
+                            title,
+                            header_lines,
+                            selected_index=selection,
+                            title_icon=title_icon,
+                        )
+                        time.sleep(menus.BUTTON_POLL_DELAY)
                     apply_check_results_to_state()
                 with git_lock:
                     _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
