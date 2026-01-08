@@ -274,48 +274,41 @@ def _confirm_prompt(
     title_icon: Optional[str] = None,
 ) -> bool:
     prompt_lines_list = list(prompt_lines)
-    selection = default
-    screens.render_confirmation_screen(
-        title,
-        prompt_lines_list,
-        selected_index=selection,
-        title_icon=title_icon,
-    )
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
-    prev_states = {
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-    }
-    while True:
-        current_r = gpio.read_button(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
-            if selection == app_state.CONFIRM_NO:
-                selection = app_state.CONFIRM_YES
-                _log_debug(log_debug, f"Confirmation changed: {selection}")
-        current_l = gpio.read_button(gpio.PIN_L)
-        if prev_states["L"] and not current_l:
-            if selection == app_state.CONFIRM_YES:
-                selection = app_state.CONFIRM_NO
-                _log_debug(log_debug, f"Confirmation changed: {selection}")
-        current_a = gpio.read_button(gpio.PIN_A)
-        if prev_states["A"] and not current_a:
-            return False
-        current_b = gpio.read_button(gpio.PIN_B)
-        if prev_states["B"] and not current_b:
-            return selection == app_state.CONFIRM_YES
-        prev_states["R"] = current_r
-        prev_states["L"] = current_l
-        prev_states["A"] = current_a
-        prev_states["B"] = current_b
+    selection = [default]  # Use list for mutability in closures
+
+    def render():
         screens.render_confirmation_screen(
             title,
             prompt_lines_list,
-            selected_index=selection,
+            selected_index=selection[0],
             title_icon=title_icon,
         )
-        time.sleep(menus.BUTTON_POLL_DELAY)
+
+    render()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    def on_right():
+        if selection[0] == app_state.CONFIRM_NO:
+            selection[0] = app_state.CONFIRM_YES
+            _log_debug(log_debug, f"Confirmation changed: {selection[0]}")
+
+    def on_left():
+        if selection[0] == app_state.CONFIRM_YES:
+            selection[0] = app_state.CONFIRM_NO
+            _log_debug(log_debug, f"Confirmation changed: {selection[0]}")
+
+    result = gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render,
+    )
+
+    return result if result is not None else False
 
 
 def _collect_mountpoints(device: dict) -> set[str]:
