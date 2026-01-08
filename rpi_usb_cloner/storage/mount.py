@@ -126,13 +126,16 @@ def get_partition(device):
 		)
 
 		# Parse output to find last partition
-		lines = result.stdout.strip().split('\n')
-		if len(lines) >= 2:
-			last_line = lines[-2].strip()
-			if last_line:
-				parts = last_line.split()
-				if parts:
-					return parts[0].strip()
+		lines = result.stdout.splitlines()
+		partition_lines = [
+			line.strip()
+			for line in lines
+			if line.strip().startswith('/dev/')
+		]
+		if partition_lines:
+			parts = partition_lines[-1].split()
+			if parts:
+				return parts[0].strip()
 
 		raise RuntimeError(f"Could not find partition in fdisk output for {device}")
 
