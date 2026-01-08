@@ -1025,7 +1025,11 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             raise RuntimeError("Missing compact parted data")
         expanded = _expand_parted_compact_script(op.contents)
         if _is_parted_print_output(expanded):
-            raise RuntimeError("Compact parted file appears to contain print output, not a script")
+            logger.debug(
+                "Skipping compact parted layout op %s: detected parted print output instead of script.",
+                op.path,
+            )
+            return False
         parted = shutil.which("parted")
         if not parted:
             raise RuntimeError("parted not found")
