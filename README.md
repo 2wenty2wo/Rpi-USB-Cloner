@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white" />
   <img src="https://img.shields.io/github/license/2wenty2wo/Rpi-USB-Cloner" />
   <img src="https://img.shields.io/github/last-commit/2wenty2wo/Rpi-USB-Cloner" />
-  <img src="https://img.shields.io/badge/status-WIP-yellow" />
+  <img src="https://img.shields.io/badge/status-NOT WORKING-red" />
 </p>
 
 
