@@ -266,54 +266,45 @@ def _confirm_destructive_action(
 ) -> bool:
     title = "⚠ DATA LOST"
     prompt = " ".join(prompt_lines)
-    confirm_selection = app_state.CONFIRM_NO
-    screens.render_confirmation_screen(
-        title,
-        [prompt],
-        selected_index=confirm_selection,
-    )
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
-    prev_states = {
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-        "C": gpio.read_button(gpio.PIN_C),
-    }
-    while True:
-        current_R = gpio.read_button(gpio.PIN_R)
-        if prev_states["R"] and not current_R:
-            if confirm_selection == app_state.CONFIRM_NO:
-                confirm_selection = app_state.CONFIRM_YES
-                _log_debug(log_debug, "Destructive menu selection changed: YES")
-                state.run_once = 0
-                state.lcdstart = datetime.now()
-        current_L = gpio.read_button(gpio.PIN_L)
-        if prev_states["L"] and not current_L:
-            if confirm_selection == app_state.CONFIRM_YES:
-                confirm_selection = app_state.CONFIRM_NO
-                _log_debug(log_debug, "Destructive menu selection changed: NO")
-                state.run_once = 0
-                state.lcdstart = datetime.now()
-        current_A = gpio.read_button(gpio.PIN_A)
-        if prev_states["A"] and not current_A:
-            return False
-        current_B = gpio.read_button(gpio.PIN_B)
-        if prev_states["B"] and not current_B:
-            return confirm_selection == app_state.CONFIRM_YES
-        current_C = gpio.read_button(gpio.PIN_C)
-        if prev_states["C"] and not current_C:
-            _log_debug(log_debug, "Destructive menu: Button C pressed (ignored)")
-        prev_states["R"] = current_R
-        prev_states["L"] = current_L
-        prev_states["A"] = current_A
-        prev_states["B"] = current_B
-        prev_states["C"] = current_C
+    selection = [app_state.CONFIRM_NO]  # Use list for mutability in closures
+
+    def render():
         screens.render_confirmation_screen(
             title,
             [prompt],
-            selected_index=confirm_selection,
+            selected_index=selection[0],
         )
+
+    render()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+
+    def on_right():
+        if selection[0] == app_state.CONFIRM_NO:
+            selection[0] = app_state.CONFIRM_YES
+            _log_debug(log_debug, "Destructive menu selection changed: YES")
+            state.run_once = 0
+            state.lcdstart = datetime.now()
+
+    def on_left():
+        if selection[0] == app_state.CONFIRM_YES:
+            selection[0] = app_state.CONFIRM_NO
+            _log_debug(log_debug, "Destructive menu selection changed: NO")
+            state.run_once = 0
+            state.lcdstart = datetime.now()
+
+    result = gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
+            gpio.PIN_C: lambda: None,  # Ignored
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render,
+    )
+
+    return result if result is not None else False
 
 
 def _build_device_info_lines(

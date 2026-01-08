@@ -70,14 +70,11 @@ def wait_for_ack(
         buttons = (gpio.PIN_A, gpio.PIN_B)
     buttons = tuple(buttons)
     menus.wait_for_buttons_release(buttons, poll_delay=poll_delay)
-    prev_states = {pin: gpio.read_button(pin) for pin in buttons}
-    while True:
-        for pin in buttons:
-            current = gpio.read_button(pin)
-            if prev_states[pin] and not current:
-                return
-            prev_states[pin] = current
-        time.sleep(poll_delay)
+    # Use poll_button_events: any button press returns True, which exits the loop
+    gpio.poll_button_events(
+        {pin: lambda: True for pin in buttons},
+        poll_interval=poll_delay
+    )
 
 
 def wait_for_paginated_input(
