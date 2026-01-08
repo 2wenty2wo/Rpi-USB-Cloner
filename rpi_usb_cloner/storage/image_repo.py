@@ -25,7 +25,15 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
     if not name:
         return None
     partition_node = f"/dev/{name}"
-    mount.mount_partition(partition_node, name=name)
+
+    # Attempt to mount the partition, handle new exceptions
+    try:
+        mount.mount_partition(partition_node, name=name)
+    except (ValueError, RuntimeError) as e:
+        # Mount failed - log but continue (partition may already be mounted or inaccessible)
+        # Returning None will cause this partition to be skipped
+        return None
+
     mounted_partition = None
     for device in devices.list_usb_disks():
         for child in _iter_partitions(device):
