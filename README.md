@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/github/last-commit/2wenty2wo/Rpi-USB-Cloner" />
   <img src="https://img.shields.io/badge/status-WIP-red" />
 </p>
-
+Don't expect this to work yet...
 
 USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
 
