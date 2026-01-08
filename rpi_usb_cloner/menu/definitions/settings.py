@@ -11,7 +11,6 @@ ICONS_MENU = MenuScreen(
     screen_id="icons",
     title="ICONS",
     items=[
-        menu_entry("FONT AWESOME", action=menu_actions.font_awesome_demo),
         menu_entry("LUCIDE", action=menu_actions.lucide_demo),
         menu_entry("HEROICONS", action=menu_actions.heroicons_demo),
     ],
