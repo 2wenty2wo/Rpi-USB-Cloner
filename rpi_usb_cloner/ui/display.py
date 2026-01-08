@@ -4,7 +4,7 @@ This module provides the display abstraction layer for the Adafruit 128x64 OLED 
 handling:
 - Display initialization and configuration
 - Text rendering with custom fonts
-- Icon rendering from icon fonts (Lucide, Font Awesome, Heroicons)
+- Icon rendering from icon fonts (Lucide, Heroicons)
 - Simple multi-line text display
 - Display context management
 
@@ -25,7 +25,6 @@ Display Context:
 Font Assets:
     The module uses custom fonts from the assets/fonts directory:
     - lucide.ttf: Lucide icon font for UI icons
-    - Font-Awesome-7-Free-Solid-900.otf: Font Awesome icons
     - his.ttf: Heroicons icon font
 
     Icon fonts are rendered using Unicode codepoints that map to glyphs.
