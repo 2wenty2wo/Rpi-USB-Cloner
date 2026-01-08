@@ -46,9 +46,40 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 - **Progress Tracking**: Real-time status updates during clone/restore operations
 - **Smart Drive Selection**: Remembers active drive selection across menu navigation
 
+## ⚠️ Safety Warnings
+
+**IMPORTANT: Read before use!**
+
+This tool performs destructive disk operations that can result in **permanent data loss**. Please observe these safety precautions:
+
+### Before You Begin
+- ⚠️ **Backup all important data** before performing any clone, erase, or restore operations
+- ⚠️ **Double-check source and target drives** - selecting the wrong drive will result in irreversible data loss
+- ⚠️ **Test with non-critical drives first** to familiarize yourself with the interface and workflows
+- ⚠️ **Verify drive identification** using the Drive Info feature before proceeding with operations
+
+### Destructive Operations
+The following operations **cannot be undone**:
+- **Drive Erasing**: Permanently wipes all data from the selected drive
+- **Clone/Copy**: Overwrites the entire target drive, destroying all existing data
+- **Image Restore**: Replaces target drive contents with the disk image
+
+### Best Practices
+- ✅ Label your drives clearly to avoid confusion
+- ✅ Remove unnecessary USB drives before operations to reduce risk of selecting the wrong drive
+- ✅ Use the confirmation prompts carefully - read them thoroughly before confirming
+- ✅ Keep the device powered during operations - unexpected shutdowns may corrupt data
+- ✅ Verify successful completion before disconnecting drives
+
+### Limitations
+- The Pi Zero uses USB 2.0, which limits transfer speeds
+- Large drives may take considerable time to clone
+- Root permissions are required for all disk operations
+
 ## 📑 Table of Contents
 
 - [Features](#-features)
+- [Safety Warnings](#️-safety-warnings)
 - [Prerequisites](#-prerequisites)
 - [Quickstart](#-quickstart)
 - [Installation & Usage](#-installation--usage)
