@@ -165,8 +165,8 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     results_applied = False
     result_holder: dict[str, tuple[str, int | None, str]] = {}
     error_holder: dict[str, Exception] = {}
-    menu_items = ["CHECK FOR UPDATES", "UPDATE"]
     header_lines: list[str] = []
+    selection = 0
 
     def apply_check_results() -> tuple[str, int | None, str | None]:
         if "result" in result_holder:
@@ -195,12 +195,12 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     def update_header_lines() -> None:
         header_lines[:] = _build_update_info_lines(version, status, behind_count, last_checked)
 
-    def refresh_update_menu() -> Optional[list[str]]:
+    def refresh_update_menu() -> bool:
         if check_done.is_set() and not results_applied:
             apply_check_results_to_state()
             update_header_lines()
-            return list(menu_items)
-        return None
+            return True
+        return False
 
     def run_check_in_background() -> None:
         try:
@@ -213,34 +213,93 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
 
     thread = threading.Thread(target=run_check_in_background, daemon=True)
     thread.start()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "U": gpio.read_button(gpio.PIN_U),
+        "D": gpio.read_button(gpio.PIN_D),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+    }
     while True:
         if check_done.is_set():
             apply_check_results_to_state()
         update_header_lines()
-        content_top = _get_update_menu_top(title, header_lines, title_icon=title_icon)
-        selection = menus.render_menu_list(
+        screens.render_update_buttons_screen(
             title,
-            menu_items,
-            content_top=content_top,
-            header_lines=header_lines,
+            header_lines,
+            selected_index=selection,
             title_icon=title_icon,
-            refresh_callback=refresh_update_menu,
         )
-        if selection is None:
+        refresh_needed = False
+        if refresh_update_menu():
+            refresh_needed = True
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if selection == 1:
+                selection = 0
+                refresh_needed = True
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if selection == 0:
+                selection = 1
+                refresh_needed = True
+        current_u = gpio.read_button(gpio.PIN_U)
+        if prev_states["U"] and not current_u:
+            if selection == 1:
+                selection = 0
+                refresh_needed = True
+        current_d = gpio.read_button(gpio.PIN_D)
+        if prev_states["D"] and not current_d:
+            if selection == 0:
+                selection = 1
+                refresh_needed = True
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
             return
-        if selection == 0:
-            checking_lines = _build_update_info_lines(version, "Checking...", None, last_checked)
-            display.render_paginated_lines(
-                title,
-                checking_lines,
-                page_index=0,
-                title_icon=title_icon,
-            )
-            if not check_done.is_set():
-                check_done.wait()
-                apply_check_results_to_state()
-            else:
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            if selection == 0:
+                checking_lines = _build_update_info_lines(version, "Checking...", None, last_checked)
+                display.render_paginated_lines(
+                    title,
+                    checking_lines,
+                    page_index=0,
+                    title_icon=title_icon,
+                )
+                if not check_done.is_set():
+                    check_done.wait()
+                    apply_check_results_to_state()
+                else:
+                    with git_lock:
+                        status, behind_count, last_checked = _check_update_status(
+                            repo_root,
+                            log_debug=log_debug,
+                        )
+                    version = _get_app_version(log_debug=log_debug)
+                    result_holder["result"] = (status, behind_count, last_checked)
+                    check_done.set()
+                    results_applied = True
+                refresh_needed = True
+            if selection == 1:
+                if not check_done.is_set():
+                    waiting_lines = _build_update_info_lines(
+                        version,
+                        "Waiting on check...",
+                        None,
+                        last_checked,
+                    )
+                    display.render_paginated_lines(
+                        title,
+                        waiting_lines,
+                        page_index=0,
+                        title_icon=title_icon,
+                    )
+                    check_done.wait()
+                    apply_check_results_to_state()
                 with git_lock:
+                    _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
                     status, behind_count, last_checked = _check_update_status(
                         repo_root,
                         log_debug=log_debug,
@@ -249,34 +308,37 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 result_holder["result"] = (status, behind_count, last_checked)
                 check_done.set()
                 results_applied = True
-            continue
-        if selection == 1:
-            if not check_done.is_set():
-                waiting_lines = _build_update_info_lines(
-                    version,
-                    "Waiting on check...",
-                    None,
-                    last_checked,
-                )
-                display.render_paginated_lines(
-                    title,
-                    waiting_lines,
-                    page_index=0,
-                    title_icon=title_icon,
-                )
-                check_done.wait()
+                refresh_needed = True
+            menus.wait_for_buttons_release(
+                [gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B]
+            )
+            prev_states = {
+                "L": gpio.read_button(gpio.PIN_L),
+                "R": gpio.read_button(gpio.PIN_R),
+                "U": gpio.read_button(gpio.PIN_U),
+                "D": gpio.read_button(gpio.PIN_D),
+                "A": gpio.read_button(gpio.PIN_A),
+                "B": gpio.read_button(gpio.PIN_B),
+            }
+            if refresh_needed:
                 apply_check_results_to_state()
-            with git_lock:
-                _run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
-                status, behind_count, last_checked = _check_update_status(
-                    repo_root,
-                    log_debug=log_debug,
-                )
-            version = _get_app_version(log_debug=log_debug)
-            result_holder["result"] = (status, behind_count, last_checked)
-            check_done.set()
-            results_applied = True
+                update_header_lines()
+            time.sleep(menus.BUTTON_POLL_DELAY)
             continue
+        if refresh_needed:
+            screens.render_update_buttons_screen(
+                title,
+                header_lines,
+                selected_index=selection,
+                title_icon=title_icon,
+            )
+        prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        time.sleep(menus.BUTTON_POLL_DELAY)
 
 
 def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
