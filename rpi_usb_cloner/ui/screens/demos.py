@@ -105,11 +105,6 @@ def _show_icon_font_demo(title: str, font_path, *, icons: Optional[Iterable[str]
         time.sleep(0.05)
 
 
-def show_font_awesome_demo(title: str = "FONT AWESOME") -> None:
-    font_path = display.ASSETS_DIR / "fonts" / "Font-Awesome-7-Free-Solid-900.otf"
-    _show_icon_font_demo(title, font_path)
-
-
 def show_lucide_demo(title: str = "LUCIDE") -> None:
     font_path = display.ASSETS_DIR / "fonts" / "lucide.ttf"
     lucide_icons = [chr(57684), chr(57669), chr(57774)]

@@ -136,10 +136,6 @@ def demo_progress_screen() -> None:
     screens.wait_for_ack()
 
 
-def font_awesome_demo() -> None:
-    screens.show_font_awesome_demo()
-
-
 def lucide_demo() -> None:
     screens.show_lucide_demo()
 

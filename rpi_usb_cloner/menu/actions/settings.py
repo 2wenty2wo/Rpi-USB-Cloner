@@ -65,10 +65,6 @@ def demo_progress_screen() -> None:
     settings_actions.demo_progress_screen()
 
 
-def font_awesome_demo() -> None:
-    settings_actions.font_awesome_demo()
-
-
 def lucide_demo() -> None:
     settings_actions.lucide_demo()
 
