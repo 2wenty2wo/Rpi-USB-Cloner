@@ -109,59 +109,91 @@ The following operations **cannot be undone**:
 
 ## 🚀 Quickstart
 
-Minimal clone/install/run (see full steps below for I2C setup, options, and services):
+Quick setup for experienced users (see full installation guide below for I2C setup, hardware details, and systemd configuration):
+
 ```sh
+# Clone the repository
 git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
 cd Rpi-USB-Cloner
+
+# Set up Python virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the cloner (requires root for disk operations)
 sudo -E python3 rpi-usb-cloner.py
 ```
+
+> **Prerequisites:** I2C must be enabled and hardware must be properly connected. See the full Installation section below for details.
 
 ## 🧰 Installation & Usage
 
 ### 🧱 Installation
 
 #### 1) Clone the repository
+Download the source code to your Raspberry Pi:
 ```sh
+# Clone the repository
 git clone https://github.com/2wenty2wo/Rpi-USB-Cloner
+
+# Navigate to the project directory
 cd Rpi-USB-Cloner
 ```
 
 #### 2) Install dependencies and prepare the Pi
 1. Flash Raspberry Pi OS (Lite is fine) to your microSD and boot the Pi Zero.
-2. Update packages:
+
+2. Update system packages to the latest versions:
    ```sh
    sudo apt update
    sudo apt upgrade -y
    ```
+
 3. Enable I2C (required for the Adafruit OLED Bonnet):
+
+   **Option A:** Use raspi-config interactive tool:
    ```sh
    sudo raspi-config
    ```
-   *Interface Options → I2C → Enable, then reboot.*
-   You can also enable I2C via `/boot/config.txt` by adding:
+   Navigate to: *Interface Options → I2C → Enable*, then reboot.
+
+   **Option B:** Manually edit `/boot/config.txt`:
    ```ini
+   # Enable I2C for OLED display
    dtparam=i2c_arm=on
    ```
+
    After enabling I2C, confirm the display address is either **0x3C** or **0x3D**.
    The OLED driver class depends on the panel type, so verify whether your panel is **SSD1306** or **SH1106**.
-4. Install Python and build tools:
+
+4. Install Python and required system libraries:
    ```sh
-   sudo apt install -y python3 python3-pip python3-dev python3-venv git libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g
+   sudo apt install -y python3 python3-pip python3-dev python3-venv git \
+     libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g
    ```
-5. Install Python libraries used by the script (Bookworm enforces PEP 668):
-   - **Option A (recommended for isolation):** use a virtual environment.
-     ```sh
-     python3 -m venv .venv
-     source .venv/bin/activate
-     pip install -r requirements.txt
-     ```
-   - **Option B (single-use device):** install into system Python with the PEP 668 override.
-     ```sh
-     sudo pip install --break-system-packages -r requirements.txt
-     ```
+
+5. Install Python dependencies (Bookworm enforces PEP 668):
+
+   **Option A (recommended):** Use a virtual environment for isolation:
+   ```sh
+   # Create virtual environment
+   python3 -m venv .venv
+
+   # Activate virtual environment
+   source .venv/bin/activate
+
+   # Install Python packages
+   pip install -r requirements.txt
+   ```
+
+   **Option B (single-use device):** Install to system Python:
+   ```sh
+   # Install with PEP 668 override (use only for dedicated devices)
+   sudo pip install --break-system-packages -r requirements.txt
+   ```
 
 #### 3) Hardware setup
 1. Attach the Adafruit OLED Bonnet (OLED + buttons) to the Pi Zero GPIO header.
@@ -171,31 +203,39 @@ cd Rpi-USB-Cloner
 ### ▶️ Usage
 
 #### 4) Start the cloner script
-From the repo directory:
+Run the cloner from the repository directory:
+
+**Basic usage:**
 ```sh
+# Start the cloner (root required for disk operations)
 sudo -E python3 rpi-usb-cloner.py
 ```
-To enable verbose debug logging:
+
+**Debug mode:**
 ```sh
+# Enable verbose debug logging for troubleshooting
 sudo -E python3 rpi-usb-cloner.py --debug
 ```
-The erase workflow requires root permissions; if you start without `sudo`, the OLED will prompt you to run as root.
+
+> **Note:** The `-E` flag preserves your environment variables. Root permissions are required for disk operations; if you start without `sudo`, the OLED will display a prompt to run as root.
 
 
 #### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
 
 #### 6) Restart the process
-1. Stop it (Ctrl+C).
+To restart the cloner:
+1. Stop the running process by pressing **Ctrl+C** in the terminal
 2. Start it again:
    ```sh
+   # Restart the cloner
    sudo -E python3 rpi-usb-cloner.py
    ```
 
 #### 7) Auto-start on boot (systemd)
-Create a systemd unit so the cloner starts automatically at boot. Update paths as needed for your install location.
+Configure the cloner to start automatically at boot using systemd.
 
-1. Create `/etc/systemd/system/rpi-usb-cloner.service`:
+1. Create the systemd service file `/etc/systemd/system/rpi-usb-cloner.service`:
    ```ini
    [Unit]
    Description=Rpi USB Cloner
@@ -204,42 +244,85 @@ Create a systemd unit so the cloner starts automatically at boot. Update paths a
    [Service]
    Type=simple
    User=root
+   # Update paths to match your installation directory
    WorkingDirectory=/home/pi/Rpi-USB-Cloner
+   # For virtual environment (Option A), use the venv Python:
    ExecStart=/home/pi/Rpi-USB-Cloner/.venv/bin/python /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py
+   # For system Python (Option B), use: /usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py
    Restart=on-failure
 
    [Install]
    WantedBy=multi-user.target
    ```
-   Ensure the `User=` matches the repository owner, or make sure the repository is owned by the service user (to avoid Git dubious-ownership warnings).
-   If you used Option B (system Python), change `ExecStart` to `/usr/bin/python3 /home/pi/Rpi-USB-Cloner/rpi-usb-cloner.py`.
-2. Reload systemd and enable the service to start on boot:
+
+   > **Important:** Ensure the `User=` field matches the repository owner to avoid Git dubious-ownership warnings. Update all paths to match your actual installation location.
+
+2. Enable and start the service:
    ```sh
+   # Reload systemd to recognize the new service
    sudo systemctl daemon-reload
+
+   # Enable service to start on boot
    sudo systemctl enable rpi-usb-cloner.service
+
+   # Start service immediately
    sudo systemctl start rpi-usb-cloner.service
    ```
-3. SSH control commands:
+
+3. Manage the service via SSH:
    ```sh
+   # Stop the service
    sudo systemctl stop rpi-usb-cloner.service
+
+   # Start the service
    sudo systemctl start rpi-usb-cloner.service
+
+   # Restart the service
    sudo systemctl restart rpi-usb-cloner.service
+
+   # Check service status
    sudo systemctl status rpi-usb-cloner.service
+
+   # View live logs
    sudo journalctl -u rpi-usb-cloner.service -f
    ```
 
 #### 8) Update the software
-You can also trigger updates from the OLED UI via Settings → Update.
-From the repo directory:
+Keep your cloner up to date with the latest features and bug fixes.
+
+**Method 1: Update via OLED UI**
+- Navigate to: *Settings → Update*
+
+**Method 2: Update via command line**
+
+If using **Option A (virtual environment)**:
 ```sh
+# Navigate to repository directory
+cd /path/to/Rpi-USB-Cloner
+
+# Pull latest changes
 git pull
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Update Python dependencies
 pip install -r requirements.txt
 ```
-If you used Option B above (system Python), use:
+
+If using **Option B (system Python)**:
 ```sh
+# Navigate to repository directory
+cd /path/to/Rpi-USB-Cloner
+
+# Pull latest changes
+git pull
+
+# Update Python dependencies
 sudo pip install --break-system-packages -r requirements.txt
 ```
-`mount.py` ships with this repository, so no separate install is needed.
+
+> **Note:** `mount.py` ships with this repository, so no separate installation is needed.
 
 ## 🎨 Assets & Customization
 
