@@ -733,7 +733,10 @@ def _build_update_info_lines(
     behind_count: int | None,
     last_checked: str | None,
 ) -> list[str]:
-    lines = [f"Version: {version}", f"Status: {status}"]
+    status_display = status
+    if status == "Update available":
+        status_display = "Update avail."
+    lines = [f"Version: {version}", f"Status: {status_display}"]
     if behind_count is not None and behind_count > 0:
         lines.append(f"Commits behind: {behind_count}")
     return lines
