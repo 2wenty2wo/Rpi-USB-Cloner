@@ -16,6 +16,26 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ![Picture of the menu](rpi_usb_cloner/ui/assets/menu.jpg)
 
+## 📑 Table of Contents
+
+- [Prerequisites](#-prerequisites)
+- [Quickstart](#-quickstart)
+- [Installation & Usage](#-installation--usage)
+  - [Installation](#-installation)
+    - [1) Clone the repository](#1-clone-the-repository)
+    - [2) Install dependencies and prepare the Pi](#2-install-dependencies-and-prepare-the-pi)
+    - [3) Hardware setup](#3-hardware-setup)
+  - [Usage](#️-usage)
+    - [4) Start the cloner script](#4-start-the-cloner-script)
+    - [5) Stop the running process](#5-stop-the-running-process)
+    - [6) Restart the process](#6-restart-the-process)
+    - [7) Auto-start on boot (systemd)](#7-auto-start-on-boot-systemd)
+    - [8) Update the software](#8-update-the-software)
+  - [Clonezilla restore artifacts](#-clonezilla-restore-artifacts)
+- [Assets & Customization](#-assets--customization)
+  - [Screensaver GIFs](#️-screensaver-gifs)
+  - [Font assets](#-font-assets)
+
 ## ✅ Prerequisites
 
 **Hardware**
