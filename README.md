@@ -16,8 +16,39 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ![Picture of the menu](rpi_usb_cloner/ui/assets/menu.jpg)
 
+## ✨ Features
+
+### Core Functionality
+- **USB-to-USB Cloning**: Direct drive-to-drive copying with multiple clone modes (smart copy, dd, etc.)
+- **Drive Erasing**: Secure drive wiping with confirmation prompts
+- **Clonezilla Image Support**: Backup and restore drives using Clonezilla-format disk images
+  - Automatic detection of partition tables (sfdisk, sgdisk, parted)
+  - MBR and GPT support
+  - Multiple partition restore modes (k0, k, k1, k2)
+- **Drive Information**: View detailed device info including vendor, model, size, and partitions
+
+### Hardware Interface
+- **OLED Menu Navigation**: Intuitive menu system displayed on 128x64 OLED screen
+- **Button Controls**: Navigate using 6 hardware buttons (Up/Down/Left/Right + A/B/C)
+- **USB Hotplug Detection**: Automatic device detection when drives are inserted or removed
+- **Screensaver**: Customizable GIF screensaver with automatic idle timeout
+
+### System Management
+- **WiFi Configuration**: Configure wireless network settings directly from the OLED interface
+- **Persistent Settings**: Configuration saved to `~/.config/rpi-usb-cloner/settings.json`
+- **Auto-start Support**: Systemd service configuration for automatic startup on boot
+- **Power Management**: Restart/shutdown system or service from the menu
+- **Logging & Diagnostics**: Built-in log viewer and debug mode for troubleshooting
+
+### User Experience
+- **Multi-drive Support**: Automatically detects and lists all connected USB drives
+- **Confirmation Prompts**: Safety checks before destructive operations
+- **Progress Tracking**: Real-time status updates during clone/restore operations
+- **Smart Drive Selection**: Remembers active drive selection across menu navigation
+
 ## 📑 Table of Contents
 
+- [Features](#-features)
 - [Prerequisites](#-prerequisites)
 - [Quickstart](#-quickstart)
 - [Installation & Usage](#-installation--usage)
