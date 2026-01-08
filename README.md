@@ -321,20 +321,11 @@ git pull
 sudo pip install --break-system-packages -r requirements.txt
 ```
 
-> **Note:** `mount.py` ships with this repository, so no separate installation is needed.
 
 ## 🎨 Assets & Customization
 
 ### 🖼️ Screensaver GIFs
-Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` (the single folder the screensaver reads) and the screensaver will automatically pick them up. If the folder is empty, the screensaver falls back to a static placeholder screen.
+Place custom GIFs in `rpi_usb_cloner/ui/assets/gifs/` and the screensaver will automatically pick them up.
 
 ### 🔤 Font assets
-The OLED demo uses Lucide icons; see <https://lucide.dev/license> or `rpi_usb_cloner/ui/assets/fonts/Lucide-LICENSE.txt` for license details.
-
-Fonts currently bundled in `rpi_usb_cloner/ui/assets/fonts/`:
-- `lucide.ttf` (Lucide icons)
-- `his.ttf` (Heroicons)
-- `Born2bSportyFS.otf` (button text)
-- `dogicapixel.ttf` / `dogicapixelbold.ttf` (pixel font)
-- `rainyhearts.ttf` (title font)
-- `slkscr.ttf` (status text font)
+This project uses Lucide icons; see <https://lucide.dev/license> for license details.
