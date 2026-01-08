@@ -59,6 +59,22 @@ def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[Path]:
     return repos
 
 
+def list_repo_device_names(flag_filename: str = REPO_FLAG_FILENAME) -> set[str]:
+    repo_devices: set[str] = set()
+    for device in devices.list_usb_disks():
+        device_name = device.get("name")
+        if not device_name:
+            continue
+        for partition in _iter_partitions(device):
+            mountpoint = _resolve_mountpoint(partition)
+            if not mountpoint:
+                continue
+            if (mountpoint / flag_filename).exists():
+                repo_devices.add(device_name)
+                break
+    return repo_devices
+
+
 def list_clonezilla_images(repo_root: Path) -> list[Path]:
     candidates = [repo_root / "clonezilla", repo_root / "images", repo_root]
     image_dirs: list[Path] = []
