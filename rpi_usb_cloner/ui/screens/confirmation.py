@@ -211,7 +211,7 @@ def render_update_buttons_screen(
             block_width = button_width * 2 + button_gap
     button_y = int(content_top + (context.height - content_top) * 0.65)
     prompt_area_height = max(0, button_y - content_top - 6)
-    prompt_start_y = content_top + max(0, (prompt_area_height - prompt_height) // 2)
+    prompt_start_y = content_top + 2
     prompt_bottom = prompt_start_y + prompt_height
     min_button_y = int(prompt_bottom + 2)
     button_y = max(min_button_y, min(button_y, max_button_y))

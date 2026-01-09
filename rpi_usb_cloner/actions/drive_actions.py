@@ -324,7 +324,7 @@ def _confirm_destructive_action(
     log_debug: Optional[Callable[[str], None]],
     prompt_lines: Iterable[str],
 ) -> bool:
-    title = "⚠ DATA LOST"
+    title = "DATA LOSS"
     prompt = " ".join(prompt_lines)
     selection = [app_state.CONFIRM_NO]  # Use list for mutability in closures
 
