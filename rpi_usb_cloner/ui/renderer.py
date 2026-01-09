@@ -113,15 +113,7 @@ def render_menu_screen(
         icon_width = 0
         icon_padding = 2
         if status_icon:
-            # Use 8px lucide font for footer icon
-            if status_icon_font:
-                icon_font = status_icon_font
-            else:
-                from PIL import ImageFont
-                try:
-                    icon_font = ImageFont.truetype(display.LUCIDE_FONT_PATH, 8)
-                except OSError:
-                    icon_font = list_font
+            icon_font = status_icon_font or display._get_lucide_font()
             icon_width = display._measure_text_width(draw, status_icon, icon_font)
             # Draw the status icon
             draw.text((left_margin, footer_y), status_icon, font=icon_font, fill=255)
