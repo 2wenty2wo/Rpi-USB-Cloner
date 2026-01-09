@@ -401,7 +401,7 @@ def draw_title_with_icon(
             icon_y = title_visual_center - icon_visual_height // 2 + ICON_BASELINE_ADJUST
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
-    content_top = title_y + line_height + TITLE_PADDING + extra_gap
+    content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
         content_top=content_top,
         title_x=title_x,
