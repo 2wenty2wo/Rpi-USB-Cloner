@@ -124,6 +124,7 @@ TITLE_PADDING = 2
 TITLE_ICON_PADDING = 2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
+ICON_BASELINE_ADJUST = -1
 _lucide_font: Optional[ImageFont.ImageFont] = None
 
 
@@ -336,11 +337,18 @@ def draw_title_with_icon(
     icon_bbox = None
     title_bbox = None
     title_text = ""
+    title_ascent = title_descent = 0
+    icon_ascent = icon_descent = 0
 
     if icon:
         icon_font = icon_font or _get_lucide_font()
         icon_width = _measure_text_width(draw, icon, icon_font)
         icon_bbox = icon_font.getbbox(icon)
+        try:
+            icon_ascent, icon_descent = icon_font.getmetrics()
+        except AttributeError:
+            icon_ascent = max(0, icon_bbox[3] - icon_bbox[1])
+            icon_descent = 0
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
     if title:
@@ -350,6 +358,11 @@ def draw_title_with_icon(
         title_text = _truncate_text(draw, title, header_font, available_width)
         if title_text:
             title_bbox = draw.textbbox((0, 0), title_text, font=header_font)
+            try:
+                title_ascent, title_descent = header_font.getmetrics()
+            except AttributeError:
+                title_ascent = max(0, title_bbox[3] - title_bbox[1])
+                title_descent = 0
     else:
         available_width = 0
 
@@ -362,29 +375,23 @@ def draw_title_with_icon(
             icon_height=0,
         )
 
-    # Calculate line height based on visual height (top to bottom of bbox)
-    icon_height = (icon_bbox[3] - icon_bbox[1]) if icon_bbox else 0
-    title_height = (title_bbox[3] - title_bbox[1]) if title_bbox else 0
-    line_height = max(icon_height, title_height) if (icon_height and title_height) else (icon_height or title_height)
+    # Calculate line height based on font metrics for consistent spacing
+    title_line_height = title_ascent + title_descent
+    icon_line_height = icon_ascent + icon_descent
+    line_height = max(title_line_height, icon_line_height)
 
-    # Calculate the vertical center point for alignment
-    center_y = context.top + line_height // 2
+    # Align both glyphs on the same baseline
+    baseline_y = context.top + max(title_ascent, icon_ascent)
 
-    # Draw icon vertically centered
+    # Draw icon aligned to baseline
     if icon and (title_text or title):
-        # Position icon so its visual center aligns with center_y
-        # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
-        icon_y = center_y - (icon_bbox[1] + icon_bbox[3]) // 2
-        # Ensure icon never renders above display top
+        icon_y = baseline_y - icon_ascent + ICON_BASELINE_ADJUST
         icon_y = max(context.top, icon_y)
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
-    # Draw title vertically centered
-    # Position title so its visual center aligns with center_y
-    # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
+    # Draw title aligned to baseline
     if title_text and title_bbox:
-        title_y = center_y - (title_bbox[1] + title_bbox[3]) // 2
-        # Ensure title never renders above display top
+        title_y = baseline_y - title_ascent
         title_y = max(context.top, title_y)
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
@@ -394,7 +401,7 @@ def draw_title_with_icon(
         title_x=title_x,
         max_title_width=available_width,
         icon_width=icon_width,
-        icon_height=icon_height,
+        icon_height=icon_line_height,
     )
 
 
