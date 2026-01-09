@@ -167,16 +167,6 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                         if phase >= pause_duration:
                             travel_phase = phase - pause_duration
                             x_offset = -int((travel_phase * scroll_speed) % cycle_width)
-                max_scroll = line_width - max_width
-                x_offset = max(x_offset, -selector_width)
-            # Draw selector for selected item (only on first line)
-            if is_selected and line_index == 0:
-                draw.text(
-                    (left_margin, row_top + 1),
-                    selector,
-                    font=items_font,
-                    fill=text_color,
-                )
             # Draw text with offset for alignment
             draw.text(
                 (left_margin + selector_width + x_offset, row_top + 1 + line_index * row_height_per_line),
@@ -184,6 +174,24 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                 font=items_font,
                 fill=text_color,
             )
+            # Draw selector for selected item (only on first line)
+            if is_selected and line_index == 0:
+                draw.rectangle(
+                    (
+                        left_margin,
+                        row_top + 1,
+                        left_margin + selector_width - 1,
+                        row_top + row_height_per_line,
+                    ),
+                    outline=0,
+                    fill=0,
+                )
+                draw.text(
+                    (left_margin, row_top + 1),
+                    selector,
+                    font=items_font,
+                    fill=text_color,
+                )
         current_y += row_height
 
     if menu.footer:
