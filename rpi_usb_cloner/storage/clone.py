@@ -254,10 +254,8 @@ def format_progress_display(title, device, mode, bytes_copied, total_bytes, perc
         if percent_display:
             written_line = f"{written_line} {percent_display}"
         lines.append(written_line)
-    # Keep a percent-only fallback when bytes are unavailable.
-    elif percent is not None:
-        lines.append(f"{percent:.1f}%")
     else:
+        # Don't show standalone percentage - it's now displayed in the progress bar
         lines.append("Working...")
     if rate:
         rate_line = f"{human_size(rate)}/s"
@@ -300,7 +298,8 @@ def run_progress_command(command, total_bytes=None, title="WORKING", device_labe
             bytes_match = re.search(r"(\d+)\s+bytes", line)
             percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
             rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)
-            bytes_copied = last_bytes
+            # Don't use stale bytes - prevents mixing old bytes with new percentage
+            bytes_copied = None
             rate = last_rate
             eta = last_eta
             if bytes_match:
@@ -489,7 +488,8 @@ def run_checked_with_streaming_progress(
             bytes_match = re.search(r"(\d+)\s+bytes", line)
             percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
             rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)
-            bytes_copied = last_bytes
+            # Don't use stale bytes - prevents mixing old bytes with new percentage
+            bytes_copied = None
             rate = last_rate
             eta = last_eta
             if bytes_match:
