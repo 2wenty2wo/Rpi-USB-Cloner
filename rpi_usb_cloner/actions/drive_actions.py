@@ -257,6 +257,7 @@ def erase_drive(
             lines,
             progress_ratio=ratio,
             animate=False,
+            title_icon=chr(57741),
         )
         time.sleep(0.1)
     thread.join()
@@ -268,6 +269,7 @@ def erase_drive(
         lines,
         progress_ratio=ratio,
         animate=False,
+        title_icon=chr(57741),
     )
 
     if "error" in error_holder:
@@ -331,6 +333,7 @@ def _confirm_destructive_action(
             title,
             [prompt],
             selected_index=selection[0],
+            title_icon=chr(57746),
         )
 
     render()
@@ -454,6 +457,7 @@ def _view_devices(
         lines,
         page_index=page_index,
         title_font=display.get_display_context().fontcopy,
+        title_icon=chr(57681),
     )
 
 
