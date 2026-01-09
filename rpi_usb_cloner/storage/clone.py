@@ -254,6 +254,7 @@ def format_progress_display(title, device, mode, bytes_copied, total_bytes, perc
         if percent_display:
             written_line = f"{written_line} {percent_display}"
         lines.append(written_line)
+    # Keep a percent-only fallback when bytes are unavailable.
     elif percent is not None:
         lines.append(f"{percent:.1f}%")
     else:
