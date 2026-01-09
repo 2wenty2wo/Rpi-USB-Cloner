@@ -122,6 +122,7 @@ _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TITLE_PADDING = 2
 TITLE_ICON_PADDING = 2
+TITLE_TEXT_Y_OFFSET = -1
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
 ICON_BASELINE_ADJUST = -1
@@ -391,7 +392,9 @@ def draw_title_with_icon(
 
     # Draw title aligned to baseline
     if title_text and title_bbox:
-        title_y = baseline_y - title_ascent
+        title_y = (
+            baseline_y - (title_bbox[1] + title_bbox[3]) // 2 + TITLE_TEXT_Y_OFFSET
+        )
         title_y = max(context.top, title_y)
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
