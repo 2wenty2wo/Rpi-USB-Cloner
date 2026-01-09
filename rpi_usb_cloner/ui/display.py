@@ -388,8 +388,9 @@ def draw_title_with_icon(
 
         # Position icon at consistent Y coordinate
         if icon:
-            # Use fixed Y position to keep all icons at same height on-screen
-            icon_y = 0
+            # Use fixed Y position to keep all icons at same height
+            # Positioned slightly above screen edge to align with title text
+            icon_y = -1
 
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
