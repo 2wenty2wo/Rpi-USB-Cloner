@@ -1,7 +1,7 @@
 """Screen rendering functions for the OLED display."""
 
 from .status import render_status_screen, render_status_template, show_coming_soon, wait_for_ack
-from .confirmation import render_confirmation_screen, render_update_buttons_screen
+from .confirmation import render_confirmation_screen, render_update_buttons_screen, render_verify_finish_buttons_screen
 from .progress import render_progress_screen
 from .info import render_info_screen, wait_for_paginated_input
 from .demos import show_lucide_demo, show_heroicons_demo, show_title_font_preview
@@ -17,6 +17,7 @@ __all__ = [
     # Confirmation screens
     "render_confirmation_screen",
     "render_update_buttons_screen",
+    "render_verify_finish_buttons_screen",
     # Progress screens
     "render_progress_screen",
     # Info screens

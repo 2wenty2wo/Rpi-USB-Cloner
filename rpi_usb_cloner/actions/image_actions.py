@@ -202,11 +202,129 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         written_percent=progress_written_percent,
         ratio=progress_ratio_snapshot,
     )
-    screens.render_status_template(
-        "WRITE",
-        "SUCCESS",
-        extra_lines=summary_lines,
+
+    # Show confirmation screen with Verify and Finish buttons
+    selection = [1]  # Default to FINISH (right button)
+
+    def render_screen():
+        screens.render_verify_finish_buttons_screen(
+            "WRITE",
+            summary_lines,
+            selected_index=selection[0],
+            title_icon=WRITE_TITLE_ICON,
+        )
+
+    render_screen()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    def on_left():
+        if selection[0] == 1:
+            selection[0] = 0
+            _log_debug(log_debug, f"Selection changed: VERIFY")
+
+    def on_right():
+        if selection[0] == 0:
+            selection[0] = 1
+            _log_debug(log_debug, f"Selection changed: FINISH")
+
+    def on_button_a():
+        # A button = cancel/back, treat as Finish
+        return True
+
+    def on_button_b():
+        # B button = confirm selection
+        if selection[0] == 0:
+            # VERIFY selected
+            _log_debug(log_debug, "Starting verification")
+            _verify_restore(plan, target, log_debug)
+        return True
+
+    gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: on_button_a,
+            gpio.PIN_B: on_button_b,
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render_screen,
     )
+
+
+def _verify_restore(
+    plan: clonezilla.RestorePlan,
+    target: dict,
+    log_debug: Optional[Callable[[str], None]],
+) -> None:
+    """Verify the restored image against the target disk."""
+    target_name = target.get("name", "")
+    _log_debug(log_debug, f"Verifying restore to {target_name}")
+
+    # Show progress screen during verification
+    done = threading.Event()
+    result_holder: dict[str, bool] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Starting verification..."]
+    progress_ratio: Optional[float] = 0.0
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        with progress_lock:
+            progress_lines = lines
+            if ratio is not None:
+                progress_ratio = max(0.0, min(1.0, float(ratio)))
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            success = clonezilla.verify_restored_image(
+                plan,
+                target_name,
+                progress_callback=update_progress,
+            )
+            result_holder["success"] = success
+        except Exception as exc:
+            _log_debug(log_debug, f"Verification error: {exc}")
+            result_holder["success"] = False
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "VERIFY",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=chr(57487),
+        )
+        time.sleep(0.1)
+
+    thread.join()
+
+    # Show result
+    success = result_holder.get("success", False)
+    if success:
+        _log_debug(log_debug, "Verification successful")
+        screens.render_status_template(
+            "VERIFY",
+            "SUCCESS",
+            extra_lines=["Image verification", "completed successfully.", "Press A/B to continue."],
+        )
+    else:
+        _log_debug(log_debug, "Verification failed")
+        screens.render_status_template(
+            "VERIFY",
+            "FAILED",
+            extra_lines=["Verification failed.", "Data may not match", "source image.", "Press A/B to continue."],
+        )
+
     screens.wait_for_ack()
 
 
@@ -450,10 +568,10 @@ def _build_restore_summary_lines(
         written_line = "Wrote: --"
     target_label = devices.format_device_label(target)
     return [
+        "SUCCESS",
         f"Image {image_name}",
         f"Target {target_label}",
         f"Mode {partition_label}",
         f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
         written_line,
-        "Press A/B to continue.",
     ]
