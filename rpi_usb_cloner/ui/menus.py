@@ -108,7 +108,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             menu.title,
             title_font=title_font,
             icon=title_icon,
-            extra_gap=3,
+            extra_gap=1,
             left_margin=context.x - 11,
             draw=draw,
         )

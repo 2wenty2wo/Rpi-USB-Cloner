@@ -155,7 +155,7 @@ def _render_keyboard(
             title_font=title_font,
             icon=resolved_title_icon,
             icon_font=resolved_title_icon_font,
-            extra_gap=4,
+            extra_gap=2,
             left_margin=context.x - 11,
             draw=draw,
         )

@@ -42,7 +42,7 @@ def _show_icon_font_demo(title: str, font_path, *, icons: Optional[Iterable[str]
             title,
             title_font=title_font,
             icon=chr(0xe24b),  # Sparkles icon
-            extra_gap=3,
+            extra_gap=1,
             left_margin=context.x - 11,
             draw=draw,
         )
@@ -320,7 +320,7 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
             title,
             title_font=title_font,
             icon=chr(0xe24b),  # Sparkles icon
-            extra_gap=3,
+            extra_gap=1,
             left_margin=context.x - 11,
             draw=draw,
         )
@@ -473,7 +473,7 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
             title,
             title_font=title_font,
             icon=chr(0xe9a5),  # Heroicons sparkles icon
-            extra_gap=3,
+            extra_gap=1,
             left_margin=context.x - 11,
             draw=draw,
         )
