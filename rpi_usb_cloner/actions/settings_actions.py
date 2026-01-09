@@ -733,8 +733,11 @@ def _build_update_info_lines(
     if status == "Update available":
         status_display = "Update avail."
     lines = [f"Version: {version}", f"Status: {status_display}"]
+    # Always add a third line to prevent layout shift
     if behind_count is not None and behind_count > 0:
         lines.append(f"Commits behind: {behind_count}")
+    else:
+        lines.append("")  # Empty line to reserve space
     return lines
 
 
