@@ -57,7 +57,7 @@ def render_menu_screen(
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
     current_y = context.top
-    extra_gap = 1
+    extra_gap = 2
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
         layout = display.draw_title_with_icon(

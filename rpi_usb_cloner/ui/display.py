@@ -330,13 +330,27 @@ def draw_title_with_icon(
     draw = draw or context.draw
     left_margin = context.x - 11 if left_margin is None else left_margin
     header_font = title_font or context.fonts.get("title", context.fontdisks)
+
+    # Calculate dimensions first
     icon_width = 0
     icon_height = 0
-    if title and icon:
+    title_height = 0
+
+    if icon:
         icon_font = icon_font or _get_lucide_font()
         icon_width = _measure_text_width(draw, icon, icon_font)
         icon_height = _get_line_height(icon_font)
-        draw.text((left_margin, context.top), icon, font=icon_font, fill=255)
+
+    if title:
+        title_height = _get_line_height(header_font)
+
+    # Calculate line height and vertical centering offsets
+    line_height = max(title_height, icon_height) if (title_height and icon_height) else (title_height or icon_height)
+
+    # Draw icon vertically centered
+    if title and icon:
+        icon_y = context.top + (line_height - icon_height) // 2
+        draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
     if not title:
@@ -352,9 +366,11 @@ def draw_title_with_icon(
         max_width if max_width is not None else max(0, context.width - title_x - 1)
     )
     title_text = _truncate_text(draw, title, header_font, available_width)
-    draw.text((title_x, context.top), title_text, font=header_font, fill=255)
-    title_height = _get_line_height(header_font)
-    line_height = max(title_height, icon_height)
+
+    # Draw title vertically centered
+    title_y = context.top + (line_height - title_height) // 2
+    draw.text((title_x, title_y), title_text, font=header_font, fill=255)
+
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
         content_top=content_top,
