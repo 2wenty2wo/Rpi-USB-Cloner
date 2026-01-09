@@ -34,7 +34,7 @@ def get_action_context() -> ActionContext:
 
 
 # Import all action modules
-from .drives import copy_drive, drive_info, erase_drive
+from .drives import copy_drive, drive_info, format_drive, unmount_drive, erase_drive
 from .images import backup_image, write_image, images_coming_soon
 from .tools import view_logs, tools_coming_soon
 from .settings import (
@@ -71,6 +71,8 @@ __all__ = [
     # Drive actions
     "copy_drive",
     "drive_info",
+    "format_drive",
+    "unmount_drive",
     "erase_drive",
     # Image actions
     "backup_image",
