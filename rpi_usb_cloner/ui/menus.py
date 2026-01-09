@@ -517,3 +517,59 @@ def select_erase_mode():
     if selected_index is None:
         return None
     return modes[selected_index]
+
+
+def select_filesystem_type(device_size: int):
+    """Select filesystem type with size-based default.
+
+    Args:
+        device_size: Device size in bytes
+
+    Returns:
+        Selected filesystem type or None if cancelled
+    """
+    filesystems = ["ext4", "vfat", "exfat", "ntfs"]
+
+    # Determine default based on size
+    # FAT32 for ≤32 GB, exFAT for ≥64 GB
+    gb_32 = 32 * 1024 * 1024 * 1024
+    gb_64 = 64 * 1024 * 1024 * 1024
+
+    if device_size <= gb_32:
+        default_fs = "vfat"
+    elif device_size >= gb_64:
+        default_fs = "exfat"
+    else:
+        # Between 32-64GB, default to exFAT
+        default_fs = "exfat"
+
+    default_index = filesystems.index(default_fs) if default_fs in filesystems else 0
+
+    selected_index = render_menu_list(
+        "FILESYSTEM",
+        [fs.upper() for fs in filesystems],
+        selected_index=default_index,
+        title_font=display.get_display_context().fontcopy,
+        title_icon=chr(58367),  # sparkles icon
+    )
+    if selected_index is None:
+        return None
+    return filesystems[selected_index]
+
+
+def select_format_type():
+    """Select format type (quick or full).
+
+    Returns:
+        Selected format type or None if cancelled
+    """
+    types = ["quick", "full"]
+    selected_index = render_menu_list(
+        "FORMAT TYPE",
+        [t.upper() for t in types],
+        title_font=display.get_display_context().fontcopy,
+        title_icon=chr(58367),  # sparkles icon
+    )
+    if selected_index is None:
+        return None
+    return types[selected_index]

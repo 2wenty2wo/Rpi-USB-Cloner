@@ -204,3 +204,131 @@ def unmount_device(device):
                 run_command(["umount", mountpoint], check=False)
             except subprocess.CalledProcessError:
                 pass
+
+
+def unmount_device_with_retry(
+    device: dict,
+    log_debug: Optional[Callable[[str], None]] = None,
+) -> tuple[bool, bool]:
+    """Unmount device with retry and optional lazy unmount.
+
+    Args:
+        device: Device dict from lsblk
+        log_debug: Optional debug logging function
+
+    Returns:
+        Tuple of (success, used_lazy_unmount)
+    """
+    import time
+
+    device_name = device.get("name")
+
+    def log(msg: str):
+        if log_debug:
+            log_debug(msg)
+
+    # Collect all mountpoints
+    mountpoints = []
+    if device.get("mountpoint"):
+        mountpoints.append((device.get("name"), device.get("mountpoint")))
+    for child in get_children(device):
+        if child.get("mountpoint"):
+            mountpoints.append((child.get("name"), child.get("mountpoint")))
+
+    if not mountpoints:
+        log(f"No mounted partitions on {device_name}")
+        return True, False
+
+    # Sync filesystem buffers first
+    try:
+        log("Syncing filesystem buffers...")
+        run_command(["sync"], check=False)
+        time.sleep(0.5)
+    except Exception as error:
+        log(f"Sync failed: {error}")
+
+    # Try normal unmount first (3 attempts)
+    for attempt in range(1, 4):
+        log(f"Unmount attempt {attempt}/3...")
+        all_unmounted = True
+
+        for partition_name, mountpoint in mountpoints:
+            try:
+                run_command(["umount", mountpoint], check=True)
+                log(f"Unmounted {mountpoint}")
+            except subprocess.CalledProcessError as error:
+                log(f"Failed to unmount {mountpoint}: {error}")
+                all_unmounted = False
+
+        if all_unmounted:
+            log("Successfully unmounted all partitions")
+            return True, False
+
+        # Wait before retry
+        if attempt < 3:
+            time.sleep(1)
+
+    # Normal unmount failed - ask about lazy unmount
+    # Note: In the action handler, this will trigger a user prompt
+    # For now, we'll attempt lazy unmount automatically after normal fails
+
+    log("Normal unmount failed, attempting lazy unmount...")
+
+    # Try lazy unmount
+    all_unmounted = True
+    for partition_name, mountpoint in mountpoints:
+        try:
+            run_command(["umount", "-l", mountpoint], check=True)
+            log(f"Lazy unmounted {mountpoint}")
+        except subprocess.CalledProcessError as error:
+            log(f"Failed to lazy unmount {mountpoint}: {error}")
+            all_unmounted = False
+
+    if all_unmounted:
+        log("Successfully lazy unmounted all partitions")
+        return True, True
+
+    log("Failed to unmount device even with lazy unmount")
+    return False, False
+
+
+def power_off_device(
+    device: dict,
+    log_debug: Optional[Callable[[str], None]] = None,
+) -> bool:
+    """Power off a USB device safely.
+
+    Args:
+        device: Device dict from lsblk
+        log_debug: Optional debug logging function
+
+    Returns:
+        True on success, False on failure
+    """
+    device_name = device.get("name")
+    device_path = f"/dev/{device_name}"
+
+    def log(msg: str):
+        if log_debug:
+            log_debug(msg)
+
+    # Try udisksctl first (preferred method)
+    try:
+        log(f"Powering off {device_name} with udisksctl...")
+        run_command(["udisksctl", "power-off", "-b", device_path], check=True)
+        log(f"Successfully powered off {device_name}")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as error:
+        log(f"udisksctl power-off failed: {error}")
+
+    # Fallback to hdparm (spindown for HDDs)
+    try:
+        log(f"Attempting hdparm spindown for {device_name}...")
+        run_command(["hdparm", "-Y", device_path], check=True)
+        log(f"Successfully spun down {device_name}")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as error:
+        log(f"hdparm spindown failed: {error}")
+
+    log(f"Failed to power off {device_name}")
+    return False
