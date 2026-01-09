@@ -102,7 +102,7 @@ def select_screensaver_gif() -> None:
 
 
 def keyboard_test() -> None:
-    text = keyboard.prompt_text(title="KEYBOARD", masked=False)
+    text = keyboard.prompt_text(title="KEYBOARD", masked=False, title_icon=chr(57618))
     if text is None:
         return
     screens.render_status_template("KEYBOARD", "Entry captured")
