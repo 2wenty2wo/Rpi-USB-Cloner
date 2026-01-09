@@ -120,7 +120,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-TITLE_PADDING = 4
+TITLE_PADDING = 2
 TITLE_ICON_PADDING = 2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
@@ -349,14 +349,14 @@ def draw_title_with_icon(
     title_height = (title_bbox[3] - title_bbox[1]) if title_bbox else 0
     line_height = max(icon_height, title_height) if (icon_height and title_height) else (icon_height or title_height)
 
-    # Calculate baseline position - use the middle of the line height
-    baseline_y = context.top + line_height // 2
-
-    # Draw icon vertically centered using baseline alignment
+    # Draw icon vertically centered
     if title and icon:
-        # Position icon so its visual center aligns with baseline_y
-        icon_visual_center = icon_bbox[1] + icon_height // 2
-        icon_y = baseline_y - icon_visual_center
+        # Center icon within the line height, ensuring it doesn't clip at top
+        icon_offset_y = (line_height - icon_height) // 2
+        # Adjust for bbox top offset (which can be negative)
+        icon_y = context.top + icon_offset_y - icon_bbox[1]
+        # Ensure icon never renders above display top
+        icon_y = max(context.top, icon_y)
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
@@ -374,9 +374,12 @@ def draw_title_with_icon(
     )
     title_text = _truncate_text(draw, title, header_font, available_width)
 
-    # Draw title vertically centered using baseline alignment
-    title_visual_center = title_bbox[1] + title_height // 2
-    title_y = baseline_y - title_visual_center
+    # Draw title vertically centered
+    title_offset_y = (line_height - title_height) // 2
+    # Adjust for bbox top offset (which can be negative)
+    title_y = context.top + title_offset_y - title_bbox[1]
+    # Ensure title never renders above display top
+    title_y = max(context.top, title_y)
     draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
