@@ -23,6 +23,7 @@ from rpi_usb_cloner.ui import display
 INITIAL_REPEAT_DELAY = 0.3
 REPEAT_INTERVAL = 0.08
 BUTTON_POLL_DELAY = 0.01
+DEFAULT_SCROLL_CYCLE_SECONDS = 6.0
 
 
 @dataclass
@@ -46,6 +47,7 @@ class Menu:
     items_font: Optional[ImageFont.ImageFont] = None
     enable_horizontal_scroll: bool = False
     scroll_speed: float = 30.0
+    target_cycle_seconds: float = DEFAULT_SCROLL_CYCLE_SECONDS
     scroll_gap: int = 20
     scroll_start_time: Optional[float] = None
     scroll_start_delay: float = 0.0
@@ -150,14 +152,15 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                     elapsed = max(0.0, now - menu.scroll_start_time)
                     pause_duration = max(0.0, menu.scroll_start_delay)
                     cycle_width = line_width + menu.scroll_gap
-                    if cycle_width > 0 and menu.scroll_speed > 0:
-                        travel_duration = cycle_width / menu.scroll_speed
-                        cycle_duration = pause_duration + travel_duration
-                        if cycle_duration > 0:
-                            phase = elapsed % cycle_duration
-                            if phase >= pause_duration:
-                                travel_phase = phase - pause_duration
-                                x_offset = -int((travel_phase * menu.scroll_speed) % cycle_width)
+                    target_cycle_seconds = max(0.0, menu.target_cycle_seconds)
+                    travel_duration = max(0.0, target_cycle_seconds - pause_duration)
+                    cycle_duration = pause_duration + travel_duration
+                    if cycle_width > 0 and travel_duration > 0 and cycle_duration > 0:
+                        scroll_speed = cycle_width / travel_duration
+                        phase = elapsed % cycle_duration
+                        if phase >= pause_duration:
+                            travel_phase = phase - pause_duration
+                            x_offset = -int((travel_phase * scroll_speed) % cycle_width)
             draw.text(
                 (left_margin + x_offset, row_top + 1 + line_index * row_height_per_line),
                 display_line,
@@ -209,6 +212,7 @@ def select_list(
     scroll_mode: Optional[str] = None,
     enable_horizontal_scroll: bool = False,
     scroll_speed: float = 30.0,
+    target_cycle_seconds: float = DEFAULT_SCROLL_CYCLE_SECONDS,
     scroll_gap: int = 20,
     scroll_refresh_interval: float = 0.08,
     scroll_start_delay: float = 0.0,
@@ -268,6 +272,7 @@ def select_list(
             items_font=items_font,
             enable_horizontal_scroll=enable_scroll,
             scroll_speed=scroll_speed,
+            target_cycle_seconds=target_cycle_seconds,
             scroll_gap=scroll_gap,
             scroll_start_time=scroll_start_time,
             scroll_start_delay=scroll_start_delay,
