@@ -141,7 +141,7 @@ def _render_keyboard(
     keys = layout.get_keys(layout_mode)
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
-    padding = 4
+    padding = 2
     input_font, key_font, icon_font = _get_keyboard_fonts()
     resolved_title_icon = title_icon if masked else None
     if masked and resolved_title_icon is None:
@@ -155,7 +155,7 @@ def _render_keyboard(
             title_font=title_font,
             icon=resolved_title_icon,
             icon_font=resolved_title_icon_font,
-            extra_gap=2,
+            extra_gap=0,
             left_margin=context.x - 11,
             draw=draw,
         )
@@ -172,7 +172,7 @@ def _render_keyboard(
     text_height = text_bbox[3] - text_bbox[1]
     text_y = input_top + max(0, (input_height - text_height) // 2)
     draw.text((input_left + 2, text_y), display_value, font=input_font, fill=0)
-    current_y += input_height + padding
+    current_y += input_height + 2
 
     line_height = _get_line_height(key_font)
     row_height = line_height + 6
@@ -237,7 +237,7 @@ def _render_keyboard(
             fill=0 if is_selected else 255,
         )
 
-    current_y += strip_height + padding
+    current_y += strip_height + 2
 
     mode_selectors = [
         ("upper", chr(58330), icon_font),
