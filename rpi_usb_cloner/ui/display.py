@@ -386,12 +386,10 @@ def draw_title_with_icon(
         title_y = context.top + TITLE_TEXT_Y_OFFSET
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
-        # Position icon at consistent Y coordinate to align with text
-        # Use a fixed offset that works for most icon bounding boxes
+        # Position icon at consistent Y coordinate
         if icon:
-            # Position icon to visually align with title text
-            # Account for typical icon bbox structure in Lucide font
-            icon_y = title_y + 1
+            # Use fixed Y position to keep all icons at same height on-screen
+            icon_y = 0
 
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
