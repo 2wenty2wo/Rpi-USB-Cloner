@@ -4,6 +4,7 @@ from typing import Callable, List, Optional
 
 from PIL import ImageFont
 
+from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware.gpio import (
     PIN_A,
     PIN_B,
@@ -24,6 +25,7 @@ INITIAL_REPEAT_DELAY = 0.3
 REPEAT_INTERVAL = 0.08
 BUTTON_POLL_DELAY = 0.01
 DEFAULT_SCROLL_CYCLE_SECONDS = 6.0
+DEFAULT_SCROLL_REFRESH_INTERVAL = 0.04
 
 
 @dataclass
@@ -214,7 +216,7 @@ def select_list(
     scroll_speed: float = 30.0,
     target_cycle_seconds: float = DEFAULT_SCROLL_CYCLE_SECONDS,
     scroll_gap: int = 20,
-    scroll_refresh_interval: float = 0.08,
+    scroll_refresh_interval: Optional[float] = None,
     scroll_start_delay: float = 0.0,
 ) -> Optional[int]:
     context = display.get_display_context()
@@ -287,6 +289,13 @@ def select_list(
             clear=not header_lines,
         )
         context.disp.display(context.image)
+
+    if scroll_refresh_interval is None:
+        scroll_refresh_interval = settings.get_setting(
+            "scroll_refresh_interval",
+            DEFAULT_SCROLL_REFRESH_INTERVAL,
+        )
+    scroll_refresh_interval = max(0.02, float(scroll_refresh_interval))
 
     scroll_start_time = time.monotonic() if enable_scroll else None
     render(selected_index, scroll_start_time=scroll_start_time)
