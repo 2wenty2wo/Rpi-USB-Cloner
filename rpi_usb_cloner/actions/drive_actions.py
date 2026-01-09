@@ -29,7 +29,13 @@ def copy_drive(
 ) -> None:
     source, target = _pick_source_target(get_selected_usb_name)
     if not source or not target:
-        display.display_lines(["COPY", "Need 2 USBs"])
+        screens.render_error_screen(
+            title="COPY DRIVES",
+            message="NEED 2 USBS",
+            title_icon=chr(57581),  # drives icon
+            message_icon=chr(57639),  # octagon-alert icon
+            message_icon_size=24,
+        )
         time.sleep(1)
         return
     source_name = source.get("name")
