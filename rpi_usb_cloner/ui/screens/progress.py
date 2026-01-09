@@ -3,7 +3,7 @@
 import time
 from typing import Iterable, Optional
 
-from PIL import ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.ui import display, menus
 
@@ -99,10 +99,9 @@ def render_progress_screen(
                 fill=255,
             )
 
-        # Draw percentage text centered on the progress bar
+        # Draw percentage text centered on the progress bar with color inversion
         if current_ratio is not None:
-            percent_text = f"{int(current_ratio * 100)}%"
-            # Use a slightly smaller font for the percentage if available
+            percent_text = f"{current_ratio * 100:.1f}%"
             percent_font = body_font
 
             # Calculate text dimensions and center position
@@ -114,17 +113,27 @@ def render_progress_screen(
             text_x = bar_x + (bar_width - text_width) // 2
             text_y = bar_y + (bar_height - text_height) // 2 - text_bbox[1]
 
-            # Draw the text in white first
-            draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
+            # Draw text in two parts with different colors for filled/unfilled regions
+            # Part 1: Draw white text on the unfilled (right) portion
+            if fill_right < text_x + text_width:
+                draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
 
-            # Invert pixels where text overlaps with filled bar region
-            # Get the pixels that need to be inverted
-            pixels = context.image.load()
-            text_right = text_x + text_width
-            for y in range(max(inner_top, text_y), min(inner_bottom, text_y + text_height + 1)):
-                for x in range(max(fill_left, text_x), min(fill_right, text_right)):
-                    if pixels[x, y]:  # If pixel is white (255)
-                        pixels[x, y] = 0  # Make it black
+            # Part 2: Draw black text on the filled (left) portion
+            if fill_right > text_x:
+                # Create a temporary image to draw the black text
+                temp_img = Image.new('1', (context.width, context.height), 0)
+                temp_draw = ImageDraw.Draw(temp_img)
+                temp_draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
+
+                # Copy only the pixels where the filled bar overlaps with text
+                pixels = context.image.load()
+                temp_pixels = temp_img.load()
+                text_right = text_x + text_width
+                text_bottom = text_y + text_height
+                for y in range(max(0, text_y), min(context.height, text_bottom + 1)):
+                    for x in range(max(0, text_x), min(context.width, text_right)):
+                        if temp_pixels[x, y] and x < fill_right:  # Text pixel in filled region
+                            pixels[x, y] = 0  # Draw in black
 
         context.disp.display(context.image)
 

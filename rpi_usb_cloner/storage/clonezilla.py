@@ -98,7 +98,12 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from rpi_usb_cloner.storage import clone, devices
-from rpi_usb_cloner.storage.clone import get_partition_number, resolve_device_node
+from rpi_usb_cloner.storage.clone import (
+    format_filesystem_type,
+    get_partition_display_name,
+    get_partition_number,
+    resolve_device_node,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -327,14 +332,37 @@ def restore_clonezilla_image(
         target_part = target_parts.get(op.partition)
         if not target_part:
             raise RuntimeError(f"Missing target partition for {op.partition}")
-        title = f"PART {index}/{total_parts}"
+
+        # Get partition device info for better display
+        part_node = target_part["node"]
+        part_name = os.path.basename(part_node)
+        part_device = devices.get_device_by_name(part_name)
+
+        # Build friendly display information
+        if part_device:
+            part_display_name = get_partition_display_name(part_device)
+        else:
+            part_display_name = part_name
+
+        # Build title: "partition_name (1/4)"
+        title = f"{part_display_name} ({index}/{total_parts})"
+
+        # Build subtitle: "8.2GB ext4" or "512MB FAT32"
+        subtitle_parts = []
+        if target_part.get("size_bytes"):
+            subtitle_parts.append(devices.human_size(target_part["size_bytes"]))
+        if op.fstype:
+            subtitle_parts.append(format_filesystem_type(op.fstype))
+        subtitle = " ".join(subtitle_parts) if subtitle_parts else None
+
         try:
             _restore_partition_op(
                 op,
-                target_part["node"],
+                part_node,
                 title=title,
                 total_bytes=target_part.get("size_bytes"),
                 progress_callback=progress_callback,
+                subtitle=subtitle,
             )
         except Exception as exc:
             raise RuntimeError(f"Partition restore failed ({title}): {exc}") from exc
@@ -1188,6 +1216,7 @@ def _restore_partition_op(
     title: str,
     total_bytes: Optional[int] = None,
     progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    subtitle: Optional[str] = None,
 ) -> None:
     restore_command = _build_restore_command_from_plan(op, target_part)
     _run_restore_pipeline(
@@ -1196,6 +1225,7 @@ def _restore_partition_op(
         title=title,
         total_bytes=total_bytes,
         progress_callback=progress_callback,
+        subtitle=subtitle,
     )
 
 
@@ -1520,6 +1550,7 @@ def _run_restore_pipeline(
     title: str,
     total_bytes: Optional[int] = None,
     progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    subtitle: Optional[str] = None,
 ) -> None:
     if not image_files:
         raise RuntimeError("No image files")
@@ -1558,6 +1589,7 @@ def _run_restore_pipeline(
             total_bytes=total_bytes,
             stdin_source=upstream,
             progress_callback=progress_callback,
+            subtitle=subtitle,
         )
     except Exception as exc:
         error = exc
