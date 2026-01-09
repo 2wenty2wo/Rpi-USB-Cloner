@@ -60,10 +60,20 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if selected_index is None:
         return
     selected_dir = image_dirs[selected_index]
-    partition_selection = _prompt_restore_partition_mode()
-    if partition_selection is None:
-        return
-    partition_mode, partition_label = partition_selection
+
+    # Check if the selected image is an ISO file
+    is_iso = selected_dir.is_file() and selected_dir.suffix.lower() == ".iso"
+
+    # For Clonezilla images, prompt for partition mode
+    if not is_iso:
+        partition_selection = _prompt_restore_partition_mode()
+        if partition_selection is None:
+            return
+        partition_mode, partition_label = partition_selection
+    else:
+        # ISOs don't need partition mode selection
+        partition_mode = None
+        partition_label = None
     usb_devices = devices.list_usb_disks()
     if not usb_devices:
         display.display_lines(["NO USB", "DRIVES"])
@@ -101,6 +111,15 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
         return
+
+    # Handle ISOs differently from Clonezilla images
+    if is_iso:
+        if not _confirm_destructive_action(log_debug=log_debug):
+            return
+        _write_iso_image(selected_dir, target, log_debug=log_debug)
+        return
+
+    # Continue with Clonezilla image flow
     try:
         plan = clonezilla.parse_clonezilla_image(selected_dir)
     except RuntimeError as error:
@@ -575,3 +594,107 @@ def _build_restore_summary_lines(
         f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
         written_line,
     ]
+
+
+def _write_iso_image(
+    iso_path,
+    target: dict,
+    *,
+    log_debug: Optional[Callable[[str], None]] = None,
+) -> None:
+    """Write an ISO file directly to a USB device."""
+    done = threading.Event()
+    error_holder: dict[str, Exception] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Preparing..."]
+    progress_ratio: Optional[float] = 0.0
+    progress_written_bytes: Optional[str] = None
+    progress_written_percent: Optional[str] = None
+    progress_ratio_snapshot: Optional[float] = 0.0
+    start_time = time.monotonic()
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio, progress_written_bytes, progress_written_percent, progress_ratio_snapshot
+        clamped = None
+        if ratio is not None:
+            clamped = max(0.0, min(1.0, float(ratio)))
+        with progress_lock:
+            progress_lines = lines
+            if clamped is not None:
+                progress_ratio = clamped
+                progress_ratio_snapshot = clamped
+            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            if wrote_line:
+                match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
+                if match:
+                    progress_written_bytes = match.group(1)
+                    progress_written_percent = match.group(2)
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            clonezilla.restore_iso_image(
+                iso_path,
+                target.get("name") or "",
+                progress_callback=update_progress,
+            )
+        except Exception as exc:
+            error_holder["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "WRITE ISO",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=WRITE_TITLE_ICON,
+        )
+        time.sleep(0.1)
+    thread.join()
+    lines, ratio = current_progress()
+    screens.render_progress_screen(
+        "WRITE ISO",
+        lines,
+        progress_ratio=ratio,
+        animate=False,
+        title_icon=WRITE_TITLE_ICON,
+    )
+    if "error" in error_holder:
+        error = error_holder["error"]
+        _log_debug(log_debug, f"ISO write failed: {error}")
+        screens.wait_for_paginated_input(
+            "WRITE ISO",
+            ["FAILED", str(error)],
+            title_icon=WRITE_TITLE_ICON,
+        )
+        return
+    elapsed_seconds = time.monotonic() - start_time
+    target_label = devices.format_device_label(target)
+    summary_lines = [
+        "SUCCESS",
+        f"ISO {iso_path.name}",
+        f"Target {target_label}",
+        f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
+    ]
+    if progress_written_bytes and progress_written_percent:
+        summary_lines.append(f"Wrote {progress_written_bytes} {progress_written_percent}")
+    elif progress_written_bytes:
+        summary_lines.append(f"Wrote {progress_written_bytes}")
+    elif progress_ratio_snapshot is not None:
+        summary_lines.append(f"Wrote {progress_ratio_snapshot * 100:.1f}%")
+
+    screens.render_status_template(
+        "WRITE ISO",
+        "SUCCESS",
+        extra_lines=summary_lines,
+        title_icon=WRITE_TITLE_ICON,
+    )
+    screens.wait_for_ack()

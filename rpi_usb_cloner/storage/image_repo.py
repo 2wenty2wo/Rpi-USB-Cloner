@@ -77,4 +77,11 @@ def list_clonezilla_images(repo_root: Path) -> list[Path]:
                 continue
             image_dirs.append(image_dir)
             seen.add(image_dir)
+
+    # Also include ISO files from the repo root
+    for iso_file in repo_root.glob("*.iso"):
+        if iso_file.is_file() and iso_file not in seen:
+            image_dirs.append(iso_file)
+            seen.add(iso_file)
+
     return sorted(image_dirs, key=lambda path: path.name)
