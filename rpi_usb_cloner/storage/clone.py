@@ -652,7 +652,7 @@ def clone_partclone(source, target):
 
         display_lines([title_line, info_line])
         with open(dst_part, "wb") as dst_handle:
-            run_checked_with_progress(
+            run_checked_with_streaming_progress(
                 [tool_path, "-s", src_part, "-o", "-", "-F"],
                 total_bytes=part.get("size"),
                 title=title_line,
