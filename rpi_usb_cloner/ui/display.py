@@ -386,18 +386,12 @@ def draw_title_with_icon(
         title_y = context.top + TITLE_TEXT_Y_OFFSET
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
-        # Center icon with text using visual bounding box heights
+        # Position icon at consistent Y coordinate to align with text
+        # Use a fixed offset that works for most icon bounding boxes
         if icon:
-            # Calculate visual center using bbox offsets
-            # bbox format: (left, top, right, bottom) relative to anchor point
-            # Visual center = anchor_y + (bbox_top + bbox_bottom) / 2
-            title_visual_center_y = title_y + (title_bbox[1] + title_bbox[3]) / 2
-            icon_visual_center_offset = (icon_bbox[1] + icon_bbox[3]) / 2
-            icon_y = title_visual_center_y - icon_visual_center_offset
-
-            # Ensure icon doesn't go off-screen at the top
-            # Account for icon bbox top offset to keep visible pixels on-screen
-            icon_y = max(0 - icon_bbox[1], icon_y)
+            # Position icon to visually align with title text
+            # Account for typical icon bbox structure in Lucide font
+            icon_y = title_y + 1
 
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
