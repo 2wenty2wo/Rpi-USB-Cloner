@@ -85,6 +85,8 @@ def render_menu_screen(
         items_font=items_font,
         status_font=status_font,
         title_icon_font=title_icon_font,
+        status_icon=status_icon,
+        status_icon_font=status_icon_font,
     )
     visible_rows = min(visible_rows, max_visible_rows)
 
@@ -105,7 +107,12 @@ def render_menu_screen(
 
     if status_line:
         footer_font = status_font or list_font
-        footer_height = _get_line_height(footer_font)
+        icon_font = None
+        icon_height = 0
+        if status_icon:
+            icon_font = status_icon_font or display._get_lucide_font()
+            icon_height = _get_line_height(icon_font)
+        footer_height = max(_get_line_height(footer_font), icon_height)
         footer_padding = 1
         footer_y = context.height - footer_height - footer_padding
 
@@ -113,7 +120,6 @@ def render_menu_screen(
         icon_width = 0
         icon_padding = 2
         if status_icon:
-            icon_font = status_icon_font or display._get_lucide_font()
             icon_width = display._measure_text_width(draw, status_icon, icon_font)
             # Draw the status icon
             draw.text((left_margin, footer_y), status_icon, font=icon_font, fill=255)
@@ -135,6 +141,8 @@ def calculate_visible_rows(
     items_font=None,
     status_font=None,
     title_icon_font=None,
+    status_icon: Optional[str] = None,
+    status_icon_font=None,
     padding: int = 1,
 ) -> int:
     context = display.get_display_context()
@@ -156,7 +164,11 @@ def calculate_visible_rows(
     footer_gap = 0
     if status_line:
         footer_font = status_font or list_font
-        footer_height = _get_line_height(footer_font)
+        icon_height = 0
+        if status_icon:
+            icon_font = status_icon_font or display._get_lucide_font()
+            icon_height = _get_line_height(icon_font)
+        footer_height = max(_get_line_height(footer_font), icon_height)
         # Add minimum gap between menu items and footer to prevent overlap
         footer_gap = 4
 
