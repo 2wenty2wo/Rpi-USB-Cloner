@@ -147,13 +147,17 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                 if line_width is None:
                     line_width = display._measure_text_width(draw, line, items_font)
                 if line_width > max_width:
-                    delay = max(0.0, menu.scroll_start_delay)
-                    elapsed = now - menu.scroll_start_time - delay
-                    if elapsed < 0.0:
-                        elapsed = 0.0
+                    elapsed = max(0.0, now - menu.scroll_start_time)
+                    pause_duration = max(0.0, menu.scroll_start_delay)
                     cycle_width = line_width + menu.scroll_gap
-                    if cycle_width > 0:
-                        x_offset = -int((elapsed * menu.scroll_speed) % cycle_width)
+                    if cycle_width > 0 and menu.scroll_speed > 0:
+                        travel_duration = cycle_width / menu.scroll_speed
+                        cycle_duration = pause_duration + travel_duration
+                        if cycle_duration > 0:
+                            phase = elapsed % cycle_duration
+                            if phase >= pause_duration:
+                                travel_phase = phase - pause_duration
+                                x_offset = -int((travel_phase * menu.scroll_speed) % cycle_width)
             draw.text(
                 (left_margin + x_offset, row_top + 1 + line_index * row_height_per_line),
                 display_line,
