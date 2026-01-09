@@ -120,7 +120,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-TITLE_PADDING = 2
+TITLE_PADDING = 1
 TITLE_ICON_PADDING = 2
 TITLE_TEXT_Y_OFFSET = -2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
