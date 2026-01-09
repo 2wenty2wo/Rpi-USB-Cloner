@@ -20,7 +20,8 @@ class MenuScreen:
 
 
 SCREEN_ICONS: Dict[str, str] = {
-    "main": chr(57718),
+    # Lucide decimal 59059 (layers-plus).
+    "main": chr(59059),
     "settings": chr(57925),
     "develop": "",
     "update": "",

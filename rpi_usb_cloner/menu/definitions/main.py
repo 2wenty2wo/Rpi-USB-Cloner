@@ -12,7 +12,7 @@ from .settings import SETTINGS_MENU
 
 MAIN_MENU = MenuScreen(
     screen_id="main",
-    title="MAIN MENU",
+    title="Rpi USB CLONER",
     items=[
         menu_entry("DRIVES", submenu=DRIVES_MENU),
         menu_entry("IMAGES", submenu=IMAGES_MENU),
