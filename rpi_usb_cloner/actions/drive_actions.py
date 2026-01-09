@@ -436,6 +436,33 @@ def _build_device_info_lines(
         lines.append(line)
         return True
 
+    # Add device-level information
+    serial = (device.get("serial") or "").strip()
+    if serial:
+        if not append_line(f"serial: {serial}"):
+            return lines
+
+    # Determine device type (SSD/HDD)
+    rota = device.get("rota")
+    if rota is not None:
+        device_type = "HDD" if rota == "1" or rota == 1 else "SSD"
+        if not append_line(f"type: {device_type}"):
+            return lines
+
+    # Add partition table information
+    pttype = (device.get("pttype") or "").strip()
+    if pttype:
+        if not append_line(f"table: {pttype}"):
+            return lines
+
+    ptuuid = (device.get("ptuuid") or "").strip()
+    if ptuuid:
+        # Truncate UUID if too long
+        display_uuid = ptuuid if len(ptuuid) <= 20 else f"{ptuuid[:17]}..."
+        if not append_line(f"uuid: {display_uuid}"):
+            return lines
+
+    # Add partition information
     for child in get_children(device):
         if max_lines is not None and len(lines) >= max_lines:
             break
@@ -504,7 +531,7 @@ def _view_devices(
         lines,
         page_index=page_index,
         title_font=display.get_display_context().fontcopy,
-        title_icon=chr(57681),
+        title_icon=chr(57581),  # drives icon (same as drives menu)
     )
 
 
