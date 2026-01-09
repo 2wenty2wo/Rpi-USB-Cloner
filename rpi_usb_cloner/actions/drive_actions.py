@@ -430,6 +430,10 @@ def _build_device_info_lines(
         header = f"{header} {vendor_model}"
     lines.append(header.strip())
 
+    # Debug: Log device keys
+    _log_debug(log_debug, f"Device keys: {list(device.keys())}")
+    _log_debug(log_debug, f"Serial: {device.get('serial')}, ROTA: {device.get('rota')}, PTTYPE: {device.get('pttype')}, PTUUID: {device.get('ptuuid')}")
+
     def append_line(line: str) -> bool:
         if max_lines is not None and len(lines) >= max_lines:
             return False
