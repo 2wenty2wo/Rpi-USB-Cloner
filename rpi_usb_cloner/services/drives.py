@@ -67,9 +67,12 @@ See Also:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Set
 
+from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
+from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
 
 
@@ -79,24 +82,88 @@ class DriveSnapshot:
     active: Optional[str]
 
 
+def _collect_mountpoints(device: dict) -> Set[str]:
+    """Collect all mountpoints for a device and its partitions."""
+    mountpoints: Set[str] = set()
+    stack = [device]
+    while stack:
+        current = stack.pop()
+        mountpoint = current.get("mountpoint")
+        if mountpoint:
+            mountpoints.add(mountpoint)
+        stack.extend(storage_devices.get_children(current))
+    return mountpoints
+
+
+def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
+    """Return True if repo_path is on mount_path, matching path boundaries."""
+    return repo_path == mount_path or mount_path in repo_path.parents
+
+
+def _get_repo_device_names() -> Set[str]:
+    """Get the set of device names that are repo drives."""
+    repos = find_image_repos()
+    if not repos:
+        return set()
+
+    repo_devices: Set[str] = set()
+    usb_devices = list_usb_disks()
+    repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
+
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        if any(
+            _is_repo_on_mount(repo_path, Path(mount).resolve(strict=False))
+            for mount in mountpoints
+            for repo_path in repo_paths
+        ):
+            device_name = device.get("name")
+            if device_name:
+                repo_devices.add(device_name)
+
+    return repo_devices
+
+
 def list_media_drive_names() -> List[str]:
-    return [get_device_name(device) for device in list_media_devices()]
+    """List media drive names, excluding repo drives."""
+    repo_devices = _get_repo_device_names()
+    return [
+        get_device_name(device)
+        for device in list_media_devices()
+        if get_device_name(device) not in repo_devices
+    ]
 
 
 def list_media_drive_labels() -> List[str]:
+    """List media drive labels, excluding repo drives."""
+    repo_devices = _get_repo_device_names()
     labels = []
     for device in list_media_devices():
-        label = f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB"
-        labels.append(label)
+        device_name = get_device_name(device)
+        if device_name not in repo_devices:
+            label = f"{device_name} {get_size(device) / 1024 ** 3:.2f}GB"
+            labels.append(label)
     return labels
 
 
 def list_usb_disk_names() -> List[str]:
-    return [device.get("name") for device in list_usb_disks() if device.get("name")]
+    """List USB disk names, excluding repo drives."""
+    repo_devices = _get_repo_device_names()
+    return [
+        device.get("name")
+        for device in list_usb_disks()
+        if device.get("name") and device.get("name") not in repo_devices
+    ]
 
 
 def list_usb_disk_labels() -> List[str]:
-    return [format_device_label(device) for device in list_usb_disks()]
+    """List USB disk labels, excluding repo drives."""
+    repo_devices = _get_repo_device_names()
+    return [
+        format_device_label(device)
+        for device in list_usb_disks()
+        if device.get("name") not in repo_devices
+    ]
 
 
 def refresh_drives(active_drive: Optional[str]) -> DriveSnapshot:
