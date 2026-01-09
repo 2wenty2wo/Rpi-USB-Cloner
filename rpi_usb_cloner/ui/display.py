@@ -391,10 +391,8 @@ def draw_title_with_icon(
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     # Draw title aligned to baseline
-    if title_text and title_bbox:
-        title_y = (
-            baseline_y - (title_bbox[1] + title_bbox[3]) // 2 + TITLE_TEXT_Y_OFFSET
-        )
+    if title_text:
+        title_y = baseline_y - title_ascent + TITLE_TEXT_Y_OFFSET
         title_y = max(context.top, title_y)
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
