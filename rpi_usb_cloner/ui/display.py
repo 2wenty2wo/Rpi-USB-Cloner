@@ -353,6 +353,15 @@ def draw_title_with_icon(
     else:
         available_width = 0
 
+    if not title_text:
+        return TitleLayout(
+            content_top=context.top,
+            title_x=title_x,
+            max_title_width=available_width,
+            icon_width=icon_width,
+            icon_height=0,
+        )
+
     # Calculate line height based on visual height (top to bottom of bbox)
     icon_height = (icon_bbox[3] - icon_bbox[1]) if icon_bbox else 0
     title_height = (title_bbox[3] - title_bbox[1]) if title_bbox else 0
