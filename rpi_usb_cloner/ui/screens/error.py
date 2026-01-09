@@ -88,15 +88,15 @@ def render_error_screen(
     # Center horizontally
     content_x = (context.width - total_width) // 2
 
-    # Draw icon if present
+    # Draw icon if present - vertically centered within content area
     if message_icon and message_icon_font:
-        # Vertically center icon with text
-        icon_y = content_y + (text_height - icon_height) // 2
+        icon_y = content_y + (content_height - icon_height) // 2
         draw.text((content_x, icon_y), message_icon, font=message_icon_font, fill=255)
 
-    # Draw message text
+    # Draw message text - vertically centered within content area
     text_x = content_x + icon_width + icon_padding
-    draw.text((text_x, content_y), message, font=body_font, fill=255)
+    text_y = content_y + (content_height - text_height) // 2
+    draw.text((text_x, text_y), message, font=body_font, fill=255)
 
     # Display to screen
     context.disp.display(context.image)

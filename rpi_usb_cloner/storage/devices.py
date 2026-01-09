@@ -136,7 +136,7 @@ def format_device_label(device):
 def get_block_devices():
     try:
         result = run_command(
-            ["lsblk", "-J", "-b", "-o", "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL"]
+            ["lsblk", "-J", "-b", "-o", "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID"]
         )
         data = json.loads(result.stdout)
         return data.get("blockdevices", [])
