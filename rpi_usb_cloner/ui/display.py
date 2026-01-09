@@ -395,6 +395,10 @@ def draw_title_with_icon(
             icon_visual_center_offset = (icon_bbox[1] + icon_bbox[3]) / 2
             icon_y = title_visual_center_y - icon_visual_center_offset
 
+            # Ensure icon doesn't go off-screen at the top
+            # Account for icon bbox top offset to keep visible pixels on-screen
+            icon_y = max(0 - icon_bbox[1], icon_y)
+
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
