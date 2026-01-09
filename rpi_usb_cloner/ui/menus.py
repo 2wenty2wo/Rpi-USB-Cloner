@@ -503,7 +503,7 @@ def select_erase_mode():
         "ERASE MODE",
         [mode.upper() for mode in modes],
         title_font=display.get_display_context().fontcopy,
-        title_icon=chr(57741),
+        title_icon=chr(57639),
     )
     if selected_index is None:
         return None
