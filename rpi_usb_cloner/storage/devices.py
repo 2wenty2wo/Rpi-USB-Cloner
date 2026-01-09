@@ -219,6 +219,7 @@ def unmount_device_with_retry(
     Returns:
         Tuple of (success, used_lazy_unmount)
     """
+    import os
     import time
 
     device_name = device.get("name")
@@ -226,6 +227,28 @@ def unmount_device_with_retry(
     def log(msg: str):
         if log_debug:
             log_debug(msg)
+
+    def is_mountpoint_active(mountpoint: str) -> bool:
+        try:
+            with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
+                for line in mounts_file:
+                    parts = line.split()
+                    if len(parts) > 1 and parts[1] == mountpoint:
+                        return True
+        except FileNotFoundError:
+            return os.path.ismount(mountpoint)
+        return False
+
+    def filter_active_mountpoints(
+        mountpoint_list: list[tuple[str, str]],
+    ) -> list[tuple[str, str]]:
+        active = []
+        for partition_name, mountpoint in mountpoint_list:
+            if is_mountpoint_active(mountpoint):
+                active.append((partition_name, mountpoint))
+            else:
+                log(f"{mountpoint} already unmounted")
+        return active
 
     # Collect all mountpoints
     mountpoints = []
@@ -250,9 +273,14 @@ def unmount_device_with_retry(
     # Try normal unmount first (3 attempts)
     for attempt in range(1, 4):
         log(f"Unmount attempt {attempt}/3...")
+        active_mountpoints = filter_active_mountpoints(mountpoints)
+        if not active_mountpoints:
+            log("Successfully unmounted all partitions")
+            return True, False
+
         all_unmounted = True
 
-        for partition_name, mountpoint in mountpoints:
+        for partition_name, mountpoint in active_mountpoints:
             try:
                 run_command(["umount", mountpoint], check=True)
                 log(f"Unmounted {mountpoint}")
@@ -260,7 +288,7 @@ def unmount_device_with_retry(
                 log(f"Failed to unmount {mountpoint}: {error}")
                 all_unmounted = False
 
-        if all_unmounted:
+        if all_unmounted and not filter_active_mountpoints(mountpoints):
             log("Successfully unmounted all partitions")
             return True, False
 
@@ -276,7 +304,12 @@ def unmount_device_with_retry(
 
     # Try lazy unmount
     all_unmounted = True
-    for partition_name, mountpoint in mountpoints:
+    active_mountpoints = filter_active_mountpoints(mountpoints)
+    if not active_mountpoints:
+        log("All partitions already unmounted before lazy unmount")
+        return True, False
+
+    for partition_name, mountpoint in active_mountpoints:
         try:
             run_command(["umount", "-l", mountpoint], check=True)
             log(f"Lazy unmounted {mountpoint}")
@@ -284,7 +317,7 @@ def unmount_device_with_retry(
             log(f"Failed to lazy unmount {mountpoint}: {error}")
             all_unmounted = False
 
-    if all_unmounted:
+    if all_unmounted and not filter_active_mountpoints(mountpoints):
         log("Successfully lazy unmounted all partitions")
         return True, True
 

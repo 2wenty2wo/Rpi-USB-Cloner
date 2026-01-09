@@ -262,7 +262,8 @@ def format_device(
         return False
 
     device_path = f"/dev/{device_name}"
-    partition_path = f"/dev/{device_name}1"
+    partition_suffix = "p" if device_name[-1].isdigit() else ""
+    partition_path = f"/dev/{device_name}{partition_suffix}1"
 
     # Validate device path
     if not _validate_device_path(device_path):
