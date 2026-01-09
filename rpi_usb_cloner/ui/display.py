@@ -388,13 +388,12 @@ def draw_title_with_icon(
 
         # Center icon with text using visual bounding box heights
         if icon:
-            # Get actual visual heights from bounding boxes
-            title_visual_height = title_bbox[3] - title_bbox[1]
-            icon_visual_height = icon_bbox[3] - icon_bbox[1]
-
-            # Calculate visual centers and align them
-            title_visual_center_y = title_y + title_visual_height / 2
-            icon_y = title_visual_center_y - icon_visual_height / 2
+            # Calculate visual center using bbox offsets
+            # bbox format: (left, top, right, bottom) relative to anchor point
+            # Visual center = anchor_y + (bbox_top + bbox_bottom) / 2
+            title_visual_center_y = title_y + (title_bbox[1] + title_bbox[3]) / 2
+            icon_visual_center_offset = (icon_bbox[1] + icon_bbox[3]) / 2
+            icon_y = title_visual_center_y - icon_visual_center_offset
 
             draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
