@@ -51,8 +51,6 @@ def render_menu_screen(
     title_icon_font=None,
     items_font=None,
     status_font=None,
-    status_icon: Optional[str] = None,
-    status_icon_font=None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -108,21 +106,9 @@ def render_menu_screen(
         footer_height = _get_line_height(footer_font)
         footer_padding = 1
         footer_y = context.height - footer_height - footer_padding
-
-        # Calculate icon width if status icon is provided
-        icon_width = 0
-        icon_padding = 2
-        if status_icon:
-            icon_font = status_icon_font or display._get_lucide_font()
-            icon_width = display._measure_text_width(draw, status_icon, icon_font)
-            # Draw the status icon
-            draw.text((left_margin, footer_y), status_icon, font=icon_font, fill=255)
-
-        # Calculate text position accounting for icon
-        text_x = left_margin + (icon_width + icon_padding if icon_width else 0)
-        max_status_width = context.width - text_x - 1
+        max_status_width = context.width - left_margin - 1
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
-        draw.text((text_x, footer_y), footer_text, font=footer_font, fill=255)
+        draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=255)
 
     context.disp.display(context.image)
 

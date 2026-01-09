@@ -389,11 +389,6 @@ def main(argv=None):
             dynamic_visible_rows,
         )
         if force or render_key != last_render_state["key"]:
-            # Add chevrons-right icon to drives screen footer
-            status_icon = None
-            if current_screen.screen_id == definitions.DRIVES_MENU.screen_id and status_line:
-                status_icon = chr(57459)  # chevrons-right lucide icon
-
             renderer.render_menu_screen(
                 title=current_screen.title,
                 items=items,
@@ -402,7 +397,6 @@ def main(argv=None):
                 status_line=status_line,
                 visible_rows=dynamic_visible_rows,
                 title_icon=get_screen_icon(current_screen.screen_id),
-                status_icon=status_icon,
             )
             last_render_state["key"] = render_key
 
