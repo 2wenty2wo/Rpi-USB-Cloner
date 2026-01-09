@@ -139,9 +139,12 @@ def calculate_visible_rows(
     row_height = _get_line_height(list_font) + 1
 
     footer_height = 0
+    footer_gap = 0
     if status_line:
         footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
+        # Add minimum gap between menu items and footer to prevent overlap
+        footer_gap = 4
 
-    available_height = context.height - current_y - footer_height - padding
+    available_height = context.height - current_y - footer_height - footer_gap - padding
     return max(1, available_height // row_height)
