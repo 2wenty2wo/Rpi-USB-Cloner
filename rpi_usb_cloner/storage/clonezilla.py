@@ -1615,7 +1615,7 @@ def verify_restored_image(
     *,
     progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> bool:
-    """Verify that restored partitions match the source image using partclone CRC checks.
+    """Verify that restored partitions match the source image using SHA256 checksums.
 
     Args:
         plan: The restore plan containing image information
@@ -1625,7 +1625,12 @@ def verify_restored_image(
     Returns:
         True if verification succeeds, False otherwise
     """
-    target_node = f"/dev/{target_device}"
+    sha256_path = shutil.which("sha256sum")
+    if not sha256_path:
+        if progress_callback:
+            progress_callback(["sha256sum", "not found"], None)
+        return False
+
     target_dev = devices.get_device_by_name(target_device)
     if not target_dev:
         if progress_callback:
@@ -1657,47 +1662,155 @@ def verify_restored_image(
                 progress_callback([f"V {index}/{total_parts}", "Partition missing"], None)
             return False
 
-        # Use partclone to verify CRC if it's a partclone image
-        if op.tool == "partclone" and op.fstype:
-            fstype = op.fstype.lower()
-            tool = _get_partclone_tool(fstype)
-            if not tool:
-                # Can't verify without partclone tool, skip
-                if progress_callback:
-                    progress_callback([f"V {index}/{total_parts}", f"Skip {op.partition}"],
-                                    index / total_parts)
-                continue
+        if progress_callback:
+            progress_callback([f"V {index}/{total_parts} IMG", op.partition],
+                            (index - 0.5) / total_parts)
 
+        # Compute SHA256 of the image file(s)
+        try:
+            image_hash = _compute_image_sha256(op.image_files, op.compressed)
+        except Exception as e:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", f"Check {op.partition}"],
-                                index / total_parts)
+                progress_callback([f"V {index}/{total_parts}", "Image hash error"], None)
+            return False
 
-            # Use partclone -C to check the CRC in the restored partition
-            try:
-                result = subprocess.run(
-                    [tool, "-C", "-s", target_part],
-                    capture_output=True,
-                    text=True,
-                    timeout=600,
-                )
+        if progress_callback:
+            progress_callback([f"V {index}/{total_parts} DST", op.partition],
+                            (index - 0.25) / total_parts)
 
-                if result.returncode != 0:
-                    if progress_callback:
-                        progress_callback([f"V {index}/{total_parts}", f"Failed {op.partition}"], None)
-                    return False
-
-            except (subprocess.TimeoutExpired, Exception) as e:
-                if progress_callback:
-                    progress_callback([f"V {index}/{total_parts}", "Error"], None)
-                return False
-        else:
-            # For dd images, we can't verify without reading the entire image
-            # Just skip verification for now
+        # Compute SHA256 of the target partition
+        try:
+            target_hash = _compute_partition_sha256(target_part)
+        except Exception as e:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", f"Skip {op.partition}"],
-                                index / total_parts)
+                progress_callback([f"V {index}/{total_parts}", "Target hash error"], None)
+            return False
+
+        if image_hash != target_hash:
+            if progress_callback:
+                progress_callback([f"V {index}/{total_parts}", f"Mismatch {op.partition}"], None)
+            return False
 
     if progress_callback:
         progress_callback(["VERIFY", "Complete"], 1.0)
 
     return True
+
+
+def _compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
+    """Compute SHA256 of image files (decompressing if needed)."""
+    if not image_files:
+        raise RuntimeError("No image files")
+
+    image_files = _sorted_clonezilla_volumes(image_files)
+
+    # Start with cat to concatenate all volume files
+    cat_proc = subprocess.Popen(
+        ["cat", *[str(path) for path in image_files]],
+        stdout=subprocess.PIPE,
+    )
+    upstream = cat_proc.stdout
+
+    decompress_proc = None
+    if compressed:
+        compression_type = _get_compression_type(image_files)
+        if compression_type == "gzip":
+            gzip_path = shutil.which("pigz") or shutil.which("gzip")
+            if not gzip_path:
+                raise RuntimeError("gzip not found")
+            decompress_proc = subprocess.Popen(
+                [gzip_path, "-dc"],
+                stdin=upstream,
+                stdout=subprocess.PIPE,
+            )
+            upstream = decompress_proc.stdout
+        elif compression_type == "zstd":
+            zstd_path = shutil.which("pzstd") or shutil.which("zstd")
+            if not zstd_path:
+                raise RuntimeError("zstd not found")
+            decompress_proc = subprocess.Popen(
+                [zstd_path, "-dc"],
+                stdin=upstream,
+                stdout=subprocess.PIPE,
+            )
+            upstream = decompress_proc.stdout
+
+    if upstream is None:
+        raise RuntimeError("Failed to create image stream")
+
+    # Pipe to sha256sum
+    sha256_path = shutil.which("sha256sum")
+    if not sha256_path:
+        raise RuntimeError("sha256sum not found")
+
+    sha_proc = subprocess.Popen(
+        [sha256_path],
+        stdin=upstream,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    # Close upstream in parent process
+    if decompress_proc and decompress_proc.stdout:
+        decompress_proc.stdout.close()
+    elif cat_proc.stdout:
+        cat_proc.stdout.close()
+
+    sha_out, sha_err = sha_proc.communicate()
+
+    # Wait for all processes
+    cat_proc.wait()
+    if decompress_proc:
+        decompress_proc.wait()
+
+    if sha_proc.returncode != 0:
+        raise RuntimeError(f"sha256sum failed: {sha_err}")
+    if cat_proc.returncode != 0:
+        raise RuntimeError("cat failed")
+    if decompress_proc and decompress_proc.returncode != 0:
+        raise RuntimeError("decompression failed")
+
+    checksum = sha_out.split()[0] if sha_out else ""
+    if not checksum:
+        raise RuntimeError("No checksum returned")
+
+    return checksum
+
+
+def _compute_partition_sha256(partition_path: str) -> str:
+    """Compute SHA256 of a partition."""
+    dd_path = shutil.which("dd")
+    sha256_path = shutil.which("sha256sum")
+    if not dd_path or not sha256_path:
+        raise RuntimeError("dd or sha256sum not found")
+
+    dd_proc = subprocess.Popen(
+        [dd_path, f"if={partition_path}", "bs=4M", "status=none"],
+        stdout=subprocess.PIPE,
+    )
+
+    sha_proc = subprocess.Popen(
+        [sha256_path],
+        stdin=dd_proc.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    if dd_proc.stdout:
+        dd_proc.stdout.close()
+
+    sha_out, sha_err = sha_proc.communicate()
+    dd_proc.wait()
+
+    if sha_proc.returncode != 0:
+        raise RuntimeError(f"sha256sum failed: {sha_err}")
+    if dd_proc.returncode != 0:
+        raise RuntimeError("dd failed")
+
+    checksum = sha_out.split()[0] if sha_out else ""
+    if not checksum:
+        raise RuntimeError("No checksum returned")
+
+    return checksum
