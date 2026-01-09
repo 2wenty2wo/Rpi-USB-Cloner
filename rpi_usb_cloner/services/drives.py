@@ -67,6 +67,7 @@ See Also:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Set
 
 from rpi_usb_cloner.storage import devices as storage_devices
@@ -94,6 +95,11 @@ def _collect_mountpoints(device: dict) -> Set[str]:
     return mountpoints
 
 
+def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
+    """Return True if repo_path is on mount_path, matching path boundaries."""
+    return repo_path == mount_path or mount_path in repo_path.parents
+
+
 def _get_repo_device_names() -> Set[str]:
     """Get the set of device names that are repo drives."""
     repos = find_image_repos()
@@ -102,10 +108,15 @@ def _get_repo_device_names() -> Set[str]:
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
+    repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
 
     for device in usb_devices:
         mountpoints = _collect_mountpoints(device)
-        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
+        if any(
+            _is_repo_on_mount(repo_path, Path(mount).resolve(strict=False))
+            for mount in mountpoints
+            for repo_path in repo_paths
+        ):
             device_name = device.get("name")
             if device_name:
                 repo_devices.add(device_name)
