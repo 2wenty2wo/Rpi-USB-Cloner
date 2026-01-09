@@ -126,12 +126,11 @@ def render_progress_screen(
                 temp_draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
 
                 # Copy only the pixels where the filled bar overlaps with text
+                # Use the bar's inner bounds to ensure we cover all text pixels
                 pixels = context.image.load()
                 temp_pixels = temp_img.load()
-                text_right = text_x + text_width
-                text_bottom = text_y + text_height
-                for y in range(max(0, text_y), min(context.height, text_bottom + 1)):
-                    for x in range(max(0, text_x), min(context.width, text_right)):
+                for y in range(inner_top, inner_bottom):
+                    for x in range(inner_left, inner_right):
                         if temp_pixels[x, y] and x < fill_right:  # Text pixel in filled region
                             pixels[x, y] = 0  # Draw in black
 
