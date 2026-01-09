@@ -125,17 +125,21 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     row_height_per_line = line_height + 2
 
     left_margin = context.x - 11
-    max_width = menu.max_width if menu.max_width is not None else (context.width - left_margin - 1)
+    # Calculate selector width for consistent alignment
+    selector = "> "
+    selector_width = display._measure_text_width(draw, selector, items_font)
+    if menu.max_width is not None:
+        max_width = max(0, menu.max_width - selector_width)
+    else:
+        max_width = context.width - left_margin - selector_width - 1
     now = time.monotonic()
     for item_index, item in enumerate(menu.items):
         lines = item.lines
         row_height = max(len(lines), 1) * row_height_per_line
         row_top = current_y
         is_selected = item_index == menu.selected_index
-        if is_selected:
-            draw.rectangle((0, row_top, width, row_top + row_height - 1), outline=0, fill=1)
         for line_index, line in enumerate(lines):
-            text_color = 0 if is_selected else 255
+            text_color = 255
             x_offset = 0
             display_line = line
             if menu.screen_id == "images" and not is_selected:
@@ -163,8 +167,17 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                         if phase >= pause_duration:
                             travel_phase = phase - pause_duration
                             x_offset = -int((travel_phase * scroll_speed) % cycle_width)
+            # Draw selector for selected item (only on first line)
+            if is_selected and line_index == 0:
+                draw.text(
+                    (left_margin, row_top + 1),
+                    selector,
+                    font=items_font,
+                    fill=text_color,
+                )
+            # Draw text with offset for alignment
             draw.text(
-                (left_margin + x_offset, row_top + 1 + line_index * row_height_per_line),
+                (left_margin + selector_width + x_offset, row_top + 1 + line_index * row_height_per_line),
                 display_line,
                 font=items_font,
                 fill=text_color,

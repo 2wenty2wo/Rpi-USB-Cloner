@@ -86,7 +86,10 @@ def render_menu_screen(
     )
     visible_rows = min(visible_rows, max_visible_rows)
 
-    max_item_width = context.width - left_margin - 1
+    # Calculate selector width for consistent alignment
+    selector = "> "
+    selector_width = _measure_text_width(list_font, selector)
+    max_item_width = context.width - left_margin - selector_width - 1
     items_list = [
         _truncate_text(item, list_font, max_item_width) for item in list(items)
     ]
@@ -96,10 +99,12 @@ def render_menu_screen(
         row_top = current_y + row_index * row_height
         text_y = row_top + max(0, (row_height - line_height) // 2)
         is_selected = item_index == selected_index
+        text_color = 255
+        # Draw selector for selected item
         if is_selected:
-            draw.rectangle((0, row_top, context.width, row_top + row_height - 1), outline=0, fill=1)
-        text_color = 0 if is_selected else 255
-        draw.text((left_margin, text_y), items_list[item_index], font=list_font, fill=text_color)
+            draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
+        # Draw text with offset for alignment
+        draw.text((left_margin + selector_width, text_y), items_list[item_index], font=list_font, fill=text_color)
 
     if status_line:
         footer_font = status_font or list_font
