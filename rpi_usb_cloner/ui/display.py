@@ -381,25 +381,19 @@ def draw_title_with_icon(
     icon_line_height = icon_ascent + icon_descent
     line_height = max(title_line_height, icon_line_height)
 
-    # Position title text at a fixed location for consistency across all screens
-    # Then center the icon to match the title's vertical position
+    # Align both glyphs on the same baseline
+    baseline_y = context.top + max(title_ascent, icon_ascent)
+
+    # Draw icon aligned to baseline
+    if icon and (title_text or title):
+        icon_y = baseline_y - icon_ascent + ICON_BASELINE_ADJUST
+        icon_y = max(context.top, icon_y)
+        draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
+
+    # Draw title aligned to baseline
     if title_text:
-        # Draw title at a consistent position (based on its ascent from top)
-        title_y = context.top + title_ascent + TITLE_TEXT_Y_OFFSET
+        title_y = baseline_y - title_ascent + TITLE_TEXT_Y_OFFSET
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
-
-        # If there's an icon, center it vertically with the title text
-        if icon:
-            # Get actual visual heights from bounding boxes
-            icon_visual_height = icon_bbox[3] - icon_bbox[1] if icon_bbox else icon_line_height
-            title_visual_height = title_bbox[3] - title_bbox[1] if title_bbox else title_line_height
-
-            # Calculate the visual center of the title text
-            title_visual_center = title_y + title_visual_height // 2
-
-            # Center the icon to match the title's visual center
-            icon_y = title_visual_center - icon_visual_height // 2 + ICON_BASELINE_ADJUST
-            draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
