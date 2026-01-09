@@ -335,14 +335,23 @@ def draw_title_with_icon(
     icon_width = 0
     icon_bbox = None
     title_bbox = None
+    title_text = ""
 
     if icon:
         icon_font = icon_font or _get_lucide_font()
         icon_width = _measure_text_width(draw, icon, icon_font)
         icon_bbox = icon_font.getbbox(icon)
 
+    title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
     if title:
-        title_bbox = header_font.getbbox("Ag")  # Use sample text for consistent height
+        available_width = (
+            max_width if max_width is not None else max(0, context.width - title_x - 1)
+        )
+        title_text = _truncate_text(draw, title, header_font, available_width)
+        if title_text:
+            title_bbox = draw.textbbox((0, 0), title_text, font=header_font)
+    else:
+        available_width = 0
 
     # Calculate line height based on visual height (top to bottom of bbox)
     icon_height = (icon_bbox[3] - icon_bbox[1]) if icon_bbox else 0
@@ -353,7 +362,7 @@ def draw_title_with_icon(
     center_y = context.top + line_height // 2
 
     # Draw icon vertically centered
-    if title and icon:
+    if icon and (title_text or title):
         # Position icon so its visual center aligns with center_y
         # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
         icon_y = center_y - (icon_bbox[1] + icon_bbox[3]) // 2
@@ -361,28 +370,14 @@ def draw_title_with_icon(
         icon_y = max(context.top, icon_y)
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
-    title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
-    if not title:
-        return TitleLayout(
-            content_top=context.top,
-            title_x=title_x,
-            max_title_width=0,
-            icon_width=icon_width,
-            icon_height=icon_height,
-        )
-
-    available_width = (
-        max_width if max_width is not None else max(0, context.width - title_x - 1)
-    )
-    title_text = _truncate_text(draw, title, header_font, available_width)
-
     # Draw title vertically centered
     # Position title so its visual center aligns with center_y
     # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
-    title_y = center_y - (title_bbox[1] + title_bbox[3]) // 2
-    # Ensure title never renders above display top
-    title_y = max(context.top, title_y)
-    draw.text((title_x, title_y), title_text, font=header_font, fill=255)
+    if title_text and title_bbox:
+        title_y = center_y - (title_bbox[1] + title_bbox[3]) // 2
+        # Ensure title never renders above display top
+        title_y = max(context.top, title_y)
+        draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
