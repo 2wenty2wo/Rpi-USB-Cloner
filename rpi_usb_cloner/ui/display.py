@@ -381,29 +381,25 @@ def draw_title_with_icon(
     icon_line_height = icon_ascent + icon_descent
     line_height = max(title_line_height, icon_line_height)
 
-    # Use visual centering based on actual bounding boxes for better alignment
-    # regardless of icon height variations
-    if icon and (title_text or title):
-        # Get actual visual heights from bounding boxes
-        icon_visual_height = icon_bbox[3] - icon_bbox[1] if icon_bbox else icon_line_height
-        title_visual_height = title_bbox[3] - title_bbox[1] if title_bbox else title_line_height
-
-        # Calculate vertical center position for the line
-        center_y = context.top + line_height // 2
-
-        # Draw icon centered vertically
-        icon_y = center_y - icon_visual_height // 2 + ICON_BASELINE_ADJUST
-        draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
-
-        # Draw title centered vertically
-        title_y = center_y - title_visual_height // 2 + TITLE_TEXT_Y_OFFSET
+    # Position title text at a fixed location for consistency across all screens
+    # Then center the icon to match the title's vertical position
+    if title_text:
+        # Draw title at a consistent position (based on its ascent from top)
+        title_y = context.top + title_ascent + TITLE_TEXT_Y_OFFSET
         draw.text((title_x, title_y), title_text, font=header_font, fill=255)
-    elif title_text:
-        # No icon, just draw title
-        title_visual_height = title_bbox[3] - title_bbox[1] if title_bbox else title_line_height
-        center_y = context.top + line_height // 2
-        title_y = center_y - title_visual_height // 2 + TITLE_TEXT_Y_OFFSET
-        draw.text((title_x, title_y), title_text, font=header_font, fill=255)
+
+        # If there's an icon, center it vertically with the title text
+        if icon:
+            # Get actual visual heights from bounding boxes
+            icon_visual_height = icon_bbox[3] - icon_bbox[1] if icon_bbox else icon_line_height
+            title_visual_height = title_bbox[3] - title_bbox[1] if title_bbox else title_line_height
+
+            # Calculate the visual center of the title text
+            title_visual_center = title_y + title_visual_height // 2
+
+            # Center the icon to match the title's visual center
+            icon_y = title_visual_center - icon_visual_height // 2 + ICON_BASELINE_ADJUST
+            draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
