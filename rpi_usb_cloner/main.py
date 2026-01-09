@@ -117,6 +117,7 @@ from rpi_usb_cloner.storage.mount import (
     list_media_devices,
 )
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
+from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
@@ -179,6 +180,7 @@ def main(argv=None):
     display.configure_display_helpers(log_debug=log_debug)
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
+    configure_format_helpers(log_debug=log_debug)
     wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
 
     state = app_state.AppState()

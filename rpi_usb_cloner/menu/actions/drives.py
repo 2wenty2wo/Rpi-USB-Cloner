@@ -50,6 +50,30 @@ def drive_info() -> None:
     context.show_drive_info()
 
 
+def format_drive() -> None:
+    context = get_action_context()
+    if not _ensure_drive_selected():
+        return
+    _run_operation(
+        lambda: drive_actions.format_drive(
+            state=context.state,
+            log_debug=context.log_debug,
+            get_selected_usb_name=context.get_selected_usb_name,
+        )
+    )
+
+
+def unmount_drive() -> None:
+    context = get_action_context()
+    if not _ensure_drive_selected():
+        return
+    drive_actions.unmount_drive(
+        state=context.state,
+        log_debug=context.log_debug,
+        get_selected_usb_name=context.get_selected_usb_name,
+    )
+
+
 def erase_drive() -> None:
     context = get_action_context()
     if not _ensure_drive_selected():

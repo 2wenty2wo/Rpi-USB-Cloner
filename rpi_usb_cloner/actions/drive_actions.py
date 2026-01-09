@@ -535,6 +535,339 @@ def _view_devices(
     )
 
 
+def format_drive(
+    *,
+    state: app_state.AppState,
+    log_debug: Optional[Callable[[str], None]],
+    get_selected_usb_name: Callable[[], Optional[str]],
+) -> None:
+    """Format a USB drive with user-selected filesystem."""
+    from rpi_usb_cloner.storage.format import format_device
+    from rpi_usb_cloner.ui import keyboard
+
+    # Get target device
+    repo_devices = _get_repo_device_names()
+    target_devices = [
+        device for device in list_usb_disks() if device.get("name") not in repo_devices
+    ]
+    if not target_devices:
+        display.display_lines(["FORMAT", "No USB found"])
+        time.sleep(1)
+        return
+
+    target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
+    selected_name = get_selected_usb_name()
+    target = None
+    if selected_name:
+        for device in target_devices:
+            if device.get("name") == selected_name:
+                target = device
+                break
+    if not target:
+        target = target_devices[-1]
+
+    target_name = target.get("name")
+    target_size = target.get("size", 0)
+
+    # Select filesystem type (size-based default)
+    filesystem = menus.select_filesystem_type(target_size)
+    if not filesystem:
+        return
+
+    # Select format type (quick or full)
+    format_type = menus.select_format_type()
+    if not format_type:
+        return
+
+    # Warn about full format being slow
+    if format_type == "full":
+        prompt_lines = ["Full format is SLOW!", "Continue?"]
+        if not _confirm_destructive_action(
+            state=state,
+            log_debug=log_debug,
+            prompt_lines=prompt_lines,
+        ):
+            return
+
+    # Optional: Get partition label
+    # Show confirmation screen to decide whether to add label
+    title = "ADD LABEL?"
+    prompt = "Add partition label?"
+    selection = [app_state.CONFIRM_NO]
+
+    def render():
+        screens.render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection[0],
+            title_icon=chr(58367),  # sparkles icon
+        )
+
+    render()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    def on_right():
+        if selection[0] == app_state.CONFIRM_NO:
+            selection[0] = app_state.CONFIRM_YES
+            _log_debug(log_debug, "Label selection changed: YES")
+
+    def on_left():
+        if selection[0] == app_state.CONFIRM_YES:
+            selection[0] = app_state.CONFIRM_NO
+            _log_debug(log_debug, "Label selection changed: NO")
+
+    add_label = gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel - no label
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
+            gpio.PIN_C: lambda: None,
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render,
+    )
+
+    # Get label if user chose to add one
+    label = None
+    if add_label:
+        label = keyboard.prompt_text(
+            title="LABEL",
+            initial="",
+            title_icon=chr(58367),  # sparkles icon
+        )
+        if label == "":
+            label = None
+
+    # Final confirmation with details
+    prompt_lines = [
+        f"FORMAT {target_name}",
+        f"TYPE {filesystem.upper()}",
+        f"MODE {format_type.upper()}",
+    ]
+    if not _confirm_destructive_action(
+        state=state,
+        log_debug=log_debug,
+        prompt_lines=prompt_lines,
+    ):
+        return
+
+    # Check root permissions
+    if not _ensure_root_for_erase():
+        return
+
+    # Threading pattern for progress screen
+    done = threading.Event()
+    result_holder: dict[str, bool] = {}
+    error_holder: dict[str, Exception] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Preparing..."]
+    progress_ratio: Optional[float] = 0.0
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        clamped = None
+        if ratio is not None:
+            clamped = max(0.0, min(1.0, float(ratio)))
+        with progress_lock:
+            progress_lines = lines
+            if clamped is not None:
+                progress_ratio = clamped
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            success = format_device(
+                target, filesystem, format_type, label=label, progress_callback=update_progress
+            )
+            result_holder["result"] = success
+        except Exception as exc:
+            error_holder["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "FORMAT",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=chr(58367),  # sparkles icon
+        )
+        time.sleep(0.1)
+
+    thread.join()
+
+    # Display final result
+    lines, ratio = current_progress()
+    screens.render_progress_screen(
+        "FORMAT",
+        lines,
+        progress_ratio=ratio,
+        animate=False,
+        title_icon=chr(58367),
+    )
+
+    if "error" in error_holder:
+        error = error_holder["error"]
+        _log_debug(log_debug, f"Format failed with exception: {error}")
+        screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
+    elif not result_holder.get("result", False):
+        _log_debug(log_debug, "Format failed")
+        screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
+    else:
+        screens.render_status_template("FORMAT", "Done", progress_line="Complete.")
+    time.sleep(1)
+
+
+def unmount_drive(
+    *,
+    state: app_state.AppState,
+    log_debug: Optional[Callable[[str], None]],
+    get_selected_usb_name: Callable[[], Optional[str]],
+) -> None:
+    """Unmount a USB drive and optionally power it off."""
+    from rpi_usb_cloner.storage.devices import unmount_device_with_retry, power_off_device
+
+    # Get target device
+    selected_name = get_selected_usb_name()
+    if not selected_name:
+        display.display_lines(["NO DRIVE", "SELECTED"])
+        time.sleep(1)
+        return
+
+    devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
+    if not devices_list:
+        display.display_lines(["DRIVE", "NOT FOUND"])
+        time.sleep(1)
+        return
+
+    device = devices_list[0]
+    device_name = device.get("name")
+
+    # Check for mounted partitions
+    mountpoints = _collect_mountpoints(device)
+
+    # Show mounted partitions info
+    info_lines = [f"{device_name}"]
+    if mountpoints:
+        info_lines.append(f"{len(mountpoints)} mounted")
+        for mp in list(mountpoints)[:3]:  # Show first 3
+            info_lines.append(f"  {mp}")
+    else:
+        info_lines.append("Not mounted")
+
+    # Display info screen
+    screens.render_info_screen(
+        "UNMOUNT",
+        info_lines,
+        page_index=0,
+        title_font=display.get_display_context().fontcopy,
+        title_icon=chr(57444),  # eject icon
+    )
+    time.sleep(1)
+
+    # Confirmation
+    title = "UNMOUNT"
+    prompt = f"Unmount {device_name}?"
+    selection = [app_state.CONFIRM_YES]  # Default to YES
+
+    def render():
+        screens.render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection[0],
+            title_icon=chr(57444),  # eject icon
+        )
+
+    render()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    def on_right():
+        if selection[0] == app_state.CONFIRM_NO:
+            selection[0] = app_state.CONFIRM_YES
+            _log_debug(log_debug, "Unmount selection changed: YES")
+
+    def on_left():
+        if selection[0] == app_state.CONFIRM_YES:
+            selection[0] = app_state.CONFIRM_NO
+            _log_debug(log_debug, "Unmount selection changed: NO")
+
+    confirmed = gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
+            gpio.PIN_C: lambda: None,
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render,
+    )
+
+    if not confirmed:
+        return
+
+    # Attempt to unmount
+    display.display_lines(["UNMOUNTING..."])
+    success, used_lazy = unmount_device_with_retry(device, log_debug=log_debug)
+
+    if not success:
+        display.display_lines(["UNMOUNT", "FAILED"])
+        time.sleep(1)
+        return
+
+    # Show success message
+    if used_lazy:
+        display.display_lines(["UNMOUNTED", "(lazy)"])
+    else:
+        display.display_lines(["UNMOUNTED"])
+    time.sleep(0.5)
+
+    # Offer to power off drive
+    title = "POWER OFF?"
+    prompt = f"Power off {device_name}?"
+    selection = [app_state.CONFIRM_YES]  # Default to YES
+
+    def render_poweroff():
+        screens.render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection[0],
+            title_icon=chr(57444),  # eject icon
+        )
+
+    render_poweroff()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    power_off_confirmed = gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
+            gpio.PIN_C: lambda: None,
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render_poweroff,
+    )
+
+    if power_off_confirmed:
+        display.display_lines(["POWERING OFF..."])
+        if power_off_device(device, log_debug=log_debug):
+            display.display_lines(["POWERED OFF"])
+        else:
+            display.display_lines(["POWER OFF", "FAILED"])
+        time.sleep(1)
+
+
 def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
     if log_debug:
         log_debug(message)
