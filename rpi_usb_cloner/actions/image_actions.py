@@ -7,7 +7,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo
+from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo, iso
 from rpi_usb_cloner.ui import display, menus, screens
 
 WRITE_TITLE_ICON = chr(58597)
@@ -636,7 +636,7 @@ def _write_iso_image(
 
     def worker() -> None:
         try:
-            clonezilla.restore_iso_image(
+            iso.restore_iso_image(
                 iso_path,
                 target.get("name") or "",
                 progress_callback=update_progress,
