@@ -168,8 +168,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                             travel_phase = phase - pause_duration
                             x_offset = -int((travel_phase * scroll_speed) % cycle_width)
                 max_scroll = line_width - max_width
-                if max_scroll <= selector_width:
-                    x_offset = max(x_offset, -max_scroll)
+                x_offset = max(x_offset, -selector_width)
             # Draw selector for selected item (only on first line)
             if is_selected and line_index == 0:
                 draw.text(
