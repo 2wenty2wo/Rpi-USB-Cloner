@@ -355,7 +355,8 @@ def draw_title_with_icon(
     # Draw icon vertically centered
     if title and icon:
         # Position icon so its visual center aligns with center_y
-        icon_y = center_y - (icon_bbox[1] + icon_height // 2)
+        # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
+        icon_y = center_y - (icon_bbox[1] + icon_bbox[3]) // 2
         # Ensure icon never renders above display top
         icon_y = max(context.top, icon_y)
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
@@ -377,7 +378,8 @@ def draw_title_with_icon(
 
     # Draw title vertically centered
     # Position title so its visual center aligns with center_y
-    title_y = center_y - (title_bbox[1] + title_height // 2)
+    # Visual center of rendered glyph = y + (bbox[1] + bbox[3]) / 2
+    title_y = center_y - (title_bbox[1] + title_bbox[3]) // 2
     # Ensure title never renders above display top
     title_y = max(context.top, title_y)
     draw.text((title_x, title_y), title_text, font=header_font, fill=255)
