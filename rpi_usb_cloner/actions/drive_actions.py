@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from datetime import datetime
 from typing import Callable, Iterable, Optional
@@ -215,12 +216,69 @@ def erase_drive(
         return
     if not _ensure_root_for_erase():
         return
-    screens.render_status_template("ERASE", "Running...", progress_line="Starting...")
-    if erase_device(target, mode):
-        screens.render_status_template("ERASE", "Done", progress_line="Complete.")
-    else:
+
+    # Threading pattern for progress screen (similar to write_image)
+    done = threading.Event()
+    result_holder: dict[str, bool] = {}
+    error_holder: dict[str, Exception] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Preparing..."]
+    progress_ratio: Optional[float] = 0.0
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        clamped = None
+        if ratio is not None:
+            clamped = max(0.0, min(1.0, float(ratio)))
+        with progress_lock:
+            progress_lines = lines
+            if clamped is not None:
+                progress_ratio = clamped
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            success = erase_device(target, mode, progress_callback=update_progress)
+            result_holder["result"] = success
+        except Exception as exc:
+            error_holder["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "ERASE",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+        )
+        time.sleep(0.1)
+    thread.join()
+
+    # Display final result
+    lines, ratio = current_progress()
+    screens.render_progress_screen(
+        "ERASE",
+        lines,
+        progress_ratio=ratio,
+        animate=False,
+    )
+
+    if "error" in error_holder:
+        error = error_holder["error"]
+        _log_debug(log_debug, f"Erase failed with exception: {error}")
+        screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
+    elif not result_holder.get("result", False):
         _log_debug(log_debug, "Erase failed")
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
+    else:
+        screens.render_status_template("ERASE", "Done", progress_line="Complete.")
     time.sleep(1)
 
 
