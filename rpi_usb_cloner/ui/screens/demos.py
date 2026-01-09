@@ -36,9 +36,20 @@ def _show_icon_font_demo(title: str, font_path, *, icons: Optional[Iterable[str]
 
         draw = context.draw
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
 
-        current_y = content_top
+        # Draw title with icon using proper function
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=title_font,
+            icon=chr(0xe24b),  # Sparkles icon
+            extra_gap=3,
+            left_margin=context.x - 11,
+            draw=draw,
+        )
+        # Update content_top to match the layout
+        actual_content_top = layout.content_top
+
+        current_y = actual_content_top
         left_x = context.x - 11
         for size in page_sizes:
             icon_font = ImageFont.truetype(font_path, size)
@@ -303,13 +314,22 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
 
         draw = context.draw
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+
+        # Draw title with icon using proper function
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=title_font,
+            icon=chr(0xe24b),  # Sparkles icon
+            extra_gap=3,
+            left_margin=context.x - 11,
+            draw=draw,
+        )
 
         # Draw grid of icons
         start_row = offset
         end_row = min(total_rows, offset + rows_per_page)
 
-        current_y = content_top
+        current_y = layout.content_top
         for row in range(start_row, end_row):
             start_idx = row * icons_per_row
             end_idx = min(total_icons, start_idx + icons_per_row)
@@ -447,13 +467,22 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
 
         draw = context.draw
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+
+        # Draw title with icon using proper function
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=title_font,
+            icon=chr(0xe9a5),  # Heroicons sparkles icon
+            extra_gap=3,
+            left_margin=context.x - 11,
+            draw=draw,
+        )
 
         # Draw grid of icons
         start_row = offset
         end_row = min(total_rows, offset + rows_per_page)
 
-        current_y = content_top
+        current_y = layout.content_top
         for row in range(start_row, end_row):
             start_idx = row * icons_per_row
             end_idx = min(total_icons, start_idx + icons_per_row)

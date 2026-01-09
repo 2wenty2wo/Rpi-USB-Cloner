@@ -120,7 +120,7 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-TITLE_PADDING = 2
+TITLE_PADDING = 4
 TITLE_ICON_PADDING = 2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
@@ -331,25 +331,32 @@ def draw_title_with_icon(
     left_margin = context.x - 11 if left_margin is None else left_margin
     header_font = title_font or context.fonts.get("title", context.fontdisks)
 
-    # Calculate dimensions first
+    # Calculate dimensions and baseline info
     icon_width = 0
-    icon_height = 0
-    title_height = 0
+    icon_bbox = None
+    title_bbox = None
 
     if icon:
         icon_font = icon_font or _get_lucide_font()
         icon_width = _measure_text_width(draw, icon, icon_font)
-        icon_height = _get_line_height(icon_font)
+        icon_bbox = icon_font.getbbox(icon)
 
     if title:
-        title_height = _get_line_height(header_font)
+        title_bbox = header_font.getbbox("Ag")  # Use sample text for consistent height
 
-    # Calculate line height and vertical centering offsets
-    line_height = max(title_height, icon_height) if (title_height and icon_height) else (title_height or icon_height)
+    # Calculate line height based on visual height (top to bottom of bbox)
+    icon_height = (icon_bbox[3] - icon_bbox[1]) if icon_bbox else 0
+    title_height = (title_bbox[3] - title_bbox[1]) if title_bbox else 0
+    line_height = max(icon_height, title_height) if (icon_height and title_height) else (icon_height or title_height)
 
-    # Draw icon vertically centered
+    # Calculate baseline position - use the middle of the line height
+    baseline_y = context.top + line_height // 2
+
+    # Draw icon vertically centered using baseline alignment
     if title and icon:
-        icon_y = context.top + (line_height - icon_height) // 2
+        # Position icon so its visual center aligns with baseline_y
+        icon_visual_center = icon_bbox[1] + icon_height // 2
+        icon_y = baseline_y - icon_visual_center
         draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
@@ -367,8 +374,9 @@ def draw_title_with_icon(
     )
     title_text = _truncate_text(draw, title, header_font, available_width)
 
-    # Draw title vertically centered
-    title_y = context.top + (line_height - title_height) // 2
+    # Draw title vertically centered using baseline alignment
+    title_visual_center = title_bbox[1] + title_height // 2
+    title_y = baseline_y - title_visual_center
     draw.text((title_x, title_y), title_text, font=header_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
