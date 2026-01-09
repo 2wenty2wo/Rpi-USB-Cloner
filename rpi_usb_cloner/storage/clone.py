@@ -254,9 +254,11 @@ def format_progress_display(title, device, mode, bytes_copied, total_bytes, perc
         if percent_display:
             written_line = f"{written_line} {percent_display}"
         lines.append(written_line)
-    # Don't show standalone percentage - it's redundant with the progress bar percentage
-    # elif percent is not None:
-    #     lines.append(f"{percent:.1f}%")
+    # Keep a percent-only fallback when bytes are unavailable.
+    elif percent is not None:
+        lines.append(f"{percent:.1f}%")
+    else:
+        lines.append("Working...")
     if rate:
         rate_line = f"{human_size(rate)}/s"
         if eta:
