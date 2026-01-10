@@ -176,16 +176,17 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             )
             # Draw selector for selected item (only on first line)
             if is_selected and line_index == 0:
-                draw.rectangle(
-                    (
-                        left_margin,
-                        row_top + 1,
-                        left_margin + selector_width - 1,
-                        row_top + row_height_per_line,
-                    ),
-                    outline=0,
-                    fill=0,
-                )
+                if menu.screen_id == "images":
+                    draw.rectangle(
+                        (
+                            left_margin,
+                            row_top,
+                            left_margin + selector_width + 2,
+                            row_top + row_height,
+                        ),
+                        outline=0,
+                        fill=0,
+                    )
                 draw.text(
                     (left_margin, row_top + 1),
                     selector,
