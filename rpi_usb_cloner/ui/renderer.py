@@ -157,7 +157,7 @@ def render_menu_screen(
     if status_line:
         # Draw white background bar for footer (full screen width)
         draw.rectangle(
-            (0, footer_y - footer_padding, context.width, context.height),
+            (0, footer_y - footer_padding + 1, context.width, context.height),
             outline=255,
             fill=255
         )
