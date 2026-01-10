@@ -441,6 +441,12 @@ Run Black before submitting changes:
 black .
 ```
 
+Run all pre-commit hooks (Black, Ruff, mypy) in one pass:
+
+```bash
+pre-commit run --all-files
+```
+
 ### Static Type Checking
 
 Run mypy for the main package:
