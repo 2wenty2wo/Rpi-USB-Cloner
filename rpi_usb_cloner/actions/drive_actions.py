@@ -8,6 +8,7 @@ from typing import Callable, Iterable, Optional, Set
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device, erase_device
 from rpi_usb_cloner.storage.devices import (
@@ -569,13 +570,15 @@ def format_drive(
     target_name = target.get("name")
     target_size = target.get("size", 0)
 
+    status_line = drives.get_active_drive_label(selected_name) or format_device_label(target)
+
     # Select filesystem type (size-based default)
-    filesystem = menus.select_filesystem_type(target_size)
+    filesystem = menus.select_filesystem_type(target_size, status_line=status_line)
     if not filesystem:
         return
 
     # Select format type (quick or full)
-    format_type = menus.select_format_type()
+    format_type = menus.select_format_type(status_line=status_line)
     if not format_type:
         return
 
