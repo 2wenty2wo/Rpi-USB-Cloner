@@ -2,3 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# Test coverage reports
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+.hypothesis/
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
