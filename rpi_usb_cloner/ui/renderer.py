@@ -145,7 +145,7 @@ def render_menu_screen(
         usable_track_height = max_thumb_height
         thumb_range = max(usable_track_height - thumb_height, 0)
         if max_scroll > 0:
-            thumb_offset = int((scroll_offset / max_scroll) * thumb_range)
+            thumb_offset = int(round((scroll_offset / max_scroll) * thumb_range))
         else:
             thumb_offset = 0
         thumb_offset = max(0, min(thumb_offset, thumb_range))
@@ -156,6 +156,8 @@ def render_menu_screen(
             thumb_top = max(track_top, thumb_bottom_limit - thumb_height)
         thumb_bottom = thumb_top + thumb_height
         track_right = context.width - 1
+        for track_y in range(track_top, track_bottom + 1, 2):
+            draw.point((track_right, track_y), fill=255)
         draw.rectangle(
             (track_right, thumb_top, track_right, thumb_bottom),
             outline=255,
