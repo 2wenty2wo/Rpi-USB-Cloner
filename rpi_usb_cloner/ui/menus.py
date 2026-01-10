@@ -207,7 +207,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
             if menu.footer_selected_index is not None and footer_index == menu.footer_selected_index:
                 draw.rectangle(
-                    (text_bbox[0] - 3, text_bbox[1] - 2, text_bbox[2] + 3, text_bbox[3] + 2),
+                    (text_bbox[0] - 3, text_bbox[1] - 1, text_bbox[2] + 3, text_bbox[3] + 2),
                     outline=0,
                     fill=1,
                 )
