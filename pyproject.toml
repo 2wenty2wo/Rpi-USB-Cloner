@@ -47,9 +47,9 @@ markers = [
 ]
 timeout = 30
 filterwarnings = [
-    "error",
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+    "error",
 ]
 
 [tool.coverage.run]
