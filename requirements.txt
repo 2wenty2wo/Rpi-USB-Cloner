@@ -6,8 +6,8 @@ Pillow==10.1.0
 
 # OLED display drivers for Adafruit 128x64 OLED Bonnet
 # luma.oled depends on luma.core, but we pin both for reproducibility
-luma.core==2.4.2
-luma.oled==3.12.0
+luma.core==2.5.3
+luma.oled==3.14.0
 
 # Raspberry Pi GPIO control
 RPi.GPIO==0.7.1
