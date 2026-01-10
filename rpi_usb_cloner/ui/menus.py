@@ -128,12 +128,10 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     # Calculate selector width for consistent alignment
     selector = "> "
     selector_width = display._measure_text_width(draw, selector, items_font)
-    # Add gap between selector and text to prevent overlap
-    text_gap = 3
     if menu.max_width is not None:
-        max_width = max(0, menu.max_width - selector_width - text_gap)
+        max_width = max(0, menu.max_width - selector_width)
     else:
-        max_width = context.width - left_margin - selector_width - text_gap - 1
+        max_width = context.width - left_margin - selector_width - 1
     now = time.monotonic()
     for item_index, item in enumerate(menu.items):
         lines = item.lines
@@ -171,7 +169,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                             x_offset = -int((travel_phase * scroll_speed) % cycle_width)
             # Draw text with offset for alignment
             draw.text(
-                (left_margin + selector_width + text_gap + x_offset, row_top + 1 + line_index * row_height_per_line),
+                (left_margin + selector_width + x_offset, row_top + 1 + line_index * row_height_per_line),
                 display_line,
                 font=items_font,
                 fill=text_color,
@@ -179,11 +177,12 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             # Draw selector for selected item (only on first line)
             if is_selected and line_index == 0:
                 if menu.screen_id == "images":
+                    # Mask entire selector column from left edge to prevent scrolling text from showing through
                     draw.rectangle(
                         (
-                            left_margin,
+                            0,
                             row_top,
-                            left_margin + selector_width + text_gap,
+                            left_margin + selector_width,
                             row_top + row_height,
                         ),
                         outline=0,
