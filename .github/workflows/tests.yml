@@ -1,0 +1,47 @@
+# GitHub Actions Workflow for Running Tests
+#
+# This workflow automatically runs your test suite whenever code is pushed
+# or a pull request is created. It ensures code quality before merging.
+
+name: Tests
+
+# When to run this workflow
+on:
+  push:
+    branches: [ main, master, claude/* ]  # Run on pushes to these branches
+  pull_request:
+    branches: [ main, master ]  # Run on PRs targeting these branches
+
+# Jobs to run (we'll start with just one: testing)
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest  # Use Ubuntu Linux (similar to Raspberry Pi OS)
+
+    steps:
+      # Step 1: Download your code from GitHub
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install test dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-mock pytest-timeout Pillow
+
+      # Step 4: Run the tests!
+      - name: Run pytest
+        run: |
+          pytest tests/ -v --tb=short
+
+      # Step 5: Show a summary
+      - name: Test Summary
+        if: always()  # Run even if tests fail
+        run: |
+          echo "✅ Test workflow completed!"
