@@ -1,0 +1,158 @@
+"""System power management operations."""
+import sys
+import time
+from typing import Callable, Optional
+
+from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.ui import display, menus, screens
+
+from .system_utils import (
+    format_command_output,
+    log_debug_msg,
+    poweroff_system,
+    reboot_system,
+    restart_service as restart_systemd_service,
+    stop_service as stop_systemd_service,
+)
+
+
+_SERVICE_NAME = "rpi-usb-cloner.service"
+
+
+def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Restart the service."""
+    title = "POWER"
+    screens.render_status_template(title, "Restarting...", progress_line=_SERVICE_NAME)
+    display.clear_display()
+    restart_result = restart_systemd_service(log_debug=log_debug)
+    if restart_result.returncode != 0:
+        log_debug_msg(log_debug, f"Service restart failed with return code {restart_result.returncode}")
+        screens.wait_for_paginated_input(
+            title,
+            ["Service restart failed"]
+            + format_command_output(restart_result.stdout, restart_result.stderr),
+        )
+        return
+    display.clear_display()
+    sys.exit(0)
+
+
+def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Stop the service."""
+    title = "POWER"
+    screens.render_status_template(title, "Stopping...", progress_line=_SERVICE_NAME)
+    display.clear_display()
+    stop_result = stop_systemd_service(log_debug=log_debug)
+    if stop_result.returncode != 0:
+        log_debug_msg(log_debug, f"Service stop failed with return code {stop_result.returncode}")
+        screens.wait_for_paginated_input(
+            title,
+            ["Service stop failed"] + format_command_output(stop_result.stdout, stop_result.stderr),
+        )
+        return
+    display.clear_display()
+    sys.exit(0)
+
+
+def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Restart the system."""
+    title = "POWER"
+    if not confirm_power_action(title, "RESTART SYSTEM", log_debug=log_debug):
+        return
+    screens.render_status_template(title, "Restarting...", progress_line="System reboot")
+    display.clear_display()
+    reboot_result = reboot_system(log_debug=log_debug)
+    if reboot_result.returncode != 0:
+        log_debug_msg(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
+        screens.wait_for_paginated_input(
+            title,
+            ["System reboot failed"] + format_command_output(reboot_result.stdout, reboot_result.stderr),
+        )
+
+
+def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Shutdown the system."""
+    title = "POWER"
+    if not confirm_power_action(title, "SHUTDOWN SYSTEM", log_debug=log_debug):
+        return
+    screens.render_status_template(title, "Shutting down...", progress_line="System poweroff")
+    display.clear_display()
+    shutdown_result = poweroff_system(log_debug=log_debug)
+    if shutdown_result.returncode != 0:
+        log_debug_msg(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
+        screens.wait_for_paginated_input(
+            title,
+            ["System poweroff failed"]
+            + format_command_output(shutdown_result.stdout, shutdown_result.stderr),
+        )
+        return
+    display.clear_display()
+    display.display_lines(["Shutdown initiated", "Safe to remove power"])
+    while True:
+        time.sleep(1)
+
+
+def confirm_power_action(
+    title: str,
+    action_label: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+) -> bool:
+    """Confirm a power action with the user."""
+    prompt = f"Are you sure you want to {action_label.lower()}?"
+    confirmed = confirm_action(title, prompt, log_debug=log_debug)
+    log_debug_msg(log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}")
+    return confirmed
+
+
+def confirm_action(
+    title: str,
+    prompt: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    title_icon: Optional[str] = None,
+) -> bool:
+    """Display a confirmation dialog and get user response."""
+    selection = app_state.CONFIRM_NO
+    screens.render_confirmation_screen(
+        title,
+        [prompt],
+        selected_index=selection,
+        title_icon=title_icon,
+    )
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+    }
+    while True:
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if selection == app_state.CONFIRM_NO:
+                selection = app_state.CONFIRM_YES
+                log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if selection == app_state.CONFIRM_YES:
+                selection = app_state.CONFIRM_NO
+                log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return False
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            return selection == app_state.CONFIRM_YES
+        prev_states["R"] = current_r
+        prev_states["L"] = current_l
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        screens.render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection,
+            title_icon=title_icon,
+        )
+        time.sleep(menus.BUTTON_POLL_DELAY)

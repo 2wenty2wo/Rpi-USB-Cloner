@@ -1,0 +1,475 @@
+"""Software update management."""
+import sys
+import subprocess
+import threading
+import time
+from pathlib import Path
+from typing import Callable, Optional
+
+from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.menu.model import get_screen_icon
+from rpi_usb_cloner.ui import display, menus, screens
+
+from .system_power import confirm_action
+from .system_utils import (
+    format_command_output,
+    get_app_version,
+    has_dirty_working_tree,
+    is_dubious_ownership_error,
+    is_git_repo,
+    is_running_under_systemd,
+    log_debug_msg,
+    restart_service as restart_systemd_service,
+    run_command,
+    run_git_pull,
+)
+
+
+def get_update_status(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> tuple[str, int | None]:
+    """Check if updates are available."""
+    if not is_git_repo(repo_root):
+        log_debug_msg(log_debug, "Update status check: repo not found")
+        return "Repo not found", None
+    fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
+    if fetch.returncode != 0:
+        log_debug_msg(log_debug, f"Update status check: fetch failed {fetch.returncode}")
+        return "Unable to check", None
+    upstream = run_command(
+        ["git", "rev-parse", "--abbrev-ref", "@{u}"],
+        cwd=repo_root,
+        log_debug=log_debug,
+    )
+    upstream_ref = upstream.stdout.strip()
+    if upstream.returncode != 0 or not upstream_ref:
+        log_debug_msg(log_debug, "Update status check: upstream missing")
+        return "No upstream configured", None
+    behind = run_command(
+        ["git", "rev-list", "--count", "HEAD..@{u}"],
+        cwd=repo_root,
+        log_debug=log_debug,
+    )
+    if behind.returncode != 0:
+        log_debug_msg(log_debug, "Update status check: rev-list failed")
+        return "Unable to check", None
+    count = behind.stdout.strip()
+    log_debug_msg(log_debug, f"Update status check: behind count={count!r}")
+    if count.isdigit():
+        behind_count = int(count)
+        status = "Update available" if behind_count > 0 else "Up to date"
+        return status, behind_count
+    return "Up to date", None
+
+
+def check_update_status(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> tuple[str, int | None, str]:
+    """Check update status and return with timestamp."""
+    status, behind_count = get_update_status(repo_root, log_debug=log_debug)
+    last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+    log_debug_msg(log_debug, f"Update status check complete at {last_checked}: {status}")
+    return status, behind_count, last_checked
+
+
+def build_update_info_lines(
+    version: str,
+    status: str,
+    behind_count: int | None,
+    last_checked: str | None,
+) -> list[str]:
+    """Build info lines for update display."""
+    status_display = status
+    if status == "Update available":
+        status_display = "Update avail."
+    lines = [f"Version: {version}", f"Status: {status_display}"]
+    # Always add a third line to prevent layout shift
+    if behind_count is not None and behind_count > 0:
+        lines.append(f"Commits behind: {behind_count}")
+    else:
+        lines.append("")  # Empty line to reserve space
+    return lines
+
+
+def run_update_flow(
+    title: str,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    title_icon: Optional[str] = None,
+) -> None:
+    """Execute the software update process."""
+    repo_root = Path(__file__).resolve().parents[3]
+    log_debug_msg(log_debug, f"Repo root detection: {repo_root}")
+    is_repo = is_git_repo(repo_root)
+    log_debug_msg(log_debug, f"Repo root is git repo: {is_repo}")
+    if not is_repo:
+        log_debug_msg(log_debug, "Update aborted: repo not found")
+        screens.wait_for_paginated_input(
+            title,
+            ["Repo not found"],
+            title_icon=title_icon,
+        )
+        return
+    dirty_tree = has_dirty_working_tree(repo_root, log_debug=log_debug)
+    if dirty_tree:
+        log_debug_msg(log_debug, "Dirty working tree detected")
+        prompt = "Continue with update?"
+    else:
+        prompt = "Are you sure you want to update?"
+    if not confirm_action(title, prompt, log_debug=log_debug, title_icon=title_icon):
+        log_debug_msg(log_debug, "Update canceled by confirmation prompt")
+        return
+
+    def run_with_progress(
+        lines: list[str],
+        action: Callable[[Callable[[float], None]], subprocess.CompletedProcess[str]],
+        *,
+        running_ratio: float | None = 0.5,
+    ):
+        done = threading.Event()
+        result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
+        error_holder: dict[str, Exception] = {}
+        progress_lock = threading.Lock()
+        progress_ratio = 0.0
+
+        def update_progress(value: float) -> None:
+            nonlocal progress_ratio
+            clamped = max(0.0, min(1.0, float(value)))
+            with progress_lock:
+                progress_ratio = clamped
+
+        def current_progress() -> float:
+            with progress_lock:
+                return progress_ratio
+
+        def worker() -> None:
+            try:
+                if running_ratio is not None:
+                    update_progress(running_ratio)
+                result_holder["result"] = action(update_progress)
+            except Exception as exc:  # pragma: no cover - defensive for subprocess errors
+                error_holder["error"] = exc
+            finally:
+                update_progress(1.0)
+                done.set()
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        update_progress(0.0)
+        while not done.is_set():
+            screens.render_progress_screen(
+                title,
+                lines,
+                progress_ratio=current_progress(),
+                animate=False,
+                title_icon=title_icon,
+            )
+            time.sleep(0.1)
+        thread.join()
+        screens.render_progress_screen(
+            title,
+            lines,
+            progress_ratio=current_progress(),
+            animate=False,
+            title_icon=title_icon,
+        )
+        if "error" in error_holder:
+            raise error_holder["error"]
+        return result_holder["result"]
+
+    pull_result = run_with_progress(
+        ["Updating...", "Pulling..."],
+        lambda update_progress: run_git_pull(
+            repo_root,
+            log_debug=log_debug,
+            progress_callback=update_progress,
+        ),
+        running_ratio=None,
+    )
+    dubious_ownership = is_dubious_ownership_error(pull_result.stderr)
+    if dubious_ownership and is_running_under_systemd(log_debug=log_debug):
+        log_debug_msg(
+            log_debug,
+            f"Dubious ownership detected; adding safe.directory for {repo_root}",
+        )
+        run_command(
+            ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
+            log_debug=log_debug,
+        )
+        pull_result = run_with_progress(
+            ["Updating...", "Pulling again..."],
+            lambda update_progress: run_git_pull(
+                repo_root,
+                log_debug=log_debug,
+                progress_callback=update_progress,
+            ),
+            running_ratio=None,
+        )
+    output_lines = format_command_output(pull_result.stdout, pull_result.stderr)
+    if dubious_ownership:
+        output_lines = (
+            [
+                "Dubious ownership detected.",
+                "Service User= should own repo.",
+                f"Or run: git config --global --add safe.directory {repo_root}",
+            ]
+            + output_lines
+        )
+    if pull_result.returncode != 0:
+        log_debug_msg(log_debug, f"Git pull failed with return code {pull_result.returncode}")
+        if dubious_ownership:
+            output_lines = ["Git safety check failed."] + output_lines
+        display.render_paginated_lines(
+            title,
+            ["Update failed"] + output_lines,
+            page_index=0,
+            title_icon=title_icon,
+        )
+        time.sleep(2)
+        return
+    screens.render_progress_screen(
+        title,
+        ["Update complete"],
+        progress_ratio=1.0,
+        animate=False,
+        title_icon=title_icon,
+    )
+    if output_lines:
+        display.render_paginated_lines(
+            title,
+            ["Update complete"] + output_lines,
+            page_index=0,
+            title_icon=title_icon,
+        )
+    time.sleep(1)
+    if is_running_under_systemd(log_debug=log_debug):
+        restart_result = run_with_progress(
+            ["Restarting...", "rpi-usb-cloner.service"],
+            lambda update_progress: restart_systemd_service(log_debug=log_debug),
+        )
+        if restart_result.returncode != 0:
+            log_debug_msg(log_debug, f"Service restart failed with return code {restart_result.returncode}")
+            display.render_paginated_lines(
+                title,
+                ["Restart failed"]
+                + format_command_output(restart_result.stdout, restart_result.stderr),
+                page_index=0,
+                title_icon=title_icon,
+            )
+            time.sleep(2)
+            return
+        sys.exit(0)
+    display.render_paginated_lines(
+        title,
+        ["Restart needed", "Please restart"],
+        page_index=0,
+        title_icon=title_icon,
+    )
+    time.sleep(2)
+
+
+def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Main update version interface."""
+    title = "UPDATE"
+    title_icon = get_screen_icon("update")
+    repo_root = Path(__file__).resolve().parents[3]
+    status = "Checking..."
+    behind_count: int | None = None
+    last_checked: str | None = None
+    version = get_app_version(log_debug=log_debug)
+    check_done = threading.Event()
+    git_lock = threading.Lock()
+    results_applied = False
+    result_holder: dict[str, tuple[str, int | None, str]] = {}
+    error_holder: dict[str, Exception] = {}
+    header_lines: list[str] = []
+    selection = 0
+
+    def apply_check_results() -> tuple[str, int | None, str | None]:
+        if "result" in result_holder:
+            return (
+                result_holder["result"][0],
+                result_holder["result"][1],
+                result_holder["result"][2],
+            )
+        if "error" in error_holder:
+            log_debug_msg(
+                log_debug,
+                f"Update status check failed: {error_holder['error']}",
+            )
+            return (
+                "Unable to check",
+                None,
+                time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+            )
+        return status, behind_count, last_checked
+
+    def apply_check_results_to_state() -> None:
+        nonlocal status, behind_count, last_checked, results_applied
+        status, behind_count, last_checked = apply_check_results()
+        results_applied = True
+
+    def update_header_lines() -> None:
+        header_lines[:] = build_update_info_lines(version, status, behind_count, last_checked)
+
+    def refresh_update_menu() -> bool:
+        if check_done.is_set() and not results_applied:
+            apply_check_results_to_state()
+            update_header_lines()
+            return True
+        return False
+
+    def run_check_in_background() -> None:
+        try:
+            with git_lock:
+                result_holder["result"] = check_update_status(repo_root, log_debug=log_debug)
+        except Exception as exc:  # pragma: no cover - defensive for subprocess errors
+            error_holder["error"] = exc
+        finally:
+            check_done.set()
+
+    thread = threading.Thread(target=run_check_in_background, daemon=True)
+    thread.start()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.read_button(gpio.PIN_L),
+        "R": gpio.read_button(gpio.PIN_R),
+        "U": gpio.read_button(gpio.PIN_U),
+        "D": gpio.read_button(gpio.PIN_D),
+        "A": gpio.read_button(gpio.PIN_A),
+        "B": gpio.read_button(gpio.PIN_B),
+    }
+    while True:
+        if check_done.is_set():
+            apply_check_results_to_state()
+        update_header_lines()
+        screens.render_update_buttons_screen(
+            title,
+            header_lines,
+            selected_index=selection,
+            title_icon=title_icon,
+        )
+        refresh_needed = False
+        if refresh_update_menu():
+            refresh_needed = True
+        current_l = gpio.read_button(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if selection == 1:
+                selection = 0
+                refresh_needed = True
+        current_r = gpio.read_button(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if selection == 0:
+                selection = 1
+                refresh_needed = True
+        current_u = gpio.read_button(gpio.PIN_U)
+        if prev_states["U"] and not current_u:
+            if selection == 1:
+                selection = 0
+                refresh_needed = True
+        current_d = gpio.read_button(gpio.PIN_D)
+        if prev_states["D"] and not current_d:
+            if selection == 0:
+                selection = 1
+                refresh_needed = True
+        current_a = gpio.read_button(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return
+        current_b = gpio.read_button(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            if selection == 0:
+                if not check_done.is_set():
+                    status = "Checking..."
+                    behind_count = None
+                    update_header_lines()
+                    while not check_done.is_set():
+                        screens.render_update_buttons_screen(
+                            title,
+                            header_lines,
+                            selected_index=selection,
+                            title_icon=title_icon,
+                        )
+                        time.sleep(menus.BUTTON_POLL_DELAY)
+                    apply_check_results_to_state()
+                    update_header_lines()
+                else:
+                    status = "Checking..."
+                    behind_count = None
+                    update_header_lines()
+                    screens.render_update_buttons_screen(
+                        title,
+                        header_lines,
+                        selected_index=selection,
+                        title_icon=title_icon,
+                    )
+                    with git_lock:
+                        status, behind_count, last_checked = check_update_status(
+                            repo_root,
+                            log_debug=log_debug,
+                        )
+                    update_header_lines()
+                    screens.render_update_buttons_screen(
+                        title,
+                        header_lines,
+                        selected_index=selection,
+                        title_icon=title_icon,
+                    )
+                    version = get_app_version(log_debug=log_debug)
+                    result_holder["result"] = (status, behind_count, last_checked)
+                    check_done.set()
+                    results_applied = True
+                refresh_needed = True
+            if selection == 1:
+                if not check_done.is_set():
+                    status = "Waiting on check..."
+                    update_header_lines()
+                    while not check_done.is_set():
+                        screens.render_update_buttons_screen(
+                            title,
+                            header_lines,
+                            selected_index=selection,
+                            title_icon=title_icon,
+                        )
+                        time.sleep(menus.BUTTON_POLL_DELAY)
+                    apply_check_results_to_state()
+                with git_lock:
+                    run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
+                    status, behind_count, last_checked = check_update_status(
+                        repo_root,
+                        log_debug=log_debug,
+                    )
+                version = get_app_version(log_debug=log_debug)
+                result_holder["result"] = (status, behind_count, last_checked)
+                check_done.set()
+                results_applied = True
+                refresh_needed = True
+            menus.wait_for_buttons_release(
+                [gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B]
+            )
+            prev_states = {
+                "L": gpio.read_button(gpio.PIN_L),
+                "R": gpio.read_button(gpio.PIN_R),
+                "U": gpio.read_button(gpio.PIN_U),
+                "D": gpio.read_button(gpio.PIN_D),
+                "A": gpio.read_button(gpio.PIN_A),
+                "B": gpio.read_button(gpio.PIN_B),
+            }
+            if refresh_needed:
+                apply_check_results_to_state()
+                update_header_lines()
+            time.sleep(menus.BUTTON_POLL_DELAY)
+            continue
+        if refresh_needed:
+            screens.render_update_buttons_screen(
+                title,
+                header_lines,
+                selected_index=selection,
+                title_icon=title_icon,
+            )
+        prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        time.sleep(menus.BUTTON_POLL_DELAY)
