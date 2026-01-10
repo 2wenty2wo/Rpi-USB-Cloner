@@ -571,11 +571,11 @@ def select_filesystem_type(device_size: int):
     default_index = filesystems.index(default_fs) if default_fs in filesystems else 0
 
     selected_index = render_menu_list(
-        "FILESYSTEM",
+        "FORMAT DRIVE",
         [fs.upper() for fs in filesystems],
+        screen_id="drives",
         selected_index=default_index,
-        title_font=display.get_display_context().fontcopy,
-        title_icon=chr(58367),  # sparkles icon
+        title_icon=chr(57581),  # hard-drive icon
     )
     if selected_index is None:
         return None
