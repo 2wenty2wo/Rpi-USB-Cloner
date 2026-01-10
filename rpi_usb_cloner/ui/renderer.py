@@ -98,7 +98,9 @@ def render_menu_screen(
     if needs_scrollbar:
         max_item_width -= scrollbar_width + scrollbar_padding
     max_item_width = max(0, max_item_width)
-    items_list = [_truncate_text(item, list_font, max_item_width) for item in items_seq]
+    items_list = [
+        _truncate_text(item, list_font, max_item_width) for item in items_seq
+    ]
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
@@ -110,12 +112,7 @@ def render_menu_screen(
         if is_selected:
             draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
         # Draw text with offset for alignment
-        draw.text(
-            (left_margin + selector_width, text_y),
-            items_list[item_index],
-            font=list_font,
-            fill=text_color,
-        )
+        draw.text((left_margin + selector_width, text_y), items_list[item_index], font=list_font, fill=text_color)
 
     footer_font = None
     footer_height = 0
@@ -170,7 +167,7 @@ def render_menu_screen(
         draw.rectangle(
             (0, footer_y - footer_padding + 1, context.width, context.height),
             outline=255,
-            fill=255,
+            fill=255
         )
         max_status_width = context.width - left_margin - 1
         footer_text = _truncate_text(status_line, footer_font, max_status_width)

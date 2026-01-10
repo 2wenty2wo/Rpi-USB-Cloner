@@ -4,8 +4,16 @@ from typing import List, Optional
 
 from PIL import ImageFont
 
-from rpi_usb_cloner.hardware.gpio import (PIN_A, PIN_B, PIN_C, PIN_D, PIN_L,
-                                          PIN_R, PIN_U, read_button)
+from rpi_usb_cloner.hardware.gpio import (
+    PIN_A,
+    PIN_B,
+    PIN_C,
+    PIN_D,
+    PIN_L,
+    PIN_R,
+    PIN_U,
+    read_button,
+)
 from rpi_usb_cloner.ui import display, menus
 
 KEY_SPACE = "SPACE"
@@ -35,109 +43,26 @@ class KeyboardLayout:
 
 DEFAULT_LAYOUT = KeyboardLayout(
     numbers=[
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "0",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
         KEY_SPACE,
     ],
     lower=[
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-        "h",
-        "i",
-        "j",
-        "k",
-        "l",
-        "m",
-        "n",
-        "o",
-        "p",
-        "q",
-        "r",
-        "s",
-        "t",
-        "u",
-        "v",
-        "w",
-        "x",
-        "y",
-        "z",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
+        "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
+        "u", "v", "w", "x", "y", "z",
         KEY_SPACE,
     ],
     upper=[
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-        "P",
-        "Q",
-        "R",
-        "S",
-        "T",
-        "U",
-        "V",
-        "W",
-        "X",
-        "Y",
-        "Z",
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+        "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
+        "U", "V", "W", "X", "Y", "Z",
         KEY_SPACE,
     ],
     symbols=[
-        ".",
-        ",",
-        "?",
-        "!",
-        "@",
-        "#",
-        "$",
-        "%",
-        "^",
-        "&",
-        "*",
-        "(",
-        ")",
-        ":",
-        ";",
-        "'",
-        '"',
-        "-",
-        "_",
-        "+",
-        "=",
-        "[",
-        "]",
-        "{",
-        "}",
-        "\\",
-        "|",
-        "<",
-        ">",
-        "/",
-        "`",
-        "~",
+        ".", ",", "?", "!", "@", "#", "$", "%", "^", "&",
+        "*", "(", ")", ":", ";", "'", "\"", "-", "_", "+",
+        "=", "[", "]", "{", "}", "\\", "|", "<", ">", "/",
+        "`", "~",
         KEY_SPACE,
     ],
 )
@@ -147,23 +72,17 @@ _keyboard_fonts: Optional[
 ] = None
 
 
-def _get_keyboard_fonts() -> (
-    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
-):
+def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]:
     global _keyboard_fonts
     if _keyboard_fonts is not None:
         return _keyboard_fonts
     context = display.get_display_context()
     try:
-        input_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8
-        )
+        input_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
     except OSError:
         input_font = context.fontdisks
     try:
-        key_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8
-        )
+        key_font = ImageFont.truetype(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8)
     except OSError:
         key_font = input_font
     try:
@@ -246,11 +165,7 @@ def _render_keyboard(
     input_right = context.width - padding
     input_top = current_y
     input_height = _get_line_height(input_font) + 6
-    draw.rectangle(
-        (input_left, input_top, input_right, input_top + input_height),
-        outline=1,
-        fill=1,
-    )
+    draw.rectangle((input_left, input_top, input_right, input_top + input_height), outline=1, fill=1)
     available_width = max(0, input_right - input_left - 4)
     display_value = _truncate_text(draw, display_value, input_font, available_width)
     text_bbox = draw.textbbox((0, 0), display_value, font=input_font)
@@ -280,11 +195,7 @@ def _render_keyboard(
         elif key == KEY_CANCEL:
             label = "CANCEL"
         elif key == KEY_SHIFT:
-            label = (
-                "SYM"
-                if layout_mode == "upper"
-                else "ABC" if layout_mode == "symbols" else "SHF"
-            )
+            label = "SYM" if layout_mode == "upper" else "ABC" if layout_mode == "symbols" else "SHF"
         text_bbox = draw.textbbox((0, 0), label, font=key_font)
         text_width = text_bbox[2] - text_bbox[0]
         key_metrics.append((label, text_width))
@@ -313,11 +224,7 @@ def _render_keyboard(
         if cell_right < strip_left or cell_left > strip_right:
             continue
         if is_selected:
-            draw.rectangle(
-                (cell_left, strip_top, cell_right, strip_top + strip_height),
-                outline=0,
-                fill=1,
-            )
+            draw.rectangle((cell_left, strip_top, cell_right, strip_top + strip_height), outline=0, fill=1)
         text_bbox = draw.textbbox((0, 0), label, font=key_font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
@@ -364,31 +271,17 @@ def _render_keyboard(
     mode_left = strip_left
     mode_top = current_y
     mode_height = row_height
-    mode_offset = (
-        max(0, (strip_width - total_mode_width) // 2)
-        if total_mode_width <= strip_width
-        else 0
-    )
-    for item_index, (item_left, item_width, label, font, mode_key) in enumerate(
-        mode_positions
-    ):
+    mode_offset = max(0, (strip_width - total_mode_width) // 2) if total_mode_width <= strip_width else 0
+    for item_index, (item_left, item_width, label, font, mode_key) in enumerate(mode_positions):
         cell_left = mode_left + mode_offset + item_left
         cell_right = cell_left + item_width - 1
         is_active = layout_mode == mode_key
         is_selected = selected_band == "modes" and item_index == mode_index
         text_fill = 255
         if is_active:
-            draw.rectangle(
-                (cell_left, mode_top, cell_right, mode_top + mode_height),
-                outline=1,
-                fill=0,
-            )
+            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=0)
         if is_selected:
-            draw.rectangle(
-                (cell_left, mode_top, cell_right, mode_top + mode_height),
-                outline=1,
-                fill=1,
-            )
+            draw.rectangle((cell_left, mode_top, cell_right, mode_top + mode_height), outline=1, fill=1)
             text_fill = 0
         text_bbox = draw.textbbox((0, 0), label, font=font)
         text_width = text_bbox[2] - text_bbox[0]
@@ -521,11 +414,7 @@ def prompt_text(
                 elif key == KEY_CANCEL:
                     return None
                 elif key == KEY_SHIFT:
-                    layout_mode = (
-                        "upper"
-                        if layout_mode == "lower"
-                        else "symbols" if layout_mode == "upper" else "lower"
-                    )
+                    layout_mode = "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
                     keys = layout.get_keys(layout_mode)
                     selected_col = min(selected_col, len(keys) - 1)
                 else:

@@ -5,9 +5,17 @@ from typing import Callable, List, Optional
 from PIL import ImageFont
 
 from rpi_usb_cloner.config import settings
-from rpi_usb_cloner.hardware.gpio import (PIN_A, PIN_B, PIN_C, PIN_D, PIN_L,
-                                          PIN_R, PIN_U, is_pressed,
-                                          read_button)
+from rpi_usb_cloner.hardware.gpio import (
+    PIN_A,
+    PIN_B,
+    PIN_C,
+    PIN_D,
+    PIN_L,
+    PIN_R,
+    PIN_U,
+    is_pressed,
+    read_button,
+)
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
@@ -143,9 +151,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                 and menu.scroll_start_time is not None
             ):
                 line_widths = item.line_widths or []
-                line_width = (
-                    line_widths[line_index] if line_index < len(line_widths) else None
-                )
+                line_width = line_widths[line_index] if line_index < len(line_widths) else None
                 if line_width is None:
                     line_width = display._measure_text_width(draw, line, items_font)
                 if line_width > max_width:
@@ -163,10 +169,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                             x_offset = -int((travel_phase * scroll_speed) % cycle_width)
             # Draw text with offset for alignment
             draw.text(
-                (
-                    left_margin + selector_width + x_offset,
-                    row_top + 1 + line_index * row_height_per_line,
-                ),
+                (left_margin + selector_width + x_offset, row_top + 1 + line_index * row_height_per_line),
                 display_line,
                 font=items_font,
                 fill=text_color,
@@ -202,17 +205,9 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
         for footer_index, label in enumerate(menu.footer):
             x_pos = positions[footer_index]
             text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
-            if (
-                menu.footer_selected_index is not None
-                and footer_index == menu.footer_selected_index
-            ):
+            if menu.footer_selected_index is not None and footer_index == menu.footer_selected_index:
                 draw.rectangle(
-                    (
-                        text_bbox[0] - 3,
-                        text_bbox[1] - 1,
-                        text_bbox[2] + 3,
-                        text_bbox[3] + 2,
-                    ),
+                    (text_bbox[0] - 3, text_bbox[1] - 1, text_bbox[2] + 3, text_bbox[3] + 2),
                     outline=0,
                     fill=1,
                 )
@@ -257,9 +252,7 @@ def select_list(
     content_top = (
         content_top
         if content_top is not None
-        else get_standard_content_top(
-            title, title_font=title_font, title_icon=title_icon
-        )
+        else get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
     )
     footer_height = 15 if footer else 0
     line_height = _get_line_height(items_font)
@@ -475,9 +468,7 @@ def render_menu_list(
     if title_icon is None and screen_id:
         title_icon = get_screen_icon(screen_id)
     if content_top is None:
-        content_top = get_standard_content_top(
-            title, title_font=title_font, title_icon=title_icon
-        )
+        content_top = get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
     if footer and footer_positions is None:
         footer_positions = _get_default_footer_positions(context.width, footer)
     return select_list(

@@ -91,39 +91,42 @@ See Also:
     - rpi_usb_cloner.menu.definitions: Menu structure
     - rpi_usb_cloner.hardware.gpio: Button input handling
 """
-
 import argparse
 import os
 import time
 from datetime import datetime
 from functools import partial
 
-from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
-from rpi_usb_cloner.app.drive_info import (get_device_status_line,
-                                           render_drive_info)
-from rpi_usb_cloner.app.menu_builders import (build_device_items,
-                                              build_screensaver_items,
-                                              build_settings_items)
+from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
+from rpi_usb_cloner.app.menu_builders import (
+    build_device_items,
+    build_screensaver_items,
+    build_settings_items,
+)
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.menu import actions as menu_actions
-from rpi_usb_cloner.menu import definitions, navigator
-from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.storage import devices
+from rpi_usb_cloner.storage.mount import (
+    get_device_name,
+    get_model,
+    get_size,
+    get_vendor,
+    list_media_devices,
+)
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.format import configure_format_helpers
-from rpi_usb_cloner.storage.mount import (get_device_name, get_model, get_size,
-                                          get_vendor, list_media_devices)
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
+from rpi_usb_cloner.menu import definitions, navigator
+from rpi_usb_cloner.menu import actions as menu_actions
+from rpi_usb_cloner.menu.model import get_screen_icon
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
-    parser.add_argument(
-        "-d", "--debug", action="store_true", help="Enable verbose debug output"
-    )
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
     parser.add_argument(
         "--restore-partition-mode",
         choices=["k0", "k", "k1", "k2"],
@@ -160,9 +163,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     debug_enabled = args.debug
     if args.restore_partition_mode:
-        settings_store.set_setting(
-            "restore_partition_mode", args.restore_partition_mode
-        )
+        settings_store.set_setting("restore_partition_mode", args.restore_partition_mode)
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
     app_context = AppContext()
@@ -177,14 +178,10 @@ def main(argv=None):
     display.set_display_context(context)
     app_context.display = context
     display.configure_display_helpers(log_debug=log_debug)
-    devices.configure_device_helpers(
-        log_debug=log_debug, error_handler=display.display_lines
-    )
+    devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
     configure_format_helpers(log_debug=log_debug)
-    wifi.configure_wifi_helpers(
-        log_debug=log_debug, error_handler=display.display_lines
-    )
+    wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
 
     state = app_state.AppState()
     app_state.ENABLE_SLEEP = settings_store.get_bool(
@@ -243,9 +240,7 @@ def main(argv=None):
             screens,
             page_index,
         )
-        menus.wait_for_buttons_release(
-            [gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
-        )
+        menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
         last_selected_name = app_context.active_drive
         prev_states = {
             "A": gpio.read_button(gpio.PIN_A),
@@ -459,18 +454,15 @@ def main(argv=None):
                         f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
                     )
                     selected_name = None
-                    if app_context.discovered_drives and state.usb_list_index < len(
+                    if (
                         app_context.discovered_drives
+                        and state.usb_list_index < len(app_context.discovered_drives)
                     ):
-                        selected_name = app_context.discovered_drives[
-                            state.usb_list_index
-                        ]
+                        selected_name = app_context.discovered_drives[state.usb_list_index]
                     if selected_name and selected_name in current_devices:
                         state.usb_list_index = current_devices.index(selected_name)
                     else:
-                        state.usb_list_index = min(
-                            state.usb_list_index, max(len(current_devices) - 1, 0)
-                        )
+                        state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
                     main_screen = definitions.SCREENS[definitions.MAIN_MENU.screen_id]
                     main_visible_rows = get_visible_rows_for_screen(main_screen)
                     menu_navigator.set_selection(
@@ -490,9 +482,7 @@ def main(argv=None):
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SLEEP_TIMEOUT:
                     screensaver_active = True
-                    screensaver_mode = settings_store.get_setting(
-                        "screensaver_mode", "random"
-                    )
+                    screensaver_mode = settings_store.get_setting("screensaver_mode", "random")
                     screensaver_gif = settings_store.get_setting("screensaver_gif")
                     screensaver_ran = screensaver.play_screensaver(
                         context,
@@ -532,9 +522,7 @@ def main(argv=None):
             button_pressed = False
             current_screen = menu_navigator.current_screen()
             status_line = get_screen_status_line(current_screen)
-            dynamic_visible_rows = get_visible_rows_for_screen(
-                current_screen, status_line
-            )
+            dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
 
             def handle_repeat_button(key, direction):
                 nonlocal button_pressed, render_requested
@@ -611,9 +599,7 @@ def main(argv=None):
         error_displayed = True
         context.disp.clear()
         context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        context.draw.text(
-            (context.x, context.top + 30), "ERROR", font=context.fontinsert, fill=255
-        )
+        context.draw.text((context.x, context.top + 30), "ERROR", font=context.fontinsert, fill=255)
         context.disp.display(context.image)
     finally:
         cleanup_display(clear_display=not error_displayed)

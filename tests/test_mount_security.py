@@ -3,11 +3,9 @@
 Tests verify that command injection vulnerabilities have been fixed
 and that input validation is working correctly.
 """
-
-import subprocess
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import patch, MagicMock
+import subprocess
 
 from rpi_usb_cloner.storage import mount
 
@@ -50,11 +48,12 @@ class TestGetPartitionSecurity:
         with pytest.raises(ValueError, match="invalid characters"):
             mount.get_partition("/dev/sda\nrm -rf /")
 
-    @patch("subprocess.run")
+    @patch('subprocess.run')
     def test_uses_subprocess_not_system(self, mock_run):
         """Verify subprocess.run is used instead of os.system"""
         mock_run.return_value = MagicMock(
-            stdout="/dev/sda1 boot\n/dev/sda1  *  2048  1000000", returncode=0
+            stdout="/dev/sda1 boot\n/dev/sda1  *  2048  1000000",
+            returncode=0
         )
 
         try:
@@ -65,13 +64,13 @@ class TestGetPartitionSecurity:
         # Verify subprocess.run was called with argument list
         mock_run.assert_called()
         call_args = mock_run.call_args[0][0]
-        assert call_args == ["fdisk", "-l", "/dev/sda"]
+        assert call_args == ['fdisk', '-l', '/dev/sda']
 
-    @patch("subprocess.run")
+    @patch('subprocess.run')
     def test_handles_fdisk_failure(self, mock_run):
         """Ensure fdisk failures raise RuntimeError with context"""
         mock_run.side_effect = subprocess.CalledProcessError(
-            1, "fdisk", stderr="fdisk: cannot open /dev/invalid"
+            1, 'fdisk', stderr='fdisk: cannot open /dev/invalid'
         )
 
         with pytest.raises(RuntimeError, match="fdisk failed"):
@@ -96,8 +95,8 @@ class TestMountPartitionSecurity:
         with pytest.raises(ValueError, match="invalid characters"):
             mount.mount_partition("/dev/sda1 /tmp/evil", "test")
 
-    @patch("os.path.ismount", return_value=False)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=False)
+    @patch('subprocess.run')
     def test_sanitizes_name_path_traversal(self, mock_run, mock_ismount):
         """Ensure mount_partition sanitizes path traversal in name"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -107,12 +106,12 @@ class TestMountPartitionSecurity:
 
         # Verify the sanitized path was used
         mount_call = mock_run.call_args_list[1][0][0]
-        assert mount_call == ["mount", "/dev/sda1", "/media/etc"]
+        assert mount_call == ['mount', '/dev/sda1', '/media/etc']
 
     def test_sanitizes_name_parent_directory(self):
         """Ensure mount_partition strips parent directories from name"""
-        with patch("os.path.ismount", return_value=False):
-            with patch("subprocess.run") as mock_run:
+        with patch('os.path.ismount', return_value=False):
+            with patch('subprocess.run') as mock_run:
                 mock_run.return_value = MagicMock(returncode=0, stderr="")
 
                 # This should extract only 'test' from the path
@@ -122,8 +121,8 @@ class TestMountPartitionSecurity:
                 calls = [str(call) for call in mock_run.call_args_list]
                 # Check that the path doesn't contain parent directories
                 mkdir_call = mock_run.call_args_list[0][0][0]
-                assert mkdir_call[0] == "mkdir"
-                assert "/media/test" in mkdir_call[2]
+                assert mkdir_call[0] == 'mkdir'
+                assert '/media/test' in mkdir_call[2]
 
     def test_rejects_dot_name(self):
         """Ensure mount_partition rejects '.' as name"""
@@ -135,8 +134,8 @@ class TestMountPartitionSecurity:
         with pytest.raises(ValueError, match="Invalid mount name"):
             mount.mount_partition("/dev/sda1", "..")
 
-    @patch("os.path.ismount", return_value=False)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=False)
+    @patch('subprocess.run')
     def test_sanitizes_name_with_slash(self, mock_run, mock_ismount):
         """Ensure mount_partition sanitizes names containing slash"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -146,10 +145,10 @@ class TestMountPartitionSecurity:
 
         # Verify the sanitized path was used
         mount_call = mock_run.call_args_list[1][0][0]
-        assert mount_call == ["mount", "/dev/sda1", "/media/path"]
+        assert mount_call == ['mount', '/dev/sda1', '/media/path']
 
-    @patch("os.path.ismount", return_value=False)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=False)
+    @patch('subprocess.run')
     def test_uses_subprocess_with_argument_list(self, mock_run, mock_ismount):
         """Verify subprocess.run is used with argument list (not shell string)"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -161,18 +160,18 @@ class TestMountPartitionSecurity:
 
         # First call: mkdir
         mkdir_call = mock_run.call_args_list[0][0][0]
-        assert mkdir_call == ["mkdir", "-p", "/media/test"]
+        assert mkdir_call == ['mkdir', '-p', '/media/test']
 
         # Second call: mount
         mount_call = mock_run.call_args_list[1][0][0]
-        assert mount_call == ["mount", "/dev/sda1", "/media/test"]
+        assert mount_call == ['mount', '/dev/sda1', '/media/test']
 
-    @patch("os.path.ismount", return_value=False)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=False)
+    @patch('subprocess.run')
     def test_handles_mount_failure(self, mock_run, mock_ismount):
         """Ensure mount failures raise RuntimeError with context"""
         mock_run.side_effect = subprocess.CalledProcessError(
-            32, "mount", stderr="mount: /dev/sda1: permission denied"
+            32, 'mount', stderr='mount: /dev/sda1: permission denied'
         )
 
         with pytest.raises(RuntimeError, match="Failed to mount"):
@@ -182,8 +181,8 @@ class TestMountPartitionSecurity:
 class TestUnmountPartitionSecurity:
     """Test unmount_partition() input validation and security."""
 
-    @patch("os.path.ismount", return_value=True)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=True)
+    @patch('subprocess.run')
     def test_sanitizes_name_path_traversal(self, mock_run, mock_ismount):
         """Ensure unmount_partition sanitizes path traversal"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -193,7 +192,7 @@ class TestUnmountPartitionSecurity:
 
         # Verify the sanitized path was used
         umount_call = mock_run.call_args[0][0]
-        assert umount_call == ["umount", "/media/etc"]
+        assert umount_call == ['umount', '/media/etc']
 
     def test_rejects_dot_name(self):
         """Ensure unmount_partition rejects '.' as name"""
@@ -205,8 +204,8 @@ class TestUnmountPartitionSecurity:
         with pytest.raises(ValueError, match="Invalid mount name"):
             mount.unmount_partition("..")
 
-    @patch("os.path.ismount", return_value=True)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=True)
+    @patch('subprocess.run')
     def test_sanitizes_name_with_slash(self, mock_run, mock_ismount):
         """Ensure unmount_partition sanitizes names with slash"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -216,12 +215,12 @@ class TestUnmountPartitionSecurity:
 
         # Verify the sanitized path was used
         umount_call = mock_run.call_args[0][0]
-        assert umount_call == ["umount", "/media/path"]
+        assert umount_call == ['umount', '/media/path']
 
     def test_extracts_final_name_component(self):
         """Ensure unmount_partition strips parent paths"""
-        with patch("os.path.ismount", return_value=True):
-            with patch("subprocess.run") as mock_run:
+        with patch('os.path.ismount', return_value=True):
+            with patch('subprocess.run') as mock_run:
                 mock_run.return_value = MagicMock(returncode=0, stderr="")
 
                 # Should extract only 'test' from the path
@@ -229,10 +228,10 @@ class TestUnmountPartitionSecurity:
 
                 # Verify umount was called with sanitized path
                 umount_call = mock_run.call_args[0][0]
-                assert umount_call == ["umount", "/media/test"]
+                assert umount_call == ['umount', '/media/test']
 
-    @patch("os.path.ismount", return_value=True)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=True)
+    @patch('subprocess.run')
     def test_uses_subprocess_with_argument_list(self, mock_run, mock_ismount):
         """Verify subprocess.run is used with argument list"""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -241,14 +240,14 @@ class TestUnmountPartitionSecurity:
 
         # Verify umount uses argument list
         umount_call = mock_run.call_args[0][0]
-        assert umount_call == ["umount", "/media/test"]
+        assert umount_call == ['umount', '/media/test']
 
-    @patch("os.path.ismount", return_value=True)
-    @patch("subprocess.run")
+    @patch('os.path.ismount', return_value=True)
+    @patch('subprocess.run')
     def test_handles_unmount_failure(self, mock_run, mock_ismount):
         """Ensure unmount failures raise RuntimeError with context"""
         mock_run.side_effect = subprocess.CalledProcessError(
-            1, "umount", stderr="umount: /media/test: target is busy"
+            1, 'umount', stderr='umount: /media/test: target is busy'
         )
 
         with pytest.raises(RuntimeError, match="Failed to unmount"):
@@ -258,11 +257,9 @@ class TestUnmountPartitionSecurity:
 class TestMountWrapperSecurity:
     """Test mount() wrapper function validation."""
 
-    @patch("rpi_usb_cloner.storage.mount.get_partition")
-    @patch("rpi_usb_cloner.storage.mount.mount_partition")
-    def test_mount_calls_get_partition_and_mount_partition(
-        self, mock_mount_part, mock_get_part
-    ):
+    @patch('rpi_usb_cloner.storage.mount.get_partition')
+    @patch('rpi_usb_cloner.storage.mount.mount_partition')
+    def test_mount_calls_get_partition_and_mount_partition(self, mock_mount_part, mock_get_part):
         """Ensure mount() calls get_partition and mount_partition"""
         mock_get_part.return_value = "/dev/sda1"
 
@@ -271,7 +268,7 @@ class TestMountWrapperSecurity:
         mock_get_part.assert_called_once_with("/dev/sda")
         mock_mount_part.assert_called_once_with("/dev/sda1", "test")
 
-    @patch("rpi_usb_cloner.storage.mount.get_partition")
+    @patch('rpi_usb_cloner.storage.mount.get_partition')
     def test_mount_propagates_validation_errors(self, mock_get_part):
         """Ensure mount() propagates validation errors from get_partition"""
         mock_get_part.side_effect = ValueError("Invalid device path")
@@ -283,14 +280,14 @@ class TestMountWrapperSecurity:
 class TestUnmountWrapperSecurity:
     """Test unmount() wrapper function validation."""
 
-    @patch("rpi_usb_cloner.storage.mount.unmount_partition")
+    @patch('rpi_usb_cloner.storage.mount.unmount_partition')
     def test_unmount_calls_unmount_partition(self, mock_unmount_part):
         """Ensure unmount() calls unmount_partition"""
         mount.unmount("/dev/sda", "test")
 
         mock_unmount_part.assert_called_once_with("test")
 
-    @patch("rpi_usb_cloner.storage.mount.unmount_partition")
+    @patch('rpi_usb_cloner.storage.mount.unmount_partition')
     def test_unmount_propagates_validation_errors(self, mock_unmount_part):
         """Ensure unmount() propagates validation errors"""
         mock_unmount_part.side_effect = ValueError("Invalid mount name")
@@ -311,32 +308,24 @@ class TestSecurityRegression:
             if inspect.isfunction(obj) and obj.__module__ == mount.__name__:
                 source = inspect.getsource(obj)
                 # Skip docstrings by looking for actual os.system calls
-                if (
-                    "os.system(" in source
-                    and '"""' not in source.split("os.system(")[0]
-                ):
-                    assert (
-                        False
-                    ), f"os.system() call found in function {name} - regression detected!"
+                if 'os.system(' in source and '"""' not in source.split('os.system(')[0]:
+                    assert False, f"os.system() call found in function {name} - regression detected!"
 
     def test_no_shell_true_in_subprocess(self):
         """Verify subprocess is never called with shell=True"""
         import inspect
-
         source = inspect.getsource(mount)
 
         # shell=True should not appear
-        assert (
-            "shell=True" not in source
-        ), "shell=True found in mount.py - security risk!"
+        assert 'shell=True' not in source, "shell=True found in mount.py - security risk!"
 
-    @patch("subprocess.run")
+    @patch('subprocess.run')
     def test_all_subprocess_calls_use_lists(self, mock_run):
         """Verify all subprocess calls use argument lists not strings"""
         mock_run.return_value = MagicMock(returncode=0, stdout="test", stderr="")
 
         # Try various operations
-        with patch("os.path.ismount", return_value=False):
+        with patch('os.path.ismount', return_value=False):
             try:
                 mount.mount_partition("/dev/sda1", "test")
             except:
@@ -345,6 +334,4 @@ class TestSecurityRegression:
         # Check that all calls used lists, not strings
         for call in mock_run.call_args_list:
             cmd = call[0][0]
-            assert isinstance(
-                cmd, list
-            ), f"subprocess.run called with string, not list: {cmd}"
+            assert isinstance(cmd, list), f"subprocess.run called with string, not list: {cmd}"

@@ -34,19 +34,31 @@ def get_action_context() -> ActionContext:
 
 
 # Import all action modules
-from .drives import (copy_drive, drive_info, erase_drive, format_drive,
-                     unmount_drive)
-from .images import backup_image, images_coming_soon, write_image
-from .settings import (demo_confirmation_screen, demo_info_screen,
-                       demo_progress_screen, demo_status_screen,
-                       heroicons_demo, keyboard_test, lucide_demo,
-                       preview_title_font, restart_service, restart_system,
-                       screensaver_settings, select_restore_partition_mode,
-                       select_screensaver_gif, settings_coming_soon,
-                       shutdown_system, stop_service,
-                       toggle_screensaver_enabled, toggle_screensaver_mode,
-                       update_version, wifi_settings)
-from .tools import tools_coming_soon, view_logs
+from .drives import copy_drive, drive_info, format_drive, unmount_drive, erase_drive
+from .images import backup_image, write_image, images_coming_soon
+from .tools import view_logs, tools_coming_soon
+from .settings import (
+    settings_coming_soon,
+    wifi_settings,
+    select_restore_partition_mode,
+    screensaver_settings,
+    toggle_screensaver_enabled,
+    toggle_screensaver_mode,
+    select_screensaver_gif,
+    keyboard_test,
+    demo_confirmation_screen,
+    demo_status_screen,
+    demo_info_screen,
+    demo_progress_screen,
+    lucide_demo,
+    heroicons_demo,
+    preview_title_font,
+    update_version,
+    restart_service,
+    stop_service,
+    restart_system,
+    shutdown_system,
+)
 
 # Common utility (used by all action modules)
 noop = lambda: None
