@@ -151,8 +151,11 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         clamped = None
         if ratio is not None:
             clamped = max(0.0, min(1.0, float(ratio)))
+        trimmed_lines = [line for line in lines if line.strip() != "Working..."]
+        if len(trimmed_lines) > 2:
+            trimmed_lines = trimmed_lines[:2]
         with progress_lock:
-            progress_lines = lines
+            progress_lines = trimmed_lines
             if clamped is not None:
                 progress_ratio = clamped
                 progress_ratio_snapshot = clamped
