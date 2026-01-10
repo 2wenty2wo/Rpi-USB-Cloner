@@ -2,7 +2,7 @@
 # Python 3.8+ required
 
 # Image processing library
-Pillow==10.1.0
+Pillow==12.1.0
 
 # OLED display drivers for Adafruit 128x64 OLED Bonnet
 # luma.oled depends on luma.core, but we pin both for reproducibility
