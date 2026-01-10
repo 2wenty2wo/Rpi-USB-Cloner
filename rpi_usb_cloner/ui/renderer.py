@@ -129,13 +129,18 @@ def render_menu_screen(
     if needs_scrollbar and content_bottom >= content_top:
         track_top = content_top
         track_bottom = content_bottom
+        thumb_bottom_limit = content_bottom - 1
         track_height = track_bottom - track_top + 1
         min_thumb_px = 1
         thumb_height = max(
             min_thumb_px,
             int(track_height * visible_rows / len(items_list)),
         )
-        thumb_height = min(thumb_height, track_height)
+        max_thumb_height = max(thumb_bottom_limit - track_top, 0)
+        if max_thumb_height < min_thumb_px:
+            thumb_height = max_thumb_height
+        else:
+            thumb_height = min(thumb_height, max_thumb_height)
         max_scroll = max(len(items_list) - visible_rows, 0)
         thumb_range = max(track_height - thumb_height, 0)
         if max_scroll > 0:
@@ -144,9 +149,11 @@ def render_menu_screen(
             thumb_offset = 0
         thumb_offset = max(0, min(thumb_offset, thumb_range))
         thumb_top = track_top + thumb_offset
-        thumb_bottom = thumb_top + thumb_height - 1
-        thumb_top = max(track_top, min(thumb_top, track_bottom))
-        thumb_bottom = max(thumb_top, min(thumb_bottom, track_bottom))
+        thumb_top = min(thumb_top, thumb_bottom_limit - thumb_height)
+        thumb_top = max(track_top, thumb_top)
+        if thumb_top + thumb_height > thumb_bottom_limit:
+            thumb_top = max(track_top, thumb_bottom_limit - thumb_height)
+        thumb_bottom = thumb_top + thumb_height
         track_right = context.width - 1
         draw.rectangle(
             (track_right, thumb_top, track_right, thumb_bottom),
