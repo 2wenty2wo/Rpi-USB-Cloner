@@ -1,3 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rpi-usb-cloner"
+dynamic = ["version"]
+description = "USB Cloner/Duplicator using a Raspberry Pi Zero with OLED display"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "2wenty2wo"},
+]
+keywords = ["raspberry-pi", "usb", "cloner", "duplicator", "backup", "imaging", "clonezilla"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "Pillow>=10.1.0",
+    "luma.core>=2.4.2",
+    "luma.oled>=3.12.0",
+    "RPi.GPIO>=0.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/2wenty2wo/Rpi-USB-Cloner"
+Documentation = "https://github.com/2wenty2wo/Rpi-USB-Cloner#readme"
+Repository = "https://github.com/2wenty2wo/Rpi-USB-Cloner"
+"Bug Reports" = "https://github.com/2wenty2wo/Rpi-USB-Cloner/issues"
+Changelog = "https://github.com/2wenty2wo/Rpi-USB-Cloner/blob/main/CHANGELOG.md"
+
+[project.scripts]
+rpi-usb-cloner = "rpi_usb_cloner.main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "rpi_usb_cloner.__version__.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rpi_usb_cloner*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+rpi_usb_cloner = [
+    "ui/assets/*.webp",
+    "ui/assets/*.gif",
+    "ui/assets/fonts/*.ttf",
+]
+
 [tool.ruff]
 # Python version to target
 target-version = "py38"

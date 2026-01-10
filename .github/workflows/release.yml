@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update version file
+        run: |
+          cat > rpi_usb_cloner/__version__.py << EOF
+          """Version information for Rpi-USB-Cloner."""
+
+          __version__ = "${{ steps.get_version.outputs.version }}"
+          EOF
+          cat rpi_usb_cloner/__version__.py
+
+      - name: Update CHANGELOG
+        run: |
+          # Get the release notes
+          RELEASE_NOTES=$(cat << 'EOF'
+          ${{ github.event.release.body }}
+          EOF
+          )
+
+          # Create new changelog entry
+          {
+            echo "# Changelog"
+            echo ""
+            echo "All notable changes to this project will be documented in this file."
+            echo ""
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
+            echo ""
+            echo "## [${{ steps.get_version.outputs.version }}] - $(date +%Y-%m-%d)"
+            echo ""
+            echo "$RELEASE_NOTES"
+            echo ""
+            if [ -f CHANGELOG.md ]; then
+              # Skip the header lines if changelog exists
+              tail -n +8 CHANGELOG.md
+            fi
+          } > CHANGELOG.md.new
+
+          mv CHANGELOG.md.new CHANGELOG.md
+
+      - name: Commit version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add rpi_usb_cloner/__version__.py CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.get_version.outputs.version }} [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main || echo "No changes to push"
+
+  build-and-upload:
+    runs-on: ubuntu-latest
+    needs: update-version
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build distribution packages
+        run: |
+          python -m build
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # Uncomment when ready to publish to PyPI
+      # - name: Publish to PyPI
+      #   env:
+      #     TWINE_USERNAME: __token__
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      #   run: |
+      #     twine upload dist/*
