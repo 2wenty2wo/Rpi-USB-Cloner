@@ -142,7 +142,8 @@ def render_menu_screen(
         else:
             thumb_height = min(thumb_height, max_thumb_height)
         max_scroll = max(len(items_list) - visible_rows, 0)
-        thumb_range = max(track_height - thumb_height, 0)
+        usable_track_height = max_thumb_height
+        thumb_range = max(usable_track_height - thumb_height, 0)
         if max_scroll > 0:
             thumb_offset = int((scroll_offset / max_scroll) * thumb_range)
         else:
