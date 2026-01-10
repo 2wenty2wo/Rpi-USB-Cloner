@@ -39,7 +39,7 @@ jobs:
         pytest tests/ --cov=rpi_usb_cloner --cov-report=xml --cov-report=term-missing -v
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       if: matrix.python-version == '3.11'
       with:
         file: ./coverage.xml
