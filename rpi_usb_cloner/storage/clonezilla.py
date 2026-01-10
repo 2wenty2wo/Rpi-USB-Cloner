@@ -97,6 +97,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import (
     format_filesystem_type,
@@ -106,6 +107,19 @@ from rpi_usb_cloner.storage.clone import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_verify_hash_timeout(setting_key: str) -> float | None:
+    value = settings.get_setting(setting_key)
+    if value is None:
+        return None
+    try:
+        timeout = float(value)
+    except (TypeError, ValueError):
+        return None
+    if timeout <= 0:
+        return None
+    return timeout
 
 @dataclass(frozen=True)
 class ClonezillaImage:
@@ -1773,9 +1787,9 @@ def _compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
     if decompress_proc and decompress_proc.stdout:
         decompress_proc.stdout.close()
 
-    # Use timeout to prevent indefinite hangs (10 minutes for image files)
+    timeout = _get_verify_hash_timeout("verify_image_hash_timeout_seconds")
     try:
-        sha_out, sha_err = sha_proc.communicate(timeout=600)
+        sha_out, sha_err = sha_proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         sha_proc.kill()
         if decompress_proc:
@@ -1785,7 +1799,7 @@ def _compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
         if decompress_proc:
             decompress_proc.wait()
         cat_proc.wait()
-        raise RuntimeError("Image hash computation timed out after 10 minutes")
+        raise RuntimeError(f"Image hash computation timed out after {timeout} seconds")
 
     # Wait for all processes
     cat_proc.wait()
@@ -1829,15 +1843,15 @@ def _compute_partition_sha256(partition_path: str) -> str:
     if dd_proc.stdout:
         dd_proc.stdout.close()
 
-    # Use timeout to prevent indefinite hangs (5 minutes should be enough for most partitions)
+    timeout = _get_verify_hash_timeout("verify_partition_hash_timeout_seconds")
     try:
-        sha_out, sha_err = sha_proc.communicate(timeout=300)
+        sha_out, sha_err = sha_proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         sha_proc.kill()
         dd_proc.kill()
         sha_proc.wait()
         dd_proc.wait()
-        raise RuntimeError("Partition hash computation timed out after 5 minutes")
+        raise RuntimeError(f"Partition hash computation timed out after {timeout} seconds")
 
     dd_proc.wait()
 
