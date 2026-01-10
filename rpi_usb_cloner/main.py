@@ -223,7 +223,7 @@ def main(argv=None):
         menu_actions,
     )
 
-    INPUT_POLL_INTERVAL = 0.03
+    INPUT_POLL_INTERVAL = 0.02  # 20ms for snappier button response (50 checks/sec)
     INITIAL_REPEAT_DELAY = 0.25
     REPEAT_INTERVAL = 0.08
 
@@ -441,7 +441,6 @@ def main(argv=None):
     error_displayed = False
     try:
         while True:
-            time.sleep(INPUT_POLL_INTERVAL)
             render_requested = False
             force_render = False
             now = time.monotonic()
@@ -589,6 +588,9 @@ def main(argv=None):
             prev_states = current_states
             if render_requested:
                 render_current_screen(force=force_render)
+
+            # Sleep at end of loop to minimize latency for next button press
+            time.sleep(INPUT_POLL_INTERVAL)
     except KeyboardInterrupt:
         pass
     except Exception as error:
