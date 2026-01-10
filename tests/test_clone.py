@@ -309,7 +309,7 @@ unit: sectors
 /dev/sda2 : start=1050624, size=29360128, type=83
 """
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.run_checked_command")
+        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
         mock_run.side_effect = [sfdisk_output, None]  # dump, then write
 
         src = {"name": "sda"}
@@ -343,7 +343,7 @@ device: /dev/sda
 unit: sectors
 """
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.run_checked_command")
+        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
         mock_run.side_effect = [sfdisk_output, None]  # dump, then sgdisk
 
         src = {"name": "sda"}
@@ -381,7 +381,7 @@ unit: sectors
 
         sfdisk_output = "label: gpt\n"
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.run_checked_command")
+        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}
@@ -398,7 +398,7 @@ unit: sectors
 
         sfdisk_output = "device: /dev/sda\nunit: sectors\n"  # No label line
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.run_checked_command")
+        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}
@@ -415,7 +415,7 @@ unit: sectors
 
         sfdisk_output = "label: aix\n"  # Unsupported
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.run_checked_command")
+        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}
