@@ -60,8 +60,7 @@ def render_error_screen(
         # Load icon font at specified size
         try:
             message_icon_font = display.ImageFont.truetype(
-                display.LUCIDE_FONT_PATH,
-                message_icon_size
+                display.LUCIDE_FONT_PATH, message_icon_size
             )
         except OSError:
             message_icon_font = body_font

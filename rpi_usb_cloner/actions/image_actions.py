@@ -23,13 +23,17 @@ def coming_soon() -> None:
 
 
 def backup_image() -> None:
-    screens.render_status_template("BACKUP", "Running...", progress_line="Preparing image...")
+    screens.render_status_template(
+        "BACKUP", "Running...", progress_line="Preparing image..."
+    )
     time.sleep(1)
     screens.render_status_template("BACKUP", "Done", progress_line="Image saved.")
     time.sleep(1)
 
 
-def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
+def write_image(
+    *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
+) -> None:
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     if not repos:
         display.display_lines(["IMAGE REPO", "NOT FOUND"])
@@ -84,7 +88,9 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         mountpoints = _collect_mountpoints(device)
         if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
             repo_devices.add(device.get("name"))
-    target_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
+    target_candidates = [
+        device for device in usb_devices if device.get("name") not in repo_devices
+    ]
     if not target_candidates:
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
@@ -159,7 +165,9 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             if clamped is not None:
                 progress_ratio = clamped
                 progress_ratio_snapshot = clamped
-            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            wrote_line = next(
+                (line for line in lines if line.startswith("Wrote ")), None
+            )
             if wrote_line:
                 match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
                 if match:
@@ -337,14 +345,23 @@ def _verify_restore(
         screens.render_status_template(
             "VERIFY",
             "SUCCESS",
-            extra_lines=["Image verification", "completed successfully.", "Press A/B to continue."],
+            extra_lines=[
+                "Image verification",
+                "completed successfully.",
+                "Press A/B to continue.",
+            ],
         )
     else:
         _log_debug(log_debug, "Verification failed")
         screens.render_status_template(
             "VERIFY",
             "FAILED",
-            extra_lines=["Verification failed.", "Data may not match", "source image.", "Press A/B to continue."],
+            extra_lines=[
+                "Verification failed.",
+                "Data may not match",
+                "source image.",
+                "Press A/B to continue.",
+            ],
         )
 
     screens.wait_for_ack()
@@ -532,8 +549,12 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
 
 def _short_restore_reason(message: str) -> str:
     lower = message.lower()
-    if "partclone tool not found" in lower or ("partclone." in lower and "not found" in lower):
-        fstype_match = re.search(r"filesystem ['\"]?([^'\"]+)['\"]?", message, re.IGNORECASE)
+    if "partclone tool not found" in lower or (
+        "partclone." in lower and "not found" in lower
+    ):
+        fstype_match = re.search(
+            r"filesystem ['\"]?([^'\"]+)['\"]?", message, re.IGNORECASE
+        )
         if fstype_match:
             return f"Missing partclone.{fstype_match.group(1).lower()}"
         return "Missing partclone tool"
@@ -549,7 +570,9 @@ def _short_restore_reason(message: str) -> str:
 
 
 def _extract_stderr_message(message: str) -> Optional[str]:
-    match = re.search(r"stderr:\s*(.*?)(?:\s*(?:stdout:|$))", message, re.IGNORECASE | re.DOTALL)
+    match = re.search(
+        r"stderr:\s*(.*?)(?:\s*(?:stdout:|$))", message, re.IGNORECASE | re.DOTALL
+    )
     if not match:
         return None
     stderr = " ".join(match.group(1).strip().split())
@@ -626,7 +649,9 @@ def _write_iso_image(
             if clamped is not None:
                 progress_ratio = clamped
                 progress_ratio_snapshot = clamped
-            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            wrote_line = next(
+                (line for line in lines if line.startswith("Wrote ")), None
+            )
             if wrote_line:
                 match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
                 if match:
@@ -688,7 +713,9 @@ def _write_iso_image(
         f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
     ]
     if progress_written_bytes and progress_written_percent:
-        summary_lines.append(f"Wrote {progress_written_bytes} {progress_written_percent}")
+        summary_lines.append(
+            f"Wrote {progress_written_bytes} {progress_written_percent}"
+        )
     elif progress_written_bytes:
         summary_lines.append(f"Wrote {progress_written_bytes}")
     elif progress_ratio_snapshot is not None:

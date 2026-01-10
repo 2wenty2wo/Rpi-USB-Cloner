@@ -10,12 +10,8 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device, erase_device
-from rpi_usb_cloner.storage.devices import (
-    format_device_label,
-    get_children,
-    human_size,
-    list_usb_disks,
-)
+from rpi_usb_cloner.storage.devices import (format_device_label, get_children,
+                                            human_size, list_usb_disks)
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus, screens
 
@@ -48,7 +44,9 @@ def copy_drive(
         [prompt],
         selected_index=confirm_selection,
     )
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
         "R": gpio.read_button(gpio.PIN_R),
@@ -84,16 +82,24 @@ def copy_drive(
             if prev_states["B"] and not current_B:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
-                    screens.render_status_template("COPY", "Running...", progress_line="Starting...")
+                    screens.render_status_template(
+                        "COPY", "Running...", progress_line="Starting..."
+                    )
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
                         return
-                    screens.render_status_template("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
+                    screens.render_status_template(
+                        "COPY", "Running...", progress_line=f"Mode {mode.upper()}"
+                    )
                     if clone_device(source, target, mode=mode):
-                        screens.render_status_template("COPY", "Done", progress_line="Complete.")
+                        screens.render_status_template(
+                            "COPY", "Done", progress_line="Complete."
+                        )
                     else:
                         _log_debug(log_debug, "Copy failed")
-                        screens.render_status_template("COPY", "Failed", progress_line="Check logs.")
+                        screens.render_status_template(
+                            "COPY", "Failed", progress_line="Check logs."
+                        )
                     time.sleep(1)
                     return
                 if confirm_selection == app_state.CONFIRM_NO:
@@ -127,7 +133,9 @@ def drive_info(
         get_selected_usb_name=get_selected_usb_name,
         page_index=page_index,
     )
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
+    )
     last_selected_name = get_selected_usb_name()
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
@@ -346,7 +354,9 @@ def _pick_source_target(
                 selected = device
                 break
     if selected:
-        remaining = [device for device in devices_list if device.get("name") != selected_name]
+        remaining = [
+            device for device in devices_list if device.get("name") != selected_name
+        ]
         if not remaining:
             return None, None
         source = selected
@@ -384,7 +394,9 @@ def _confirm_destructive_action(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -520,7 +532,9 @@ def _view_devices(
     if not selected_name:
         display.display_lines(["NO SELECTED USB"])
         return 1, 0
-    devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
+    devices_list = [
+        device for device in list_usb_disks() if device.get("name") == selected_name
+    ]
     if not devices_list:
         display.display_lines(["NO SELECTED USB"])
         return 1, 0
@@ -681,7 +695,11 @@ def format_drive(
     def worker() -> None:
         try:
             success = format_device(
-                target, filesystem, format_type, label=label, progress_callback=update_progress
+                target,
+                filesystem,
+                format_type,
+                label=label,
+                progress_callback=update_progress,
             )
             result_holder["result"] = success
         except Exception as exc:
@@ -734,7 +752,8 @@ def unmount_drive(
     get_selected_usb_name: Callable[[], Optional[str]],
 ) -> None:
     """Unmount a USB drive and optionally power it off."""
-    from rpi_usb_cloner.storage.devices import unmount_device_with_retry, power_off_device
+    from rpi_usb_cloner.storage.devices import (power_off_device,
+                                                unmount_device_with_retry)
 
     # Get target device
     selected_name = get_selected_usb_name()
@@ -743,7 +762,9 @@ def unmount_drive(
         time.sleep(1)
         return
 
-    devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
+    devices_list = [
+        device for device in list_usb_disks() if device.get("name") == selected_name
+    ]
     if not devices_list:
         display.display_lines(["DRIVE", "NOT FOUND"])
         time.sleep(1)

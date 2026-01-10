@@ -6,6 +6,7 @@ import time
 
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.ui import display
+
 from . import get_action_context
 
 

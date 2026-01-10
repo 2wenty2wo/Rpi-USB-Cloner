@@ -48,11 +48,8 @@ import subprocess
 import time
 from typing import Callable, List, Optional
 
-from rpi_usb_cloner.storage.devices import (
-    format_device_label,
-    run_command,
-    unmount_device,
-)
+from rpi_usb_cloner.storage.devices import (format_device_label, run_command,
+                                            unmount_device)
 
 _log_debug = None
 
@@ -104,10 +101,7 @@ def _create_partition(device_path: str) -> bool:
     try:
         log_debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
-        run_command([
-            "parted", "-s", device_path,
-            "mkpart", "primary", "1MiB", "100%"
-        ])
+        run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
         # Wait for partition device node to appear
         time.sleep(1)
         return True
@@ -206,7 +200,7 @@ def _format_filesystem(
                             percent = int(match.group(1))
                             progress_callback(
                                 [f"Formatting {filesystem}...", f"{percent}%"],
-                                percent / 100.0
+                                percent / 100.0,
                             )
                 time.sleep(0.1)
 
@@ -297,7 +291,9 @@ def format_device(
         return False
 
     # Format filesystem
-    if not _format_filesystem(partition_path, filesystem, mode, label, progress_callback):
+    if not _format_filesystem(
+        partition_path, filesystem, mode, label, progress_callback
+    ):
         return False
 
     log_debug(f"Format completed successfully: {device_label}")

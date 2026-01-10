@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rpi_usb_cloner.actions import image_actions
+
 from . import get_action_context
 
 
@@ -27,4 +28,8 @@ def backup_image() -> None:
 
 def write_image() -> None:
     context = get_action_context()
-    _run_operation(lambda: image_actions.write_image(app_context=context.app_context, log_debug=context.log_debug))
+    _run_operation(
+        lambda: image_actions.write_image(
+            app_context=context.app_context, log_debug=context.log_debug
+        )
+    )

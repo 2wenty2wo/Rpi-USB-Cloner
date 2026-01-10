@@ -80,24 +80,20 @@ See Also:
     - rpi_usb_cloner.ui.menus: Menu rendering utilities
     - luma.oled documentation: https://luma-oled.readthedocs.io/
 """
+
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
-from PIL import Image, ImageDraw, ImageFont
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.storage.mount import (
-    get_device_name,
-    get_model,
-    get_size,
-    get_vendor,
-    list_media_devices,
-)
+from rpi_usb_cloner.storage.mount import (get_device_name, get_model, get_size,
+                                          get_vendor, list_media_devices)
 
 
 @dataclass
@@ -455,7 +451,10 @@ def render_paginated_lines(
         indicator_width = indicator_bbox[2] - indicator_bbox[0]
         indicator_height = indicator_bbox[3] - indicator_bbox[1]
         draw.text(
-            (context.width - indicator_width - 2, context.height - indicator_height - 2),
+            (
+                context.width - indicator_width - 2,
+                context.height - indicator_height - 2,
+            ),
             indicator,
             font=items_font,
             fill=255,
@@ -499,10 +498,18 @@ def basemenu(state: app_state.AppState) -> None:
             start_index = max_start
         visible_items = menu_items[start_index : start_index + app_state.VISIBLE_ROWS]
         visible_selected_index = state.usb_list_index - start_index
-        if state.index not in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+        if state.index not in (
+            app_state.MENU_COPY,
+            app_state.MENU_VIEW,
+            app_state.MENU_ERASE,
+        ):
             state.index = app_state.MENU_COPY
         footer_selected = None
-        if state.index in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+        if state.index in (
+            app_state.MENU_COPY,
+            app_state.MENU_VIEW,
+            app_state.MENU_ERASE,
+        ):
             footer_selected = state.index
         menu = Menu(
             items=visible_items,

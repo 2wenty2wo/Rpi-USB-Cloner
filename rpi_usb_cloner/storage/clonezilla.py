@@ -84,6 +84,7 @@ Implementation Notes:
 
     This code would benefit significantly from unit testing to prevent regressions.
 """
+
 from __future__ import annotations
 
 import logging
@@ -98,14 +99,13 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from rpi_usb_cloner.storage import clone, devices
-from rpi_usb_cloner.storage.clone import (
-    format_filesystem_type,
-    get_partition_display_name,
-    get_partition_number,
-    resolve_device_node,
-)
+from rpi_usb_cloner.storage.clone import (format_filesystem_type,
+                                          get_partition_display_name,
+                                          get_partition_number,
+                                          resolve_device_node)
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class ClonezillaImage:
@@ -207,7 +207,12 @@ def load_image(image_dir: Path) -> ClonezillaImage:
     if not parts:
         raise RuntimeError("Clonezilla parts list empty")
     partition_table = _find_partition_table(image_dir)
-    return ClonezillaImage(name=image_dir.name, path=image_dir, parts=parts, partition_table=partition_table)
+    return ClonezillaImage(
+        name=image_dir.name,
+        path=image_dir,
+        parts=parts,
+        partition_table=partition_table,
+    )
 
 
 def restore_image(
@@ -275,7 +280,9 @@ def restore_clonezilla_image(
         partition_mode=partition_mode,
         target_size=target_size,
     )
-    post_layout_ops = [op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"]
+    post_layout_ops = [
+        op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"
+    ]
     layout_ops = [op for op in disk_layout_ops if op.kind != "hidden-data-after-mbr"]
     if partition_mode == "k":
         _emit_prewrite_progress("Checking existing partition layout")
@@ -287,7 +294,9 @@ def restore_clonezilla_image(
             allow_short=True,
         )
         if observed_count < required_partitions:
-            raise RuntimeError("target partition table missing required partitions for restore in -k mode")
+            raise RuntimeError(
+                "target partition table missing required partitions for restore in -k mode"
+            )
         target_parts = _map_target_partitions(plan.parts, refreshed)
     else:
         applied_layout = False
@@ -297,7 +306,9 @@ def restore_clonezilla_image(
             try:
                 applied_layout = _apply_disk_layout_op(op, target_node)
             except Exception as exc:
-                raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
+                raise RuntimeError(
+                    f"Partition table apply failed ({op.kind}): {exc}"
+                ) from exc
             if not applied_layout:
                 continue
             _reread_partition_table(target_node)
@@ -319,10 +330,16 @@ def restore_clonezilla_image(
                     required_partitions,
                     observed_count,
                 )
-                attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
+                attempt_results.append(
+                    f"{op.kind}: expected {required_partitions}, saw {observed_count}"
+                )
                 applied_layout = False
         if layout_ops and not applied_layout:
-            attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
+            attempts = (
+                "; ".join(attempt_results)
+                if attempt_results
+                else "no successful layout ops"
+            )
             raise RuntimeError(
                 "Partition table apply failed to produce expected partition count "
                 f"(expected {required_partitions}). Attempts: {attempts}."
@@ -338,7 +355,9 @@ def restore_clonezilla_image(
         try:
             _apply_disk_layout_op(op, target_node)
         except Exception as exc:
-            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
+            raise RuntimeError(
+                f"Partition table apply failed ({op.kind}): {exc}"
+            ) from exc
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
         target_part = target_parts.get(op.partition)
@@ -424,7 +443,9 @@ def _wait_for_target_partitions(
                 return last_info, last_mapping
         time.sleep(poll_interval)
     if not last_info:
-        raise RuntimeError("Unable to refresh target device after partition table update.")
+        raise RuntimeError(
+            "Unable to refresh target device after partition table update."
+        )
     missing = [part for part in parts if not last_mapping.get(part)]
     missing_label = ", ".join(missing) if missing else "unknown"
     raise RuntimeError(f"Timed out waiting for partitions to appear: {missing_label}")
@@ -449,7 +470,9 @@ def _wait_for_partition_count(
                 return last_info, last_count
         time.sleep(poll_interval)
     if not last_info:
-        raise RuntimeError("Unable to refresh target device after partition table update.")
+        raise RuntimeError(
+            "Unable to refresh target device after partition table update."
+        )
     if allow_short:
         return last_info, last_count
     raise RuntimeError(
@@ -458,7 +481,9 @@ def _wait_for_partition_count(
     )
 
 
-def _collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
+def _collect_disk_layout_ops(
+    image_dir: Path, *, select: bool = True
+) -> list[DiskLayoutOp]:
     disk_layout_ops: list[DiskLayoutOp] = []
     for name, kind in (("disk", "disk"), ("sfdisk", "sfdisk")):
         path = image_dir / name
@@ -518,7 +543,9 @@ def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
     return DiskLayoutOp(kind=kind, path=path, contents=contents, size_bytes=size_bytes)
 
 
-def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[PartitionRestoreOp]:
+def _build_partition_restore_op(
+    image_dir: Path, part_name: str
+) -> Optional[PartitionRestoreOp]:
     partclone_files = _find_image_files(image_dir, part_name, "ptcl-img")
     dd_files = _find_image_files(image_dir, part_name, "img")
     if partclone_files:
@@ -549,7 +576,9 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
             compressed=_is_compressed(dd_files),
         )
     if _has_partition_image_files(image_dir, part_name):
-        raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
+        raise RuntimeError(
+            f"Image set does not match partclone/dd naming convention for partition {part_name}"
+        )
     return None
 
 
@@ -608,7 +637,11 @@ def _estimate_required_size_bytes(
                         max_sector = end_sector
             if line[0].isdigit() and ":" in line:
                 fields = [field.strip() for field in line.split(":")]
-                if len(fields) > 2 and fields[1].endswith("s") and fields[2].endswith("s"):
+                if (
+                    len(fields) > 2
+                    and fields[1].endswith("s")
+                    and fields[2].endswith("s")
+                ):
                     end_sector = int(fields[2][:-1])
                     if max_sector is None or end_sector > max_sector:
                         max_sector = end_sector
@@ -635,7 +668,9 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
         return None
 
 
-def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
+def _get_device_size_bytes(
+    target_info: Optional[dict], target_node: str
+) -> Optional[int]:
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))
     return _get_blockdev_size_bytes(target_node)
@@ -731,12 +766,18 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
     if not scaled:
         return None
     for part in scaled:
-        part["fields"] = _set_sfdisk_field(part["fields"], "start", str(part["new_start"]))
-        part["fields"] = _set_sfdisk_field(part["fields"], "size", str(part["new_size"]))
+        part["fields"] = _set_sfdisk_field(
+            part["fields"], "start", str(part["new_start"])
+        )
+        part["fields"] = _set_sfdisk_field(
+            part["fields"], "size", str(part["new_size"])
+        )
         lines[part["index"]] = _format_sfdisk_line(part["prefix"], part["fields"])
     if last_lba_index is not None:
         lines[last_lba_index] = f"last-lba: {target_sectors - 1}"
-    return DiskLayoutOp(kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
+    return DiskLayoutOp(
+        kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes
+    )
 
 
 def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
@@ -762,10 +803,14 @@ def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
     )
     if not sfdisk_contents:
         return None
-    return DiskLayoutOp(kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes)
+    return DiskLayoutOp(
+        kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes
+    )
 
 
-def _parse_parted_layout(contents: str) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
+def _parse_parted_layout(
+    contents: str,
+) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
     sector_size = 512
     label: Optional[str] = None
     script_partitions: list[dict[str, int | str | list[str]]] = []
@@ -866,7 +911,9 @@ def _build_sfdisk_script_from_parted(
     ]
     if sector_size:
         lines.append(f"sector-size: {sector_size}")
-    for index, part in enumerate(sorted(partitions, key=lambda item: int(item["start"]))):
+    for index, part in enumerate(
+        sorted(partitions, key=lambda item: int(item["start"]))
+    ):
         start = int(part["new_start"])
         size = int(part["new_size"])
         fields: list[tuple[str, str]] = [
@@ -875,7 +922,9 @@ def _build_sfdisk_script_from_parted(
         ]
         flags = [flag.lower() for flag in part.get("flags") or []]
         fstype = str(part.get("fstype") or "").lower()
-        if normalized_label == "gpt" and ("esp" in flags or (fstype == "fat32" and "boot" in flags)):
+        if normalized_label == "gpt" and (
+            "esp" in flags or (fstype == "fat32" and "boot" in flags)
+        ):
             fields.append(("type", "EF00"))
         if normalized_label == "dos" and "boot" in flags:
             fields.append(("bootable", ""))
@@ -975,7 +1024,9 @@ def _get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> Optional[i
     return None
 
 
-def _set_sfdisk_field(fields: list[tuple[str, str]], key: str, value: str) -> list[tuple[str, str]]:
+def _set_sfdisk_field(
+    fields: list[tuple[str, str]], key: str, value: str
+) -> list[tuple[str, str]]:
     updated = []
     found = False
     for field_key, field_value in fields:
@@ -1014,14 +1065,19 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = _format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
+            message = _format_command_failure(
+                "sfdisk failed", [sfdisk, "--force", target_node], result
+            )
             raise RuntimeError(message)
         return True
     if op.kind == "chs.sf":
         if not op.contents:
             raise RuntimeError("chs.sf data missing or unreadable")
         if not _looks_like_sfdisk_script(op.contents):
-            logger.warning("Skipping chs.sf layout op %s: does not look like sfdisk input.", op.path)
+            logger.warning(
+                "Skipping chs.sf layout op %s: does not look like sfdisk input.",
+                op.path,
+            )
             return False
         sfdisk = shutil.which("sfdisk")
         if not sfdisk:
@@ -1034,7 +1090,9 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = _format_command_failure("sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result)
+            message = _format_command_failure(
+                "sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result
+            )
             raise RuntimeError(message)
         return True
     if op.kind == "pt.parted":
@@ -1057,7 +1115,9 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
+            message = _format_command_failure(
+                "parted failed", [parted, "--script", target_node], result
+            )
             raise RuntimeError(message)
         return True
     if op.kind == "pt.parted.compact":
@@ -1081,7 +1141,9 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
+            message = _format_command_failure(
+                "parted failed", [parted, "--script", target_node], result
+            )
             raise RuntimeError(message)
         return True
     if op.kind == "mbr":
@@ -1191,12 +1253,24 @@ def _looks_like_sfdisk_script(contents: str) -> bool:
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith(("/dev/", "label:", "label-id:", "unit:", "sector-size:", "first-lba:", "last-lba:")):
+        if stripped.startswith(
+            (
+                "/dev/",
+                "label:",
+                "label-id:",
+                "unit:",
+                "sector-size:",
+                "first-lba:",
+                "last-lba:",
+            )
+        ):
             return True
     return False
 
 
-def _format_command_failure(summary: str, command: list[str], result: subprocess.CompletedProcess) -> str:
+def _format_command_failure(
+    summary: str, command: list[str], result: subprocess.CompletedProcess
+) -> str:
     stderr = " ".join(result.stderr.strip().split())
     stdout = " ".join(result.stdout.strip().split())
     details = []
@@ -1241,7 +1315,9 @@ def _restore_partition_op(
     )
 
 
-def _select_clonezilla_volume_set(primary: list[Path], secondary: list[Path]) -> list[Path]:
+def _select_clonezilla_volume_set(
+    primary: list[Path], secondary: list[Path]
+) -> list[Path]:
     if primary and secondary:
         return primary if len(primary) >= len(secondary) else secondary
     return primary or secondary
@@ -1353,7 +1429,11 @@ def _map_target_partitions(
     parts: Iterable[str],
     target_device: dict,
 ) -> dict[str, Optional[dict[str, Optional[int]]]]:
-    target_children = [child for child in devices.get_children(target_device) if child.get("type") == "part"]
+    target_children = [
+        child
+        for child in devices.get_children(target_device)
+        if child.get("type") == "part"
+    ]
     target_by_number: dict[int, dict[str, Optional[int]]] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
@@ -1376,7 +1456,11 @@ def _map_target_partitions(
 
 
 def _count_target_partitions(target_device: dict) -> int:
-    return sum(1 for child in devices.get_children(target_device) if child.get("type") == "part")
+    return sum(
+        1
+        for child in devices.get_children(target_device)
+        if child.get("type") == "part"
+    )
 
 
 def _restore_partition(image_dir: Path, part_name: str, target_part: str) -> None:
@@ -1384,7 +1468,9 @@ def _restore_partition(image_dir: Path, part_name: str, target_part: str) -> Non
     dd_files = _find_image_files(image_dir, part_name, "img")
     if not partclone_files and not dd_files:
         if _has_partition_image_files(image_dir, part_name):
-            raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
+            raise RuntimeError(
+                f"Image set does not match partclone/dd naming convention for partition {part_name}"
+            )
         raise RuntimeError(f"Image data missing for {part_name}")
     if partclone_files:
         fstype = _extract_partclone_fstype(part_name, partclone_files[0].name)
@@ -1449,7 +1535,9 @@ def _is_compressed(image_files: list[Path]) -> bool:
     return _get_compression_type(image_files) is not None
 
 
-def _build_restore_command(descriptor: dict, target_part: str) -> tuple[list[str], bool]:
+def _build_restore_command(
+    descriptor: dict, target_part: str
+) -> tuple[list[str], bool]:
     if descriptor["mode"] == "partclone":
         fstype = descriptor.get("fstype", "").lower()
         tool = _get_partclone_tool(fstype)
@@ -1459,7 +1547,13 @@ def _build_restore_command(descriptor: dict, target_part: str) -> tuple[list[str
     dd_path = shutil.which("dd")
     if not dd_path:
         raise RuntimeError("dd not found")
-    return [dd_path, f"of={target_part}", "bs=4M", "status=progress", "conv=fsync"], True
+    return [
+        dd_path,
+        f"of={target_part}",
+        "bs=4M",
+        "status=progress",
+        "conv=fsync",
+    ], True
 
 
 def _get_partclone_tool(fstype: str) -> Optional[str]:
@@ -1488,7 +1582,9 @@ def _get_partclone_tool(fstype: str) -> Optional[str]:
     return None
 
 
-def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -> list[str]:
+def _build_restore_command_from_plan(
+    op: PartitionRestoreOp, target_part: str
+) -> list[str]:
     if op.tool == "partclone":
         fstype = (op.fstype or "").lower()
         tool = _get_partclone_tool(fstype)
@@ -1501,11 +1597,15 @@ def _build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -
     return [dd_path, f"of={target_part}", "bs=4M", "status=progress", "conv=fsync"]
 
 
-def _run_pipeline(image_files: list[Path], restore_command: list[str], supports_progress: bool) -> None:
+def _run_pipeline(
+    image_files: list[Path], restore_command: list[str], supports_progress: bool
+) -> None:
     if not image_files:
         raise RuntimeError("No image files")
     image_files = _sorted_clonezilla_volumes(image_files)
-    cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
+    cat_proc = subprocess.Popen(
+        ["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE
+    )
     upstream = cat_proc.stdout
     decompress_proc = None
     compression_type = _get_compression_type(image_files)
@@ -1567,7 +1667,9 @@ def _run_restore_pipeline(
     if not image_files:
         raise RuntimeError("No image files")
     image_files = _sorted_clonezilla_volumes(image_files)
-    cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
+    cat_proc = subprocess.Popen(
+        ["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE
+    )
     upstream = cat_proc.stdout
     decompress_proc = None
     compression_type = _get_compression_type(image_files)
@@ -1650,7 +1752,8 @@ def verify_restored_image(
         return False
 
     target_parts = [
-        child for child in devices.get_children(target_dev)
+        child
+        for child in devices.get_children(target_dev)
         if child.get("type") == "part"
     ]
 
@@ -1659,7 +1762,9 @@ def verify_restored_image(
         part_num = get_partition_number(op.partition)
         if part_num is None:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", "Invalid partition"], None)
+                progress_callback(
+                    [f"V {index}/{total_parts}", "Invalid partition"], None
+                )
             return False
 
         target_part = None
@@ -1671,36 +1776,48 @@ def verify_restored_image(
 
         if not target_part:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", "Partition missing"], None)
+                progress_callback(
+                    [f"V {index}/{total_parts}", "Partition missing"], None
+                )
             return False
 
         if progress_callback:
-            progress_callback([f"V {index}/{total_parts} IMG", op.partition],
-                            (index - 0.5) / total_parts)
+            progress_callback(
+                [f"V {index}/{total_parts} IMG", op.partition],
+                (index - 0.5) / total_parts,
+            )
 
         # Compute SHA256 of the image file(s)
         try:
             image_hash = _compute_image_sha256(op.image_files, op.compressed)
         except Exception as e:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", "Image hash error"], None)
+                progress_callback(
+                    [f"V {index}/{total_parts}", "Image hash error"], None
+                )
             return False
 
         if progress_callback:
-            progress_callback([f"V {index}/{total_parts} DST", op.partition],
-                            (index - 0.25) / total_parts)
+            progress_callback(
+                [f"V {index}/{total_parts} DST", op.partition],
+                (index - 0.25) / total_parts,
+            )
 
         # Compute SHA256 of the target partition
         try:
             target_hash = _compute_partition_sha256(target_part)
         except Exception as e:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", "Target hash error"], None)
+                progress_callback(
+                    [f"V {index}/{total_parts}", "Target hash error"], None
+                )
             return False
 
         if image_hash != target_hash:
             if progress_callback:
-                progress_callback([f"V {index}/{total_parts}", f"Mismatch {op.partition}"], None)
+                progress_callback(
+                    [f"V {index}/{total_parts}", f"Mismatch {op.partition}"], None
+                )
             return False
 
     if progress_callback:

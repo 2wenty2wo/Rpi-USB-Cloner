@@ -5,8 +5,8 @@ import time
 from typing import Optional
 
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.menu.model import get_screen_icon
+from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.ui import display, keyboard, menus
 
 _WIFI_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
@@ -103,7 +103,9 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
     needs_scan = False
     refresh_status_async()
 
-    def build_menu_state() -> tuple[list[str], list[str], list[wifi.WifiNetwork], Optional[int]]:
+    def build_menu_state() -> (
+        tuple[list[str], list[str], list[wifi.WifiNetwork], Optional[int]]
+    ):
         visible_networks = [network for network in networks if network.ssid]
         cached_status = _get_wifi_status_cache()
         is_connected = cached_status["connected"]
@@ -118,7 +120,9 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             if timed_out:
                 status_lines.append("Scan timed out")
             else:
-                status_lines.append("No networks" if not networks else "No visible networks")
+                status_lines.append(
+                    "No networks" if not networks else "No visible networks"
+                )
 
         menu_lines = list(status_lines)
         disconnect_index = None

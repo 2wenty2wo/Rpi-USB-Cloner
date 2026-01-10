@@ -46,6 +46,7 @@ Example:
     >>> target_device = {"name": "sdb", "size": 8000000000}
     >>> success = clone_device(source_device, target_device, mode="smart")
 """
+
 import os
 import re
 import select
@@ -54,13 +55,9 @@ import subprocess
 import time
 
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.storage.devices import (
-    format_device_label,
-    get_children,
-    get_device_by_name,
-    human_size,
-    unmount_device,
-)
+from rpi_usb_cloner.storage.devices import (format_device_label, get_children,
+                                            get_device_by_name, human_size,
+                                            unmount_device)
 from rpi_usb_cloner.ui.display import display_lines
 
 _log_debug = None
@@ -182,7 +179,9 @@ def copy_partition_table(src, dst):
         sgdisk_path = shutil.which("sgdisk")
         if not sgdisk_path:
             raise RuntimeError("sgdisk not found for GPT replicate")
-        run_checked_command([sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node])
+        run_checked_command(
+            [sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node]
+        )
         log_debug(f"GPT partition table replicated from {src_node} to {dst_node}")
         return
     if label in ("dos", "mbr", "msdos"):
@@ -231,7 +230,18 @@ def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, 
     return lines[:6]
 
 
-def format_progress_display(title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None, subtitle=None):
+def format_progress_display(
+    title,
+    device,
+    mode,
+    bytes_copied,
+    total_bytes,
+    percent,
+    rate,
+    eta,
+    spinner=None,
+    subtitle=None,
+):
     lines = []
     if title:
         title_line = title
@@ -274,10 +284,25 @@ def get_partition_number(name):
     return int(match.group(1))
 
 
-def run_progress_command(command, total_bytes=None, title="WORKING", device_label=None, mode_label=None):
-    display_lines(format_progress_display(title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None))
+def run_progress_command(
+    command, total_bytes=None, title="WORKING", device_label=None, mode_label=None
+):
+    display_lines(
+        format_progress_display(
+            title,
+            device_label,
+            mode_label,
+            0 if total_bytes else None,
+            total_bytes,
+            None,
+            None,
+            None,
+        )
+    )
     log_debug(f"Starting command: {' '.join(command)}")
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     last_update = time.time()
     last_bytes = None
     last_time = None
@@ -314,7 +339,9 @@ def run_progress_command(command, total_bytes=None, title="WORKING", device_labe
                         if delta_bytes >= 0 and delta_time > 0:
                             rate = delta_bytes / delta_time
                 if rate and total_bytes and bytes_copied <= total_bytes:
-                    eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    eta_seconds = (
+                        (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    )
                     eta = format_eta(eta_seconds)
                 last_bytes = bytes_copied
                 last_time = now
@@ -504,7 +531,9 @@ def run_checked_with_streaming_progress(
                         if delta_bytes >= 0 and delta_time > 0:
                             rate = delta_bytes / delta_time
                 if rate and total_bytes and bytes_copied <= total_bytes:
-                    eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    eta_seconds = (
+                        (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    )
                     eta = format_eta(eta_seconds)
                 last_bytes = bytes_copied
                 last_time = now
@@ -564,7 +593,9 @@ def run_checked_with_streaming_progress(
         message = stderr or stdout or "Command failed"
         raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
     emit_progress([title, "Complete"], ratio=1.0)
-    return subprocess.CompletedProcess(command, process.returncode, stdout=stdout_data, stderr=stderr_output)
+    return subprocess.CompletedProcess(
+        command, process.returncode, stdout=stdout_data, stderr=stderr_output
+    )
 
 
 def clone_dd(src, dst, total_bytes=None, title="CLONING", subtitle=None):
@@ -574,7 +605,14 @@ def clone_dd(src, dst, total_bytes=None, title="CLONING", subtitle=None):
     src_node = resolve_device_node(src)
     dst_node = resolve_device_node(dst)
     run_checked_with_streaming_progress(
-        [dd_path, f"if={src_node}", f"of={dst_node}", "bs=4M", "status=progress", "conv=fsync"],
+        [
+            dd_path,
+            f"if={src_node}",
+            f"of={dst_node}",
+            "bs=4M",
+            "status=progress",
+            "conv=fsync",
+        ],
         total_bytes=total_bytes,
         title=title,
         subtitle=subtitle,
@@ -598,16 +636,28 @@ def clone_partclone(source, target):
     target_node = resolve_device_node(target)
     source_name = os.path.basename(source_node)
     target_name = os.path.basename(target_node)
-    source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
-    target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+    source_device = get_device_by_name(source_name) or (
+        source if isinstance(source, dict) else None
+    )
+    target_device = get_device_by_name(target_name) or (
+        target if isinstance(target, dict) else None
+    )
     if not source_device or not target_device:
-        clone_dd(source_node, target_node, total_bytes=source.get("size") if isinstance(source, dict) else None)
+        clone_dd(
+            source_node,
+            target_node,
+            total_bytes=source.get("size") if isinstance(source, dict) else None,
+        )
         return
-    source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
+    source_parts = [
+        child for child in get_children(source_device) if child.get("type") == "part"
+    ]
     if not source_parts:
         clone_dd(source_node, target_node, total_bytes=source_device.get("size"))
         return
-    target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+    target_parts = [
+        child for child in get_children(target_device) if child.get("type") == "part"
+    ]
     target_parts_by_number = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
@@ -648,7 +698,13 @@ def clone_partclone(source, target):
 
         if not tool_path:
             # Use raw copy when no partclone tool available
-            clone_dd(src_part, dst_part, total_bytes=part.get("size"), title=title_line, subtitle=info_line)
+            clone_dd(
+                src_part,
+                dst_part,
+                total_bytes=part.get("size"),
+                title=title_line,
+                subtitle=info_line,
+            )
             continue
 
         display_lines([title_line, info_line])
@@ -726,14 +782,26 @@ def verify_clone(source, target):
     target_node = resolve_device_node(target)
     source_name = os.path.basename(source_node)
     target_name = os.path.basename(target_node)
-    source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
-    target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+    source_device = get_device_by_name(source_name) or (
+        source if isinstance(source, dict) else None
+    )
+    target_device = get_device_by_name(target_name) or (
+        target if isinstance(target, dict) else None
+    )
     if not source_device or not target_device:
-        return verify_clone_device(source_node, target_node, source.get("size") if isinstance(source, dict) else None)
-    source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
+        return verify_clone_device(
+            source_node,
+            target_node,
+            source.get("size") if isinstance(source, dict) else None,
+        )
+    source_parts = [
+        child for child in get_children(source_device) if child.get("type") == "part"
+    ]
     if not source_parts:
         return verify_clone_device(source_node, target_node, source_device.get("size"))
-    target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+    target_parts = [
+        child for child in get_children(target_device) if child.get("type") == "part"
+    ]
     target_parts_by_number = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
@@ -757,8 +825,16 @@ def verify_clone(source, target):
             return False
         print(f"Verifying {src_part} -> {dst_part}")
         try:
-            src_hash = compute_sha256(src_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} SRC")
-            dst_hash = compute_sha256(dst_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} DST")
+            src_hash = compute_sha256(
+                src_part,
+                total_bytes=part.get("size"),
+                title=f"V {index}/{total_parts} SRC",
+            )
+            dst_hash = compute_sha256(
+                dst_part,
+                total_bytes=part.get("size"),
+                title=f"V {index}/{total_parts} DST",
+            )
         except RuntimeError as error:
             display_lines(["VERIFY", "Error"])
             log_debug(f"Verify failed ({src_part} -> {dst_part}): {error}")
@@ -776,8 +852,12 @@ def verify_clone(source, target):
 def verify_clone_device(source_node, target_node, total_bytes=None):
     print(f"Verifying {source_node} -> {target_node}")
     try:
-        src_hash = compute_sha256(source_node, total_bytes=total_bytes, title="VERIFY SRC")
-        dst_hash = compute_sha256(target_node, total_bytes=total_bytes, title="VERIFY DST")
+        src_hash = compute_sha256(
+            source_node, total_bytes=total_bytes, title="VERIFY SRC"
+        )
+        dst_hash = compute_sha256(
+            target_node, total_bytes=total_bytes, title="VERIFY DST"
+        )
     except RuntimeError as error:
         display_lines(["VERIFY", "Error"])
         log_debug(f"Verify failed: {error}")
@@ -894,7 +974,14 @@ def erase_device(target, mode, progress_callback=None):
             log_debug("Erase failed: dd not available")
             return False
         return run_erase_command(
-            [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
+            [
+                dd_path,
+                "if=/dev/zero",
+                f"of={target_node}",
+                "bs=4M",
+                "status=progress",
+                "conv=fsync",
+            ],
             total_bytes=target.get("size"),
         )
     if mode != "quick":
@@ -916,10 +1003,22 @@ def erase_device(target, mode, progress_callback=None):
     size_bytes = target.get("size") or 0
     bytes_per_mib = 1024 * 1024
     size_mib = size_bytes // bytes_per_mib if size_bytes else 0
-    wipe_mib = min(app_state.QUICK_WIPE_MIB, size_mib) if size_mib else app_state.QUICK_WIPE_MIB
+    wipe_mib = (
+        min(app_state.QUICK_WIPE_MIB, size_mib)
+        if size_mib
+        else app_state.QUICK_WIPE_MIB
+    )
     wipe_bytes = wipe_mib * bytes_per_mib
     if not run_erase_command(
-        [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", "status=progress", "conv=fsync"],
+        [
+            dd_path,
+            "if=/dev/zero",
+            f"of={target_node}",
+            "bs=1M",
+            f"count={wipe_mib}",
+            "status=progress",
+            "conv=fsync",
+        ],
         total_bytes=wipe_bytes,
     ):
         return False
