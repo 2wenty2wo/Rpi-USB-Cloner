@@ -64,7 +64,6 @@ See Also:
     - rpi_usb_cloner.storage.devices: Low-level device detection
     - rpi_usb_cloner.storage.mount: Device mounting utilities
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -74,8 +73,7 @@ from typing import List, Optional, Set
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
-from rpi_usb_cloner.storage.mount import (get_device_name, get_size,
-                                          list_media_devices)
+from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
 
 
 @dataclass

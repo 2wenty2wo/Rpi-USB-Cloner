@@ -1,8 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: Question or Discussion
-    url: https://github.com/2wenty2wo/Rpi-USB-Cloner/discussions
-    about: Ask questions or discuss ideas with the community
-  - name: Security Issue
-    url: https://github.com/2wenty2wo/Rpi-USB-Cloner/security/advisories/new
-    about: Report a security vulnerability privately

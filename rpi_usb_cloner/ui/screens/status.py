@@ -47,7 +47,8 @@ def wait_for_ack(
     menus.wait_for_buttons_release(buttons, poll_delay=poll_delay)
     # Use poll_button_events: any button press returns True, which exits the loop
     gpio.poll_button_events(
-        {pin: lambda: True for pin in buttons}, poll_interval=poll_delay
+        {pin: lambda: True for pin in buttons},
+        poll_interval=poll_delay
     )
 
 

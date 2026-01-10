@@ -14,6 +14,7 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 
+
 _SERVICE_NAME = "rpi-usb-cloner.service"
 
 
@@ -114,9 +115,7 @@ def demo_confirmation_screen() -> None:
 
 
 def demo_status_screen() -> None:
-    screens.render_status_template(
-        "STATUS", "Running...", progress_line="Demo progress"
-    )
+    screens.render_status_template("STATUS", "Running...", progress_line="Demo progress")
     screens.wait_for_ack()
 
 
@@ -190,9 +189,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         results_applied = True
 
     def update_header_lines() -> None:
-        header_lines[:] = _build_update_info_lines(
-            version, status, behind_count, last_checked
-        )
+        header_lines[:] = _build_update_info_lines(version, status, behind_count, last_checked)
 
     def refresh_update_menu() -> bool:
         if check_done.is_set() and not results_applied:
@@ -204,9 +201,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     def run_check_in_background() -> None:
         try:
             with git_lock:
-                result_holder["result"] = _check_update_status(
-                    repo_root, log_debug=log_debug
-                )
+                result_holder["result"] = _check_update_status(repo_root, log_debug=log_debug)
         except Exception as exc:  # pragma: no cover - defensive for subprocess errors
             error_holder["error"] = exc
         finally:
@@ -214,9 +209,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
 
     thread = threading.Thread(target=run_check_in_background, daemon=True)
     thread.start()
-    menus.wait_for_buttons_release(
-        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B]
-    )
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
         "L": gpio.read_button(gpio.PIN_L),
         "R": gpio.read_button(gpio.PIN_R),
@@ -367,10 +360,7 @@ def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     display.clear_display()
     restart_result = _restart_systemd_service(log_debug=log_debug)
     if restart_result.returncode != 0:
-        _log_debug(
-            log_debug,
-            f"Service restart failed with return code {restart_result.returncode}",
-        )
+        _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
         screens.wait_for_paginated_input(
             title,
             ["Service restart failed"]
@@ -387,13 +377,10 @@ def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     display.clear_display()
     stop_result = _stop_systemd_service(log_debug=log_debug)
     if stop_result.returncode != 0:
-        _log_debug(
-            log_debug, f"Service stop failed with return code {stop_result.returncode}"
-        )
+        _log_debug(log_debug, f"Service stop failed with return code {stop_result.returncode}")
         screens.wait_for_paginated_input(
             title,
-            ["Service stop failed"]
-            + _format_command_output(stop_result.stdout, stop_result.stderr),
+            ["Service stop failed"] + _format_command_output(stop_result.stdout, stop_result.stderr),
         )
         return
     display.clear_display()
@@ -404,20 +391,14 @@ def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     title = "POWER"
     if not _confirm_power_action(title, "RESTART SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_template(
-        title, "Restarting...", progress_line="System reboot"
-    )
+    screens.render_status_template(title, "Restarting...", progress_line="System reboot")
     display.clear_display()
     reboot_result = _reboot_system(log_debug=log_debug)
     if reboot_result.returncode != 0:
-        _log_debug(
-            log_debug,
-            f"System reboot failed with return code {reboot_result.returncode}",
-        )
+        _log_debug(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
         screens.wait_for_paginated_input(
             title,
-            ["System reboot failed"]
-            + _format_command_output(reboot_result.stdout, reboot_result.stderr),
+            ["System reboot failed"] + _format_command_output(reboot_result.stdout, reboot_result.stderr),
         )
 
 
@@ -425,16 +406,11 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     title = "POWER"
     if not _confirm_power_action(title, "SHUTDOWN SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_template(
-        title, "Shutting down...", progress_line="System poweroff"
-    )
+    screens.render_status_template(title, "Shutting down...", progress_line="System poweroff")
     display.clear_display()
     shutdown_result = _poweroff_system(log_debug=log_debug)
     if shutdown_result.returncode != 0:
-        _log_debug(
-            log_debug,
-            f"System poweroff failed with return code {shutdown_result.returncode}",
-        )
+        _log_debug(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
         screens.wait_for_paginated_input(
             title,
             ["System poweroff failed"]
@@ -502,9 +478,7 @@ def _run_update_flow(
                 if running_ratio is not None:
                     update_progress(running_ratio)
                 result_holder["result"] = action(update_progress)
-            except (
-                Exception
-            ) as exc:  # pragma: no cover - defensive for subprocess errors
+            except Exception as exc:  # pragma: no cover - defensive for subprocess errors
                 error_holder["error"] = exc
             finally:
                 update_progress(1.0)
@@ -564,15 +538,16 @@ def _run_update_flow(
         )
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
-        output_lines = [
-            "Dubious ownership detected.",
-            "Service User= should own repo.",
-            f"Or run: git config --global --add safe.directory {repo_root}",
-        ] + output_lines
-    if pull_result.returncode != 0:
-        _log_debug(
-            log_debug, f"Git pull failed with return code {pull_result.returncode}"
+        output_lines = (
+            [
+                "Dubious ownership detected.",
+                "Service User= should own repo.",
+                f"Or run: git config --global --add safe.directory {repo_root}",
+            ]
+            + output_lines
         )
+    if pull_result.returncode != 0:
+        _log_debug(log_debug, f"Git pull failed with return code {pull_result.returncode}")
         if dubious_ownership:
             output_lines = ["Git safety check failed."] + output_lines
         display.render_paginated_lines(
@@ -604,10 +579,7 @@ def _run_update_flow(
             lambda update_progress: _restart_systemd_service(log_debug=log_debug),
         )
         if restart_result.returncode != 0:
-            _log_debug(
-                log_debug,
-                f"Service restart failed with return code {restart_result.returncode}",
-            )
+            _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
             display.render_paginated_lines(
                 title,
                 ["Restart failed"]
@@ -631,12 +603,8 @@ def _is_git_repo(repo_root: Path) -> bool:
     return repo_root.is_dir() and (repo_root / ".git").exists()
 
 
-def _has_dirty_working_tree(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> bool:
-    status = _run_command(
-        ["git", "status", "--porcelain"], cwd=repo_root, log_debug=log_debug
-    )
+def _has_dirty_working_tree(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> bool:
+    status = _run_command(["git", "status", "--porcelain"], cwd=repo_root, log_debug=log_debug)
     dirty = bool(status.stdout.strip())
     _log_debug(log_debug, f"Dirty working tree: {dirty}")
     return dirty
@@ -716,9 +684,7 @@ def _get_update_status(
     if not _is_git_repo(repo_root):
         _log_debug(log_debug, "Update status check: repo not found")
         return "Repo not found", None
-    fetch = _run_command(
-        ["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug
-    )
+    fetch = _run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
     if fetch.returncode != 0:
         _log_debug(log_debug, f"Update status check: fetch failed {fetch.returncode}")
         return "Unable to check", None
@@ -785,9 +751,7 @@ def _get_update_menu_top(
     items_font = context.fontdisks
     left_margin = context.x - 11
     available_width = max(0, context.width - left_margin)
-    wrapped_lines = display._wrap_lines_to_width(
-        info_lines, items_font, available_width
-    )
+    wrapped_lines = display._wrap_lines_to_width(info_lines, items_font, available_width)
     line_height = display._get_line_height(items_font)
     line_step = line_height + 2
     base_top = menus.get_standard_content_top(title, title_icon=title_icon)
@@ -814,9 +778,7 @@ def _is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> 
     invocation_id = os.environ.get("INVOCATION_ID")
     _log_debug(log_debug, f"Systemd detection: INVOCATION_ID={invocation_id!r}")
     if invocation_id:
-        _log_debug(
-            log_debug, "Systemd detection: running under systemd via INVOCATION_ID"
-        )
+        _log_debug(log_debug, "Systemd detection: running under systemd via INVOCATION_ID")
         return True
     if Path("/proc/1/comm").exists():
         comm = Path("/proc/1/comm").read_text(encoding="utf-8").strip()
@@ -836,10 +798,7 @@ def _is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> 
     if show.returncode == 0 and show.stdout.strip():
         active_state = show.stdout.strip()
         is_active = active_state in {"active", "activating", "reloading"}
-        _log_debug(
-            log_debug,
-            f"Systemd detection: ActiveState={active_state!r} active={is_active}",
-        )
+        _log_debug(log_debug, f"Systemd detection: ActiveState={active_state!r} active={is_active}")
         return is_active
     _log_debug(log_debug, "Systemd detection: systemctl show returned no active state")
     return False
@@ -865,9 +824,7 @@ def _confirm_power_action(
 ) -> bool:
     prompt = f"Are you sure you want to {action_label.lower()}?"
     confirmed = _confirm_action(title, prompt, log_debug=log_debug)
-    _log_debug(
-        log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}"
-    )
+    _log_debug(log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}")
     return confirmed
 
 
@@ -926,36 +883,26 @@ def _run_systemctl_command(
     args: list[str], *, log_debug: Optional[Callable[[str], None]]
 ) -> subprocess.CompletedProcess[str]:
     if not shutil.which("systemctl"):
-        _log_debug(
-            log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)"
-        )
+        _log_debug(log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)")
         return subprocess.CompletedProcess(
             args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
         )
     return _run_command(["systemctl", *args], log_debug=log_debug)
 
 
-def _restart_service(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _restart_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _run_systemctl_command(["restart", _SERVICE_NAME], log_debug=log_debug)
 
 
-def _stop_service(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _stop_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _run_systemctl_command(["stop", _SERVICE_NAME], log_debug=log_debug)
 
 
-def _reboot_system(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _reboot_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _run_systemctl_command(["reboot"], log_debug=log_debug)
 
 
-def _poweroff_system(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _poweroff_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _run_systemctl_command(["poweroff"], log_debug=log_debug)
 
 
