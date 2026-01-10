@@ -245,6 +245,10 @@ def restore_clonezilla_image(
     partition_mode: str = "k0",
     progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> None:
+    def _emit_prewrite_progress(step: str) -> None:
+        if progress_callback:
+            progress_callback(["Preparing media...", step], None)
+
     if os.geteuid() != 0:
         raise RuntimeError("Run as root")
     partition_mode = _normalize_partition_mode(partition_mode)
@@ -253,6 +257,7 @@ def restore_clonezilla_image(
     target_info = devices.get_device_by_name(target_name)
     if target_info:
         devices.unmount_device(target_info)
+    _emit_prewrite_progress("Checking target size")
     required_size = _estimate_required_size_bytes(
         plan.disk_layout_ops,
         image_dir=plan.image_dir,
@@ -273,6 +278,8 @@ def restore_clonezilla_image(
     post_layout_ops = [op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"]
     layout_ops = [op for op in disk_layout_ops if op.kind != "hidden-data-after-mbr"]
     if partition_mode == "k":
+        _emit_prewrite_progress("Checking existing partition layout")
+        _emit_prewrite_progress("Waiting for partitions")
         refreshed, observed_count = _wait_for_partition_count(
             target_name,
             required_partitions,
@@ -285,6 +292,7 @@ def restore_clonezilla_image(
     else:
         applied_layout = False
         attempt_results: list[str] = []
+        _emit_prewrite_progress("Applying partition layout")
         for op in layout_ops:
             try:
                 applied_layout = _apply_disk_layout_op(op, target_node)
@@ -293,7 +301,9 @@ def restore_clonezilla_image(
             if not applied_layout:
                 continue
             _reread_partition_table(target_node)
+            _emit_prewrite_progress("Waiting for udev to settle")
             _settle_udev()
+            _emit_prewrite_progress("Waiting for partitions")
             _, observed_count = _wait_for_partition_count(
                 target_name,
                 required_partitions,
@@ -322,6 +332,8 @@ def restore_clonezilla_image(
             plan.parts,
             timeout_seconds=10,
         )
+    if post_layout_ops:
+        _emit_prewrite_progress("Applying post-layout updates")
     for op in post_layout_ops:
         try:
             _apply_disk_layout_op(op, target_node)
