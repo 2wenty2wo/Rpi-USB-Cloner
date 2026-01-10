@@ -92,7 +92,7 @@ def render_menu_screen(
     selector_width = _measure_text_width(list_font, selector)
     items_seq = list(items)
     needs_scrollbar = len(items_seq) > visible_rows
-    scrollbar_width = 1
+    scrollbar_width = 2
     scrollbar_padding = 1
     max_item_width = context.width - left_margin - selector_width - 1
     if needs_scrollbar:
@@ -156,10 +156,11 @@ def render_menu_screen(
             thumb_top = max(track_top, thumb_bottom_limit - thumb_height)
         thumb_bottom = thumb_top + thumb_height
         track_right = context.width - 1
-        for track_y in range(track_top, track_bottom + 1, 2):
+        track_left = track_right - (scrollbar_width - 1)
+        for track_y in range(track_top, track_bottom + 1, 3):
             draw.point((track_right, track_y), fill=255)
         draw.rectangle(
-            (track_right, thumb_top, track_right, thumb_bottom),
+            (track_left, thumb_top, track_right, thumb_bottom),
             outline=255,
             fill=255,
         )
