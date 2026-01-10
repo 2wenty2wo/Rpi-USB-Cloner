@@ -4,7 +4,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Callable, Iterable, Optional, Set
+from typing import Callable, Iterable
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
@@ -24,8 +24,8 @@ def copy_drive(
     *,
     state: app_state.AppState,
     clone_mode: str,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     source, target = _pick_source_target(get_selected_usb_name)
     if not source or not target:
@@ -118,8 +118,8 @@ def copy_drive(
 def drive_info(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     page_index = 0
     total_pages, page_index = _view_devices(
@@ -192,13 +192,11 @@ def drive_info(
 def erase_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     repo_devices = _get_repo_device_names()
-    target_devices = [
-        device for device in list_usb_disks() if device.get("name") not in repo_devices
-    ]
+    target_devices = [device for device in list_usb_disks() if device.get("name") not in repo_devices]
     if not target_devices:
         display.display_lines(["ERASE", "No USB found"])
         time.sleep(1)
@@ -233,9 +231,9 @@ def erase_drive(
     error_holder: dict[str, Exception] = {}
     progress_lock = threading.Lock()
     progress_lines = ["Preparing..."]
-    progress_ratio: Optional[float] = 0.0
+    progress_ratio: float | None = 0.0
 
-    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+    def update_progress(lines: list[str], ratio: float | None) -> None:
         nonlocal progress_lines, progress_ratio
         clamped = None
         if ratio is not None:
@@ -245,7 +243,7 @@ def erase_drive(
             if clamped is not None:
                 progress_ratio = clamped
 
-    def current_progress() -> tuple[list[str], Optional[float]]:
+    def current_progress() -> tuple[list[str], float | None]:
         with progress_lock:
             return list(progress_lines), progress_ratio
 
@@ -294,9 +292,9 @@ def erase_drive(
     time.sleep(1)
 
 
-def _collect_mountpoints(device: dict) -> Set[str]:
+def _collect_mountpoints(device: dict) -> set[str]:
     """Collect all mountpoints for a device and its partitions."""
-    mountpoints: Set[str] = set()
+    mountpoints: set[str] = set()
     stack = [device]
     while stack:
         current = stack.pop()
@@ -307,13 +305,13 @@ def _collect_mountpoints(device: dict) -> Set[str]:
     return mountpoints
 
 
-def _get_repo_device_names() -> Set[str]:
+def _get_repo_device_names() -> set[str]:
     """Get the set of device names that are repo drives."""
     repos = find_image_repos()
     if not repos:
         return set()
 
-    repo_devices: Set[str] = set()
+    repo_devices: set[str] = set()
     usb_devices = list_usb_disks()
 
     for device in usb_devices:
@@ -327,8 +325,8 @@ def _get_repo_device_names() -> Set[str]:
 
 
 def _pick_source_target(
-    get_selected_usb_name: Callable[[], Optional[str]],
-) -> tuple[Optional[dict], Optional[dict]]:
+    get_selected_usb_name: Callable[[], str | None],
+) -> tuple[dict | None, dict | None]:
     repo_devices = _get_repo_device_names()
     devices_list = [
         device
@@ -368,7 +366,7 @@ def _ensure_root_for_erase() -> bool:
 def _confirm_destructive_action(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
+    log_debug: Callable[[str], None] | None,
     prompt_lines: Iterable[str],
 ) -> bool:
     title = "DATA LOSS"
@@ -418,8 +416,8 @@ def _confirm_destructive_action(
 def _build_device_info_lines(
     device: dict,
     *,
-    log_debug: Optional[Callable[[str], None]],
-    max_lines: Optional[int] = None,
+    log_debug: Callable[[str], None] | None,
+    max_lines: int | None = None,
 ) -> list[str]:
     lines = []
     header = format_device_label(device)
@@ -512,8 +510,8 @@ def _build_device_info_lines(
 
 def _view_devices(
     *,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
     page_index: int,
 ) -> tuple[int, int]:
     selected_name = get_selected_usb_name()
@@ -538,8 +536,8 @@ def _view_devices(
 def format_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Format a USB drive with user-selected filesystem."""
     from rpi_usb_cloner.storage.format import format_device
@@ -547,9 +545,7 @@ def format_drive(
 
     # Get target device
     repo_devices = _get_repo_device_names()
-    target_devices = [
-        device for device in list_usb_disks() if device.get("name") not in repo_devices
-    ]
+    target_devices = [device for device in list_usb_disks() if device.get("name") not in repo_devices]
     if not target_devices:
         display.display_lines(["FORMAT", "No USB found"])
         time.sleep(1)
@@ -662,9 +658,9 @@ def format_drive(
     error_holder: dict[str, Exception] = {}
     progress_lock = threading.Lock()
     progress_lines = ["Preparing..."]
-    progress_ratio: Optional[float] = 0.0
+    progress_ratio: float | None = 0.0
 
-    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+    def update_progress(lines: list[str], ratio: float | None) -> None:
         nonlocal progress_lines, progress_ratio
         clamped = None
         if ratio is not None:
@@ -674,15 +670,13 @@ def format_drive(
             if clamped is not None:
                 progress_ratio = clamped
 
-    def current_progress() -> tuple[list[str], Optional[float]]:
+    def current_progress() -> tuple[list[str], float | None]:
         with progress_lock:
             return list(progress_lines), progress_ratio
 
     def worker() -> None:
         try:
-            success = format_device(
-                target, filesystem, format_type, label=label, progress_callback=update_progress
-            )
+            success = format_device(target, filesystem, format_type, label=label, progress_callback=update_progress)
             result_holder["result"] = success
         except Exception as exc:
             error_holder["error"] = exc
@@ -730,11 +724,11 @@ def format_drive(
 def unmount_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Unmount a USB drive and optionally power it off."""
-    from rpi_usb_cloner.storage.devices import unmount_device_with_retry, power_off_device
+    from rpi_usb_cloner.storage.devices import power_off_device, unmount_device_with_retry
 
     # Get target device
     selected_name = get_selected_usb_name()
@@ -868,6 +862,6 @@ def unmount_drive(
         time.sleep(1)
 
 
-def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
+def _log_debug(log_debug: Callable[[str], None] | None, message: str) -> None:
     if log_debug:
         log_debug(message)

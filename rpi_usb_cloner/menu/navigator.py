@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+from typing import Callable
 
 from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
 
@@ -16,15 +16,15 @@ class ScreenState:
 class MenuNavigator:
     def __init__(
         self,
-        screens: Dict[str, MenuScreen],
+        screens: dict[str, MenuScreen],
         root_screen_id: str,
-        items_providers: Optional[Dict[str, Callable[[], List[MenuItem]]]] = None,
+        items_providers: dict[str, Callable[[], list[MenuItem]]] | None = None,
     ) -> None:
         self._screens = screens
         self._items_providers = items_providers or {}
         if root_screen_id not in screens:
             raise ValueError(f"Unknown root screen: {root_screen_id}")
-        self._stack: List[ScreenState] = [ScreenState(screen_id=root_screen_id)]
+        self._stack: list[ScreenState] = [ScreenState(screen_id=root_screen_id)]
 
     def current_state(self) -> ScreenState:
         return self._stack[-1]
@@ -32,7 +32,7 @@ class MenuNavigator:
     def current_screen(self) -> MenuScreen:
         return self._screens[self.current_state().screen_id]
 
-    def current_items(self) -> List[MenuItem]:
+    def current_items(self) -> list[MenuItem]:
         screen_id = self.current_state().screen_id
         provider = self._items_providers.get(screen_id)
         if provider is not None:
@@ -72,13 +72,13 @@ class MenuNavigator:
         max_scroll = max(len(items) - visible_rows, 0)
         return min(scroll, max_scroll)
 
-    def current_items_for(self, screen_id: str) -> List[MenuItem]:
+    def current_items_for(self, screen_id: str) -> list[MenuItem]:
         provider = self._items_providers.get(screen_id)
         if provider is not None:
             return provider()
         return list(self._screens[screen_id].items)
 
-    def activate(self, visible_rows: int) -> Optional[Callable[[], None]]:
+    def activate(self, visible_rows: int) -> Callable[[], None] | None:
         state = self.current_state()
         items = self.current_items()
         if not items:

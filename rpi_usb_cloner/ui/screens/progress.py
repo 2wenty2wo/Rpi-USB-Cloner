@@ -121,7 +121,7 @@ def render_progress_screen(
             # Part 2: Draw black text on the filled (left) portion
             if fill_right > text_x:
                 # Create a temporary image to draw the black text
-                temp_img = Image.new('1', (context.width, context.height), 0)
+                temp_img = Image.new("1", (context.width, context.height), 0)
                 temp_draw = ImageDraw.Draw(temp_img)
                 temp_draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
 

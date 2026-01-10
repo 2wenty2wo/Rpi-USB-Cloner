@@ -80,15 +80,16 @@ See Also:
     - rpi_usb_cloner.ui.menus: Menu rendering utilities
     - luma.oled documentation: https://luma-oled.readthedocs.io/
 """
+
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
-from PIL import Image, ImageDraw, ImageFont
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.storage.mount import (
@@ -353,9 +354,7 @@ def draw_title_with_icon(
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
     if title:
-        available_width = (
-            max_width if max_width is not None else max(0, context.width - title_x - 1)
-        )
+        available_width = max_width if max_width is not None else max(0, context.width - title_x - 1)
         title_text = _truncate_text(draw, title, header_font, available_width)
         if title_text:
             title_bbox = draw.textbbox((0, 0), title_text, font=header_font)

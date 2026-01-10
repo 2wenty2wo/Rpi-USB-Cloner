@@ -91,14 +91,15 @@ See Also:
     - rpi_usb_cloner.menu.definitions: Menu structure
     - rpi_usb_cloner.hardware.gpio: Button input handling
 """
+
 import argparse
 import os
 import time
 from datetime import datetime
 from functools import partial
 
-from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
 from rpi_usb_cloner.app.menu_builders import (
     build_device_items,
@@ -107,8 +108,13 @@ from rpi_usb_cloner.app.menu_builders import (
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.menu import actions as menu_actions
+from rpi_usb_cloner.menu import definitions, navigator
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.storage import devices
+from rpi_usb_cloner.storage.clone import configure_clone_helpers
+from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.storage.mount import (
     get_device_name,
     get_model,
@@ -116,12 +122,7 @@ from rpi_usb_cloner.storage.mount import (
     get_vendor,
     list_media_devices,
 )
-from rpi_usb_cloner.storage.clone import configure_clone_helpers
-from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
-from rpi_usb_cloner.menu import definitions, navigator
-from rpi_usb_cloner.menu import actions as menu_actions
-from rpi_usb_cloner.menu.model import get_screen_icon
 
 
 def main(argv=None):
@@ -447,17 +448,10 @@ def main(argv=None):
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 current_devices = get_usb_snapshot()
                 if current_devices != app_context.discovered_drives:
-                    log_debug(
-                        f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)"
-                    )
-                    log_debug(
-                        f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
-                    )
+                    log_debug(f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)")
+                    log_debug(f"USB devices changed: {app_context.discovered_drives} -> {current_devices}")
                     selected_name = None
-                    if (
-                        app_context.discovered_drives
-                        and state.usb_list_index < len(app_context.discovered_drives)
-                    ):
+                    if app_context.discovered_drives and state.usb_list_index < len(app_context.discovered_drives):
                         selected_name = app_context.discovered_drives[state.usb_list_index]
                     if selected_name and selected_name in current_devices:
                         state.usb_list_index = current_devices.index(selected_name)

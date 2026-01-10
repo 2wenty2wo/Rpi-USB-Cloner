@@ -242,12 +242,12 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     def on_left():
         if selection[0] == 1:
             selection[0] = 0
-            _log_debug(log_debug, f"Selection changed: VERIFY")
+            _log_debug(log_debug, "Selection changed: VERIFY")
 
     def on_right():
         if selection[0] == 0:
             selection[0] = 1
-            _log_debug(log_debug, f"Selection changed: FINISH")
+            _log_debug(log_debug, "Selection changed: FINISH")
 
     def on_button_a():
         # A button = cancel/back, treat as Finish

@@ -46,6 +46,7 @@ Example:
     >>> target_device = {"name": "sdb", "size": 8000000000}
     >>> success = clone_device(source_device, target_device, mode="smart")
 """
+
 import os
 import re
 import select
@@ -153,8 +154,7 @@ def run_checked_command(command, input_text=None):
         command,
         input=input_text,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     if result.returncode != 0:
         stderr = result.stderr.strip()
@@ -231,7 +231,9 @@ def format_progress_lines(title, device, mode, bytes_copied, total_bytes, rate, 
     return lines[:6]
 
 
-def format_progress_display(title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None, subtitle=None):
+def format_progress_display(
+    title, device, mode, bytes_copied, total_bytes, percent, rate, eta, spinner=None, subtitle=None
+):
     lines = []
     if title:
         title_line = title
@@ -275,7 +277,11 @@ def get_partition_number(name):
 
 
 def run_progress_command(command, total_bytes=None, title="WORKING", device_label=None, mode_label=None):
-    display_lines(format_progress_display(title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None))
+    display_lines(
+        format_progress_display(
+            title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None
+        )
+    )
     log_debug(f"Starting command: {' '.join(command)}")
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     last_update = time.time()

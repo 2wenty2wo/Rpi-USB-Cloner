@@ -43,33 +43,114 @@ class KeyboardLayout:
 
 DEFAULT_LAYOUT = KeyboardLayout(
     numbers=[
-        "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "0",
         KEY_SPACE,
     ],
     lower=[
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
-        "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
-        "u", "v", "w", "x", "y", "z",
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z",
         KEY_SPACE,
     ],
     upper=[
-        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
-        "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
-        "U", "V", "W", "X", "Y", "Z",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y",
+        "Z",
         KEY_SPACE,
     ],
     symbols=[
-        ".", ",", "?", "!", "@", "#", "$", "%", "^", "&",
-        "*", "(", ")", ":", ";", "'", "\"", "-", "_", "+",
-        "=", "[", "]", "{", "}", "\\", "|", "<", ">", "/",
-        "`", "~",
+        ".",
+        ",",
+        "?",
+        "!",
+        "@",
+        "#",
+        "$",
+        "%",
+        "^",
+        "&",
+        "*",
+        "(",
+        ")",
+        ":",
+        ";",
+        "'",
+        '"',
+        "-",
+        "_",
+        "+",
+        "=",
+        "[",
+        "]",
+        "{",
+        "}",
+        "\\",
+        "|",
+        "<",
+        ">",
+        "/",
+        "`",
+        "~",
         KEY_SPACE,
     ],
 )
 
-_keyboard_fonts: Optional[
-    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
-] = None
+_keyboard_fonts: Optional[tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]] = None
 
 
 def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]:
@@ -265,8 +346,6 @@ def _render_keyboard(
                 cursor_x += inter_group_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
         if total_mode_width <= strip_width:
-            mode_padding = attempt_padding
-            mode_gap = attempt_gap
             break
     mode_left = strip_left
     mode_top = current_y
@@ -414,7 +493,9 @@ def prompt_text(
                 elif key == KEY_CANCEL:
                     return None
                 elif key == KEY_SHIFT:
-                    layout_mode = "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
+                    layout_mode = (
+                        "upper" if layout_mode == "lower" else "symbols" if layout_mode == "upper" else "lower"
+                    )
                     keys = layout.get_keys(layout_mode)
                     selected_col = min(selected_col, len(keys) - 1)
                 else:

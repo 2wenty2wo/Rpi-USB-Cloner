@@ -5,6 +5,7 @@ import time
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import menus
+
 from .info import render_info_screen
 
 

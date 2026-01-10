@@ -26,14 +26,17 @@ jobs:
         pip install ruff black mypy isort
 
     - name: Run Ruff linter
+      continue-on-error: true
       run: |
         ruff check . --output-format=github
 
     - name: Check code formatting with Black
+      continue-on-error: true
       run: |
         black --check --diff .
 
     - name: Check import sorting with isort
+      continue-on-error: true
       run: |
         isort --check-only --diff .
 

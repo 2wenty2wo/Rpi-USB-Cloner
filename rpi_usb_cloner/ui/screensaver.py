@@ -16,11 +16,7 @@ INPUT_POLL_INTERVAL = 0.02
 def _list_gif_paths(directory: Path) -> list[Path]:
     if not directory.exists():
         return []
-    return sorted(
-        path
-        for path in directory.iterdir()
-        if path.is_file() and path.suffix.lower() == ".gif"
-    )
+    return sorted(path for path in directory.iterdir() if path.is_file() and path.suffix.lower() == ".gif")
 
 
 def list_available_gifs(directory: Path = SCREENSAVER_DIR) -> list[Path]:

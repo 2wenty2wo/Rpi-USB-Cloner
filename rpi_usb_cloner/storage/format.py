@@ -104,10 +104,7 @@ def _create_partition(device_path: str) -> bool:
     try:
         log_debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
-        run_command([
-            "parted", "-s", device_path,
-            "mkpart", "primary", "1MiB", "100%"
-        ])
+        run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
         # Wait for partition device node to appear
         time.sleep(1)
         return True
@@ -204,10 +201,7 @@ def _format_filesystem(
                         match = pattern.search(line)
                         if match and progress_callback:
                             percent = int(match.group(1))
-                            progress_callback(
-                                [f"Formatting {filesystem}...", f"{percent}%"],
-                                percent / 100.0
-                            )
+                            progress_callback([f"Formatting {filesystem}...", f"{percent}%"], percent / 100.0)
                 time.sleep(0.1)
 
         # Wait for completion
@@ -222,7 +216,7 @@ def _format_filesystem(
 
         # Update progress to complete
         if progress_callback:
-            progress_callback([f"Format complete"], 1.0)
+            progress_callback(["Format complete"], 1.0)
 
         return True
 

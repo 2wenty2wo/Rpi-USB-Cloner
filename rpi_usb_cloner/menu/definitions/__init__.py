@@ -13,7 +13,7 @@ from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
 def menu_entry(
     label: str,
     *,
-    submenu: Optional[MenuScreen] = None,
+    submenu: MenuScreen | None = None,
     action=None,
 ) -> MenuItem:
     if (submenu is None) == (action is None):
@@ -21,8 +21,8 @@ def menu_entry(
     return MenuItem(label=label, submenu=submenu, action=action)
 
 
-def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
-    screens: Dict[str, MenuScreen] = {}
+def _collect_screens(root: MenuScreen) -> dict[str, MenuScreen]:
+    screens: dict[str, MenuScreen] = {}
 
     def walk(screen: MenuScreen) -> None:
         if screen.screen_id in screens:
@@ -37,18 +37,18 @@ def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
 
 
 # Import all menu definitions
-from .main import MAIN_MENU
-from .drives import DRIVES_MENU, DRIVE_LIST_MENU
+from .drives import DRIVE_LIST_MENU, DRIVES_MENU
 from .images import IMAGES_MENU
-from .tools import TOOLS_MENU
+from .main import MAIN_MENU
 from .settings import (
-    SETTINGS_MENU,
-    SCREENSAVER_MENU,
-    POWER_MENU,
     DEVELOP_MENU,
-    SCREENS_MENU,
     ICONS_MENU,
+    POWER_MENU,
+    SCREENS_MENU,
+    SCREENSAVER_MENU,
+    SETTINGS_MENU,
 )
+from .tools import TOOLS_MENU
 
 # Collect all screens for navigation
 SCREENS = _collect_screens(MAIN_MENU)

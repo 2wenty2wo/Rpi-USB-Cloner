@@ -4,9 +4,8 @@ import threading
 import time
 from typing import Optional
 
-from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.menu.model import get_screen_icon
+from rpi_usb_cloner.services import wifi
 from rpi_usb_cloner.ui import display, keyboard, menus
 
 _WIFI_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
@@ -192,7 +191,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
                 continue
         connected = wifi.connect(selected_network.ssid, password=password)
         if connected:
-            display.display_lines([title, f"Connected to", selected_network.ssid])
+            display.display_lines([title, "Connected to", selected_network.ssid])
         else:
             display.display_lines([title, "Connection failed", selected_network.ssid])
         time.sleep(1.5)

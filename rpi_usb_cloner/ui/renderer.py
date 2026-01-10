@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Iterable
 
 from rpi_usb_cloner.ui import display
 
@@ -44,10 +44,10 @@ def render_menu_screen(
     items: Iterable[str],
     selected_index: int,
     scroll_offset: int,
-    status_line: Optional[str] = None,
+    status_line: str | None = None,
     visible_rows: int = 4,
     title_font=None,
-    title_icon: Optional[str] = None,
+    title_icon: str | None = None,
     title_icon_font=None,
     items_font=None,
     status_font=None,
@@ -98,9 +98,7 @@ def render_menu_screen(
     if needs_scrollbar:
         max_item_width -= scrollbar_width + scrollbar_padding
     max_item_width = max(0, max_item_width)
-    items_list = [
-        _truncate_text(item, list_font, max_item_width) for item in items_seq
-    ]
+    items_list = [_truncate_text(item, list_font, max_item_width) for item in items_seq]
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
@@ -164,11 +162,7 @@ def render_menu_screen(
 
     if status_line:
         # Draw white background bar for footer (full screen width)
-        draw.rectangle(
-            (0, footer_y - footer_padding + 1, context.width, context.height),
-            outline=255,
-            fill=255
-        )
+        draw.rectangle((0, footer_y - footer_padding + 1, context.width, context.height), outline=255, fill=255)
         max_status_width = context.width - left_margin - 1
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
@@ -179,8 +173,8 @@ def render_menu_screen(
 
 def calculate_visible_rows(
     title: str,
-    title_icon: Optional[str] = None,
-    status_line: Optional[str] = None,
+    title_icon: str | None = None,
+    status_line: str | None = None,
     title_font=None,
     items_font=None,
     status_font=None,

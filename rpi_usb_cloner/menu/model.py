@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable
 
 
 @dataclass
 class MenuItem:
     label: str
-    action: Optional[Callable[[], None]] = None
-    submenu: Optional[MenuScreen] = None
+    action: Callable[[], None] | None = None
+    submenu: MenuScreen | None = None
 
 
 @dataclass
 class MenuScreen:
     screen_id: str
     title: str
-    items: List[MenuItem] = field(default_factory=list)
-    status_line: Optional[str] = None
+    items: list[MenuItem] = field(default_factory=list)
+    status_line: str | None = None
 
 
-SCREEN_ICONS: Dict[str, str] = {
+SCREEN_ICONS: dict[str, str] = {
     # Lucide decimal 59059 (layers-plus).
     "main": chr(59059),
     "settings": chr(57925),
@@ -42,5 +42,5 @@ SCREEN_ICONS: Dict[str, str] = {
 }
 
 
-def get_screen_icon(screen_id: str) -> Optional[str]:
+def get_screen_icon(screen_id: str) -> str | None:
     return SCREEN_ICONS.get(screen_id)

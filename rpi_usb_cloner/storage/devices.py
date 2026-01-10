@@ -62,6 +62,7 @@ Implementation Notes:
     - Global _log_debug and _error_handler for debugging and error reporting
     - Must be configured with configure_device_helpers() before use
 """
+
 import json
 import re
 import subprocess
@@ -136,7 +137,13 @@ def format_device_label(device):
 def get_block_devices():
     try:
         result = run_command(
-            ["lsblk", "-J", "-b", "-o", "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID"]
+            [
+                "lsblk",
+                "-J",
+                "-b",
+                "-o",
+                "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID",
+            ]
         )
         data = json.loads(result.stdout)
         return data.get("blockdevices", [])
@@ -230,7 +237,7 @@ def unmount_device_with_retry(
 
     def is_mountpoint_active(mountpoint: str) -> bool:
         try:
-            with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
+            with open("/proc/mounts", encoding="utf-8") as mounts_file:
                 for line in mounts_file:
                     parts = line.split()
                     if len(parts) > 1 and parts[1] == mountpoint:

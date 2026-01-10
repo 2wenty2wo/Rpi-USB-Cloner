@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rpi_usb_cloner.actions import settings_actions
+
 from . import get_action_context
 
 

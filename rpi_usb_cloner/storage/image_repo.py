@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 from rpi_usb_cloner.storage import clonezilla, devices, mount
 
@@ -17,7 +17,7 @@ def _iter_partitions(device: dict) -> Iterable[dict]:
         stack.extend(devices.get_children(child))
 
 
-def _resolve_mountpoint(partition: dict) -> Optional[Path]:
+def _resolve_mountpoint(partition: dict) -> Path | None:
     mountpoint = partition.get("mountpoint")
     if mountpoint:
         return Path(mountpoint)
@@ -29,7 +29,7 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
     # Attempt to mount the partition, handle new exceptions
     try:
         mount.mount_partition(partition_node, name=name)
-    except (ValueError, RuntimeError) as e:
+    except (ValueError, RuntimeError):
         # Mount failed - log but continue (partition may already be mounted or inaccessible)
         # Returning None will cause this partition to be skipped
         return None

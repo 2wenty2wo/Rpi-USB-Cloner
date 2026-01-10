@@ -14,7 +14,6 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 
-
 _SERVICE_NAME = "rpi-usb-cloner.service"
 
 
@@ -322,9 +321,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 check_done.set()
                 results_applied = True
                 refresh_needed = True
-            menus.wait_for_buttons_release(
-                [gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B]
-            )
+            menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B])
             prev_states = {
                 "L": gpio.read_button(gpio.PIN_L),
                 "R": gpio.read_button(gpio.PIN_R),
@@ -363,8 +360,7 @@ def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
         _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
         screens.wait_for_paginated_input(
             title,
-            ["Service restart failed"]
-            + _format_command_output(restart_result.stdout, restart_result.stderr),
+            ["Service restart failed"] + _format_command_output(restart_result.stdout, restart_result.stderr),
         )
         return
     display.clear_display()
@@ -413,8 +409,7 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
         _log_debug(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
         screens.wait_for_paginated_input(
             title,
-            ["System poweroff failed"]
-            + _format_command_output(shutdown_result.stdout, shutdown_result.stderr),
+            ["System poweroff failed"] + _format_command_output(shutdown_result.stdout, shutdown_result.stderr),
         )
         return
     display.clear_display()
@@ -538,14 +533,11 @@ def _run_update_flow(
         )
     output_lines = _format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
-        output_lines = (
-            [
-                "Dubious ownership detected.",
-                "Service User= should own repo.",
-                f"Or run: git config --global --add safe.directory {repo_root}",
-            ]
-            + output_lines
-        )
+        output_lines = [
+            "Dubious ownership detected.",
+            "Service User= should own repo.",
+            f"Or run: git config --global --add safe.directory {repo_root}",
+        ] + output_lines
     if pull_result.returncode != 0:
         _log_debug(log_debug, f"Git pull failed with return code {pull_result.returncode}")
         if dubious_ownership:
@@ -582,8 +574,7 @@ def _run_update_flow(
             _log_debug(log_debug, f"Service restart failed with return code {restart_result.returncode}")
             display.render_paginated_lines(
                 title,
-                ["Restart failed"]
-                + _format_command_output(restart_result.stdout, restart_result.stderr),
+                ["Restart failed"] + _format_command_output(restart_result.stdout, restart_result.stderr),
                 page_index=0,
                 title_icon=title_icon,
             )
@@ -664,9 +655,7 @@ _GIT_PROGRESS_STAGES = {
 
 
 def _parse_git_progress_ratio(line: str) -> float | None:
-    match = re.search(
-        r"^(Receiving objects|Resolving deltas|Updating files):\s+(\d+)%", line
-    )
+    match = re.search(r"^(Receiving objects|Resolving deltas|Updating files):\s+(\d+)%", line)
     if not match:
         return None
     stage, percent_text = match.groups()
@@ -678,9 +667,7 @@ def _parse_git_progress_ratio(line: str) -> float | None:
     return (stage_index + percent / 100.0) / total_stages
 
 
-def _get_update_status(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, int | None]:
+def _get_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> tuple[str, int | None]:
     if not _is_git_repo(repo_root):
         _log_debug(log_debug, "Update status check: repo not found")
         return "Repo not found", None
@@ -714,9 +701,7 @@ def _get_update_status(
     return "Up to date", None
 
 
-def _check_update_status(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, int | None, str]:
+def _check_update_status(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> tuple[str, int | None, str]:
     status, behind_count = _get_update_status(repo_root, log_debug=log_debug)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
     _log_debug(log_debug, f"Update status check complete at {last_checked}: {status}")
@@ -804,15 +789,11 @@ def _is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> 
     return False
 
 
-def _restart_systemd_service(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _restart_systemd_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _restart_service(log_debug=log_debug)
 
 
-def _stop_systemd_service(
-    *, log_debug: Optional[Callable[[str], None]]
-) -> subprocess.CompletedProcess[str]:
+def _stop_systemd_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
     return _stop_service(log_debug=log_debug)
 
 
@@ -884,9 +865,7 @@ def _run_systemctl_command(
 ) -> subprocess.CompletedProcess[str]:
     if not shutil.which("systemctl"):
         _log_debug(log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)")
-        return subprocess.CompletedProcess(
-            args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
-        )
+        return subprocess.CompletedProcess(args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing")
     return _run_command(["systemctl", *args], log_debug=log_debug)
 
 
@@ -906,9 +885,7 @@ def _poweroff_system(*, log_debug: Optional[Callable[[str], None]]) -> subproces
     return _run_systemctl_command(["poweroff"], log_debug=log_debug)
 
 
-def _get_git_version(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> str | None:
+def _get_git_version(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> str | None:
     describe = _run_command(
         ["git", "-C", str(repo_root), "describe", "--tags", "--always", "--dirty"],
         log_debug=log_debug,

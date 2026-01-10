@@ -1,0 +1,97 @@
+[tool.ruff]
+# Python version to target
+target-version = "py38"
+
+# Maximum line length
+line-length = 120
+
+# Exclude directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Enable specific rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+
+# Ignore specific rules
+ignore = [
+    "E402",  # Module level import not at top of file (common in __init__.py)
+    "E731",  # Do not assign a lambda expression (sometimes necessary)
+    "E722",  # Bare except (will fix manually)
+    "W191",  # Tab indentation (project uses tabs)
+    "E501",  # Line too long (will fix gradually)
+    "N806",  # Non-lowercase variable in function (API naming conventions)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "E402"]  # Allow unused imports and module-level imports in __init__.py
+"tests/*.py" = ["F401", "F841"]   # Allow unused imports and variables in tests
+
+[tool.ruff.lint.isort]
+known-first-party = ["rpi_usb_cloner"]
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+extend-exclude = '''
+/(
+  | \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_first_party = ["rpi_usb_cloner"]
+skip_gitignore = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+check_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers --tb=short"
+
+[tool.coverage.run]
+source = ["rpi_usb_cloner"]
+omit = [
+    "tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

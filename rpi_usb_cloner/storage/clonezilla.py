@@ -84,6 +84,7 @@ Implementation Notes:
 
     This code would benefit significantly from unit testing to prevent regressions.
 """
+
 from __future__ import annotations
 
 import logging
@@ -95,7 +96,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable
 
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import (
@@ -107,19 +108,20 @@ from rpi_usb_cloner.storage.clone import (
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(frozen=True)
 class ClonezillaImage:
     name: str
     path: Path
     parts: list[str]
-    partition_table: Optional[Path]
+    partition_table: Path | None
 
 
 @dataclass(frozen=True)
 class DiskLayoutOp:
     kind: str
     path: Path
-    contents: Optional[str]
+    contents: str | None
     size_bytes: int
 
 
@@ -128,7 +130,7 @@ class PartitionRestoreOp:
     partition: str
     image_files: list[Path]
     tool: str
-    fstype: Optional[str]
+    fstype: str | None
     compressed: bool
 
 
@@ -164,7 +166,7 @@ def parse_clonezilla_image(image_dir: Path) -> RestorePlan:
     )
 
 
-def get_mountpoint(device: dict) -> Optional[str]:
+def get_mountpoint(device: dict) -> str | None:
     if device.get("mountpoint"):
         return device.get("mountpoint")
     for child in devices.get_children(device):
@@ -174,7 +176,7 @@ def get_mountpoint(device: dict) -> Optional[str]:
     return None
 
 
-def find_image_repository(device: dict) -> Optional[Path]:
+def find_image_repository(device: dict) -> Path | None:
     mountpoint = get_mountpoint(device)
     if not mountpoint:
         return None
@@ -214,7 +216,7 @@ def restore_image(
     image: ClonezillaImage,
     target_device: dict,
     *,
-    progress_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> None:
     if os.geteuid() != 0:
         raise RuntimeError("Run as root")
@@ -243,7 +245,7 @@ def restore_clonezilla_image(
     target_device: str,
     *,
     partition_mode: str = "k0",
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> None:
     def _emit_prewrite_progress(step: str) -> None:
         if progress_callback:
@@ -411,10 +413,10 @@ def _wait_for_target_partitions(
     *,
     timeout_seconds: int,
     poll_interval: float = 1.0,
-) -> tuple[dict, dict[str, Optional[dict[str, Optional[int]]]]]:
+) -> tuple[dict, dict[str, dict[str, int | None] | None]]:
     deadline = time.monotonic() + timeout_seconds
     last_info = None
-    last_mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
+    last_mapping: dict[str, dict[str, int | None] | None] = {}
     while time.monotonic() < deadline:
         last_info = devices.get_device_by_name(target_name)
         if last_info:
@@ -510,7 +512,7 @@ def _select_disk_layout_ops(disk_layout_ops: list[DiskLayoutOp]) -> list[DiskLay
 def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
     data = path.read_bytes()
     size_bytes = len(data)
-    contents: Optional[str]
+    contents: str | None
     if b"\x00" in data[:1024]:
         contents = None
     else:
@@ -518,7 +520,7 @@ def _read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
     return DiskLayoutOp(kind=kind, path=path, contents=contents, size_bytes=size_bytes)
 
 
-def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[PartitionRestoreOp]:
+def _build_partition_restore_op(image_dir: Path, part_name: str) -> PartitionRestoreOp | None:
     partclone_files = _find_image_files(image_dir, part_name, "ptcl-img")
     dd_files = _find_image_files(image_dir, part_name, "img")
     if partclone_files:
@@ -556,8 +558,8 @@ def _build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[Par
 def _estimate_required_size_bytes(
     disk_layout_ops: list[DiskLayoutOp],
     *,
-    image_dir: Optional[Path] = None,
-) -> Optional[int]:
+    image_dir: Path | None = None,
+) -> int | None:
     ops = list(disk_layout_ops)
     if image_dir:
         extra_ops = _collect_disk_layout_ops(image_dir, select=False)
@@ -567,7 +569,6 @@ def _estimate_required_size_bytes(
                 ops.append(op)
                 seen_paths.add(op.path)
     sector_size = 512
-    last_lba_line = None
     max_sector = None
     for op in ops:
         if not op.contents:
@@ -617,14 +618,13 @@ def _estimate_required_size_bytes(
     return (max_sector + 1) * sector_size
 
 
-def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
+def _get_blockdev_size_bytes(device_node: str) -> int | None:
     blockdev = shutil.which("blockdev")
     if not blockdev:
         return None
     result = subprocess.run(
         [blockdev, "--getsize64", device_node],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if result.returncode != 0:
@@ -635,13 +635,13 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
         return None
 
 
-def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
+def _get_device_size_bytes(target_info: dict | None, target_node: str) -> int | None:
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))
     return _get_blockdev_size_bytes(target_node)
 
 
-def _normalize_partition_mode(partition_mode: Optional[str]) -> str:
+def _normalize_partition_mode(partition_mode: str | None) -> str:
     if not partition_mode:
         return "k0"
     normalized = str(partition_mode).strip().lower()
@@ -654,7 +654,7 @@ def _build_partition_mode_layout_ops(
     disk_layout_ops: list[DiskLayoutOp],
     *,
     partition_mode: str,
-    target_size: Optional[int],
+    target_size: int | None,
 ) -> list[DiskLayoutOp]:
     if partition_mode not in {"k0", "k", "k1", "k2"}:
         raise RuntimeError(f"Unsupported partition mode: {partition_mode}")
@@ -670,7 +670,7 @@ def _build_partition_mode_layout_ops(
 def _build_scaled_sfdisk_layout(
     disk_layout_ops: list[DiskLayoutOp],
     target_size: int,
-) -> Optional[DiskLayoutOp]:
+) -> DiskLayoutOp | None:
     for op in disk_layout_ops:
         if op.kind in {"disk", "sfdisk", "pt.sf"}:
             scaled = _scale_sfdisk_layout(op, target_size)
@@ -683,7 +683,7 @@ def _build_scaled_sfdisk_layout(
     return None
 
 
-def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> DiskLayoutOp | None:
     if op.kind not in {"disk", "sfdisk", "pt.sf"} or not op.contents:
         return None
     lines = op.contents.splitlines()
@@ -739,7 +739,7 @@ def _scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
     return DiskLayoutOp(kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
 
 
-def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> DiskLayoutOp | None:
     if op.kind != "pt.parted" or not op.contents:
         return None
     layout = _parse_parted_layout(op.contents)
@@ -765,9 +765,9 @@ def _scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLay
     return DiskLayoutOp(kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes)
 
 
-def _parse_parted_layout(contents: str) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
+def _parse_parted_layout(contents: str) -> tuple[int, str | None, list[dict[str, int | str | list[str]]]] | None:
     sector_size = 512
-    label: Optional[str] = None
+    label: str | None = None
     script_partitions: list[dict[str, int | str | list[str]]] = []
     print_partitions: list[dict[str, int | str | list[str]]] = []
     unit_is_sectors = False
@@ -842,7 +842,7 @@ def _parse_parted_layout(contents: str) -> Optional[tuple[int, Optional[str], li
     return sector_size, label, partitions
 
 
-def _parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
+def _parse_parted_sector(value: str, unit_is_sectors: bool) -> int | None:
     match = re.match(r"(\d+)(s)?$", value)
     if not match:
         return None
@@ -853,10 +853,10 @@ def _parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
 
 def _build_sfdisk_script_from_parted(
     *,
-    label: Optional[str],
+    label: str | None,
     sector_size: int,
     partitions: list[dict[str, int | str | list[str]]],
-) -> Optional[str]:
+) -> str | None:
     normalized_label = _normalize_parted_label(label)
     if not normalized_label:
         return None
@@ -885,7 +885,7 @@ def _build_sfdisk_script_from_parted(
     return "\n".join(lines)
 
 
-def _normalize_parted_label(label: Optional[str]) -> Optional[str]:
+def _normalize_parted_label(label: str | None) -> str | None:
     if not label:
         return None
     label = label.strip().lower()
@@ -902,7 +902,7 @@ def _scale_partition_geometry(
     target_sectors: int,
     sector_size: int,
     layout_label: str,
-) -> Optional[list[dict[str, int | str | list[str]]]]:
+) -> list[dict[str, int | str | list[str]]] | None:
     if not partitions:
         return None
     source_sectors = max(int(part["start"]) + int(part["size"]) for part in partitions)
@@ -965,7 +965,7 @@ def _parse_sfdisk_fields(rest: str) -> list[tuple[str, str]]:
     return fields
 
 
-def _get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> Optional[int]:
+def _get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> int | None:
     for field_key, value in fields:
         if field_key != key:
             continue
@@ -1010,8 +1010,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             [sfdisk, "--force", target_node],
             input=op.contents,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = _format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
@@ -1030,8 +1029,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             [sfdisk, "--force", target_node],
             input=op.contents,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = _format_command_failure("sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result)
@@ -1053,8 +1051,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             [parted, "-s", target_node],
             input=op.contents,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
@@ -1077,8 +1074,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             [parted, "-s", target_node],
             input=expanded,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = _format_command_failure("parted failed", [parted, "--script", target_node], result)
@@ -1097,8 +1093,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
                 f"count={op.size_bytes}",
                 "conv=fsync",
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -1121,8 +1116,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
                 f"count={op.size_bytes}",
                 "conv=fsync",
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -1135,8 +1129,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             raise RuntimeError("sgdisk not found")
         result = subprocess.run(
             [sgdisk, f"--load-backup={op.path}", target_node],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -1149,8 +1142,7 @@ def _apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             raise RuntimeError("sgdisk not found")
         result = subprocess.run(
             [sgdisk, f"--load-backup={op.path}", target_node],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -1209,7 +1201,7 @@ def _format_command_failure(summary: str, command: list[str], result: subprocess
     return f"{summary} ({' '.join(command)})"
 
 
-def _estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
+def _estimate_last_lba_from_sgdisk_backup(path: Path) -> int | None:
     data = path.read_bytes()
     signature = b"EFI PART"
     offset = data.find(signature)
@@ -1226,9 +1218,9 @@ def _restore_partition_op(
     target_part: str,
     *,
     title: str,
-    total_bytes: Optional[int] = None,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
-    subtitle: Optional[str] = None,
+    total_bytes: int | None = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
+    subtitle: str | None = None,
 ) -> None:
     restore_command = _build_restore_command_from_plan(op, target_part)
     _run_restore_pipeline(
@@ -1272,14 +1264,14 @@ def _has_partition_image_files(image_dir: Path, part_name: str) -> bool:
     return any(image_dir.glob(f"*-{part_name}.*-img*"))
 
 
-def _extract_volume_suffix(path: Path) -> Optional[str]:
+def _extract_volume_suffix(path: Path) -> str | None:
     match = re.search(r"\.([a-z]{2})$", path.name)
     if not match:
         return None
     return match.group(1)
 
 
-def _volume_suffix_index(suffix: Optional[str]) -> int:
+def _volume_suffix_index(suffix: str | None) -> int:
     if not suffix:
         return -1
     first = ord(suffix[0]) - ord("a")
@@ -1300,14 +1292,14 @@ def _sorted_clonezilla_volumes(paths: Iterable[Path]) -> list[Path]:
     return sorted({path for path in paths}, key=sort_key)
 
 
-def _extract_partclone_fstype(part_name: str, file_name: str) -> Optional[str]:
+def _extract_partclone_fstype(part_name: str, file_name: str) -> str | None:
     match = re.search(rf"{re.escape(part_name)}\.(.+?)-ptcl-img", file_name)
     if not match:
         return None
     return match.group(1)
 
 
-def _find_partition_table(image_dir: Path) -> Optional[Path]:
+def _find_partition_table(image_dir: Path) -> Path | None:
     for suffix in ("-pt.sf", "-pt.sgdisk", "-pt.parted"):
         matches = list(image_dir.glob(f"*{suffix}"))
         if matches:
@@ -1325,8 +1317,7 @@ def _write_partition_table(table_path: Path, target_node: str) -> None:
             [sfdisk, "--force", target_node],
             input=contents,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = result.stderr.strip() or result.stdout.strip() or "sfdisk failed"
@@ -1338,8 +1329,7 @@ def _write_partition_table(table_path: Path, target_node: str) -> None:
             raise RuntimeError("sgdisk not found")
         result = subprocess.run(
             [sgdisk, f"--load-backup={table_path}", target_node],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -1352,9 +1342,9 @@ def _write_partition_table(table_path: Path, target_node: str) -> None:
 def _map_target_partitions(
     parts: Iterable[str],
     target_device: dict,
-) -> dict[str, Optional[dict[str, Optional[int]]]]:
+) -> dict[str, dict[str, int | None] | None]:
     target_children = [child for child in devices.get_children(target_device) if child.get("type") == "part"]
-    target_by_number: dict[int, dict[str, Optional[int]]] = {}
+    target_by_number: dict[int, dict[str, int | None]] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
         if number is None:
@@ -1366,7 +1356,7 @@ def _map_target_partitions(
         else:
             size_bytes = int(size_bytes)
         target_by_number[number] = {"node": node, "size_bytes": size_bytes}
-    mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
+    mapping: dict[str, dict[str, int | None] | None] = {}
     for part_name in parts:
         number = get_partition_number(part_name)
         if number is None:
@@ -1437,7 +1427,7 @@ def _is_zstd_compressed(image_files: list[Path]) -> bool:
     return False
 
 
-def _get_compression_type(image_files: list[Path]) -> Optional[str]:
+def _get_compression_type(image_files: list[Path]) -> str | None:
     if _is_zstd_compressed(image_files):
         return "zstd"
     if _is_gzip_compressed(image_files):
@@ -1462,7 +1452,7 @@ def _build_restore_command(descriptor: dict, target_part: str) -> tuple[list[str
     return [dd_path, f"of={target_part}", "bs=4M", "status=progress", "conv=fsync"], True
 
 
-def _get_partclone_tool(fstype: str) -> Optional[str]:
+def _get_partclone_tool(fstype: str) -> str | None:
     partclone_tools = {
         "ext2": "partclone.ext2",
         "ext3": "partclone.ext3",
@@ -1560,9 +1550,9 @@ def _run_restore_pipeline(
     restore_command: list[str],
     *,
     title: str,
-    total_bytes: Optional[int] = None,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
-    subtitle: Optional[str] = None,
+    total_bytes: int | None = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
+    subtitle: str | None = None,
 ) -> None:
     if not image_files:
         raise RuntimeError("No image files")
@@ -1593,7 +1583,7 @@ def _run_restore_pipeline(
         upstream = decompress_proc.stdout
     if upstream is None:
         raise RuntimeError("Restore pipeline failed")
-    error: Optional[Exception] = None
+    error: Exception | None = None
     try:
         clone.run_checked_with_streaming_progress(
             restore_command,
@@ -1625,7 +1615,7 @@ def verify_restored_image(
     plan: RestorePlan,
     target_device: str,
     *,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> bool:
     """Verify that restored partitions match the source image using SHA256 checksums.
 
@@ -1649,10 +1639,7 @@ def verify_restored_image(
             progress_callback(["Target device", "not found"], None)
         return False
 
-    target_parts = [
-        child for child in devices.get_children(target_dev)
-        if child.get("type") == "part"
-    ]
+    target_parts = [child for child in devices.get_children(target_dev) if child.get("type") == "part"]
 
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):
@@ -1675,25 +1662,23 @@ def verify_restored_image(
             return False
 
         if progress_callback:
-            progress_callback([f"V {index}/{total_parts} IMG", op.partition],
-                            (index - 0.5) / total_parts)
+            progress_callback([f"V {index}/{total_parts} IMG", op.partition], (index - 0.5) / total_parts)
 
         # Compute SHA256 of the image file(s)
         try:
             image_hash = _compute_image_sha256(op.image_files, op.compressed)
-        except Exception as e:
+        except Exception:
             if progress_callback:
                 progress_callback([f"V {index}/{total_parts}", "Image hash error"], None)
             return False
 
         if progress_callback:
-            progress_callback([f"V {index}/{total_parts} DST", op.partition],
-                            (index - 0.25) / total_parts)
+            progress_callback([f"V {index}/{total_parts} DST", op.partition], (index - 0.25) / total_parts)
 
         # Compute SHA256 of the target partition
         try:
             target_hash = _compute_partition_sha256(target_part)
-        except Exception as e:
+        except Exception:
             if progress_callback:
                 progress_callback([f"V {index}/{total_parts}", "Target hash error"], None)
             return False
