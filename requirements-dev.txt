@@ -14,4 +14,5 @@ pytest-timeout>=2.2.0      # Timeout plugin for pytest
 coverage[toml]>=7.3.0
 
 # Code quality tools
+black==24.8.0           # Code formatter
 ruff>=0.1.0              # Fast linter with import sorting

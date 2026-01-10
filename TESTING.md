@@ -433,6 +433,14 @@ pytest --cov=rpi_usb_cloner --cov-report=term
 - Review existing tests for patterns
 - Ask questions in GitHub issues
 
+### Formatting
+
+Run Black before submitting changes:
+
+```bash
+black .
+```
+
 ## Future Improvements
 
 ### Planned Enhancements
