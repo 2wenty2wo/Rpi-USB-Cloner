@@ -23,6 +23,7 @@ dev = [
     "pytest-mock>=3.12.0",
     "pytest-timeout>=2.2.0",
     "coverage[toml]>=7.3.0",
+    "ruff>=0.1.0",
 ]
 
 [tool.pytest.ini_options]
@@ -77,3 +78,66 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.ruff]
+# Target Python 3.8+
+target-version = "py38"
+
+# Line length to match common Python conventions
+line-length = 100
+
+# Include all Python files
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".pytest_cache",
+    "__pycache__",
+    "*.egg-info",
+    "build",
+    "dist",
+    "htmlcov",
+    ".venv",
+    "venv",
+]
+
+[tool.ruff.lint]
+# Enable pycodestyle (E, W), Pyflakes (F), isort (I), and other useful rules
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "PIE",   # flake8-pie
+    "RET",   # flake8-return
+    "PTH",   # flake8-use-pathlib
+]
+
+# Disable specific rules that might be too strict
+ignore = [
+    "E501",    # Line too long (handled by formatter)
+    "PTH123",  # open() should be replaced by Path.open() - too strict for this project
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Configure import sorting
+known-first-party = ["rpi_usb_cloner"]
+force-single-line = false
+lines-after-imports = 2
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore certain rules in test files
+"tests/**/*.py" = [
+    "N802",  # Function name should be lowercase (allow test methods)
+]
