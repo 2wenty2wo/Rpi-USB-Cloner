@@ -15,4 +15,5 @@ coverage[toml]>=7.3.0
 
 # Code quality tools
 black==24.8.0           # Code formatter
+mypy==1.11.2            # Static type checker
 ruff>=0.1.0              # Fast linter with import sorting

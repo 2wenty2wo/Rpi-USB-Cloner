@@ -441,6 +441,14 @@ Run Black before submitting changes:
 black .
 ```
 
+### Static Type Checking
+
+Run mypy for the main package:
+
+```bash
+mypy rpi_usb_cloner
+```
+
 ## Future Improvements
 
 ### Planned Enhancements
