@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Dict, Optional, Any
+from typing import Any, Callable, Dict, Optional
 
 import RPi.GPIO as GPIO
 

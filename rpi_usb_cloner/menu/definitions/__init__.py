@@ -36,19 +36,13 @@ def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
     return screens
 
 
+from .drives import DRIVE_LIST_MENU, DRIVES_MENU
+from .images import IMAGES_MENU
 # Import all menu definitions
 from .main import MAIN_MENU
-from .drives import DRIVES_MENU, DRIVE_LIST_MENU
-from .images import IMAGES_MENU
+from .settings import (DEVELOP_MENU, ICONS_MENU, POWER_MENU, SCREENS_MENU,
+                       SCREENSAVER_MENU, SETTINGS_MENU)
 from .tools import TOOLS_MENU
-from .settings import (
-    SETTINGS_MENU,
-    SCREENSAVER_MENU,
-    POWER_MENU,
-    DEVELOP_MENU,
-    SCREENS_MENU,
-    ICONS_MENU,
-)
 
 # Collect all screens for navigation
 SCREENS = _collect_screens(MAIN_MENU)

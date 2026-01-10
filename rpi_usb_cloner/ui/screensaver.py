@@ -39,13 +39,17 @@ def _render_placeholder(context: display.DisplayContext, lines: list[str]) -> No
 def _prepare_frame(frame: Image.Image, size: tuple[int, int]) -> Image.Image:
     if frame.mode not in ("RGB", "L", "1"):
         frame = frame.convert("RGB")
-    fitted = ImageOps.fit(frame, size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    fitted = ImageOps.fit(
+        frame, size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5)
+    )
     if fitted.mode != "1":
         fitted = fitted.convert("1")
     return fitted
 
 
-def _sleep_with_input_check(duration_s: float, input_checker: Callable[[], bool]) -> bool:
+def _sleep_with_input_check(
+    duration_s: float, input_checker: Callable[[], bool]
+) -> bool:
     deadline = time.monotonic() + duration_s
     while time.monotonic() < deadline:
         if input_checker():
@@ -100,7 +104,9 @@ def play_screensaver(
                     return True
                 prepared = _prepare_frame(frame, (context.width, context.height))
                 context.disp.display(prepared)
-                if _sleep_with_input_check(_frame_duration_seconds(frame), input_checker):
+                if _sleep_with_input_check(
+                    _frame_duration_seconds(frame), input_checker
+                ):
                     return True
             image.seek(0)
     return False

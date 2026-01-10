@@ -60,7 +60,9 @@ def render_progress_screen(
                     draw=draw,
                 )
             else:
-                draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+                draw.text(
+                    (context.x - 11, context.top), title, font=title_font, fill=255
+                )
 
         current_y = text_start_y
         for line in wrapped_lines:
@@ -121,9 +123,11 @@ def render_progress_screen(
             # Part 2: Draw black text on the filled (left) portion
             if fill_right > text_x:
                 # Create a temporary image to draw the black text
-                temp_img = Image.new('1', (context.width, context.height), 0)
+                temp_img = Image.new("1", (context.width, context.height), 0)
                 temp_draw = ImageDraw.Draw(temp_img)
-                temp_draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
+                temp_draw.text(
+                    (text_x, text_y), percent_text, font=percent_font, fill=255
+                )
 
                 # Copy only the pixels where the filled bar overlaps with text
                 # Use the bar's inner bounds to ensure we cover all text pixels
@@ -131,7 +135,9 @@ def render_progress_screen(
                 temp_pixels = temp_img.load()
                 for y in range(inner_top, inner_bottom):
                     for x in range(inner_left, inner_right):
-                        if temp_pixels[x, y] and x < fill_right:  # Text pixel in filled region
+                        if (
+                            temp_pixels[x, y] and x < fill_right
+                        ):  # Text pixel in filled region
                             pixels[x, y] = 0  # Draw in black
 
         context.disp.display(context.image)
