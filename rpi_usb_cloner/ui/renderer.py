@@ -149,8 +149,7 @@ def render_menu_screen(
         track_left = max(track_right - scrollbar_width + 1, 0)
         draw.rectangle(
             (track_left, track_top, track_right, track_bottom),
-            outline=255,
-            fill=0,
+            fill=64,
         )
         draw.rectangle(
             (track_left, thumb_top, track_right, thumb_bottom),
