@@ -1649,6 +1649,10 @@ def verify_restored_image(
             progress_callback(["Target device", "not found"], None)
         return False
 
+    # Unmount target device and all partitions before verification
+    # This prevents dd from blocking when trying to read mounted partitions
+    devices.unmount_device(target_dev)
+
     target_parts = [
         child for child in devices.get_children(target_dev)
         if child.get("type") == "part"
@@ -1763,13 +1767,25 @@ def _compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
         text=True,
     )
 
-    # Close upstream in parent process
+    # Close upstream in parent process - close both file descriptors
+    if cat_proc.stdout:
+        cat_proc.stdout.close()
     if decompress_proc and decompress_proc.stdout:
         decompress_proc.stdout.close()
-    elif cat_proc.stdout:
-        cat_proc.stdout.close()
 
-    sha_out, sha_err = sha_proc.communicate()
+    # Use timeout to prevent indefinite hangs (10 minutes for image files)
+    try:
+        sha_out, sha_err = sha_proc.communicate(timeout=600)
+    except subprocess.TimeoutExpired:
+        sha_proc.kill()
+        if decompress_proc:
+            decompress_proc.kill()
+        cat_proc.kill()
+        sha_proc.wait()
+        if decompress_proc:
+            decompress_proc.wait()
+        cat_proc.wait()
+        raise RuntimeError("Image hash computation timed out after 10 minutes")
 
     # Wait for all processes
     cat_proc.wait()
@@ -1813,7 +1829,16 @@ def _compute_partition_sha256(partition_path: str) -> str:
     if dd_proc.stdout:
         dd_proc.stdout.close()
 
-    sha_out, sha_err = sha_proc.communicate()
+    # Use timeout to prevent indefinite hangs (5 minutes should be enough for most partitions)
+    try:
+        sha_out, sha_err = sha_proc.communicate(timeout=300)
+    except subprocess.TimeoutExpired:
+        sha_proc.kill()
+        dd_proc.kill()
+        sha_proc.wait()
+        dd_proc.wait()
+        raise RuntimeError("Partition hash computation timed out after 5 minutes")
+
     dd_proc.wait()
 
     if sha_proc.returncode != 0:
