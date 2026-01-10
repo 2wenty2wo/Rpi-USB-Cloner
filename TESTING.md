@@ -186,14 +186,20 @@ Coverage settings are configured in `pyproject.toml`:
 
 As of the latest test run:
 
-- **Overall Coverage**: 7.12%
+- **Overall Coverage**: 16.14% ✅
 - **settings.py**: 100% ✅
 - **devices.py**: 91.70% ✅
+- **clonezilla/models.py**: 100% ✅
+- **clonezilla/file_utils.py**: 100% ✅
+- **clonezilla/image_discovery.py**: 99.40% ✅
+- **clonezilla/compression.py**: 80.49% ✅
+- **clonezilla/partition_table.py**: 62.30%
 - **mount.py**: 58.87%
 - **clone.py**: 27.00%
-- **clonezilla.py**: 0.00% ⚠️
 
-**Priority**: Increase coverage for critical modules (clone.py, clonezilla.py)
+**Recent Improvements**: Added comprehensive test coverage for Clonezilla modules (219 new tests), more than doubling overall coverage.
+
+**Priority**: Continue increasing coverage for clone operations and UI modules
 
 ## Test Organization
 
@@ -452,5 +458,5 @@ When contributing new code:
 ---
 
 **Last Updated**: 2026-01-10
-**Test Count**: 183 passing tests
-**Coverage**: 7.12% (improving!)
+**Test Count**: 402 passing tests
+**Coverage**: 16.14% (more than doubled!)
