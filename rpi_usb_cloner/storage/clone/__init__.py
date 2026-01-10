@@ -47,15 +47,21 @@ from .verification import compute_sha256, verify_clone, verify_clone_device
 
 # Import internal functions for test compatibility
 from .progress import _log_debug as _progress_log_debug
-from .operations import _log_debug as _operations_log_debug
 
 # Unified log_debug function for backwards compatibility
 def log_debug(message: str) -> None:
     """Log debug message (for backwards compatibility with tests)."""
     _progress_log_debug(message)
 
-# Expose _log_debug for test access
-_log_debug = _progress_log_debug
+
+# Dynamic attribute access for _log_debug to support testing
+def __getattr__(name):
+    """Handle dynamic attribute access for test compatibility."""
+    if name == "_log_debug":
+        # Return the actual configured logger from progress module
+        from .progress import _log_debug_func
+        return _log_debug_func
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     # Main operations
