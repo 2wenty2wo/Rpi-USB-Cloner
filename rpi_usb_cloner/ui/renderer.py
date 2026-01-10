@@ -69,6 +69,7 @@ def render_menu_screen(
             left_margin=context.x - 11,
         )
         current_y = layout.content_top
+    content_top = current_y
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     line_height = _get_line_height(list_font)
@@ -89,9 +90,16 @@ def render_menu_screen(
     # Calculate selector width for consistent alignment
     selector = "> "
     selector_width = _measure_text_width(list_font, selector)
+    items_seq = list(items)
+    needs_scrollbar = len(items_seq) > visible_rows
+    scrollbar_width = 2
+    scrollbar_padding = 1
     max_item_width = context.width - left_margin - selector_width - 1
+    if needs_scrollbar:
+        max_item_width -= scrollbar_width + scrollbar_padding
+    max_item_width = max(0, max_item_width)
     items_list = [
-        _truncate_text(item, list_font, max_item_width) for item in list(items)
+        _truncate_text(item, list_font, max_item_width) for item in items_seq
     ]
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
@@ -106,11 +114,51 @@ def render_menu_screen(
         # Draw text with offset for alignment
         draw.text((left_margin + selector_width, text_y), items_list[item_index], font=list_font, fill=text_color)
 
+    footer_font = None
+    footer_height = 0
+    footer_padding = 1
+    footer_y = 0
     if status_line:
         footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
-        footer_padding = 1
         footer_y = context.height - footer_height - footer_padding
+        content_bottom = footer_y - footer_padding
+    else:
+        content_bottom = context.height - 1
+
+    if needs_scrollbar and content_bottom >= content_top:
+        track_top = content_top
+        track_bottom = content_bottom
+        track_height = track_bottom - track_top + 1
+        min_thumb_px = 2
+        thumb_height = max(
+            min_thumb_px,
+            int(track_height * visible_rows / len(items_list)),
+        )
+        thumb_height = min(thumb_height, track_height)
+        max_scroll = max(len(items_list) - visible_rows, 0)
+        thumb_range = max(track_height - thumb_height, 0)
+        if max_scroll > 0:
+            thumb_offset = int((scroll_offset / max_scroll) * thumb_range)
+        else:
+            thumb_offset = 0
+        thumb_offset = max(0, min(thumb_offset, thumb_range))
+        thumb_top = track_top + thumb_offset
+        thumb_bottom = min(thumb_top + thumb_height - 1, track_bottom)
+        track_right = context.width - 1
+        track_left = max(track_right - scrollbar_width + 1, 0)
+        draw.rectangle(
+            (track_left, track_top, track_right, track_bottom),
+            outline=255,
+            fill=0,
+        )
+        draw.rectangle(
+            (track_left, thumb_top, track_right, thumb_bottom),
+            outline=255,
+            fill=255,
+        )
+
+    if status_line:
         # Draw white background bar for footer (full screen width)
         draw.rectangle(
             (0, footer_y - footer_padding, context.width, context.height),
