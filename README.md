@@ -9,8 +9,8 @@
   <img src="https://img.shields.io/badge/status-WIP-red" />
   <br/>
   <img src="https://github.com/2wenty2wo/Rpi-USB-Cloner/actions/workflows/tests.yml/badge.svg" alt="Tests" />
-  <img src="https://img.shields.io/badge/coverage-16.14%25-yellow" alt="Coverage" />
-  <img src="https://img.shields.io/badge/tests-402%20passing-brightgreen" alt="Tests Passing" />
+  <img src="https://img.shields.io/badge/coverage-22.50%25-yellow" alt="Coverage" />
+  <img src="https://img.shields.io/badge/tests-608%20passing-brightgreen" alt="Tests Passing" />
 </p>
 Don't expect this to work yet...
 
