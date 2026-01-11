@@ -49,11 +49,14 @@ You'll see:
 ```
 📊 Coverage Report:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-rpi_usb_cloner/config/settings.py      100.00%
-rpi_usb_cloner/storage/devices.py       91.70%
-rpi_usb_cloner/storage/clone.py         27.00%
+rpi_usb_cloner/config/settings.py           100.00%
+rpi_usb_cloner/services/drives.py           100.00%
+rpi_usb_cloner/storage/clone/models.py      100.00%
+rpi_usb_cloner/storage/clone/operations.py   96.13%
+rpi_usb_cloner/storage/devices.py            91.70%
+rpi_usb_cloner/storage/clone/command_runners.py  90.46%
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TOTAL                                    7.12%
+TOTAL                                        22.50%
 ```
 
 ### Step 4: Download Detailed HTML Report
@@ -84,8 +87,8 @@ Your README now shows:
 
 ```markdown
 ![Tests](https://github.com/.../workflows/tests.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-7.12%25-yellow)
-![Tests Passing](https://img.shields.io/badge/tests-183%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-22.50%25-yellow)
+![Tests Passing](https://img.shields.io/badge/tests-608%20passing-brightgreen)
 ```
 
 These badges:
@@ -111,29 +114,33 @@ These badges:
 
 5. **Commit and push** - CI shows new coverage %
 
-### Example: Targeting 50% Coverage
+### Example: Targeting Higher Coverage
 
 Current status:
 ```
-settings.py    100% ✅ (Done!)
-devices.py      92% ✅ (Great!)
-mount.py        59% 🟡 (Good start)
-clone.py        27% 🔴 (Needs work)
-clonezilla.py    0% 🔴 (Not tested at all)
+settings.py               100% ✅ (Done!)
+services/drives.py        100% ✅ (Done!)
+clone/models.py           100% ✅ (Done!)
+clone/operations.py        96% ✅ (Excellent!)
+clone/verification.py      93% ✅ (Great!)
+clone/erase.py             92% ✅ (Great!)
+devices.py                 92% ✅ (Great!)
+clone/command_runners.py   90% ✅ (Great!)
+clonezilla/partition_table.py  62% 🟡 (Good start)
+mount.py                   59% 🟡 (Good start)
+actions/                    0% 🔴 (Not tested)
+ui/                         0% 🔴 (Not tested)
 ```
 
-**Goal**: Get clone.py to 50%
+**Goal**: Get UI and action modules tested
 
 **Strategy**:
-1. Check `htmlcov/clone.py.html`
-2. Find easiest functions to test first
-3. Write tests for helper functions:
-   - `normalize_clone_mode()` ✓ (already tested)
-   - `format_eta()` ✓ (already tested)
-   - `resolve_device_node()` ✓ (already tested)
-4. Add tests for main functions:
-   - `copy_partition_table()` (complex, high value)
-   - `clone_device()` (core functionality)
+1. Focus on testable logic in UI/actions
+2. Mock hardware dependencies (OLED, GPIO)
+3. Write tests for:
+   - Action handlers (drive actions, image actions)
+   - Menu navigation logic
+   - Error handling in UI code
 
 ## 📊 Coverage Trends
 
@@ -141,10 +148,11 @@ Track coverage over time:
 
 | Date | Coverage | Change | Tests |
 |------|----------|--------|-------|
+| Jan 11 | 22.50% | +15.38% | 608 |
 | Jan 10 | 7.12% | +7.12% | 183 |
 | Jan 9 | 0.00% | - | 0 |
 
-**Goal**: Increase by 1-2% each week!
+**Goal**: Coverage tripled in 2 days! Continue increasing by 1-2% each week!
 
 ## ⚙️ Coverage Configuration
 
@@ -258,4 +266,4 @@ Our tests measure branch coverage automatically!
 
 **Remember**: Coverage is a tool, not a goal. The goal is **reliable, well-tested code**! 🎯
 
-**Current Status**: 7.12% coverage, 183 tests passing ✅
+**Current Status**: 22.50% coverage, 608 tests passing ✅
