@@ -243,8 +243,12 @@ class TestRunCheckedWithStreamingProgress:
         process = Mock()
         process.returncode = 1
         process.poll.return_value = 1
-        process.stderr.readline.return_value = ""
-        process.stderr.read.return_value = "disk full"
+        # Create a proper mock stderr that can be closed
+        mock_stderr = Mock()
+        mock_stderr.readline.return_value = ""
+        mock_stderr.read.return_value = "disk full"
+        mock_stderr.close = Mock()
+        process.stderr = mock_stderr
         process.stdout = None
         mock_popen.return_value = process
 

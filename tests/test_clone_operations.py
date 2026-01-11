@@ -322,10 +322,11 @@ class TestClonePartclone:
         # Should fall back to dd
         mock_dd.assert_called_once()
 
+    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
     @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
-    def test_clone_partclone_missing_target_partition(self, mock_get_device, mock_get_children, mock_display):
+    def test_clone_partclone_missing_target_partition(self, mock_get_device, mock_get_children, mock_display, mock_run_progress):
         """Test error when target partition is missing."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}

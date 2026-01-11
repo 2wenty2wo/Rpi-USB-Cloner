@@ -466,4 +466,6 @@ def mock_display_context(mocker):
     mock_context.device = Mock()
     mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_context)
     mocker.patch("rpi_usb_cloner.ui.display.display_lines")
+    # Also patch display_lines where it's imported in command_runners
+    mocker.patch("rpi_usb_cloner.storage.clone.command_runners.display_lines")
     return mock_context
