@@ -85,8 +85,8 @@ directory = "htmlcov"
 # Target Python 3.8+
 target-version = "py38"
 
-# Line length to match common Python conventions
-line-length = 100
+# Line length to match Black
+line-length = 88
 
 # Include all Python files
 include = ["*.py", "*.pyi", "**/pyproject.toml"]
