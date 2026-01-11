@@ -90,7 +90,7 @@ def configure_device_helpers(
     _error_handler = error_handler
 
 
-def run_command(command, check=True):
+def run_command(command, check=True, log_output=True):
     _log_debug(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, check=check, text=True, capture_output=True)
@@ -101,9 +101,9 @@ def run_command(command, check=True):
         if error.stderr:
             _log_debug(f"stderr: {error.stderr.strip()}")
         raise
-    if result.stdout:
+    if result.stdout and (log_output or result.returncode != 0):
         _log_debug(f"stdout: {result.stdout.strip()}")
-    if result.stderr:
+    if result.stderr and (log_output or result.returncode != 0):
         _log_debug(f"stderr: {result.stderr.strip()}")
     _log_debug(f"Command completed with return code {result.returncode}")
     return result
@@ -136,10 +136,25 @@ def format_device_label(device):
 def get_block_devices():
     try:
         result = run_command(
-            ["lsblk", "-J", "-b", "-o", "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID"]
+            [
+                "lsblk",
+                "-J",
+                "-b",
+                "-o",
+                "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID",
+            ],
+            log_output=False,
         )
         data = json.loads(result.stdout)
-        return data.get("blockdevices", [])
+        devices = data.get("blockdevices", [])
+        device_names = [device.get("name") for device in devices if device.get("name")]
+        if device_names:
+            _log_debug(
+                f"lsblk found {len(device_names)} devices: {', '.join(device_names)}"
+            )
+        else:
+            _log_debug("lsblk found no block devices")
+        return devices
     except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
         if _error_handler:
             _error_handler(["LSBLK ERROR", str(error)])
