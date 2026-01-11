@@ -15,6 +15,7 @@ from rpi_usb_cloner.hardware.gpio import (
     read_button,
 )
 from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui.icons import LOWERCASE_ICON, SYMBOLS_ICON, UPPERCASE_ICON
 
 KEY_SPACE = "SPACE"
 KEY_BACKSPACE = "BACK"
@@ -240,10 +241,10 @@ def _render_keyboard(
     current_y += strip_height + 2
 
     mode_selectors = [
-        ("upper", chr(58330), icon_font),
-        ("lower", chr(58328), icon_font),
+        ("upper", UPPERCASE_ICON, icon_font),
+        ("lower", LOWERCASE_ICON, icon_font),
         ("numbers", "\ue0ef", icon_font),
-        ("symbols", chr(57422), icon_font),
+        ("symbols", SYMBOLS_ICON, icon_font),
     ]
     mode_actions = [
         ("back", "\ue0ae", icon_font),

@@ -11,8 +11,14 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo, iso
 from rpi_usb_cloner.storage.clonezilla.backup import check_tool_available
 from rpi_usb_cloner.ui import display, menus, screens
-
-WRITE_TITLE_ICON = chr(58597)
+from rpi_usb_cloner.ui.icons import (
+    ALERT_ICON,
+    INFO_ICON,
+    KEYBOARD_ICON,
+    SETTINGS_ICON,
+    USB_ICON,
+    WRITE_ICON,
+)
 
 
 def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
@@ -28,7 +34,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     """Create a Clonezilla-compatible backup of a USB drive."""
     from rpi_usb_cloner.ui import keyboard
 
-    BACKUP_TITLE_ICON = chr(58597)  # Same icon as WRITE
+    BACKUP_TITLE_ICON = WRITE_ICON
 
     # Step 1: Select backup mode (full/partial)
     backup_modes = [
@@ -41,7 +47,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
         "BACKUP MODE",
         mode_labels,
         selected_index=0,
-        title_icon=chr(57451),  # settings icon
+        title_icon=SETTINGS_ICON,
     )
 
     if selected_mode_index is None:
@@ -74,7 +80,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     selected_source_index = menus.select_usb_drive(
         "SOURCE USB",
         source_candidates,
-        title_icon=chr(57516),  # USB drive icon
+        title_icon=USB_ICON,
         selected_name=app_context.active_drive,
     )
 
@@ -153,7 +159,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
         title="IMAGE NAME",
         initial="",
         masked=False,
-        title_icon=chr(57618),  # keyboard icon
+        title_icon=KEYBOARD_ICON,
     )
 
     if image_name is None or not image_name.strip():
@@ -202,7 +208,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
         "COMPRESSION",
         compression_labels,
         selected_index=default_compression_index,
-        title_icon=chr(57451),  # settings icon
+        title_icon=SETTINGS_ICON,
     )
 
     if selected_compression_index is None:
@@ -261,7 +267,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     if not _confirm_prompt(
         log_debug=log_debug,
         title="BACKUP?",
-        title_icon=chr(57487),  # info icon
+        title_icon=INFO_ICON,
         prompt_lines=summary_lines,
         default=app_state.CONFIRM_NO,
     ):
@@ -472,7 +478,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     selected_index = menus.select_usb_drive(
         "TARGET USB",
         target_candidates,
-        title_icon=chr(57516),
+        title_icon=USB_ICON,
         selected_name=app_context.active_drive,
     )
     if selected_index is None:
@@ -573,7 +579,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=WRITE_TITLE_ICON,
+            title_icon=WRITE_ICON,
         )
         time.sleep(0.1)
     thread.join()
@@ -591,7 +597,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         screens.wait_for_paginated_input(
             "WRITE",
             ["FAILED", *_format_restore_error_lines(error)],
-            title_icon=WRITE_TITLE_ICON,
+            title_icon=WRITE_ICON,
         )
         return
     elapsed_seconds = time.monotonic() - start_time
@@ -613,7 +619,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             "WRITE",
             summary_lines,
             selected_index=selection[0],
-            title_icon=WRITE_TITLE_ICON,
+            title_icon=WRITE_ICON,
         )
 
     render_screen()
@@ -753,7 +759,7 @@ def _verify_backup(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=chr(57487),
+            title_icon=INFO_ICON,
         )
         time.sleep(0.1)
 
@@ -830,7 +836,7 @@ def _verify_restore(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=chr(57487),
+            title_icon=INFO_ICON,
         )
         time.sleep(0.1)
 
@@ -874,7 +880,7 @@ def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
         "PARTITIONS",
         [label for _, label in options],
         selected_index=selected_index,
-        title_icon=chr(57451),
+        title_icon=SETTINGS_ICON,
     )
     if selection is None:
         return None
@@ -890,7 +896,7 @@ def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -
     return _confirm_prompt(
         log_debug=log_debug,
         title="WARNING!",
-        title_icon=chr(57639),
+        title_icon=ALERT_ICON,
         prompt_lines=["Data will be overwritten!", "All data will lost!"],
         default=app_state.CONFIRM_NO,
     )
@@ -1164,7 +1170,7 @@ def _write_iso_image(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=WRITE_TITLE_ICON,
+            title_icon=WRITE_ICON,
         )
         time.sleep(0.1)
     thread.join()
@@ -1182,7 +1188,7 @@ def _write_iso_image(
         screens.wait_for_paginated_input(
             "WRITE ISO",
             ["FAILED", str(error)],
-            title_icon=WRITE_TITLE_ICON,
+            title_icon=WRITE_ICON,
         )
         return
     elapsed_seconds = time.monotonic() - start_time

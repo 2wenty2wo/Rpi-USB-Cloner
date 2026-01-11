@@ -6,6 +6,7 @@ import time
 
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.ui import screens
+from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
 from . import get_action_context
 
 
@@ -17,7 +18,7 @@ def _ensure_drive_selected(title: str, title_icon: str) -> bool:
         title,
         message="No drive selected",
         title_icon=title_icon,
-        message_icon=chr(57639),
+        message_icon=ALERT_ICON,
         message_icon_size=24,
     )
     time.sleep(1)
@@ -37,7 +38,7 @@ def _run_operation(action, *, allow_back_interrupt: bool = False) -> None:
 
 def copy_drive() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("COPY DRIVE", chr(57581)):
+    if not _ensure_drive_selected("COPY DRIVE", DRIVES_ICON):
         return
     _run_operation(
         lambda: drive_actions.copy_drive(
@@ -51,7 +52,7 @@ def copy_drive() -> None:
 
 def drive_info() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("DRIVE INFO", chr(57581)):
+    if not _ensure_drive_selected("DRIVE INFO", DRIVES_ICON):
         return
     drive_actions.drive_info(
         state=context.state,
@@ -62,7 +63,7 @@ def drive_info() -> None:
 
 def format_drive() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("FORMAT DRIVE", chr(58367)):
+    if not _ensure_drive_selected("FORMAT DRIVE", SPARKLES_ICON):
         return
     _run_operation(
         lambda: drive_actions.format_drive(
@@ -75,7 +76,7 @@ def format_drive() -> None:
 
 def unmount_drive() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("UNMOUNT DRIVE", chr(57444)):
+    if not _ensure_drive_selected("UNMOUNT DRIVE", EJECT_ICON):
         return
     drive_actions.unmount_drive(
         state=context.state,
@@ -86,7 +87,7 @@ def unmount_drive() -> None:
 
 def erase_drive() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("ERASE DRIVE", chr(57639)):
+    if not _ensure_drive_selected("ERASE DRIVE", ALERT_ICON):
         return
     _run_operation(
         lambda: drive_actions.erase_drive(

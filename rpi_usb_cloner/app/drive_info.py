@@ -1,3 +1,6 @@
+from rpi_usb_cloner.ui.icons import DRIVES_ICON
+
+
 def get_device_status_line(
     active_drive,
     list_media_devices,
@@ -50,5 +53,5 @@ def render_drive_info(
         info_lines,
         page_index=page_index,
         title_font=display_module.get_display_context().fontcopy,
-        title_icon=chr(57581),  # drives icon (same as drives menu)
+        title_icon=DRIVES_ICON,
     )
