@@ -36,6 +36,7 @@ from .ui_actions import (
     select_screensaver_gif,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
+    toggle_screenshots,
     wifi_settings,
 )
 from .update_manager import (
@@ -63,6 +64,7 @@ __all__ = [
     "lucide_demo",
     "heroicons_demo",
     "preview_title_font",
+    "toggle_screenshots",
     # Update manager
     "update_version",
     "get_update_status",

@@ -22,6 +22,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "scroll_refresh_interval": 0.04,
     "verify_image_hash_timeout_seconds": None,
     "verify_partition_hash_timeout_seconds": None,
+    "screenshots_enabled": False,
 }
 
 

@@ -35,6 +35,7 @@ DEVELOP_MENU = MenuScreen(
         menu_entry("SCREENS", submenu=SCREENS_MENU),
         menu_entry("ICONS", submenu=ICONS_MENU),
         menu_entry("TITLE FONT PREVIEW", action=menu_actions.preview_title_font),
+        menu_entry("SCREENSHOTS", action=menu_actions.toggle_screenshots),
     ],
 )
 
