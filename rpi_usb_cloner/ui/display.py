@@ -80,6 +80,7 @@ See Also:
     - rpi_usb_cloner.ui.menus: Menu rendering utilities
     - luma.oled documentation: https://luma-oled.readthedocs.io/
 """
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -91,6 +92,7 @@ from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
 
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.config.settings import get_setting
 from rpi_usb_cloner.storage.mount import (
     get_device_name,
     get_model,
@@ -170,10 +172,32 @@ def capture_screenshot() -> Optional[Path]:
     try:
         context = get_display_context()
         screenshot = context.image.copy()
-        screenshots_dir = Path.home() / "oled_screenshots"
-        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        configured_dir = get_setting("screenshots_dir", "/home/pi/oled_screenshots")
+        base_dir = Path("/home/pi").resolve()
+        screenshots_dir = Path(configured_dir).expanduser()
+        if not screenshots_dir.is_absolute():
+            screenshots_dir = base_dir / screenshots_dir
+        resolved_dir = screenshots_dir.resolve(strict=False)
+        try:
+            resolved_dir.relative_to(base_dir)
+        except ValueError:
+            resolved_dir = base_dir / resolved_dir.name
+        resolved_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(resolved_dir, 0o775)
+        except (PermissionError, OSError) as error:
+            if _log_debug:
+                _log_debug(f"Screenshot dir permissions unchanged: {error}")
+        try:
+            import pwd
+
+            pi_user = pwd.getpwnam("pi")
+            os.chown(resolved_dir, pi_user.pw_uid, pi_user.pw_gid)
+        except (KeyError, PermissionError, OSError) as error:
+            if _log_debug:
+                _log_debug(f"Screenshot dir ownership unchanged: {error}")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        screenshot_path = screenshots_dir / f"screenshot_{timestamp}.png"
+        screenshot_path = resolved_dir / f"screenshot_{timestamp}.png"
         screenshot.save(screenshot_path)
         if _log_debug:
             _log_debug(f"Screenshot saved: {screenshot_path}")
