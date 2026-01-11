@@ -71,6 +71,7 @@ ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 
 _log_debug: Callable[[str], None]
 _error_handler: Optional[Callable[[Iterable[str]], None]]
+_last_lsblk_names: Optional[tuple[str, ...]] = None
 
 
 def _noop_logger(message: str) -> None:
@@ -90,8 +91,9 @@ def configure_device_helpers(
     _error_handler = error_handler
 
 
-def run_command(command, check=True, log_output=True):
-    _log_debug(f"Running command: {' '.join(command)}")
+def run_command(command, check=True, log_output=True, log_command=True):
+    if log_command:
+        _log_debug(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, check=check, text=True, capture_output=True)
     except subprocess.CalledProcessError as error:
@@ -105,7 +107,8 @@ def run_command(command, check=True, log_output=True):
         _log_debug(f"stdout: {result.stdout.strip()}")
     if result.stderr and (log_output or result.returncode != 0):
         _log_debug(f"stderr: {result.stderr.strip()}")
-    _log_debug(f"Command completed with return code {result.returncode}")
+    if log_command:
+        _log_debug(f"Command completed with return code {result.returncode}")
     return result
 
 
@@ -134,6 +137,7 @@ def format_device_label(device):
 
 
 def get_block_devices():
+    global _last_lsblk_names
     try:
         result = run_command(
             [
@@ -144,16 +148,19 @@ def get_block_devices():
                 "NAME,TYPE,SIZE,MODEL,VENDOR,TRAN,RM,MOUNTPOINT,FSTYPE,LABEL,SERIAL,PTTYPE,ROTA,PTUUID",
             ],
             log_output=False,
+            log_command=False,
         )
         data = json.loads(result.stdout)
         devices = data.get("blockdevices", [])
-        device_names = [device.get("name") for device in devices if device.get("name")]
-        if device_names:
-            _log_debug(
-                f"lsblk found {len(device_names)} devices: {', '.join(device_names)}"
-            )
-        else:
-            _log_debug("lsblk found no block devices")
+        device_names = tuple(device.get("name") for device in devices if device.get("name"))
+        if device_names != _last_lsblk_names:
+            if device_names:
+                _log_debug(
+                    f"lsblk found {len(device_names)} devices: {', '.join(device_names)}"
+                )
+            else:
+                _log_debug("lsblk found no block devices")
+            _last_lsblk_names = device_names
         return devices
     except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
         if _error_handler:
