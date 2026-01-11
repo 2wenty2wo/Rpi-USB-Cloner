@@ -1,3 +1,4 @@
+import os
 import re
 import threading
 import time
@@ -22,11 +23,389 @@ def coming_soon() -> None:
     screens.show_coming_soon(title="IMAGES")
 
 
-def backup_image() -> None:
-    screens.render_status_template("BACKUP", "Running...", progress_line="Preparing image...")
-    time.sleep(1)
-    screens.render_status_template("BACKUP", "Done", progress_line="Image saved.")
-    time.sleep(1)
+def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
+    """Create a Clonezilla-compatible backup of a USB drive."""
+    from rpi_usb_cloner.ui import keyboard
+
+    BACKUP_TITLE_ICON = chr(58597)  # Same icon as WRITE
+
+    # Step 1: Select backup mode (full/partial)
+    backup_modes = [
+        ("full", "FULL DISK"),
+        ("partial", "SELECT PARTS"),
+    ]
+    mode_labels = [label for _, label in backup_modes]
+
+    selected_mode_index = menus.render_menu_list(
+        "BACKUP MODE",
+        mode_labels,
+        selected_index=0,
+        title_icon=chr(57451),  # settings icon
+    )
+
+    if selected_mode_index is None:
+        return
+
+    backup_mode, _ = backup_modes[selected_mode_index]
+    _log_debug(log_debug, f"Backup mode selected: {backup_mode}")
+
+    # Step 2: Select source drive
+    usb_devices = devices.list_usb_disks()
+    if not usb_devices:
+        display.display_lines(["NO USB", "DRIVES"])
+        time.sleep(1)
+        return
+
+    # Find repos to filter them out as source candidates
+    repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
+    repo_devices = set()
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
+            repo_devices.add(device.get("name"))
+
+    source_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
+    if not source_candidates:
+        display.display_lines(["NO SOURCE", "AVAILABLE"])
+        time.sleep(1)
+        return
+
+    selected_source_index = menus.select_usb_drive(
+        "SOURCE USB",
+        source_candidates,
+        title_icon=chr(57516),  # USB drive icon
+        selected_name=app_context.active_drive,
+    )
+
+    if selected_source_index is None:
+        return
+
+    source = source_candidates[selected_source_index]
+    source_name = source.get("name")
+    app_context.active_drive = source_name
+    _log_debug(log_debug, f"Source device selected: {source_name}")
+
+    # Refresh source device info
+    refreshed_source = devices.get_device_by_name(source_name)
+    if refreshed_source:
+        source = refreshed_source
+
+    # Step 3: Select partitions (if partial mode)
+    selected_partition_names: Optional[list[str]] = None
+
+    if backup_mode == "partial":
+        partitions = clonezilla.get_partition_info(source)
+        if not partitions:
+            display.display_lines(["NO PARTITIONS", "FOUND"])
+            time.sleep(1)
+            return
+
+        # Build partition labels
+        partition_labels = []
+        for part in partitions:
+            fstype_str = part.fstype or "unknown"
+            size_str = devices.human_size(part.size_bytes)
+            partition_labels.append(f"{part.name} {fstype_str} {size_str}")
+
+        # Show partition selection checklist
+        selected_partitions = _select_partitions_checklist(partition_labels)
+
+        if selected_partitions is None:
+            return
+
+        if not selected_partitions:
+            display.display_lines(["NO PARTITIONS", "SELECTED"])
+            time.sleep(1)
+            return
+
+        selected_partition_names = [partitions[i].name for i, selected in enumerate(selected_partitions) if selected]
+        _log_debug(log_debug, f"Selected partitions: {selected_partition_names}")
+
+    # Step 4: Select image repository
+    if not repos:
+        display.display_lines(["IMAGE REPO", "NOT FOUND"])
+        time.sleep(1)
+        return
+
+    if len(repos) > 1:
+        selected_repo = menus.select_list(
+            "IMG REPO",
+            [repo.name for repo in repos],
+        )
+        if selected_repo is None:
+            return
+        repo_path = repos[selected_repo]
+    else:
+        repo_path = repos[0]
+
+    _log_debug(log_debug, f"Repository selected: {repo_path}")
+
+    # Verify source is not the repo drive
+    source_mounts = _collect_mountpoints(source)
+    if any(str(repo_path).startswith(mount) for mount in source_mounts):
+        display.display_lines(["CANNOT BACKUP", "REPO DRIVE"])
+        time.sleep(1)
+        return
+
+    # Step 5: Enter image name (manual entry only)
+    image_name = keyboard.prompt_text(
+        title="IMAGE NAME",
+        initial="",
+        masked=False,
+        title_icon=chr(57618),  # keyboard icon
+    )
+
+    if image_name is None or not image_name.strip():
+        return
+
+    image_name = image_name.strip()
+    _log_debug(log_debug, f"Image name entered: {image_name}")
+
+    # Validate image name (alphanumeric, dash, underscore only)
+    if not re.match(r'^[a-zA-Z0-9_-]+$', image_name):
+        display.display_lines(["INVALID NAME", "Use A-Z 0-9 - _"])
+        time.sleep(1)
+        return
+
+    # Check if image already exists
+    image_dir = repo_path / image_name
+    if image_dir.exists():
+        display.display_lines(["IMAGE EXISTS", image_name])
+        time.sleep(1)
+        return
+
+    # Step 6: Select compression
+    compression_options = []
+
+    # Check which compression tools are available
+    if clonezilla.backup.check_tool_available("pigz") or clonezilla.backup.check_tool_available("gzip"):
+        compression_options.append(("gzip", "GZIP"))
+
+    if clonezilla.backup.check_tool_available("pzstd") or clonezilla.backup.check_tool_available("zstd"):
+        compression_options.append(("zstd", "ZSTD"))
+
+    compression_options.append(("none", "NONE"))
+
+    # Get last used compression from settings
+    from rpi_usb_cloner.config import settings as config_settings
+    last_compression = str(config_settings.get_setting("backup_compression", "gzip"))
+
+    compression_labels = [label for _, label in compression_options]
+    default_compression_index = 0
+    for idx, (comp_type, _) in enumerate(compression_options):
+        if comp_type == last_compression:
+            default_compression_index = idx
+            break
+
+    selected_compression_index = menus.render_menu_list(
+        "COMPRESSION",
+        compression_labels,
+        selected_index=default_compression_index,
+        title_icon=chr(57451),  # settings icon
+    )
+
+    if selected_compression_index is None:
+        return
+
+    compression_type, compression_label = compression_options[selected_compression_index]
+    config_settings.set_setting("backup_compression", compression_type)
+    _log_debug(log_debug, f"Compression selected: {compression_type}")
+
+    # Step 7: Estimate size and show confirmation
+    try:
+        estimated_size = clonezilla.estimate_backup_size(source_name, selected_partition_names)
+    except Exception as e:
+        _log_debug(log_debug, f"Failed to estimate size: {e}")
+        estimated_size = 0
+
+    # Check available space
+    try:
+        stat = os.statvfs(str(repo_path))
+        available_space = stat.f_bavail * stat.f_frsize
+    except Exception as e:
+        _log_debug(log_debug, f"Failed to check available space: {e}")
+        available_space = 0
+
+    # Build confirmation summary
+    source_label = devices.format_device_label(source)
+    partition_info = "All partitions"
+    if selected_partition_names:
+        partition_info = f"{len(selected_partition_names)} partition(s)"
+
+    summary_lines = [
+        f"Source: {source_label}",
+        f"Parts: {partition_info}",
+        f"Repo: {repo_path.name}",
+        f"Image: {image_name}",
+        f"Compress: {compression_label}",
+    ]
+
+    if estimated_size > 0:
+        summary_lines.append(f"Est: ~{devices.human_size(estimated_size)}")
+
+    if available_space > 0 and estimated_size > 0:
+        if estimated_size > available_space:
+            display.display_lines([
+                "NOT ENOUGH",
+                "SPACE",
+                f"Need: {devices.human_size(estimated_size)}",
+                f"Avail: {devices.human_size(available_space)}",
+            ])
+            time.sleep(2)
+            return
+
+    summary_lines.append("Drive will unmount")
+
+    # Show confirmation
+    if not _confirm_prompt(
+        log_debug=log_debug,
+        title="BACKUP?",
+        title_icon=chr(57487),  # info icon
+        prompt_lines=summary_lines,
+        default=app_state.CONFIRM_NO,
+    ):
+        return
+
+    # Step 8: Execute backup with progress
+    done = threading.Event()
+    error_holder: dict[str, Exception] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Preparing backup..."]
+    progress_ratio: Optional[float] = 0.0
+    start_time = time.monotonic()
+    result_holder: dict[str, clonezilla.BackupResult] = {}
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        with progress_lock:
+            progress_lines = lines[:2]  # Limit to 2 lines
+            if ratio is not None:
+                progress_ratio = max(0.0, min(1.0, float(ratio)))
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            result = clonezilla.create_clonezilla_backup(
+                source_device=source_name,
+                output_dir=image_dir,
+                partitions=selected_partition_names,
+                compression=compression_type,
+                split_size_mb=4096,  # 4GB default
+                progress_callback=update_progress,
+            )
+            result_holder["result"] = result
+        except Exception as exc:
+            error_holder["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "BACKUP",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=BACKUP_TITLE_ICON,
+        )
+        time.sleep(0.1)
+
+    thread.join()
+
+    # Show final progress state
+    lines, ratio = current_progress()
+    screens.render_progress_screen(
+        "BACKUP",
+        lines,
+        progress_ratio=ratio,
+        animate=False,
+        title_icon=BACKUP_TITLE_ICON,
+    )
+
+    # Check for errors
+    if "error" in error_holder:
+        error = error_holder["error"]
+        _log_debug(log_debug, f"Backup failed: {error}")
+        error_message = str(error)
+        screens.wait_for_paginated_input(
+            "BACKUP",
+            ["FAILED", error_message],
+            title_icon=BACKUP_TITLE_ICON,
+        )
+        return
+
+    # Step 9: Show success summary
+    if "result" not in result_holder:
+        _log_debug(log_debug, "Backup completed but no result")
+        screens.render_status_template("BACKUP", "COMPLETED")
+        time.sleep(1)
+        return
+
+    result = result_holder["result"]
+    elapsed_seconds = time.monotonic() - start_time
+
+    summary_lines = [
+        "SUCCESS",
+        f"Image: {image_name}",
+        f"Source: {source_label}",
+        f"Location: {repo_path.name}",
+        f"Compress: {compression_label}",
+        f"Elapsed: {_format_elapsed_duration(elapsed_seconds)}",
+        f"Size: {devices.human_size(result.total_bytes_written)}",
+    ]
+
+    # Show success with Verify/Finish buttons
+    selection = [1]  # Default to FINISH (right button)
+
+    def render_screen():
+        screens.render_verify_finish_buttons_screen(
+            "BACKUP",
+            summary_lines,
+            selected_index=selection[0],
+            title_icon=BACKUP_TITLE_ICON,
+        )
+
+    render_screen()
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    def on_left():
+        if selection[0] == 1:
+            selection[0] = 0
+            _log_debug(log_debug, "Selection changed: VERIFY")
+
+    def on_right():
+        if selection[0] == 0:
+            selection[0] = 1
+            _log_debug(log_debug, "Selection changed: FINISH")
+
+    def on_button_a():
+        # A button = cancel/back, treat as Finish
+        return True
+
+    def on_button_b():
+        # B button = confirm selection
+        if selection[0] == 0:
+            # VERIFY selected
+            _log_debug(log_debug, "Starting verification")
+            _verify_backup(source_name, image_dir, log_debug)
+        return True
+
+    gpio.poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: on_button_a,
+            gpio.PIN_B: on_button_b,
+        },
+        poll_interval=menus.BUTTON_POLL_DELAY,
+        loop_callback=render_screen,
+    )
 
 
 def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
@@ -271,6 +650,132 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render_screen,
     )
+
+
+def _select_partitions_checklist(partition_labels: list[str]) -> Optional[list[bool]]:
+    """Show a checklist for partition selection.
+
+    Args:
+        partition_labels: List of partition label strings
+
+    Returns:
+        List of booleans (True if selected), or None if cancelled
+    """
+    selected = [True] * len(partition_labels)  # All selected by default
+    cursor_index = 0
+
+    def render_screen():
+        # For now, use a simple menu-based approach
+        # TODO: Implement proper checklist UI with checkboxes
+        lines = []
+        for idx, label in enumerate(partition_labels):
+            checkbox = "☑" if selected[idx] else "☐"
+            marker = ">" if idx == cursor_index else " "
+            lines.append(f"{marker}{checkbox} {label}")
+
+        display.display_lines(["SELECT PARTS", "L/R=Toggle B=OK", *lines[:4]])
+
+    render_screen()
+    menus.wait_for_buttons_release([gpio.PIN_U, gpio.PIN_D, gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+
+    while True:
+        render_screen()
+
+        # Poll for button events
+        if gpio.read_button(gpio.PIN_U):
+            cursor_index = max(0, cursor_index - 1)
+            time.sleep(0.15)
+        elif gpio.read_button(gpio.PIN_D):
+            cursor_index = min(len(partition_labels) - 1, cursor_index + 1)
+            time.sleep(0.15)
+        elif gpio.read_button(gpio.PIN_L) or gpio.read_button(gpio.PIN_R):
+            # Toggle current selection
+            selected[cursor_index] = not selected[cursor_index]
+            time.sleep(0.15)
+        elif gpio.read_button(gpio.PIN_B):
+            # Confirm
+            return selected
+        elif gpio.read_button(gpio.PIN_A):
+            # Cancel
+            return None
+
+        time.sleep(0.05)
+
+
+def _verify_backup(
+    source_device: str,
+    image_dir,
+    log_debug: Optional[Callable[[str], None]],
+) -> None:
+    """Verify a backup image against the source device."""
+    _log_debug(log_debug, f"Verifying backup in {image_dir}")
+
+    # Show progress screen during verification
+    done = threading.Event()
+    result_holder: dict[str, bool] = {}
+    progress_lock = threading.Lock()
+    progress_lines = ["Starting verification..."]
+    progress_ratio: Optional[float] = 0.0
+
+    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+        nonlocal progress_lines, progress_ratio
+        with progress_lock:
+            progress_lines = lines
+            if ratio is not None:
+                progress_ratio = max(0.0, min(1.0, float(ratio)))
+
+    def current_progress() -> tuple[list[str], Optional[float]]:
+        with progress_lock:
+            return list(progress_lines), progress_ratio
+
+    def worker() -> None:
+        try:
+            success = clonezilla.verify_backup_image(
+                source_device,
+                image_dir,
+                progress_callback=update_progress,
+            )
+            result_holder["success"] = success
+        except Exception as exc:
+            _log_debug(log_debug, f"Verification error: {exc}")
+            result_holder["success"] = False
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    while not done.is_set():
+        lines, ratio = current_progress()
+        screens.render_progress_screen(
+            "VERIFY",
+            lines,
+            progress_ratio=ratio,
+            animate=False,
+            title_icon=chr(57487),
+        )
+        time.sleep(0.1)
+
+    thread.join()
+
+    # Show result
+    success = result_holder.get("success", False)
+    if success:
+        _log_debug(log_debug, "Backup verification successful")
+        screens.render_status_template(
+            "VERIFY",
+            "SUCCESS",
+            extra_lines=["Backup verification", "completed successfully.", "Press A/B to continue."],
+        )
+    else:
+        _log_debug(log_debug, "Backup verification failed")
+        screens.render_status_template(
+            "VERIFY",
+            "FAILED",
+            extra_lines=["Verification failed.", "Backup may be corrupt.", "Press A/B to continue."],
+        )
+
+    screens.wait_for_ack()
 
 
 def _verify_restore(
