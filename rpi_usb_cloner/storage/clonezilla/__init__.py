@@ -1,10 +1,16 @@
-"""Clonezilla disk image restoration with partition table scaling and verification.
+"""Clonezilla disk image backup and restoration with partition table scaling and verification.
 
-This package provides comprehensive support for restoring Clonezilla disk images,
+This package provides comprehensive support for creating and restoring Clonezilla disk images,
 handling complex partition table operations, filesystem restoration, and automatic
 partition scaling.
 
 Main Functions:
+    Backup:
+    - create_clonezilla_backup(): Create Clonezilla-compatible backup image
+    - estimate_backup_size(): Estimate backup size before starting
+    - verify_backup_image(): Verify backup image integrity
+
+    Restore:
     - find_image_repository(): Find Clonezilla image repository on a mounted device
     - list_clonezilla_image_dirs(): List all Clonezilla image directories
     - load_image(): Load Clonezilla image metadata
@@ -18,7 +24,17 @@ Data Models:
     - RestorePlan: Complete restoration plan
     - PartitionRestoreOp: Single partition restore operation
     - DiskLayoutOp: Disk layout operation
+    - BackupResult: Backup operation result
+    - PartitionInfo: Partition information for backup
 """
+from .backup import (
+    BackupResult,
+    PartitionInfo,
+    create_clonezilla_backup,
+    estimate_backup_size,
+    get_partition_info,
+    verify_backup_image,
+)
 from .image_discovery import (
     find_image_repository,
     find_partition_table,
@@ -33,7 +49,12 @@ from .restore import restore_clonezilla_image, restore_image
 from .verification import verify_restored_image
 
 __all__ = [
-    # Main functions
+    # Backup functions
+    "create_clonezilla_backup",
+    "estimate_backup_size",
+    "verify_backup_image",
+    "get_partition_info",
+    # Restore functions
     "find_image_repository",
     "list_clonezilla_image_dirs",
     "load_image",
@@ -50,4 +71,6 @@ __all__ = [
     "DiskLayoutOp",
     "PartitionRestoreOp",
     "RestorePlan",
+    "BackupResult",
+    "PartitionInfo",
 ]
