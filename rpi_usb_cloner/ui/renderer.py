@@ -1,24 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Iterable, Optional
 
-from PIL import ImageFont
-
 from rpi_usb_cloner.ui import display
-
-
-@dataclass(frozen=True)
-class StatusLine:
-    text: str
-    icon: Optional[str] = None
-    icon_size: int = 8
-
-
-def _resolve_status_line(status_line: Optional[str | StatusLine]) -> tuple[Optional[str], Optional[str], int]:
-    if isinstance(status_line, StatusLine):
-        return status_line.text, status_line.icon, status_line.icon_size
-    return status_line, None, 0
 
 
 def _get_line_height(font, min_height=8):
@@ -60,7 +44,7 @@ def render_menu_screen(
     items: Iterable[str],
     selected_index: int,
     scroll_offset: int,
-    status_line: Optional[str | StatusLine] = None,
+    status_line: Optional[str] = None,
     visible_rows: int = 4,
     title_font=None,
     title_icon: Optional[str] = None,
@@ -130,12 +114,11 @@ def render_menu_screen(
         # Draw text with offset for alignment
         draw.text((left_margin + selector_width, text_y), items_list[item_index], font=list_font, fill=text_color)
 
-    status_text, status_icon, status_icon_size = _resolve_status_line(status_line)
     footer_font = None
     footer_height = 0
     footer_padding = 1
     footer_y = 0
-    if status_text:
+    if status_line:
         footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
         footer_y = context.height - footer_height - footer_padding
@@ -182,7 +165,7 @@ def render_menu_screen(
             fill=255,
         )
 
-    if status_text:
+    if status_line:
         # Draw white background bar for footer (full screen width)
         draw.rectangle(
             (0, footer_y - footer_padding + 1, context.width, context.height),
@@ -190,24 +173,9 @@ def render_menu_screen(
             fill=255
         )
         max_status_width = context.width - left_margin - 1
-        icon_width = 0
-        icon_height = 0
-        icon_padding = 1
-        icon_font = None
-        if status_icon:
-            icon_font = ImageFont.truetype(display.LUCIDE_FONT_PATH, status_icon_size)
-            icon_width = _measure_text_width(icon_font, status_icon)
-            icon_bbox = icon_font.getbbox(status_icon)
-            icon_height = icon_bbox[3] - icon_bbox[1]
-            max_status_width = max(0, max_status_width - icon_width - icon_padding)
-        footer_text = _truncate_text(status_text, footer_font, max_status_width)
-        text_x = left_margin
-        if status_icon and icon_font:
-            icon_y = footer_y + max(0, (footer_height - icon_height) // 2)
-            draw.text((left_margin, icon_y), status_icon, font=icon_font, fill=0)
-            text_x = left_margin + icon_width + icon_padding
+        footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
-        draw.text((text_x, footer_y), footer_text, font=footer_font, fill=0)
+        draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)
 
     context.disp.display(context.image)
 
@@ -215,7 +183,7 @@ def render_menu_screen(
 def calculate_visible_rows(
     title: str,
     title_icon: Optional[str] = None,
-    status_line: Optional[str | StatusLine] = None,
+    status_line: Optional[str] = None,
     title_font=None,
     items_font=None,
     status_font=None,
@@ -239,8 +207,7 @@ def calculate_visible_rows(
 
     footer_height = 0
     footer_gap = 0
-    status_text, _, _ = _resolve_status_line(status_line)
-    if status_text:
+    if status_line:
         footer_font = status_font or list_font
         footer_height = _get_line_height(footer_font)
         # Add minimum gap between menu items and footer to prevent overlap

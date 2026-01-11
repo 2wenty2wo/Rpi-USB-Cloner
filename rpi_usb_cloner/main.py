@@ -354,13 +354,7 @@ def main(argv=None):
                 get_model,
             )
         if screen.screen_id == definitions.DRIVES_MENU.screen_id:
-            if active_drive_label:
-                return active_drive_label
-            return renderer.StatusLine(
-                text="NO DRIVE SELECTED",
-                icon=chr(57463),
-                icon_size=8,
-            )
+            return active_drive_label or "NO DRIVE SELECTED"
         return status_line
 
     def get_visible_rows_for_screen(screen, status_line=None):
