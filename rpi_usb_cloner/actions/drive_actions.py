@@ -487,41 +487,9 @@ def _render_disk_usage_page(
     left_margin = context.x - 11
 
     # Pie chart configuration (drawn on right side)
-    pie_size = 32  # diameter
+    pie_size = 40  # diameter (larger since we have more space now)
     pie_x = context.width - pie_size - 8
     pie_y = layout.content_top + 2
-
-    # Available width for text (leave room for pie chart on right)
-    text_max_width = pie_x - left_margin - 4  # 4px gap between text and pie
-
-    # Draw device header (name + size)
-    device_name = device.get("name") or ""
-    size_bytes = device.get("size") or 0
-    size_gb = size_bytes / (1024**3)
-    header_line = f"{device_name.upper()} {size_gb:.1f}GB"
-    draw.text((left_margin, current_y), header_line, font=items_font, fill=255)
-    current_y += display._get_line_height(items_font) + 2
-
-    # Draw vendor/model on separate line (wrap if needed)
-    vendor = (device.get("vendor") or "").strip()
-    model = (device.get("model") or "").strip()
-    vendor_model = " ".join(part for part in [vendor, model] if part)
-    if vendor_model:
-        wrapped_vendor = display._wrap_lines_to_width([vendor_model], items_font, text_max_width)
-        for line in wrapped_vendor:
-            draw.text((left_margin, current_y), line, font=items_font, fill=255)
-            current_y += display._get_line_height(items_font) + 2
-
-    # Draw serial number (allow wrapping within text area)
-    serial = (device.get("serial") or "").strip()
-    if serial:
-        serial_text = f"serial:{serial}"
-        wrapped_serial = display._wrap_lines_to_width([serial_text], items_font, text_max_width)
-        for line in wrapped_serial:
-            draw.text((left_margin, current_y), line, font=items_font, fill=255)
-            current_y += display._get_line_height(items_font) + 2
-
-    current_y += 2  # Extra spacing before usage info
 
     # Collect disk usage from all mounted partitions
     total_bytes = 0
@@ -615,10 +583,10 @@ def _build_device_info_lines(
     log_debug: Optional[Callable[[str], None]],
     max_lines: Optional[int] = None,
 ) -> list[str]:
-    """Build text info lines for pages 2+ (device metadata and partition details).
+    """Build text info lines for pages 2+ (device identity and metadata).
 
-    Page 1 (disk usage page) already shows: device name, size, vendor/model, serial.
-    These pages show: device type, partition table info, and partition details.
+    Page 1 is disk usage page with just space stats.
+    These pages show: device identity, type, partition table info, and partition details.
     """
     lines = []
 
@@ -627,6 +595,27 @@ def _build_device_info_lines(
             return False
         lines.append(line)
         return True
+
+    # Device identity header
+    device_name = device.get("name") or ""
+    size_bytes = device.get("size") or 0
+    size_gb = size_bytes / (1024**3)
+    header_line = f"{device_name.upper()} {size_gb:.1f}GB"
+    lines.append(header_line)
+
+    # Vendor/model on separate line
+    vendor = (device.get("vendor") or "").strip()
+    model = (device.get("model") or "").strip()
+    vendor_model = " ".join(part for part in [vendor, model] if part)
+    if vendor_model:
+        lines.append(vendor_model)
+
+    # Serial number (allow wrapping)
+    serial = (device.get("serial") or "").strip()
+    if serial:
+        lines.append(f"serial:{serial}")
+
+    lines.append("")  # Blank line for spacing
 
     # Add device-level metadata section
     lines.append("DEVICE INFO")
