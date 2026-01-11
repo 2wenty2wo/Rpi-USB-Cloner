@@ -570,7 +570,12 @@ def format_drive(
     target_name = target.get("name")
     target_size = target.get("size", 0)
 
-    status_line = drives.get_active_drive_label(selected_name) or format_device_label(target)
+    target_names = {device.get("name") for device in target_devices}
+    status_line = (
+        drives.get_active_drive_label(selected_name)
+        if selected_name in target_names
+        else None
+    ) or format_device_label(target)
 
     # Select filesystem type (size-based default)
     filesystem = menus.select_filesystem_type(target_size, status_line=status_line)
