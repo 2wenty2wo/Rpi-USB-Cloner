@@ -486,33 +486,10 @@ def _render_disk_usage_page(
     items_font = context.fontdisks
     left_margin = context.x - 11
 
-    # Draw device header
-    device_name = device.get("name") or ""
-    size_bytes = device.get("size") or 0
-    size_gb = size_bytes / (1024**3)
-    header_line = f"{device_name.upper()} {size_gb:.1f}GB"
-    draw.text((left_margin, current_y), header_line, font=items_font, fill=255)
-    current_y += display._get_line_height(items_font) + 2
-
-    # Draw vendor/model on separate line
-    vendor = (device.get("vendor") or "").strip()
-    model = (device.get("model") or "").strip()
-    vendor_model = " ".join(part for part in [vendor, model] if part)
-    if vendor_model:
-        draw.text((left_margin, current_y), vendor_model, font=items_font, fill=255)
-        current_y += display._get_line_height(items_font) + 2
-
-    # Draw serial number (allow wrapping)
-    serial = (device.get("serial") or "").strip()
-    if serial:
-        serial_text = f"serial:{serial}"
-        available_width = max(0, context.width - left_margin)
-        wrapped_serial = display._wrap_lines_to_width([serial_text], items_font, available_width)
-        for line in wrapped_serial:
-            draw.text((left_margin, current_y), line, font=items_font, fill=255)
-            current_y += display._get_line_height(items_font) + 2
-
-    current_y += 2  # Extra spacing before usage info
+    # Pie chart configuration (drawn on right side)
+    pie_size = 40  # diameter (larger since we have more space now)
+    pie_x = context.width - pie_size - 8
+    pie_y = layout.content_top + 2
 
     # Collect disk usage from all mounted partitions
     total_bytes = 0
@@ -547,7 +524,7 @@ def _render_disk_usage_page(
         free_bytes = total_bytes - used_bytes
         used_percent = (used_bytes / total_bytes * 100) if total_bytes > 0 else 0
 
-        # Draw text information
+        # Draw disk usage text (below device info, on left side)
         text_lines = [
             f"Used: {human_size(used_bytes)}",
             f"Free: {human_size(free_bytes)}",
@@ -559,11 +536,7 @@ def _render_disk_usage_page(
             draw.text((left_margin, current_y), line, font=items_font, fill=255)
             current_y += display._get_line_height(items_font) + 2
 
-        # Draw pie chart
-        pie_size = 32  # diameter
-        pie_x = context.width - pie_size - 8
-        pie_y = layout.content_top + 2
-
+        # Draw pie chart (on right side, top aligned with content)
         # Draw outer circle (border)
         draw.ellipse(
             [(pie_x, pie_y), (pie_x + pie_size, pie_y + pie_size)],
@@ -610,10 +583,10 @@ def _build_device_info_lines(
     log_debug: Optional[Callable[[str], None]],
     max_lines: Optional[int] = None,
 ) -> list[str]:
-    """Build text info lines for pages 2+ (device metadata and partition details).
+    """Build text info lines for pages 2+ (device identity and metadata).
 
-    Page 1 (disk usage page) already shows: device name, size, vendor/model, serial.
-    These pages show: device type, partition table info, and partition details.
+    Page 1 is disk usage page with just space stats.
+    These pages show: device identity, type, partition table info, and partition details.
     """
     lines = []
 
@@ -622,6 +595,27 @@ def _build_device_info_lines(
             return False
         lines.append(line)
         return True
+
+    # Device identity header
+    device_name = device.get("name") or ""
+    size_bytes = device.get("size") or 0
+    size_gb = size_bytes / (1024**3)
+    header_line = f"{device_name.upper()} {size_gb:.1f}GB"
+    lines.append(header_line)
+
+    # Vendor/model on separate line
+    vendor = (device.get("vendor") or "").strip()
+    model = (device.get("model") or "").strip()
+    vendor_model = " ".join(part for part in [vendor, model] if part)
+    if vendor_model:
+        lines.append(vendor_model)
+
+    # Serial number (allow wrapping)
+    serial = (device.get("serial") or "").strip()
+    if serial:
+        lines.append(f"serial:{serial}")
+
+    lines.append("")  # Blank line for spacing
 
     # Add device-level metadata section
     lines.append("DEVICE INFO")
@@ -726,14 +720,54 @@ def _view_devices(
         return total_pages, 0
     else:
         # Show text info pages (offset by 1 since page 0 is disk usage)
-        text_total_pages, text_page_index = screens.render_info_screen(
+        # Render the text page with correct pagination
+        context = display.get_display_context()
+        text_page_index = page_index - 1  # Adjust for disk usage page offset
+
+        # Render the paginated lines (this will draw its own page indicator)
+        text_total_pages_actual, _ = display.render_paginated_lines(
             "DRIVE INFO",
             lines,
-            page_index=page_index - 1,  # Adjust for disk usage page offset
-            title_font=display.get_display_context().fontcopy,
+            page_index=text_page_index,
+            title_font=context.fontcopy,
+            items_font=context.fontdisks,
             title_icon=chr(57581),  # drives icon
         )
-        total_pages = 1 + text_total_pages  # Recalculate to be safe
+
+        # Now redraw the page indicator with correct total page count
+        # (accounting for the disk usage page)
+        total_pages = 1 + text_total_pages_actual
+        if total_pages > 1:
+            items_font = context.fontdisks
+            left_indicator = "<" if page_index > 0 else ""
+            right_indicator = ">" if page_index < total_pages - 1 else ""
+            indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+
+            # Clear the old indicator area first (draw a black rectangle)
+            indicator_bbox = context.draw.textbbox((0, 0), indicator, font=items_font)
+            indicator_width = indicator_bbox[2] - indicator_bbox[0]
+            indicator_height = indicator_bbox[3] - indicator_bbox[1]
+            indicator_x = context.width - indicator_width - 2
+            indicator_y = context.height - indicator_height - 2
+
+            # Clear old indicator (slightly larger to ensure full coverage)
+            context.draw.rectangle(
+                (indicator_x - 2, indicator_y - 2, context.width, context.height),
+                outline=0,
+                fill=0,
+            )
+
+            # Draw new indicator
+            context.draw.text(
+                (indicator_x, indicator_y),
+                indicator,
+                font=items_font,
+                fill=255,
+            )
+
+            # Update the display
+            context.disp.display(context.image)
+
         return total_pages, page_index
 
 
