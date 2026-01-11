@@ -423,39 +423,6 @@ def _confirm_destructive_action(
     return result if result is not None else False
 
 
-def _calculate_text_page_count(lines: list[str]) -> int:
-    """Calculate how many pages are needed for text lines without rendering."""
-    context = display.get_display_context()
-    title_font = context.fontcopy
-    items_font = context.fontdisks
-
-    # Calculate content top (same as render_paginated_lines)
-    title = "DRIVE INFO"
-    title_icon = chr(57581)
-
-    # Simulate title layout to get content_top
-    layout = display.draw_title_with_icon(
-        title,
-        title_font=title_font,
-        icon=title_icon,
-        extra_gap=2,
-        left_margin=context.x - 11,
-    )
-    current_y = layout.content_top
-
-    # Calculate pagination (same logic as render_paginated_lines)
-    left_margin = context.x - 11
-    available_width = max(0, context.width - left_margin)
-    lines = display._wrap_lines_to_width(lines, items_font, available_width)
-    line_height = display._get_line_height(items_font)
-    line_step = line_height + 2
-    available_height = context.height - current_y - 2
-    lines_per_page = max(1, available_height // line_step)
-    total_pages = max(1, (len(lines) + lines_per_page - 1) // lines_per_page)
-
-    return total_pages
-
-
 def _render_disk_usage_page(
     device: dict,
     *,
@@ -463,7 +430,7 @@ def _render_disk_usage_page(
     page_index: int,
     total_pages: int,
 ) -> None:
-    """Render a dedicated disk usage page with pie chart."""
+    """Render a dedicated disk usage page with pie chart - focuses on space usage only."""
     context = display.get_display_context()
     draw = context.draw
 
@@ -486,10 +453,10 @@ def _render_disk_usage_page(
     items_font = context.fontdisks
     left_margin = context.x - 11
 
-    # Pie chart configuration (drawn on right side)
-    pie_size = 40  # diameter (larger since we have more space now)
-    pie_x = context.width - pie_size - 8
-    pie_y = layout.content_top + 2
+    # Pie chart configuration (drawn on right side, higher up to avoid page number)
+    pie_size = 36  # diameter
+    pie_x = context.width - pie_size - 6
+    pie_y = layout.content_top  # Align with top of content area
 
     # Collect disk usage from all mounted partitions
     total_bytes = 0
@@ -577,116 +544,193 @@ def _render_disk_usage_page(
     context.disp.display(context.image)
 
 
-def _build_device_info_lines(
+def _render_device_identity_page(
     device: dict,
     *,
-    log_debug: Optional[Callable[[str], None]],
-    max_lines: Optional[int] = None,
-) -> list[str]:
-    """Build text info lines for pages 2+ (device identity and metadata).
+    page_index: int,
+    total_pages: int,
+) -> None:
+    """Render page 2: DEVICE INFO - name, model, serial."""
+    context = display.get_display_context()
+    draw = context.draw
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
-    Page 1 is disk usage page with just space stats.
-    These pages show: device identity, type, partition table info, and partition details.
-    """
-    lines = []
+    title_font = context.fontcopy
+    items_font = context.fontdisks
+    title_icon = chr(57581)
+    layout = display.draw_title_with_icon(
+        "DEVICE INFO",
+        title_font=title_font,
+        icon=title_icon,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
 
-    def append_line(line: str) -> bool:
-        if max_lines is not None and len(lines) >= max_lines:
-            return False
-        lines.append(line)
-        return True
+    current_y = layout.content_top + 2
+    left_margin = context.x - 11
 
-    # Device identity header
+    # Device name + size
     device_name = device.get("name") or ""
     size_bytes = device.get("size") or 0
     size_gb = size_bytes / (1024**3)
-    header_line = f"{device_name.upper()} {size_gb:.1f}GB"
-    lines.append(header_line)
+    draw.text((left_margin, current_y), f"{device_name.upper()} {size_gb:.1f}GB", font=items_font, fill=255)
+    current_y += display._get_line_height(items_font) + 2
 
-    # Vendor/model on separate line
+    # Vendor/model
     vendor = (device.get("vendor") or "").strip()
     model = (device.get("model") or "").strip()
     vendor_model = " ".join(part for part in [vendor, model] if part)
     if vendor_model:
-        lines.append(vendor_model)
+        available_width = context.width - left_margin
+        wrapped = display._wrap_lines_to_width([vendor_model], items_font, available_width)
+        for line in wrapped:
+            draw.text((left_margin, current_y), line, font=items_font, fill=255)
+            current_y += display._get_line_height(items_font) + 2
 
-    # Serial number (allow wrapping)
+    # Serial
     serial = (device.get("serial") or "").strip()
     if serial:
-        lines.append(f"serial:{serial}")
+        available_width = context.width - left_margin
+        wrapped = display._wrap_lines_to_width([f"SERIAL:{serial}"], items_font, available_width)
+        for line in wrapped:
+            draw.text((left_margin, current_y), line.upper(), font=items_font, fill=255)
+            current_y += display._get_line_height(items_font) + 2
 
-    lines.append("")  # Blank line for spacing
+    # Page indicator
+    _draw_page_indicator(context, page_index, total_pages, items_font)
+    context.disp.display(context.image)
 
-    # Add device-level metadata section
-    lines.append("DEVICE INFO")
-    lines.append("")  # Blank line for spacing
 
-    # Determine device type (SSD/HDD)
+def _render_drive_metadata_page(
+    device: dict,
+    *,
+    page_index: int,
+    total_pages: int,
+) -> None:
+    """Render page 3: DRIVE INFO - type, table, uuid."""
+    context = display.get_display_context()
+    draw = context.draw
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+
+    title_font = context.fontcopy
+    items_font = context.fontdisks
+    title_icon = chr(57581)
+    layout = display.draw_title_with_icon(
+        "DRIVE INFO",
+        title_font=title_font,
+        icon=title_icon,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
+
+    current_y = layout.content_top + 2
+    left_margin = context.x - 11
+
+    # Type
     rota = device.get("rota")
     if rota is not None:
         device_type = "HDD" if rota == "1" or rota == 1 else "SSD"
-        if not append_line(f"Type: {device_type}"):
-            return lines
+        draw.text((left_margin, current_y), f"TYPE: {device_type}", font=items_font, fill=255)
+        current_y += display._get_line_height(items_font) + 2
 
-    # Add partition table information
+    # Table type
     pttype = (device.get("pttype") or "").strip()
     if pttype:
-        if not append_line(f"Table: {pttype.upper()}"):
-            return lines
+        draw.text((left_margin, current_y), f"TABLE: {pttype.upper()}", font=items_font, fill=255)
+        current_y += display._get_line_height(items_font) + 2
 
+    # UUID
     ptuuid = (device.get("ptuuid") or "").strip()
     if ptuuid:
-        # Truncate UUID if too long
-        display_uuid = ptuuid if len(ptuuid) <= 20 else f"{ptuuid[:17]}..."
-        if not append_line(f"UUID: {display_uuid}"):
-            return lines
+        draw.text((left_margin, current_y), f"UUID: {ptuuid.upper()}", font=items_font, fill=255)
+        current_y += display._get_line_height(items_font) + 2
 
-    # Add partition section
+    # Page indicator
+    _draw_page_indicator(context, page_index, total_pages, items_font)
+    context.disp.display(context.image)
+
+
+def _render_partition_info_page(
+    device: dict,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+    partition_page_index: int,
+    page_index: int,
+    total_pages: int,
+) -> None:
+    """Render pages 4+: PARTITION INFO - partition details (paginated)."""
+    context = display.get_display_context()
+    draw = context.draw
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+
+    title_font = context.fontcopy
+    items_font = context.fontdisks
+    title_icon = chr(57581)
+    layout = display.draw_title_with_icon(
+        "PARTITION INFO",
+        title_font=title_font,
+        icon=title_icon,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
+
+    current_y = layout.content_top + 2
+    left_margin = context.x - 11
+    available_height = context.height - current_y - 12  # Leave room for page indicator
+    line_height = display._get_line_height(items_font)
+    line_step = line_height + 2
+
+    # Build partition lines
+    partition_lines = []
     children = get_children(device)
-    if children:
-        lines.append("")  # Blank line
-        lines.append("PARTITIONS")
-        lines.append("")
-
-    # Add partition details
-    for i, child in enumerate(children):
-        if max_lines is not None and len(lines) >= max_lines:
-            break
-
+    for child in children:
         name = child.get("name") or ""
-        fstype = child.get("fstype") or "raw"
+        fstype = child.get("fstype") or "RAW"
         label = (child.get("label") or "").strip()
         mountpoint = child.get("mountpoint")
 
-        # Partition header
         label_suffix = f" ({label})" if label else ""
-        if not append_line(f"{name} - {fstype}{label_suffix}".strip()):
-            break
+        partition_lines.append(f"{name.upper()} - {fstype.upper()}{label_suffix}")
 
-        # Mount status
-        if not mountpoint:
-            append_line("  Not mounted")
+        if mountpoint:
+            partition_lines.append(f"MOUNT: {mountpoint.upper()}")
         else:
-            if not append_line(f"  Mount: {mountpoint}"):
-                break
+            partition_lines.append("MOUNT: NOT MOUNTED")
 
-            # List first few files
-            try:
-                entries = sorted(os.listdir(mountpoint))[:3]
-                if entries:
-                    if not append_line(f"  Files: {','.join(entries)}"):
-                        break
-            except (FileNotFoundError, PermissionError, OSError) as error:
-                _log_debug(log_debug, f"Listdir failed for {mountpoint}: {error}")
-                append_line("  Files: [error]")
+        partition_lines.append("")  # Spacing
 
-        # Add spacing between partitions (except after last one)
-        if i < len(children) - 1:
-            append_line("")
+    # Paginate partition lines
+    lines_per_page = max(1, available_height // line_step)
+    start = partition_page_index * lines_per_page
+    end = start + lines_per_page
+    page_lines = partition_lines[start:end]
 
-    if max_lines is not None and len(lines) > max_lines:
-        return lines[:max_lines]
-    return lines
+    # Draw lines
+    for line in page_lines:
+        if line:  # Skip empty lines at the end
+            draw.text((left_margin, current_y), line, font=items_font, fill=255)
+        current_y += line_step
+
+    # Page indicator
+    _draw_page_indicator(context, page_index, total_pages, items_font)
+    context.disp.display(context.image)
+
+
+def _draw_page_indicator(context, page_index: int, total_pages: int, font) -> None:
+    """Helper to draw page indicator in bottom right."""
+    if total_pages > 1:
+        left_indicator = "<" if page_index > 0 else ""
+        right_indicator = ">" if page_index < total_pages - 1 else ""
+        indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+        indicator_bbox = context.draw.textbbox((0, 0), indicator, font=font)
+        indicator_width = indicator_bbox[2] - indicator_bbox[0]
+        indicator_height = indicator_bbox[3] - indicator_bbox[1]
+        context.draw.text(
+            (context.width - indicator_width - 2, context.height - indicator_height - 2),
+            indicator,
+            font=font,
+            fill=255,
+        )
 
 
 def _view_devices(
@@ -705,70 +749,65 @@ def _view_devices(
         return 1, 0
     device = devices_list[0]
 
-    # Calculate total pages (1 disk usage page + N text info pages)
-    lines = _build_device_info_lines(device, log_debug=log_debug)
-    text_total_pages = _calculate_text_page_count(lines)
-    total_pages = 1 + text_total_pages
+    # Calculate total pages:
+    # Page 0: Disk usage
+    # Page 1: Device info (identity)
+    # Page 2: Drive info (metadata)
+    # Pages 3+: Partition info (may be multiple pages)
 
-    # First page is the disk usage page with pie chart
-    # Remaining pages are the text-based info pages
+    # Calculate partition info pages
+    context = display.get_display_context()
+    items_font = context.fontdisks
+    title_font = context.fontcopy
+    title_icon = chr(57581)
+
+    # Simulate partition info layout to calculate pages
+    layout = display.draw_title_with_icon(
+        "PARTITION INFO",
+        title_font=title_font,
+        icon=title_icon,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
+    available_height = context.height - layout.content_top - 2 - 12
+    line_step = display._get_line_height(items_font) + 2
+    lines_per_page = max(1, available_height // line_step)
+
+    # Count partition lines (3 lines per partition: name+fs, mount, blank)
+    children = get_children(device)
+    partition_line_count = len(children) * 3 if children else 0
+    partition_pages = max(1, (partition_line_count + lines_per_page - 1) // lines_per_page) if children else 1
+
+    total_pages = 3 + partition_pages  # disk usage + device info + drive info + partition pages
+
+    # Route to appropriate renderer based on page index
     if page_index == 0:
-        # Render disk usage page (only once, no flicker!)
+        # Page 1: DISK USAGE
         _render_disk_usage_page(
             device, log_debug=log_debug, page_index=page_index, total_pages=total_pages
         )
-        return total_pages, 0
+    elif page_index == 1:
+        # Page 2: DEVICE INFO
+        _render_device_identity_page(
+            device, page_index=page_index, total_pages=total_pages
+        )
+    elif page_index == 2:
+        # Page 3: DRIVE INFO
+        _render_drive_metadata_page(
+            device, page_index=page_index, total_pages=total_pages
+        )
     else:
-        # Show text info pages (offset by 1 since page 0 is disk usage)
-        # Render the text page with correct pagination
-        context = display.get_display_context()
-        text_page_index = page_index - 1  # Adjust for disk usage page offset
-
-        # Render the paginated lines (this will draw its own page indicator)
-        text_total_pages_actual, _ = display.render_paginated_lines(
-            "DRIVE INFO",
-            lines,
-            page_index=text_page_index,
-            title_font=context.fontcopy,
-            items_font=context.fontdisks,
-            title_icon=chr(57581),  # drives icon
+        # Pages 4+: PARTITION INFO
+        partition_page_index = page_index - 3
+        _render_partition_info_page(
+            device,
+            log_debug=log_debug,
+            partition_page_index=partition_page_index,
+            page_index=page_index,
+            total_pages=total_pages,
         )
 
-        # Now redraw the page indicator with correct total page count
-        # (accounting for the disk usage page)
-        total_pages = 1 + text_total_pages_actual
-        if total_pages > 1:
-            items_font = context.fontdisks
-            left_indicator = "<" if page_index > 0 else ""
-            right_indicator = ">" if page_index < total_pages - 1 else ""
-            indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
-
-            # Clear the old indicator area first (draw a black rectangle)
-            indicator_bbox = context.draw.textbbox((0, 0), indicator, font=items_font)
-            indicator_width = indicator_bbox[2] - indicator_bbox[0]
-            indicator_height = indicator_bbox[3] - indicator_bbox[1]
-            indicator_x = context.width - indicator_width - 2
-            indicator_y = context.height - indicator_height - 2
-
-            # Clear old indicator (slightly larger to ensure full coverage)
-            context.draw.rectangle(
-                (indicator_x - 2, indicator_y - 2, context.width, context.height),
-                outline=0,
-                fill=0,
-            )
-
-            # Draw new indicator
-            context.draw.text(
-                (indicator_x, indicator_y),
-                indicator,
-                font=items_font,
-                fill=255,
-            )
-
-            # Update the display
-            context.disp.display(context.image)
-
-        return total_pages, page_index
+    return total_pages, page_index
 
 
 def format_drive(
