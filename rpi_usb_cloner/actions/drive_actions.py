@@ -487,8 +487,9 @@ def _render_disk_usage_page(
     left_margin = context.x - 11
 
     # Draw device header
-    device_name = get_name(device)
-    size_gb = get_size(device) / (1024**3)
+    device_name = device.get("name") or ""
+    size_bytes = device.get("size") or 0
+    size_gb = size_bytes / (1024**3)
     header_line = f"{device_name.upper()} {size_gb:.1f}GB"
     draw.text((left_margin, current_y), header_line, font=items_font, fill=255)
     current_y += display._get_line_height(items_font) + 2
