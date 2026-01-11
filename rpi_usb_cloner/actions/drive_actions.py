@@ -486,7 +486,15 @@ def _render_disk_usage_page(
     items_font = context.fontdisks
     left_margin = context.x - 11
 
-    # Draw device header
+    # Pie chart configuration (drawn on right side)
+    pie_size = 32  # diameter
+    pie_x = context.width - pie_size - 8
+    pie_y = layout.content_top + 2
+
+    # Available width for text (leave room for pie chart on right)
+    text_max_width = pie_x - left_margin - 4  # 4px gap between text and pie
+
+    # Draw device header (name + size)
     device_name = device.get("name") or ""
     size_bytes = device.get("size") or 0
     size_gb = size_bytes / (1024**3)
@@ -494,20 +502,21 @@ def _render_disk_usage_page(
     draw.text((left_margin, current_y), header_line, font=items_font, fill=255)
     current_y += display._get_line_height(items_font) + 2
 
-    # Draw vendor/model on separate line
+    # Draw vendor/model on separate line (wrap if needed)
     vendor = (device.get("vendor") or "").strip()
     model = (device.get("model") or "").strip()
     vendor_model = " ".join(part for part in [vendor, model] if part)
     if vendor_model:
-        draw.text((left_margin, current_y), vendor_model, font=items_font, fill=255)
-        current_y += display._get_line_height(items_font) + 2
+        wrapped_vendor = display._wrap_lines_to_width([vendor_model], items_font, text_max_width)
+        for line in wrapped_vendor:
+            draw.text((left_margin, current_y), line, font=items_font, fill=255)
+            current_y += display._get_line_height(items_font) + 2
 
-    # Draw serial number (allow wrapping)
+    # Draw serial number (allow wrapping within text area)
     serial = (device.get("serial") or "").strip()
     if serial:
         serial_text = f"serial:{serial}"
-        available_width = max(0, context.width - left_margin)
-        wrapped_serial = display._wrap_lines_to_width([serial_text], items_font, available_width)
+        wrapped_serial = display._wrap_lines_to_width([serial_text], items_font, text_max_width)
         for line in wrapped_serial:
             draw.text((left_margin, current_y), line, font=items_font, fill=255)
             current_y += display._get_line_height(items_font) + 2
@@ -547,7 +556,7 @@ def _render_disk_usage_page(
         free_bytes = total_bytes - used_bytes
         used_percent = (used_bytes / total_bytes * 100) if total_bytes > 0 else 0
 
-        # Draw text information
+        # Draw disk usage text (below device info, on left side)
         text_lines = [
             f"Used: {human_size(used_bytes)}",
             f"Free: {human_size(free_bytes)}",
@@ -559,11 +568,7 @@ def _render_disk_usage_page(
             draw.text((left_margin, current_y), line, font=items_font, fill=255)
             current_y += display._get_line_height(items_font) + 2
 
-        # Draw pie chart
-        pie_size = 32  # diameter
-        pie_x = context.width - pie_size - 8
-        pie_y = layout.content_top + 2
-
+        # Draw pie chart (on right side, top aligned with content)
         # Draw outer circle (border)
         draw.ellipse(
             [(pie_x, pie_y), (pie_x + pie_size, pie_y + pie_size)],
@@ -726,14 +731,54 @@ def _view_devices(
         return total_pages, 0
     else:
         # Show text info pages (offset by 1 since page 0 is disk usage)
-        text_total_pages, text_page_index = screens.render_info_screen(
+        # Render the text page with correct pagination
+        context = display.get_display_context()
+        text_page_index = page_index - 1  # Adjust for disk usage page offset
+
+        # Render the paginated lines (this will draw its own page indicator)
+        text_total_pages_actual, _ = display.render_paginated_lines(
             "DRIVE INFO",
             lines,
-            page_index=page_index - 1,  # Adjust for disk usage page offset
-            title_font=display.get_display_context().fontcopy,
+            page_index=text_page_index,
+            title_font=context.fontcopy,
+            items_font=context.fontdisks,
             title_icon=chr(57581),  # drives icon
         )
-        total_pages = 1 + text_total_pages  # Recalculate to be safe
+
+        # Now redraw the page indicator with correct total page count
+        # (accounting for the disk usage page)
+        total_pages = 1 + text_total_pages_actual
+        if total_pages > 1:
+            items_font = context.fontdisks
+            left_indicator = "<" if page_index > 0 else ""
+            right_indicator = ">" if page_index < total_pages - 1 else ""
+            indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+
+            # Clear the old indicator area first (draw a black rectangle)
+            indicator_bbox = context.draw.textbbox((0, 0), indicator, font=items_font)
+            indicator_width = indicator_bbox[2] - indicator_bbox[0]
+            indicator_height = indicator_bbox[3] - indicator_bbox[1]
+            indicator_x = context.width - indicator_width - 2
+            indicator_y = context.height - indicator_height - 2
+
+            # Clear old indicator (slightly larger to ensure full coverage)
+            context.draw.rectangle(
+                (indicator_x - 2, indicator_y - 2, context.width, context.height),
+                outline=0,
+                fill=0,
+            )
+
+            # Draw new indicator
+            context.draw.text(
+                (indicator_x, indicator_y),
+                indicator,
+                font=items_font,
+                fill=255,
+            )
+
+            # Update the display
+            context.disp.display(context.image)
+
         return total_pages, page_index
 
 
