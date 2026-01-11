@@ -10,6 +10,7 @@ from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui.icons import FILE_ICON, FOLDER_ICON
 
 
 class FileItem:
@@ -22,11 +23,9 @@ class FileItem:
 
     def __str__(self) -> str:
         if self.is_dir:
-            # Use Lucide 'folder' icon (decimal 58174) for directories
-            return f"{chr(58174)} {self.display_name}"
+            return f"{FOLDER_ICON} {self.display_name}"
         else:
-            # Use Lucide 'file' icon (decimal 58099) for files
-            return f"{chr(58099)} {self.display_name}"
+            return f"{FILE_ICON} {self.display_name}"
 
 
 def _get_line_height(font, min_height=8):

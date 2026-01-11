@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
+
+from rpi_usb_cloner.ui.icons import SCREEN_ICONS
 
 
 @dataclass
@@ -17,31 +19,6 @@ class MenuScreen:
     title: str
     items: List[MenuItem] = field(default_factory=list)
     status_line: Optional[str] = None
-
-
-SCREEN_ICONS: Dict[str, str] = {
-    # Lucide decimal 59059 (layers-plus).
-    "main": chr(59059),
-    "settings": chr(57925),
-    "develop": "",
-    "update": "",
-    "power": "",
-    "screensaver": "",
-    "wifi": "",
-    "tools": chr(57580),
-    "logs": "",
-    # Lucide decimal 58175 (folders).
-    "file_browser": chr(58175),
-    "images": chr(57559),
-    # Lucide decimal 57581 (hard-drive).
-    "drives": chr(57581),
-    # Lucide decimal 57581 (hard-drive).
-    "drive_list": chr(57581),
-    # Lucide decimal 57922.
-    "icons": chr(57922),
-    # Lucide decimal 57629.
-    "screens": chr(57629),
-}
 
 
 def get_screen_icon(screen_id: str) -> Optional[str]:

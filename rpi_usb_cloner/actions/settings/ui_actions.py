@@ -5,6 +5,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import keyboard, menus, screens, screensaver
+from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
 
 
 def coming_soon() -> None:
@@ -36,7 +37,7 @@ def select_restore_partition_mode() -> None:
         [label for _, label in options],
         selected_index=selected_index,
         header_lines=["Partition table mode"],
-        title_icon=chr(57451),
+        title_icon=SETTINGS_ICON,
     )
     if selection is None:
         return
@@ -99,7 +100,7 @@ def select_screensaver_gif() -> None:
 
 def keyboard_test() -> None:
     """Test keyboard input."""
-    text = keyboard.prompt_text(title="KEYBOARD", masked=False, title_icon=chr(57618))
+    text = keyboard.prompt_text(title="KEYBOARD", masked=False, title_icon=KEYBOARD_ICON)
     if text is None:
         return
     screens.render_status_template("KEYBOARD", "Entry captured")

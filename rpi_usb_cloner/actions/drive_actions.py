@@ -19,6 +19,7 @@ from rpi_usb_cloner.storage.devices import (
 )
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus, screens
+from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
 from PIL import ImageDraw
 
 
@@ -34,8 +35,8 @@ def copy_drive(
         screens.render_error_screen(
             title="COPY DRIVES",
             message="NEED 2 USBS",
-            title_icon=chr(57581),  # drives icon
-            message_icon=chr(57639),  # octagon-alert icon
+            title_icon=DRIVES_ICON,
+            message_icon=ALERT_ICON,
             message_icon_size=24,
         )
         time.sleep(1)
@@ -275,7 +276,7 @@ def erase_drive(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=chr(57639),
+            title_icon=ALERT_ICON,
         )
         time.sleep(0.1)
     thread.join()
@@ -287,7 +288,7 @@ def erase_drive(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=chr(57639),
+        title_icon=ALERT_ICON,
     )
 
     if "error" in error_holder:
@@ -388,7 +389,7 @@ def _confirm_destructive_action(
             title,
             [prompt],
             selected_index=selection[0],
-            title_icon=chr(57639),
+            title_icon=ALERT_ICON,
         )
 
     render()
@@ -440,7 +441,7 @@ def _render_disk_usage_page(
     # Draw title with icon
     title = "DISK USAGE"
     title_font = context.fontcopy
-    title_icon = chr(57581)  # drives icon
+    title_icon = DRIVES_ICON
     layout = display.draw_title_with_icon(
         title,
         title_font=title_font,
@@ -557,7 +558,7 @@ def _render_device_identity_page(
 
     title_font = context.fontcopy
     items_font = context.fontdisks
-    title_icon = chr(57581)
+    title_icon = DRIVES_ICON
     layout = display.draw_title_with_icon(
         "DEVICE INFO",
         title_font=title_font,
@@ -614,7 +615,7 @@ def _render_drive_metadata_page(
 
     title_font = context.fontcopy
     items_font = context.fontdisks
-    title_icon = chr(57581)
+    title_icon = DRIVES_ICON
     layout = display.draw_title_with_icon(
         "DRIVE INFO",
         title_font=title_font,
@@ -665,7 +666,7 @@ def _render_partition_info_page(
 
     title_font = context.fontcopy
     items_font = context.fontdisks
-    title_icon = chr(57581)
+    title_icon = DRIVES_ICON
     layout = display.draw_title_with_icon(
         "PARTITION INFO",
         title_font=title_font,
@@ -759,7 +760,7 @@ def _view_devices(
     context = display.get_display_context()
     items_font = context.fontdisks
     title_font = context.fontcopy
-    title_icon = chr(57581)
+    title_icon = DRIVES_ICON
 
     # Simulate partition info layout to calculate pages
     layout = display.draw_title_with_icon(
@@ -882,7 +883,7 @@ def format_drive(
             title,
             [prompt],
             selected_index=selection[0],
-            title_icon=chr(58367),  # sparkles icon
+            title_icon=SPARKLES_ICON,
         )
 
     render()
@@ -916,7 +917,7 @@ def format_drive(
         label = keyboard.prompt_text(
             title="LABEL",
             initial="",
-            title_icon=chr(58367),  # sparkles icon
+            title_icon=SPARKLES_ICON,
         )
         if label == "":
             label = None
@@ -981,7 +982,7 @@ def format_drive(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=chr(58367),  # sparkles icon
+            title_icon=SPARKLES_ICON,
         )
         time.sleep(0.1)
 
@@ -1052,7 +1053,7 @@ def unmount_drive(
         info_lines,
         page_index=0,
         title_font=display.get_display_context().fontcopy,
-        title_icon=chr(57444),  # eject icon
+        title_icon=EJECT_ICON,
     )
     time.sleep(1)
 
@@ -1066,7 +1067,7 @@ def unmount_drive(
             title,
             [prompt],
             selected_index=selection[0],
-            title_icon=chr(57444),  # eject icon
+            title_icon=EJECT_ICON,
         )
 
     render()
@@ -1123,7 +1124,7 @@ def unmount_drive(
             title,
             [prompt],
             selected_index=selection[0],
-            title_icon=chr(57444),  # eject icon
+            title_icon=EJECT_ICON,
         )
 
     render_poweroff()
