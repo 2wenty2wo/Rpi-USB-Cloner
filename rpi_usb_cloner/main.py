@@ -586,6 +586,7 @@ def main(argv=None):
                             "SCREENSHOT", f"Saved to {screenshot_path.name}"
                         )
                         time.sleep(1.5)
+                        force_render = True
                         render_requested = True
                 else:
                     render_requested = True
