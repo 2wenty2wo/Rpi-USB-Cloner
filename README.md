@@ -108,7 +108,7 @@ The following operations **cannot be undone**:
 - Zero4U USB Hub
 
 **OS**
-- Raspberry Pi OS
+- Raspberry Pi OS (Tested with Raspberry Pi OS Lite Trixie)
 
 ## 🚀 Quickstart
 
