@@ -215,7 +215,13 @@ def erase_drive(
     if not target:
         target = target_devices[-1]
     target_name = target.get("name")
-    mode = menus.select_erase_mode()
+    target_names = {device.get("name") for device in target_devices}
+    status_line = (
+        drives.get_active_drive_label(selected_name)
+        if selected_name in target_names
+        else None
+    ) or format_device_label(target)
+    mode = menus.select_erase_mode(status_line=status_line)
     if not mode:
         return
     prompt_lines = [f"ERASE {target_name}", f"MODE {mode.upper()}"]
