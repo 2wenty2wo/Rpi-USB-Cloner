@@ -182,30 +182,16 @@ Coverage settings are configured in `pyproject.toml`:
 - **Branch Coverage**: Enabled
 - **Minimum Coverage**: No minimum enforced (yet)
 
-### Current Coverage Status
+### Latest Coverage Status
 
-As of the latest test run:
+To view the most recent coverage results:
 
-- **Overall Coverage**: 22.50% ✅
-- **settings.py**: 100% ✅
-- **services/drives.py**: 100% ✅
-- **clone/models.py**: 100% ✅
-- **devices.py**: 91.70% ✅
-- **clone/erase.py**: 91.59% ✅
-- **clone/operations.py**: 96.13% ✅
-- **clone/progress.py**: 95.97% ✅
-- **clone/verification.py**: 93.29% ✅
-- **clone/command_runners.py**: 90.46% ✅
-- **clonezilla/models.py**: 100% ✅
-- **clonezilla/file_utils.py**: 100% ✅
-- **clonezilla/image_discovery.py**: 99.40% ✅
-- **clonezilla/compression.py**: 80.49% ✅
-- **clonezilla/partition_table.py**: 62.30%
-- **mount.py**: 58.87%
+1. Open the latest **Tests** workflow run in GitHub Actions.
+2. Review the **Coverage Summary** step in the job logs for a quick terminal overview.
+3. Download the `coverage-reports` artifact to view the HTML report locally:
+   - Extract the artifact and open `htmlcov/index.html` in your browser.
 
-**Recent Improvements**: Added comprehensive test coverage for clone operations, services, workflows, and Clonezilla modules (406 new tests), increasing coverage from 3.4% to 22.50%.
-
-**Priority**: Continue increasing coverage for UI modules and action handlers
+If the project is configured with a coverage service (e.g., Codecov), use the badge or service link in `README.md` to view the latest CI coverage results.
 
 ## Test Organization
 
@@ -487,4 +473,4 @@ When contributing new code:
 
 **Last Updated**: 2026-01-11
 **Test Count**: 608 passing tests
-**Coverage**: 22.50%
+**Coverage**: See the latest CI coverage report or badge.
