@@ -50,4 +50,5 @@ def render_drive_info(
         info_lines,
         page_index=page_index,
         title_font=display_module.get_display_context().fontcopy,
+        title_icon=chr(57581),  # drives icon (same as drives menu)
     )
