@@ -9,6 +9,7 @@ from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo, iso
+from rpi_usb_cloner.storage.clonezilla.backup import check_tool_available
 from rpi_usb_cloner.ui import display, menus, screens
 
 WRITE_TITLE_ICON = chr(58597)
@@ -178,10 +179,10 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     compression_options = []
 
     # Check which compression tools are available
-    if clonezilla.backup.check_tool_available("pigz") or clonezilla.backup.check_tool_available("gzip"):
+    if check_tool_available("pigz") or check_tool_available("gzip"):
         compression_options.append(("gzip", "GZIP"))
 
-    if clonezilla.backup.check_tool_available("pzstd") or clonezilla.backup.check_tool_available("zstd"):
+    if check_tool_available("pzstd") or check_tool_available("zstd"):
         compression_options.append(("zstd", "ZSTD"))
 
     compression_options.append(("none", "NONE"))

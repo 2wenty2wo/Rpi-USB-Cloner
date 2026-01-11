@@ -22,7 +22,8 @@ def images_coming_soon() -> None:
 
 
 def backup_image() -> None:
-    _run_operation(image_actions.backup_image)
+    context = get_action_context()
+    _run_operation(lambda: image_actions.backup_image(app_context=context.app_context, log_debug=context.log_debug))
 
 
 def write_image() -> None:
