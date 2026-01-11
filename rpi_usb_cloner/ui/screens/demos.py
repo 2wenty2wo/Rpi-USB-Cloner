@@ -294,7 +294,9 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
     content_top = menus.get_standard_content_top(title, title_font=title_font)
 
     font_path = display.ASSETS_DIR / "fonts" / "lucide.ttf"
-    icon_size = 16
+    icon_sizes = [16, 8]
+    size_index = 0
+    icon_size = icon_sizes[size_index]
     icon_font = ImageFont.truetype(str(font_path), icon_size)
 
     # Grid settings
@@ -350,7 +352,7 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
 
         # Show scroll indicator and count
         if total_rows > rows_per_page:
-            footer_text = f"▲▼ scroll • {total_icons} icons"
+            footer_text = f"▲▼ scroll • C size • {total_icons} icons"
             footer_font = context.fontdisks
             footer_height = display._get_line_height(footer_font)
             footer_y = context.height - footer_height - 1
@@ -358,7 +360,7 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
             draw.text((footer_x, footer_y), footer_text, font=footer_font, fill=255)
         else:
             # Just show count
-            footer_text = f"{total_icons} icons"
+            footer_text = f"C size • {total_icons} icons"
             footer_font = context.fontdisks
             footer_height = display._get_line_height(footer_font)
             footer_y = context.height - footer_height - 1
@@ -369,10 +371,13 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
         return offset
 
     scroll_offset = render(scroll_offset)
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_A, gpio.PIN_B, gpio.PIN_C, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
+    )
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
         "B": gpio.read_button(gpio.PIN_B),
+        "C": gpio.read_button(gpio.PIN_C),
         "L": gpio.read_button(gpio.PIN_L),
         "R": gpio.read_button(gpio.PIN_R),
         "U": gpio.read_button(gpio.PIN_U),
@@ -389,6 +394,16 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
         if prev_states["L"] and not current_l:
             return
         current_r = gpio.read_button(gpio.PIN_R)
+        current_c = gpio.read_button(gpio.PIN_C)
+        if prev_states["C"] and not current_c:
+            size_index = (size_index + 1) % len(icon_sizes)
+            icon_size = icon_sizes[size_index]
+            icon_font = ImageFont.truetype(str(font_path), icon_size)
+            row_height = icon_size + icon_spacing
+            rows_per_page = max(1, (context.height - content_top - 12) // row_height)
+            max_offset = max(0, total_rows - rows_per_page)
+            scroll_offset = min(scroll_offset, max_offset)
+            scroll_offset = render(scroll_offset)
         current_u = gpio.read_button(gpio.PIN_U)
         if prev_states["U"] and not current_u:
             scroll_offset = max(0, scroll_offset - 1)
@@ -399,6 +414,7 @@ def show_lucide_demo(title: str = "LUCIDE") -> None:
             scroll_offset = render(scroll_offset)
         prev_states["A"] = current_a
         prev_states["B"] = current_b
+        prev_states["C"] = current_c
         prev_states["L"] = current_l
         prev_states["R"] = current_r
         prev_states["U"] = current_u
@@ -447,7 +463,9 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
     content_top = menus.get_standard_content_top(title, title_font=title_font)
 
     font_path = display.ASSETS_DIR / "fonts" / "his.ttf"
-    icon_size = 16
+    icon_sizes = [16, 8]
+    size_index = 0
+    icon_size = icon_sizes[size_index]
     icon_font = ImageFont.truetype(str(font_path), icon_size)
 
     # Grid settings
@@ -503,7 +521,7 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
 
         # Show scroll indicator and count
         if total_rows > rows_per_page:
-            footer_text = f"▲▼ scroll • {total_icons} icons"
+            footer_text = f"▲▼ scroll • C size • {total_icons} icons"
             footer_font = context.fontdisks
             footer_height = display._get_line_height(footer_font)
             footer_y = context.height - footer_height - 1
@@ -511,7 +529,7 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
             draw.text((footer_x, footer_y), footer_text, font=footer_font, fill=255)
         else:
             # Just show count
-            footer_text = f"{total_icons} icons"
+            footer_text = f"C size • {total_icons} icons"
             footer_font = context.fontdisks
             footer_height = display._get_line_height(footer_font)
             footer_y = context.height - footer_height - 1
@@ -522,10 +540,13 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
         return offset
 
     scroll_offset = render(scroll_offset)
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_A, gpio.PIN_B, gpio.PIN_C, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
+    )
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
         "B": gpio.read_button(gpio.PIN_B),
+        "C": gpio.read_button(gpio.PIN_C),
         "L": gpio.read_button(gpio.PIN_L),
         "R": gpio.read_button(gpio.PIN_R),
         "U": gpio.read_button(gpio.PIN_U),
@@ -542,6 +563,16 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
         if prev_states["L"] and not current_l:
             return
         current_r = gpio.read_button(gpio.PIN_R)
+        current_c = gpio.read_button(gpio.PIN_C)
+        if prev_states["C"] and not current_c:
+            size_index = (size_index + 1) % len(icon_sizes)
+            icon_size = icon_sizes[size_index]
+            icon_font = ImageFont.truetype(str(font_path), icon_size)
+            row_height = icon_size + icon_spacing
+            rows_per_page = max(1, (context.height - content_top - 12) // row_height)
+            max_offset = max(0, total_rows - rows_per_page)
+            scroll_offset = min(scroll_offset, max_offset)
+            scroll_offset = render(scroll_offset)
         current_u = gpio.read_button(gpio.PIN_U)
         if prev_states["U"] and not current_u:
             scroll_offset = max(0, scroll_offset - 1)
@@ -552,6 +583,7 @@ def show_heroicons_demo(title: str = "HEROICONS") -> None:
             scroll_offset = render(scroll_offset)
         prev_states["A"] = current_a
         prev_states["B"] = current_b
+        prev_states["C"] = current_c
         prev_states["L"] = current_l
         prev_states["R"] = current_r
         prev_states["U"] = current_u
