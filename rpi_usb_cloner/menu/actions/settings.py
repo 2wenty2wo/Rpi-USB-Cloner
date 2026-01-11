@@ -77,6 +77,10 @@ def preview_title_font() -> None:
     settings_actions.preview_title_font()
 
 
+def toggle_screenshots() -> None:
+    settings_actions.toggle_screenshots()
+
+
 def update_version() -> None:
     context = get_action_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))

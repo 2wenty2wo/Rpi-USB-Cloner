@@ -161,6 +161,29 @@ def clear_display() -> None:
     context.disp.display(context.image)
 
 
+def capture_screenshot() -> Optional[Path]:
+    """Capture the current OLED display as a screenshot.
+
+    Returns:
+        Path to the saved screenshot file, or None if capture failed.
+    """
+    try:
+        context = get_display_context()
+        screenshot = context.image.copy()
+        screenshots_dir = Path.home() / "oled_screenshots"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = screenshots_dir / f"screenshot_{timestamp}.png"
+        screenshot.save(screenshot_path)
+        if _log_debug:
+            _log_debug(f"Screenshot saved: {screenshot_path}")
+        return screenshot_path
+    except Exception as error:
+        if _log_debug:
+            _log_debug(f"Screenshot failed: {error}")
+        return None
+
+
 def init_display() -> DisplayContext:
     serial = i2c(port=1, address=0x3C)
     disp = ssd1306(serial)

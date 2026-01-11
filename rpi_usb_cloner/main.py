@@ -579,7 +579,17 @@ def main(argv=None):
             if prev_states["C"] and not current_states["C"]:
                 log_debug("Button C pressed")
                 button_pressed = True
-                render_requested = True
+                if settings_store.get_bool("screenshots_enabled", default=False):
+                    screenshot_path = display.capture_screenshot()
+                    if screenshot_path:
+                        screens.render_status_template(
+                            "SCREENSHOT", f"Saved to {screenshot_path.name}"
+                        )
+                        time.sleep(1.5)
+                        force_render = True
+                        render_requested = True
+                else:
+                    render_requested = True
 
             if button_pressed:
                 state.lcdstart = datetime.now()

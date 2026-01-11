@@ -151,3 +151,13 @@ def heroicons_demo() -> None:
 def preview_title_font() -> None:
     """Preview title font."""
     screens.show_title_font_preview()
+
+
+def toggle_screenshots() -> None:
+    """Toggle screenshot mode enabled/disabled."""
+    enabled = settings.get_bool("screenshots_enabled", default=False)
+    enabled = not enabled
+    settings.set_bool("screenshots_enabled", enabled)
+    status = "ENABLED" if enabled else "DISABLED"
+    screens.render_status_template("SCREENSHOTS", f"Screenshots {status}")
+    time.sleep(1.5)
