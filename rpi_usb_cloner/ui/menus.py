@@ -19,7 +19,7 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
-from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui import display, renderer
 
 INITIAL_REPEAT_DELAY = 0.3
 REPEAT_INTERVAL = 0.08
@@ -488,6 +488,154 @@ def render_menu_list(
     )
 
 
+def select_menu_screen_list(
+    title: str,
+    items: List[str],
+    *,
+    screen_id: Optional[str] = None,
+    status_line: Optional[str] = None,
+    title_icon: Optional[str] = None,
+    title_font: Optional[ImageFont.ImageFont] = None,
+    items_font: Optional[ImageFont.ImageFont] = None,
+    selected_index: int = 0,
+) -> Optional[int]:
+    context = display.get_display_context()
+    if not items:
+        return None
+    if title_icon is None and screen_id:
+        title_icon = get_screen_icon(screen_id)
+    items_font = items_font or context.fontdisks
+    title_font = title_font or context.fonts.get("title", context.fontdisks)
+    visible_rows = renderer.calculate_visible_rows(
+        title=title,
+        title_icon=title_icon,
+        status_line=status_line,
+        title_font=title_font,
+        items_font=items_font,
+    )
+    selected_index = max(0, min(selected_index, len(items) - 1))
+    scroll_offset = 0
+
+    def clamp_scroll_offset(selected: int, offset: int) -> int:
+        if selected < offset:
+            offset = selected
+        elif selected >= offset + visible_rows:
+            offset = selected - visible_rows + 1
+        max_scroll = max(len(items) - visible_rows, 0)
+        return max(0, min(offset, max_scroll))
+
+    def render(selected: int, offset: int) -> int:
+        offset = clamp_scroll_offset(selected, offset)
+        renderer.render_menu_screen(
+            title=title,
+            items=items,
+            selected_index=selected,
+            scroll_offset=offset,
+            status_line=status_line,
+            visible_rows=visible_rows,
+            title_font=title_font,
+            title_icon=title_icon,
+            items_font=items_font,
+        )
+        return offset
+
+    scroll_offset = render(selected_index, scroll_offset)
+    last_rendered_index = selected_index
+    wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
+    prev_states = {
+        "U": read_button(PIN_U),
+        "D": read_button(PIN_D),
+        "L": read_button(PIN_L),
+        "R": read_button(PIN_R),
+        "A": read_button(PIN_A),
+        "B": read_button(PIN_B),
+        "C": read_button(PIN_C),
+    }
+    last_press_time = {key: 0.0 for key in prev_states}
+    last_repeat_time = {key: 0.0 for key in prev_states}
+    while True:
+        now = time.monotonic()
+        action_taken = False
+        current_u = read_button(PIN_U)
+        if prev_states["U"] and not current_u:
+            action_taken = True
+            next_index = max(0, selected_index - 1)
+            if next_index != selected_index:
+                selected_index = next_index
+            last_press_time["U"] = now
+            last_repeat_time["U"] = now
+        elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
+                action_taken = True
+                next_index = max(0, selected_index - 1)
+                if next_index != selected_index:
+                    selected_index = next_index
+                last_repeat_time["U"] = now
+        current_d = read_button(PIN_D)
+        if prev_states["D"] and not current_d:
+            action_taken = True
+            next_index = min(len(items) - 1, selected_index + 1)
+            if next_index != selected_index:
+                selected_index = next_index
+            last_press_time["D"] = now
+            last_repeat_time["D"] = now
+        elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
+                action_taken = True
+                next_index = min(len(items) - 1, selected_index + 1)
+                if next_index != selected_index:
+                    selected_index = next_index
+                last_repeat_time["D"] = now
+        current_l = read_button(PIN_L)
+        if prev_states["L"] and not current_l:
+            action_taken = True
+            next_index = max(0, selected_index - visible_rows)
+            if next_index != selected_index:
+                selected_index = next_index
+            last_press_time["L"] = now
+            last_repeat_time["L"] = now
+        elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
+                action_taken = True
+                next_index = max(0, selected_index - visible_rows)
+                if next_index != selected_index:
+                    selected_index = next_index
+                last_repeat_time["L"] = now
+        current_r = read_button(PIN_R)
+        if prev_states["R"] and not current_r:
+            action_taken = True
+            next_index = min(len(items) - 1, selected_index + visible_rows)
+            if next_index != selected_index:
+                selected_index = next_index
+            last_press_time["R"] = now
+            last_repeat_time["R"] = now
+        elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
+                action_taken = True
+                next_index = min(len(items) - 1, selected_index + visible_rows)
+                if next_index != selected_index:
+                    selected_index = next_index
+                last_repeat_time["R"] = now
+        current_a = read_button(PIN_A)
+        if prev_states["A"] and not current_a:
+            return None
+        current_b = read_button(PIN_B)
+        if prev_states["B"] and not current_b:
+            return selected_index
+        current_c = read_button(PIN_C)
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
+        prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        prev_states["C"] = current_c
+        if selected_index != last_rendered_index and action_taken:
+            scroll_offset = render(selected_index, scroll_offset)
+            last_rendered_index = selected_index
+        time.sleep(BUTTON_POLL_DELAY)
+
+
 def select_usb_drive(
     title: str,
     devices_list: List[dict],
@@ -544,7 +692,7 @@ def select_erase_mode():
     return modes[selected_index]
 
 
-def select_filesystem_type(device_size: int):
+def select_filesystem_type(device_size: int, *, status_line: Optional[str] = None):
     """Select filesystem type with size-based default.
 
     Args:
@@ -570,30 +718,30 @@ def select_filesystem_type(device_size: int):
 
     default_index = filesystems.index(default_fs) if default_fs in filesystems else 0
 
-    selected_index = render_menu_list(
+    selected_index = select_menu_screen_list(
         "FORMAT DRIVE",
         [fs.upper() for fs in filesystems],
         screen_id="drives",
         selected_index=default_index,
-        title_icon=chr(57581),  # hard-drive icon
+        status_line=status_line,
     )
     if selected_index is None:
         return None
     return filesystems[selected_index]
 
 
-def select_format_type():
+def select_format_type(*, status_line: Optional[str] = None):
     """Select format type (quick or full).
 
     Returns:
         Selected format type or None if cancelled
     """
     types = ["quick", "full"]
-    selected_index = render_menu_list(
+    selected_index = select_menu_screen_list(
         "FORMAT TYPE",
         [t.upper() for t in types],
-        title_font=display.get_display_context().fontcopy,
-        title_icon=chr(58367),  # sparkles icon
+        screen_id="drives",
+        status_line=status_line,
     )
     if selected_index is None:
         return None
