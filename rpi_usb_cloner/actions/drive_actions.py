@@ -19,6 +19,7 @@ from rpi_usb_cloner.storage.devices import (
 )
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus, screens
+from PIL import ImageDraw
 
 
 def copy_drive(
@@ -422,6 +423,111 @@ def _confirm_destructive_action(
     return result if result is not None else False
 
 
+def _render_disk_usage_page(
+    device: dict,
+    *,
+    log_debug: Optional[Callable[[str], None]],
+) -> tuple[int, int]:
+    """Render a dedicated disk usage page with pie chart."""
+    context = display.get_display_context()
+    draw = context.draw
+
+    # Clear display
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+
+    # Draw title with icon
+    title = "DISK USAGE"
+    title_font = context.fontcopy
+    title_icon = chr(57581)  # drives icon
+    layout = display.draw_title_with_icon(
+        title,
+        title_font=title_font,
+        icon=title_icon,
+        extra_gap=2,
+        left_margin=context.x - 11,
+    )
+
+    current_y = layout.content_top + 2
+
+    # Collect disk usage from all mounted partitions
+    total_bytes = 0
+    used_bytes = 0
+    partition_count = 0
+
+    for child in get_children(device):
+        mountpoint = child.get("mountpoint")
+        if not mountpoint:
+            continue
+
+        try:
+            usage = os.statvfs(mountpoint)
+            total = usage.f_blocks * usage.f_frsize
+            free = usage.f_bavail * usage.f_frsize
+            used = total - free
+
+            total_bytes += total
+            used_bytes += used
+            partition_count += 1
+        except (FileNotFoundError, PermissionError, OSError) as error:
+            _log_debug(log_debug, f"Usage check failed for {mountpoint}: {error}")
+
+    if partition_count == 0 or total_bytes == 0:
+        # No mounted partitions or no usage data
+        lines = ["No mounted", "partitions"]
+        for line in lines:
+            draw.text((context.x - 11, current_y), line, font=context.fontdisks, fill=255)
+            current_y += 10
+        context.disp.display(context.image)
+        return 1, 0
+
+    # Calculate percentages
+    free_bytes = total_bytes - used_bytes
+    used_percent = (used_bytes / total_bytes * 100) if total_bytes > 0 else 0
+    free_percent = 100 - used_percent
+
+    # Draw text information
+    text_lines = [
+        f"Used: {human_size(used_bytes)}",
+        f"Free: {human_size(free_bytes)}",
+        f"Total: {human_size(total_bytes)}",
+        f"({used_percent:.1f}% used)",
+    ]
+
+    for line in text_lines:
+        draw.text((context.x - 11, current_y), line, font=context.fontdisks, fill=255)
+        current_y += 10
+
+    # Draw pie chart
+    pie_size = 32  # diameter
+    pie_x = context.width - pie_size - 8
+    pie_y = layout.content_top + 2
+
+    # Draw outer circle (border)
+    draw.ellipse(
+        [(pie_x, pie_y), (pie_x + pie_size, pie_y + pie_size)],
+        outline=255,
+        fill=0,
+    )
+
+    # Draw used portion as a filled pie slice
+    if used_percent > 0:
+        # PIL's pieslice uses angles: 0 degrees is 3 o'clock, 90 is 12 o'clock
+        # We want to start at 12 o'clock (90 degrees) and go clockwise
+        start_angle = 90
+        end_angle = start_angle - (used_percent / 100 * 360)
+
+        draw.pieslice(
+            [(pie_x + 1, pie_y + 1), (pie_x + pie_size - 1, pie_y + pie_size - 1)],
+            start=start_angle,
+            end=end_angle,
+            fill=255,
+            outline=255,
+        )
+
+    context.disp.display(context.image)
+    return 1, 0
+
+
 def _build_device_info_lines(
     device: dict,
     *,
@@ -489,19 +595,7 @@ def _build_device_info_lines(
         if not append_line(f"mnt:{mountpoint}"):
             break
 
-        usage_label = "?"
-        try:
-            usage = os.statvfs(mountpoint)
-            total = usage.f_blocks * usage.f_frsize
-            free = usage.f_bavail * usage.f_frsize
-            used = total - free
-            usage_label = f"{human_size(used)}/{human_size(total)}"
-        except (FileNotFoundError, PermissionError, OSError) as error:
-            _log_debug(log_debug, f"Usage check failed for {mountpoint}: {error}")
-            usage_label = "usage?"
-
-        if not append_line(f"use:{usage_label}"):
-            break
+        # Disk usage is now shown on its own dedicated page
 
         try:
             entries = sorted(os.listdir(mountpoint))[:3]
@@ -532,14 +626,37 @@ def _view_devices(
         display.display_lines(["NO SELECTED USB"])
         return 1, 0
     device = devices_list[0]
-    lines = _build_device_info_lines(device, log_debug=log_debug)
-    return screens.render_info_screen(
-        "DRIVE INFO",
-        lines,
-        page_index=page_index,
-        title_font=display.get_display_context().fontcopy,
-        title_icon=chr(57581),  # drives icon (same as drives menu)
-    )
+
+    # First page is the disk usage page with pie chart
+    # Remaining pages are the text-based info pages
+    if page_index == 0:
+        # Show disk usage page
+        _render_disk_usage_page(device, log_debug=log_debug)
+        # Get total number of text info pages
+        lines = _build_device_info_lines(device, log_debug=log_debug)
+        text_total_pages, _ = screens.render_info_screen(
+            "DRIVE INFO",
+            lines,
+            page_index=0,
+            title_font=display.get_display_context().fontcopy,
+            title_icon=chr(57581),  # drives icon
+        )
+        # Render the disk usage page again (since render_info_screen overwrote it)
+        _render_disk_usage_page(device, log_debug=log_debug)
+        total_pages = 1 + text_total_pages  # 1 usage page + N text pages
+        return total_pages, 0
+    else:
+        # Show text info pages (offset by 1 since page 0 is disk usage)
+        lines = _build_device_info_lines(device, log_debug=log_debug)
+        text_total_pages, text_page_index = screens.render_info_screen(
+            "DRIVE INFO",
+            lines,
+            page_index=page_index - 1,  # Adjust for disk usage page offset
+            title_font=display.get_display_context().fontcopy,
+            title_icon=chr(57581),  # drives icon
+        )
+        total_pages = 1 + text_total_pages  # 1 usage page + N text pages
+        return total_pages, page_index
 
 
 def format_drive(
