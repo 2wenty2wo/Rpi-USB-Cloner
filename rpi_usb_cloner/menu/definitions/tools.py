@@ -12,6 +12,6 @@ TOOLS_MENU = MenuScreen(
     title="TOOLS",
     items=[
         menu_entry("LOGS", action=menu_actions.view_logs),
-        menu_entry("COMING SOON", action=menu_actions.tools_coming_soon),
+        menu_entry("FILE BROWSER", action=menu_actions.file_browser),
     ],
 )
