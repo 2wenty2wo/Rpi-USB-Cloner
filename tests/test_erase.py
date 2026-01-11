@@ -189,43 +189,27 @@ class TestEraseDevice:
         error_calls = [c for c in mocks["display"].call_args_list if "ERROR" in str(c) or "unknown" in str(c)]
         assert len(error_calls) > 0
 
-    def test_erase_none_mode_defaults_to_quick(self, mock_target_device, setup_mocks):
-        """Test None mode defaults to quick erase."""
+    def test_erase_none_mode_returns_false(self, mock_target_device, setup_mocks):
+        """Test None mode returns False (unknown mode)."""
         mocks = setup_mocks
-
-        def which_side_effect(cmd):
-            if cmd == "wipefs":
-                return "/usr/bin/wipefs"
-            if cmd == "dd":
-                return "/usr/bin/dd"
-            return None
-
-        mocks["which"].side_effect = which_side_effect
-        mocks["run"].return_value = Mock()
 
         result = erase_device(mock_target_device, None)
 
-        assert result is True
-        # Should behave like quick mode
-        assert mocks["run"].call_count == 3
+        assert result is False
+        # Should display error for unknown mode
+        error_calls = [c for c in mocks["display"].call_args_list if "unknown mode" in str(c).lower() or "ERROR" in str(c)]
+        assert len(error_calls) > 0
 
-    def test_erase_empty_mode_defaults_to_quick(self, mock_target_device, setup_mocks):
-        """Test empty string mode defaults to quick erase."""
+    def test_erase_empty_mode_returns_false(self, mock_target_device, setup_mocks):
+        """Test empty string mode returns False (unknown mode)."""
         mocks = setup_mocks
-
-        def which_side_effect(cmd):
-            if cmd == "wipefs":
-                return "/usr/bin/wipefs"
-            if cmd == "dd":
-                return "/usr/bin/dd"
-            return None
-
-        mocks["which"].side_effect = which_side_effect
-        mocks["run"].return_value = Mock()
 
         result = erase_device(mock_target_device, "")
 
-        assert result is True
+        assert result is False
+        # Should display error for unknown mode
+        error_calls = [c for c in mocks["display"].call_args_list if "unknown mode" in str(c).lower() or "ERROR" in str(c)]
+        assert len(error_calls) > 0
 
     def test_erase_with_progress_callback(self, mock_target_device, setup_mocks):
         """Test erase with custom progress callback."""

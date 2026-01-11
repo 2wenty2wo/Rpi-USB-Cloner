@@ -441,3 +441,29 @@ def reset_global_state():
     yield
     # Cleanup after test (if needed)
     pass
+
+
+@pytest.fixture
+def mock_subprocess_run(mocker):
+    """
+    Fixture providing a mock for subprocess.run.
+
+    Returns:
+        Mock object for subprocess.run
+    """
+    return mocker.patch("subprocess.run")
+
+
+@pytest.fixture(autouse=True)
+def mock_display_context(mocker):
+    """
+    Auto-use fixture that mocks display context initialization.
+
+    This prevents tests from failing when display_lines is called
+    without proper display context setup.
+    """
+    mock_context = Mock()
+    mock_context.device = Mock()
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_context)
+    mocker.patch("rpi_usb_cloner.ui.display.display_lines")
+    return mock_context

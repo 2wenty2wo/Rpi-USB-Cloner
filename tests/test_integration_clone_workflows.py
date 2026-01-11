@@ -103,12 +103,12 @@ class TestCloneWorkflow:
         mock_unmount.assert_called_once_with(target)
         mock_clone_dd.assert_called_once()
 
+    @patch("rpi_usb_cloner.storage.clone.verification.verify_clone")
     @patch("rpi_usb_cloner.storage.clone.operations.clone_device_smart")
-    @patch("rpi_usb_cloner.storage.clone.operations.verify_clone")
     def test_verify_clone_workflow(
         self,
-        mock_verify,
         mock_smart,
+        mock_verify,
         mock_devices,
     ):
         """Test complete clone with verification workflow."""
@@ -122,14 +122,14 @@ class TestCloneWorkflow:
         mock_smart.assert_called_once()
         mock_verify.assert_called_once_with(source, target)
 
-    @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
+    @patch("rpi_usb_cloner.storage.clone.verification.verify_clone")
     @patch("rpi_usb_cloner.storage.clone.operations.clone_device_smart")
-    @patch("rpi_usb_cloner.storage.clone.operations.verify_clone")
+    @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
     def test_verify_clone_workflow_verification_fails(
         self,
-        mock_verify,
-        mock_smart,
         mock_display,
+        mock_smart,
+        mock_verify,
         mock_devices,
     ):
         """Test clone workflow when verification fails."""
