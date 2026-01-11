@@ -180,7 +180,7 @@ def _render_browser_screen(
         draw.text((width - 30, height - 12), indicator, font=indicator_font, fill=255)
 
     # Display the rendered screen
-    ctx.device.display(ctx.image)
+    ctx.disp.display(ctx.image)
 
 
 def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
