@@ -53,7 +53,11 @@ def drive_info() -> None:
     context = get_action_context()
     if not _ensure_drive_selected("DRIVE INFO", chr(57581)):
         return
-    context.show_drive_info()
+    drive_actions.drive_info(
+        state=context.state,
+        log_debug=context.log_debug,
+        get_selected_usb_name=context.get_selected_usb_name,
+    )
 
 
 def format_drive() -> None:
