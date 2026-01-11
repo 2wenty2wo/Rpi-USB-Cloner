@@ -679,13 +679,13 @@ def select_clone_mode(current_mode=None):
     return modes[selected_index]
 
 
-def select_erase_mode():
+def select_erase_mode(*, status_line: Optional[str] = None):
     modes = ["quick", "zero", "discard", "secure"]
-    selected_index = render_menu_list(
+    selected_index = select_menu_screen_list(
         "ERASE MODE",
         [mode.upper() for mode in modes],
-        title_font=display.get_display_context().fontcopy,
-        title_icon=chr(57639),
+        screen_id="drives",
+        status_line=status_line,
     )
     if selected_index is None:
         return None
