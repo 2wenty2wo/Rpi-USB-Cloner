@@ -30,6 +30,8 @@ SCREEN_ICONS: Dict[str, str] = {
     "wifi": "",
     "tools": chr(57580),
     "logs": "",
+    # Lucide decimal 58175 (folders).
+    "file_browser": chr(58175),
     "images": chr(57559),
     # Lucide decimal 57581 (hard-drive).
     "drives": chr(57581),

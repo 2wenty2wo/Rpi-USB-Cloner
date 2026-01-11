@@ -8,6 +8,7 @@ from .error import render_error_screen
 from .demos import show_lucide_demo, show_heroicons_demo, show_title_font_preview
 from .wifi import show_wifi_settings
 from .logs import show_logs
+from .file_browser import show_file_browser
 
 __all__ = [
     # Status screens
@@ -34,4 +35,6 @@ __all__ = [
     "show_wifi_settings",
     # Logs
     "show_logs",
+    # File browser
+    "show_file_browser",
 ]

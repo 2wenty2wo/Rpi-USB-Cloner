@@ -14,3 +14,8 @@ def tools_coming_soon() -> None:
 def view_logs() -> None:
     context = get_action_context()
     screens.show_logs(context.app_context)
+
+
+def file_browser() -> None:
+    context = get_action_context()
+    screens.show_file_browser(context.app_context)
