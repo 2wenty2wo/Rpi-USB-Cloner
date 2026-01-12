@@ -65,13 +65,17 @@ Implementation Notes:
 import json
 import re
 import subprocess
+import time
 from typing import Callable, Iterable, Optional
 
 ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
+LSBLK_CACHE_TTL_SECONDS = 1.0
 
 _log_debug: Callable[[str], None]
 _error_handler: Optional[Callable[[Iterable[str]], None]]
 _last_lsblk_names: Optional[tuple[str, ...]] = None
+_lsblk_cache: Optional[list[dict]] = None
+_lsblk_cache_time: Optional[float] = None
 
 
 def _noop_logger(message: str) -> None:
@@ -136,8 +140,21 @@ def format_device_label(device):
     return name
 
 
-def get_block_devices():
-    global _last_lsblk_names
+def get_block_devices(force_refresh: bool = False):
+    """Return block device data from lsblk with a short-lived cache.
+
+    When lsblk fails or returns invalid JSON, the previous cache remains intact
+    and is returned if available; otherwise an empty list is returned.
+    """
+    global _last_lsblk_names, _lsblk_cache, _lsblk_cache_time
+    now = time.monotonic()
+    if (
+        not force_refresh
+        and _lsblk_cache is not None
+        and _lsblk_cache_time is not None
+        and now - _lsblk_cache_time <= LSBLK_CACHE_TTL_SECONDS
+    ):
+        return _lsblk_cache
     try:
         result = run_command(
             [
@@ -161,11 +178,15 @@ def get_block_devices():
             else:
                 _log_debug("lsblk found no block devices")
             _last_lsblk_names = device_names
+        _lsblk_cache = devices
+        _lsblk_cache_time = now
         return devices
     except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
         if _error_handler:
             _error_handler(["LSBLK ERROR", str(error)])
         _log_debug(f"lsblk failed: {error}")
+        if _lsblk_cache is not None:
+            return _lsblk_cache
         return []
 
 

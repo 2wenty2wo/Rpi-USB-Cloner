@@ -18,6 +18,14 @@ import pytest
 from rpi_usb_cloner.storage import devices
 
 
+@pytest.fixture(autouse=True)
+def reset_lsblk_cache():
+    devices._lsblk_cache = None
+    devices._lsblk_cache_time = None
+    devices._last_lsblk_names = None
+    yield
+
+
 class TestHumanSize:
     """Tests for human_size() function."""
 
@@ -130,6 +138,52 @@ class TestGetBlockDevices:
         mock_error_handler.assert_called_once()
         args = mock_error_handler.call_args[0][0]
         assert "LSBLK ERROR" in args
+
+    def test_cache_hit_uses_single_lsblk_call(self, mocker, mock_lsblk_output):
+        mock_run = mocker.patch("rpi_usb_cloner.storage.devices.run_command")
+        mock_result = Mock()
+        mock_result.stdout = mock_lsblk_output
+        mock_run.return_value = mock_result
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.time.monotonic",
+            side_effect=[0.0, 0.5],
+        )
+
+        first = devices.get_block_devices()
+        second = devices.get_block_devices()
+
+        assert first == second
+        assert mock_run.call_count == 1
+
+    def test_cache_expiry_refreshes_lsblk(self, mocker, mock_lsblk_output):
+        mock_run = mocker.patch("rpi_usb_cloner.storage.devices.run_command")
+        mock_result = Mock()
+        mock_result.stdout = mock_lsblk_output
+        mock_run.return_value = mock_result
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.time.monotonic",
+            side_effect=[0.0, 2.0],
+        )
+
+        devices.get_block_devices()
+        devices.get_block_devices()
+
+        assert mock_run.call_count == 2
+
+    def test_force_refresh_bypasses_cache(self, mocker, mock_lsblk_output):
+        mock_run = mocker.patch("rpi_usb_cloner.storage.devices.run_command")
+        mock_result = Mock()
+        mock_result.stdout = mock_lsblk_output
+        mock_run.return_value = mock_result
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.time.monotonic",
+            side_effect=[0.0, 0.1],
+        )
+
+        devices.get_block_devices()
+        devices.get_block_devices(force_refresh=True)
+
+        assert mock_run.call_count == 2
 
 
 class TestGetDeviceByName:
