@@ -68,12 +68,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
+
+_REPO_DEVICE_SNAPSHOT: Optional[Tuple[Tuple[str, Tuple[str, ...]], ...]] = None
+_REPO_DEVICE_CACHE: Set[str] = set()
+# Cache is invalidated when the set of device names or mountpoints changes,
+# since repo paths depend on mounts; this avoids repeated full repo scans.
 
 
 @dataclass
@@ -102,12 +107,27 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
 
 def _get_repo_device_names() -> Set[str]:
     """Get the set of device names that are repo drives."""
+    global _REPO_DEVICE_SNAPSHOT, _REPO_DEVICE_CACHE
+    usb_devices = list_usb_disks()
+    snapshot = tuple(
+        sorted(
+            (
+                device.get("name") or "",
+                tuple(sorted(_collect_mountpoints(device))),
+            )
+            for device in usb_devices
+        )
+    )
+    if _REPO_DEVICE_SNAPSHOT == snapshot:
+        return set(_REPO_DEVICE_CACHE)
+
     repos = find_image_repos()
     if not repos:
+        _REPO_DEVICE_SNAPSHOT = snapshot
+        _REPO_DEVICE_CACHE = set()
         return set()
 
     repo_devices: Set[str] = set()
-    usb_devices = list_usb_disks()
     repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
 
     for device in usb_devices:
@@ -121,6 +141,8 @@ def _get_repo_device_names() -> Set[str]:
             if device_name:
                 repo_devices.add(device_name)
 
+    _REPO_DEVICE_SNAPSHOT = snapshot
+    _REPO_DEVICE_CACHE = set(repo_devices)
     return repo_devices
 
 
