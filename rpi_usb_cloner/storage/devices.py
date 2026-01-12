@@ -144,7 +144,9 @@ def get_block_devices(force_refresh: bool = False):
     """Return block device data from lsblk with a short-lived cache.
 
     When lsblk fails or returns invalid JSON, the previous cache remains intact
-    and is returned if available; otherwise an empty list is returned.
+    and is returned if available; otherwise an empty list is returned. When
+    force_refresh=True, errors return an empty list so callers do not receive
+    stale data.
     """
     global _last_lsblk_names, _lsblk_cache, _lsblk_cache_time
     now = time.monotonic()
@@ -185,7 +187,7 @@ def get_block_devices(force_refresh: bool = False):
         if _error_handler:
             _error_handler(["LSBLK ERROR", str(error)])
         _log_debug(f"lsblk failed: {error}")
-        if _lsblk_cache is not None:
+        if _lsblk_cache is not None and not force_refresh:
             return _lsblk_cache
         return []
 

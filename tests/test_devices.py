@@ -185,6 +185,18 @@ class TestGetBlockDevices:
 
         assert mock_run.call_count == 2
 
+    def test_force_refresh_error_returns_empty(self, mocker, mock_lsblk_output):
+        mock_run = mocker.patch("rpi_usb_cloner.storage.devices.run_command")
+        mock_result = Mock()
+        mock_result.stdout = mock_lsblk_output
+        mock_run.side_effect = [mock_result, subprocess.CalledProcessError(1, "lsblk")]
+
+        first = devices.get_block_devices()
+        second = devices.get_block_devices(force_refresh=True)
+
+        assert first
+        assert second == []
+
 
 class TestGetDeviceByName:
     """Tests for get_device_by_name() function."""
