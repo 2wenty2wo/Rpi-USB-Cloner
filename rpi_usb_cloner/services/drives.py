@@ -66,6 +66,7 @@ See Also:
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
@@ -77,8 +78,10 @@ from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_d
 
 _REPO_DEVICE_SNAPSHOT: Optional[Tuple[Tuple[str, Tuple[str, ...]], ...]] = None
 _REPO_DEVICE_CACHE: Set[str] = set()
+_REPO_DEVICE_CACHE_TIME: Optional[float] = None
+_REPO_DEVICE_CACHE_TTL_SECONDS = 5.0
 # Cache is invalidated when the set of device names or mountpoints changes,
-# since repo paths depend on mounts; this avoids repeated full repo scans.
+# or when the cache TTL elapses to account for repo flag changes.
 
 
 @dataclass
@@ -105,33 +108,58 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
     return repo_path == mount_path or mount_path in repo_path.parents
 
 
-def _get_repo_device_names() -> Set[str]:
-    """Get the set of device names that are repo drives."""
-    global _REPO_DEVICE_SNAPSHOT, _REPO_DEVICE_CACHE
-    usb_devices = list_usb_disks()
-    snapshot = tuple(
-        sorted(
+def _build_repo_snapshot(
+    usb_devices: List[dict],
+) -> Tuple[Tuple[Tuple[str, Tuple[str, ...]], ...], List[Tuple[dict, Set[str]]]]:
+    device_mounts: List[Tuple[dict, Set[str]]] = []
+    snapshot_entries: List[Tuple[str, Tuple[str, ...]]] = []
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        device_mounts.append((device, mountpoints))
+        snapshot_entries.append(
             (
                 device.get("name") or "",
-                tuple(sorted(_collect_mountpoints(device))),
+                tuple(sorted(mountpoints)),
             )
-            for device in usb_devices
         )
-    )
-    if _REPO_DEVICE_SNAPSHOT == snapshot:
-        return set(_REPO_DEVICE_CACHE)
+    snapshot = tuple(sorted(snapshot_entries))
+    return snapshot, device_mounts
+
+
+def _get_repo_device_names() -> Set[str]:
+    """Get the set of device names that are repo drives."""
+    global _REPO_DEVICE_SNAPSHOT, _REPO_DEVICE_CACHE, _REPO_DEVICE_CACHE_TIME
+    now = time.monotonic()
+    cache_age = None if _REPO_DEVICE_CACHE_TIME is None else now - _REPO_DEVICE_CACHE_TIME
+    cache_fresh = cache_age is not None and cache_age < _REPO_DEVICE_CACHE_TTL_SECONDS
+
+    usb_devices: Optional[List[dict]] = None
+    device_mounts: Optional[List[Tuple[dict, Set[str]]]] = None
+    snapshot: Optional[Tuple[Tuple[str, Tuple[str, ...]], ...]] = None
+
+    if cache_fresh:
+        if _REPO_DEVICE_SNAPSHOT is None and not _REPO_DEVICE_CACHE:
+            return set()
+        usb_devices = list_usb_disks()
+        snapshot, device_mounts = _build_repo_snapshot(usb_devices)
+        if _REPO_DEVICE_SNAPSHOT == snapshot:
+            return set(_REPO_DEVICE_CACHE)
 
     repos = find_image_repos()
     if not repos:
-        _REPO_DEVICE_SNAPSHOT = snapshot
+        _REPO_DEVICE_SNAPSHOT = None
         _REPO_DEVICE_CACHE = set()
+        _REPO_DEVICE_CACHE_TIME = now
         return set()
+
+    if usb_devices is None or device_mounts is None or snapshot is None:
+        usb_devices = list_usb_disks()
+        snapshot, device_mounts = _build_repo_snapshot(usb_devices)
 
     repo_devices: Set[str] = set()
     repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
 
-    for device in usb_devices:
-        mountpoints = _collect_mountpoints(device)
+    for device, mountpoints in device_mounts:
         if any(
             _is_repo_on_mount(repo_path, Path(mount).resolve(strict=False))
             for mount in mountpoints
@@ -143,6 +171,7 @@ def _get_repo_device_names() -> Set[str]:
 
     _REPO_DEVICE_SNAPSHOT = snapshot
     _REPO_DEVICE_CACHE = set(repo_devices)
+    _REPO_DEVICE_CACHE_TIME = now
     return repo_devices
 
 
