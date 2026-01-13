@@ -199,7 +199,10 @@ def verify_restored_image(
 
     # Unmount target device and all partitions before verification
     # This prevents dd from blocking when trying to read mounted partitions
-    devices.unmount_device(target_dev)
+    if not devices.unmount_device(target_dev):
+        if progress_callback:
+            progress_callback(["Unmount failed", "Target busy"], None)
+        return False
 
     target_parts = [
         child for child in devices.get_children(target_dev)

@@ -313,7 +313,8 @@ def restore_image(
     """Restore a Clonezilla image to a target device (legacy API)."""
     if os.geteuid() != 0:
         raise RuntimeError("Run as root")
-    devices.unmount_device(target_device)
+    if not devices.unmount_device(target_device):
+        raise RuntimeError("Failed to unmount target device before restore")
     target_node = resolve_device_node(target_device)
     if not image.partition_table:
         raise RuntimeError("Partition table missing")
@@ -403,7 +404,8 @@ def restore_clonezilla_image(
     target_name = Path(target_node).name
     target_info = devices.get_device_by_name(target_name)
     if target_info:
-        devices.unmount_device(target_info)
+        if not devices.unmount_device(target_info):
+            raise RuntimeError("Failed to unmount target device before restore")
 
     emit_prewrite_progress("Checking target size")
     required_size = estimate_required_size_bytes(

@@ -277,7 +277,11 @@ def format_device(
     try:
         if progress_callback:
             progress_callback(["Unmounting..."], 0.0)
-        unmount_device(device)
+        if not unmount_device(device):
+            log_debug("Failed to unmount device; aborting format")
+            if progress_callback:
+                progress_callback(["Unmount failed"], None)
+            return False
     except Exception as error:
         log_debug(f"Failed to unmount device: {error}")
         return False

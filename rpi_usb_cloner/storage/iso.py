@@ -37,7 +37,8 @@ def restore_iso_image(
     target_info = devices.get_device_by_name(target_name)
 
     if target_info:
-        devices.unmount_device(target_info)
+        if not devices.unmount_device(target_info):
+            raise RuntimeError("Failed to unmount target device before ISO restore")
 
     # Get ISO size
     iso_size = iso_path.stat().st_size

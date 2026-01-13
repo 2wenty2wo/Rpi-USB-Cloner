@@ -604,11 +604,9 @@ def create_clonezilla_backup(
     device_node = resolve_device_node(device_info)
 
     # Unmount all partitions
-    try:
-        devices.unmount_device(device_info)
-    except Exception as e:
-        logger.warning(f"Failed to unmount device: {e}")
-        # Continue anyway - unmount failures are logged but not fatal
+    if not devices.unmount_device(device_info):
+        logger.error("Failed to unmount device; aborting backup")
+        raise RuntimeError("Failed to unmount device before backup")
 
     # Get partition information
     all_partitions = get_partition_info(device_info)
