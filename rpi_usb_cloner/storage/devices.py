@@ -63,6 +63,7 @@ Implementation Notes:
     - Must be configured with configure_device_helpers() before use
 """
 import json
+import os
 import re
 import subprocess
 import time
@@ -235,20 +236,51 @@ def list_usb_disks():
     return devices
 
 
-def unmount_device(device):
-    mountpoint = device.get("mountpoint")
-    if mountpoint:
-        try:
-            run_command(["umount", mountpoint], check=False)
-        except subprocess.CalledProcessError:
-            pass
+def _is_mountpoint_active(mountpoint: str) -> bool:
+    try:
+        with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
+            for line in mounts_file:
+                parts = line.split()
+                if len(parts) > 1 and parts[1] == mountpoint:
+                    return True
+    except FileNotFoundError:
+        return os.path.ismount(mountpoint)
+    return False
+
+
+def _collect_device_mountpoints(device: dict) -> list[str]:
+    mountpoints: list[str] = []
     for child in get_children(device):
         mountpoint = child.get("mountpoint")
         if mountpoint:
-            try:
-                run_command(["umount", mountpoint], check=False)
-            except subprocess.CalledProcessError:
-                pass
+            mountpoints.append(mountpoint)
+    mountpoint = device.get("mountpoint")
+    if mountpoint:
+        mountpoints.append(mountpoint)
+    return mountpoints
+
+
+def unmount_device(device) -> bool:
+    mountpoints = _collect_device_mountpoints(device)
+    if not mountpoints:
+        return True
+
+    failed_mounts: list[str] = []
+    for mountpoint in mountpoints:
+        try:
+            result = run_command(["umount", mountpoint], check=False)
+            if getattr(result, "returncode", 0) != 0:
+                failed_mounts.append(mountpoint)
+        except subprocess.CalledProcessError:
+            failed_mounts.append(mountpoint)
+
+    failed_mounts = [mp for mp in failed_mounts if _is_mountpoint_active(mp)]
+    if failed_mounts:
+        _log_debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
+        if _error_handler:
+            _error_handler(["UNMOUNT FAILED", *failed_mounts])
+        return False
+    return True
 
 
 def unmount_device_with_retry(
@@ -264,7 +296,6 @@ def unmount_device_with_retry(
     Returns:
         Tuple of (success, used_lazy_unmount)
     """
-    import os
     import time
 
     device_name = device.get("name")
@@ -273,23 +304,12 @@ def unmount_device_with_retry(
         if log_debug:
             log_debug(msg)
 
-    def is_mountpoint_active(mountpoint: str) -> bool:
-        try:
-            with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
-                for line in mounts_file:
-                    parts = line.split()
-                    if len(parts) > 1 and parts[1] == mountpoint:
-                        return True
-        except FileNotFoundError:
-            return os.path.ismount(mountpoint)
-        return False
-
     def filter_active_mountpoints(
         mountpoint_list: list[tuple[str, str]],
     ) -> list[tuple[str, str]]:
         active = []
         for partition_name, mountpoint in mountpoint_list:
-            if is_mountpoint_active(mountpoint):
+            if _is_mountpoint_active(mountpoint):
                 active.append((partition_name, mountpoint))
             else:
                 log(f"{mountpoint} already unmounted")

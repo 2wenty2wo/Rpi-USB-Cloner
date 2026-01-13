@@ -171,7 +171,10 @@ def clone_device(source, target, mode=None):
 
             return verify_clone(source, target)
         return True
-    unmount_device(target)
+    if not unmount_device(target):
+        display_lines(["FAILED", "Unmount target"])
+        _log_debug("Clone aborted: target unmount failed")
+        return False
     try:
         clone_dd(source, target, total_bytes=source.get("size"), title="CLONING")
     except RuntimeError as error:
@@ -193,7 +196,10 @@ def clone_device_smart(source, target):
     """
     source_node = f"/dev/{source.get('name')}"
     target_node = f"/dev/{target.get('name')}"
-    unmount_device(target)
+    if not unmount_device(target):
+        display_lines(["FAILED", "Unmount target"])
+        _log_debug("Smart clone aborted: target unmount failed")
+        return False
     try:
         display_lines(["CLONING", "Copy table"])
         copy_partition_table(source, target)

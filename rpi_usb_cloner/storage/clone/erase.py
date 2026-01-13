@@ -27,7 +27,13 @@ def erase_device(target, mode, progress_callback=None):
         True if successful, False otherwise
     """
     target_node = f"/dev/{target.get('name')}"
-    unmount_device(target)
+    if not unmount_device(target):
+        if progress_callback:
+            progress_callback(["ERROR", "Unmount failed"], None)
+        else:
+            display_lines(["ERROR", "Unmount failed"])
+        _log_debug("Erase aborted: target unmount failed")
+        return False
     mode = (mode or "").lower()
     device_label = format_device_label(target)
     mode_label = mode.upper() if mode else None
