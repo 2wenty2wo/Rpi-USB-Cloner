@@ -17,6 +17,9 @@ USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonn
 
 Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
+<p align="center">
+  <img src="rpi_usb_cloner/ui/assets/rpi_usb_cloner.png" alt="Rpi USB Cloner" />
+</p>
 
 ## ✨ Features
 
