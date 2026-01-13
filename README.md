@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="rpi_usb_cloner/ui/assets/rpi_usb_cloner.png" alt="Rpi USB Cloner" />
+  <img src="rpi_usb_cloner/ui/assets/demo1.png" alt="Rpi USB Cloner" />
 </p>
 
 <p align="center">
