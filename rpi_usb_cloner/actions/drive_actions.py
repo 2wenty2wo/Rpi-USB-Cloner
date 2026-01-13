@@ -8,6 +8,7 @@ from typing import Callable, Iterable, Optional, Set
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device, erase_device
@@ -103,7 +104,13 @@ def copy_drive(
                     return
             current_C = gpio.read_button(gpio.PIN_C)
             if prev_states["C"] and not current_C:
-                _log_debug(log_debug, "Copy menu: Button C pressed (ignored)")
+                _log_debug(log_debug, "Copy menu: Button C pressed")
+                if _handle_screenshot():
+                    screens.render_confirmation_screen(
+                        title,
+                        [prompt],
+                        selected_index=confirm_selection,
+                    )
             prev_states["R"] = current_R
             prev_states["L"] = current_L
             prev_states["B"] = current_B
@@ -130,7 +137,9 @@ def drive_info(
         get_selected_usb_name=get_selected_usb_name,
         page_index=page_index,
     )
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_C]
+    )
     last_selected_name = get_selected_usb_name()
     prev_states = {
         "A": gpio.read_button(gpio.PIN_A),
@@ -138,6 +147,7 @@ def drive_info(
         "R": gpio.read_button(gpio.PIN_R),
         "U": gpio.read_button(gpio.PIN_U),
         "D": gpio.read_button(gpio.PIN_D),
+        "C": gpio.read_button(gpio.PIN_C),
     }
     while True:
         current_a = gpio.read_button(gpio.PIN_A)
@@ -175,6 +185,14 @@ def drive_info(
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
+        current_c = gpio.read_button(gpio.PIN_C)
+        if prev_states["C"] and not current_c:
+            if _handle_screenshot():
+                total_pages, page_index = _view_devices(
+                    log_debug=log_debug,
+                    get_selected_usb_name=get_selected_usb_name,
+                    page_index=page_index,
+                )
         current_selected_name = get_selected_usb_name()
         if current_selected_name != last_selected_name:
             page_index = 0
@@ -189,6 +207,7 @@ def drive_info(
         prev_states["R"] = current_r
         prev_states["U"] = current_u
         prev_states["D"] = current_d
+        prev_states["C"] = current_c
         time.sleep(0.05)
 
 
@@ -415,7 +434,7 @@ def _confirm_destructive_action(
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
-            gpio.PIN_C: lambda: None,  # Ignored
+            gpio.PIN_C: lambda: (_handle_screenshot(), None)[1],
         },
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render,
@@ -887,7 +906,7 @@ def format_drive(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -905,7 +924,7 @@ def format_drive(
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel - no label
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
-            gpio.PIN_C: lambda: None,
+            gpio.PIN_C: lambda: _handle_screenshot() or None,
         },
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render,
@@ -1071,7 +1090,7 @@ def unmount_drive(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -1089,7 +1108,7 @@ def unmount_drive(
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
-            gpio.PIN_C: lambda: None,
+            gpio.PIN_C: lambda: _handle_screenshot() or None,
         },
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render,
@@ -1128,7 +1147,7 @@ def unmount_drive(
         )
 
     render_poweroff()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
 
     power_off_confirmed = gpio.poll_button_events(
         {
@@ -1136,7 +1155,7 @@ def unmount_drive(
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
-            gpio.PIN_C: lambda: None,
+            gpio.PIN_C: lambda: _handle_screenshot() or None,
         },
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render_poweroff,
@@ -1154,3 +1173,14 @@ def unmount_drive(
 def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
     if log_debug:
         log_debug(message)
+
+
+def _handle_screenshot() -> bool:
+    if not settings.get_bool("screenshots_enabled", default=False):
+        return False
+    screenshot_path = display.capture_screenshot()
+    if screenshot_path:
+        screens.render_status_template("SCREENSHOT", f"Saved to {screenshot_path.name}")
+        time.sleep(1.5)
+        return True
+    return False
