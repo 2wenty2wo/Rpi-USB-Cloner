@@ -434,7 +434,7 @@ def _confirm_destructive_action(
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
-            gpio.PIN_C: lambda: _handle_screenshot() or None,
+            gpio.PIN_C: lambda: (_handle_screenshot(), None)[1],
         },
         poll_interval=menus.BUTTON_POLL_DELAY,
         loop_callback=render,
