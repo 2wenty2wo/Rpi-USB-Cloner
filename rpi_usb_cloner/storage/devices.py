@@ -265,16 +265,22 @@ def unmount_device(device) -> bool:
     if not mountpoints:
         return True
 
-    success, _used_lazy = unmount_device_with_retry(device, log_debug=_log_debug)
-    if success:
-        return True
+    failed_mounts: list[str] = []
+    for mountpoint in mountpoints:
+        try:
+            result = run_command(["umount", mountpoint], check=False)
+            if getattr(result, "returncode", 0) != 0:
+                failed_mounts.append(mountpoint)
+        except subprocess.CalledProcessError:
+            failed_mounts.append(mountpoint)
 
-    failed_mounts = [mp for mp in mountpoints if _is_mountpoint_active(mp)]
+    failed_mounts = [mp for mp in failed_mounts if _is_mountpoint_active(mp)]
     if failed_mounts:
         _log_debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
         if _error_handler:
             _error_handler(["UNMOUNT FAILED", *failed_mounts])
-    return False
+        return False
+    return True
 
 
 def unmount_device_with_retry(
