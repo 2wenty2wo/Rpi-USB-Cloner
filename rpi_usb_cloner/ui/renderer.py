@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Iterable, Optional
 
 from rpi_usb_cloner.ui import display
@@ -39,6 +40,33 @@ def _truncate_text(text: str, font, max_width: int) -> str:
     return f"{trimmed}{ellipsis}"
 
 
+def calculate_horizontal_scroll_offset(
+    *,
+    now: float,
+    scroll_start_time: Optional[float],
+    text_width: float,
+    max_width: int,
+    scroll_gap: int = 20,
+    target_cycle_seconds: float = 6.0,
+    scroll_start_delay: float = 0.0,
+) -> int:
+    if scroll_start_time is None or text_width <= max_width:
+        return 0
+    elapsed = max(0.0, now - scroll_start_time)
+    pause_duration = max(0.0, scroll_start_delay)
+    cycle_width = text_width + scroll_gap
+    target_cycle_seconds = max(0.0, target_cycle_seconds)
+    travel_duration = max(0.0, target_cycle_seconds - pause_duration)
+    cycle_duration = pause_duration + travel_duration
+    if cycle_width > 0 and travel_duration > 0 and cycle_duration > 0:
+        scroll_speed = cycle_width / travel_duration
+        phase = elapsed % cycle_duration
+        if phase >= pause_duration:
+            travel_phase = phase - pause_duration
+            return -int((travel_phase * scroll_speed) % cycle_width)
+    return 0
+
+
 def render_menu_screen(
     title: str,
     items: Iterable[str],
@@ -51,10 +79,23 @@ def render_menu_screen(
     title_icon_font=None,
     items_font=None,
     status_font=None,
+    footer: Optional[Iterable[str]] = None,
+    footer_positions: Optional[Iterable[int]] = None,
+    footer_selected_index: Optional[int] = None,
+    footer_font=None,
+    content_top: Optional[int] = None,
+    enable_horizontal_scroll: bool = False,
+    scroll_start_time: Optional[float] = None,
+    scroll_start_delay: float = 0.0,
+    target_cycle_seconds: float = 6.0,
+    scroll_gap: int = 20,
+    screen_id: Optional[str] = None,
+    clear: bool = True,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
-    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    if clear:
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
     current_y = context.top
     extra_gap = 1
@@ -69,6 +110,8 @@ def render_menu_screen(
             left_margin=context.x - 11,
         )
         current_y = layout.content_top
+    if content_top is not None:
+        current_y = max(current_y, content_top)
     content_top = current_y
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
@@ -84,6 +127,8 @@ def render_menu_screen(
         items_font=items_font,
         status_font=status_font,
         title_icon_font=title_icon_font,
+        footer=footer,
+        footer_font=footer_font,
     )
     visible_rows = min(visible_rows, max_visible_rows)
 
@@ -98,9 +143,15 @@ def render_menu_screen(
     if needs_scrollbar:
         max_item_width -= scrollbar_width + scrollbar_padding
     max_item_width = max(0, max_item_width)
-    items_list = [
-        _truncate_text(item, list_font, max_item_width) for item in items_seq
-    ]
+    items_list: list[str] = []
+    item_widths: list[float] = []
+    for item_index, item in enumerate(items_seq):
+        item_width = _measure_text_width(list_font, item)
+        item_widths.append(item_width)
+        if enable_horizontal_scroll and item_index == selected_index and screen_id == "images":
+            items_list.append(item)
+        else:
+            items_list.append(_truncate_text(item, list_font, max_item_width))
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
@@ -108,11 +159,38 @@ def render_menu_screen(
         text_y = row_top + max(0, (row_height - line_height) // 2)
         is_selected = item_index == selected_index
         text_color = 255
+        x_offset = 0
+        if enable_horizontal_scroll and is_selected and screen_id == "images":
+            x_offset = calculate_horizontal_scroll_offset(
+                now=time.monotonic(),
+                scroll_start_time=scroll_start_time,
+                text_width=item_widths[item_index],
+                max_width=max_item_width,
+                scroll_gap=scroll_gap,
+                target_cycle_seconds=target_cycle_seconds,
+                scroll_start_delay=scroll_start_delay,
+            )
+        # Draw text with offset for alignment
+        draw.text(
+            (left_margin + selector_width + x_offset, text_y),
+            items_list[item_index],
+            font=list_font,
+            fill=text_color,
+        )
+        if enable_horizontal_scroll and is_selected and screen_id == "images":
+            draw.rectangle(
+                (
+                    0,
+                    row_top,
+                    left_margin + selector_width,
+                    row_top + row_height,
+                ),
+                outline=0,
+                fill=0,
+            )
         # Draw selector for selected item
         if is_selected:
             draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
-        # Draw text with offset for alignment
-        draw.text((left_margin + selector_width, text_y), items_list[item_index], font=list_font, fill=text_color)
 
     footer_font = None
     footer_height = 0
@@ -120,6 +198,11 @@ def render_menu_screen(
     footer_y = 0
     if status_line:
         footer_font = status_font or list_font
+        footer_height = _get_line_height(footer_font)
+        footer_y = context.height - footer_height - footer_padding
+        content_bottom = footer_y - footer_padding
+    elif footer:
+        footer_font = footer_font or context.fonts.get("footer", context.fontdisks)
         footer_height = _get_line_height(footer_font)
         footer_y = context.height - footer_height - footer_padding
         content_bottom = footer_y - footer_padding
@@ -176,6 +259,26 @@ def render_menu_screen(
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
         draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)
+    elif footer:
+        footer_items = list(footer)
+        footer_positions_list = list(footer_positions) if footer_positions is not None else []
+        if not footer_positions_list:
+            spacing = context.width // (len(footer_items) + 1)
+            footer_positions_list = [
+                (spacing * (index + 1)) - 10 for index in range(len(footer_items))
+            ]
+        for footer_index, label in enumerate(footer_items):
+            x_pos = footer_positions_list[footer_index]
+            text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
+            if footer_selected_index is not None and footer_index == footer_selected_index:
+                draw.rectangle(
+                    (text_bbox[0] - 3, text_bbox[1] - 1, text_bbox[2] + 3, text_bbox[3] + 2),
+                    outline=0,
+                    fill=1,
+                )
+                draw.text((x_pos, footer_y), label, font=footer_font, fill=0)
+            else:
+                draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
 
     context.disp.display(context.image)
 
@@ -189,6 +292,9 @@ def calculate_visible_rows(
     status_font=None,
     title_icon_font=None,
     padding: int = 1,
+    footer: Optional[Iterable[str]] = None,
+    footer_font=None,
+    footer_padding: int = 1,
 ) -> int:
     context = display.get_display_context()
     current_y = context.top
@@ -212,6 +318,10 @@ def calculate_visible_rows(
         footer_height = _get_line_height(footer_font)
         # Add minimum gap between menu items and footer to prevent overlap
         footer_gap = 4
+    elif footer:
+        footer_font = footer_font or context.fonts.get("footer", context.fontdisks)
+        footer_height = _get_line_height(footer_font)
+        footer_gap = footer_padding
 
     available_height = context.height - current_y - footer_height - footer_gap - padding
     return max(1, available_height // row_height)

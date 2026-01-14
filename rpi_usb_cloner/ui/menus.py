@@ -254,23 +254,27 @@ def select_list(
         if content_top is not None
         else get_standard_content_top(title, title_font=title_font, title_icon=title_icon)
     )
-    footer_height = 15 if footer else 0
-    line_height = _get_line_height(items_font)
-    row_height = line_height + 2
-    available_height = context.height - content_top - footer_height
-    items_per_page = max(1, available_height // row_height)
+    visible_rows = renderer.calculate_visible_rows(
+        title=title,
+        title_icon=title_icon,
+        title_font=title_font,
+        items_font=items_font,
+        footer=footer,
+    )
     selected_index = max(0, min(selected_index, len(items) - 1))
     enable_scroll = enable_horizontal_scroll or (scroll_mode == "horizontal")
-    left_margin = context.x - 11
-    max_width = context.width - left_margin - 1
+    scroll_offset = 0
 
-    def render(selected: int, *, scroll_start_time: Optional[float] = None) -> None:
-        offset = (selected // items_per_page) * items_per_page
-        page_items = items[offset : offset + items_per_page]
-        menu_items = []
-        for line in page_items:
-            line_width = display._measure_text_width(context.draw, line, items_font)
-            menu_items.append(MenuItem([line], [int(line_width)]))
+    def clamp_scroll_offset(selected: int, offset: int) -> int:
+        if selected < offset:
+            offset = selected
+        elif selected >= offset + visible_rows:
+            offset = selected - visible_rows + 1
+        max_scroll = max(len(items) - visible_rows, 0)
+        return max(0, min(offset, max_scroll))
+
+    def render(selected: int, offset: int, *, scroll_start_time: Optional[float] = None) -> int:
+        offset = clamp_scroll_offset(selected, offset)
         if header_lines:
             header_content_top = get_standard_content_top(
                 title,
@@ -286,34 +290,27 @@ def select_list(
                 items_font=items_font,
                 title_icon=title_icon,
             )
-        menu = Menu(
-            items=menu_items,
-            selected_index=selected - offset,
+        renderer.render_menu_screen(
             title=None if header_lines else title,
-            title_icon=title_icon,
-            screen_id=screen_id,
+            items=items,
+            selected_index=selected,
+            scroll_offset=offset,
+            visible_rows=visible_rows,
             title_font=title_font,
-            content_top=content_top,
+            title_icon=title_icon,
+            items_font=items_font,
             footer=footer,
             footer_positions=footer_positions,
-            items_font=items_font,
+            content_top=content_top,
             enable_horizontal_scroll=enable_scroll,
-            scroll_speed=scroll_speed,
-            target_cycle_seconds=target_cycle_seconds,
-            scroll_gap=scroll_gap,
             scroll_start_time=scroll_start_time,
             scroll_start_delay=scroll_start_delay,
-            max_width=max_width,
-        )
-        render_menu(
-            menu,
-            context.draw,
-            context.width,
-            context.height,
-            context.fonts,
+            target_cycle_seconds=target_cycle_seconds,
+            scroll_gap=scroll_gap,
+            screen_id=screen_id,
             clear=not header_lines,
         )
-        context.disp.display(context.image)
+        return offset
 
     if scroll_refresh_interval is None:
         scroll_refresh_interval = settings.get_setting(
@@ -323,7 +320,7 @@ def select_list(
     scroll_refresh_interval = max(0.02, float(scroll_refresh_interval))
 
     scroll_start_time = time.monotonic() if enable_scroll else None
-    render(selected_index, scroll_start_time=scroll_start_time)
+    scroll_offset = render(selected_index, scroll_offset, scroll_start_time=scroll_start_time)
     last_rendered_index = selected_index
     last_refresh_time = time.monotonic()
     last_scroll_render = time.monotonic()
@@ -357,7 +354,11 @@ def select_list(
                 if selected_index >= len(items):
                     selected_index = len(items) - 1
                 scroll_start_time = time.monotonic() if enable_scroll else None
-                render(selected_index, scroll_start_time=scroll_start_time)
+                scroll_offset = render(
+                    selected_index,
+                    scroll_offset,
+                    scroll_start_time=scroll_start_time,
+                )
                 last_rendered_index = selected_index
         current_u = read_button(PIN_U)
         if prev_states["U"] and not current_u:
@@ -396,7 +397,7 @@ def select_list(
         current_l = read_button(PIN_L)
         if prev_states["L"] and not current_l:
             action_taken = True
-            next_index = max(0, selected_index - items_per_page)
+            next_index = max(0, selected_index - visible_rows)
             if next_index != selected_index:
                 selected_index = next_index
                 scroll_start_time = time.monotonic() if enable_scroll else None
@@ -405,7 +406,7 @@ def select_list(
         elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 action_taken = True
-                next_index = max(0, selected_index - items_per_page)
+                next_index = max(0, selected_index - visible_rows)
                 if next_index != selected_index:
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
@@ -413,7 +414,7 @@ def select_list(
         current_r = read_button(PIN_R)
         if prev_states["R"] and not current_r:
             action_taken = True
-            next_index = min(len(items) - 1, selected_index + items_per_page)
+            next_index = min(len(items) - 1, selected_index + visible_rows)
             if next_index != selected_index:
                 selected_index = next_index
                 scroll_start_time = time.monotonic() if enable_scroll else None
@@ -422,7 +423,7 @@ def select_list(
         elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 action_taken = True
-                next_index = min(len(items) - 1, selected_index + items_per_page)
+                next_index = min(len(items) - 1, selected_index + visible_rows)
                 if next_index != selected_index:
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
@@ -442,7 +443,11 @@ def select_list(
         prev_states["B"] = current_b
         prev_states["C"] = current_c
         if (selected_index != last_rendered_index and action_taken) or refresh_needed:
-            render(selected_index, scroll_start_time=scroll_start_time)
+            scroll_offset = render(
+                selected_index,
+                scroll_offset,
+                scroll_start_time=scroll_start_time,
+            )
             last_rendered_index = selected_index
         time.sleep(BUTTON_POLL_DELAY)
 
