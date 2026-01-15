@@ -131,13 +131,29 @@ async def handle_screen_png(request: web.Request) -> web.Response:
 
 
 async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams OLED display updates.
+
+    This handler waits for display updates (dirty flag) before sending frames,
+    which prevents flickering caused by capturing partial renders.
+    """
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
     try:
+        # Send initial frame
+        png_bytes = display.get_display_png_bytes()
+        await ws.send_bytes(png_bytes)
+        display.clear_dirty_flag()
+
         while not ws.closed:
+            # Wait for display to be updated (with timeout to keep connection alive)
+            await asyncio.get_event_loop().run_in_executor(
+                None, display.wait_for_display_update, FRAME_DELAY_SECONDS
+            )
+            if ws.closed:
+                break
             png_bytes = display.get_display_png_bytes()
             await ws.send_bytes(png_bytes)
-            await asyncio.sleep(FRAME_DELAY_SECONDS)
+            display.clear_dirty_flag()
     except asyncio.CancelledError:
         raise
     except Exception:

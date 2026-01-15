@@ -82,6 +82,7 @@ See Also:
 """
 import os
 import time
+import threading
 from io import BytesIO
 from dataclasses import dataclass
 from datetime import datetime
@@ -122,6 +123,8 @@ class DisplayContext:
 
 _context: Optional[DisplayContext] = None
 _log_debug = None
+_display_lock = threading.RLock()
+_display_dirty = threading.Event()
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TITLE_PADDING = 0
 TITLE_ICON_PADDING = 2
@@ -157,11 +160,35 @@ def get_display_context() -> DisplayContext:
     return _context
 
 
+def mark_display_dirty() -> None:
+    """Mark the display as dirty (changed) to notify websocket clients."""
+    _display_dirty.set()
+
+
+def wait_for_display_update(timeout: float = 1.0) -> bool:
+    """Wait for the display to be updated (dirty flag set).
+
+    Args:
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        True if display was updated, False if timeout occurred
+    """
+    return _display_dirty.wait(timeout)
+
+
+def clear_dirty_flag() -> None:
+    """Clear the dirty flag after consuming an update."""
+    _display_dirty.clear()
+
+
 def clear_display() -> None:
     context = get_display_context()
-    context.disp.clear()
-    context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    context.disp.display(context.image)
+    with _display_lock:
+        context.disp.clear()
+        context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        context.disp.display(context.image)
+        mark_display_dirty()
 
 
 def capture_screenshot() -> Optional[Path]:
@@ -210,12 +237,17 @@ def capture_screenshot() -> Optional[Path]:
 
 
 def get_display_png_bytes() -> bytes:
-    """Return the current OLED frame buffer as PNG bytes."""
+    """Return the current OLED frame buffer as PNG bytes.
+
+    This function is thread-safe and will acquire the display lock
+    to ensure a consistent snapshot of the display buffer.
+    """
     context = get_display_context()
-    buffer = BytesIO()
-    image = context.image.copy()
-    image.save(buffer, format="PNG")
-    return buffer.getvalue()
+    with _display_lock:
+        buffer = BytesIO()
+        image = context.image.copy()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
 
 
 def init_display() -> DisplayContext:
@@ -272,13 +304,15 @@ def init_display() -> DisplayContext:
 def display_lines(lines, font=None):
     context = get_display_context()
     draw = context.draw
-    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    y = context.top
-    font_to_use = font or context.fontdisks
-    for line in lines[:6]:
-        draw.text((context.x - 11, y), line, font=font_to_use, fill=255)
-        y += 10
-    context.disp.display(context.image)
+    with _display_lock:
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        y = context.top
+        font_to_use = font or context.fontdisks
+        for line in lines[:6]:
+            draw.text((context.x - 11, y), line, font=font_to_use, fill=255)
+            y += 10
+        context.disp.display(context.image)
+        mark_display_dirty()
 
 
 def _get_line_height(font, min_height=8):
@@ -473,52 +507,54 @@ def render_paginated_lines(
 ):
     context = get_display_context()
     draw = context.draw
-    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    current_y = context.top
-    header_font = title_font or context.fonts.get("title", context.fontdisks)
-    if title:
-        layout = draw_title_with_icon(
-            title,
-            title_font=header_font,
-            icon=title_icon,
-            icon_font=title_icon_font,
-            extra_gap=2,
-            left_margin=context.x - 11,
-        )
-        current_y = layout.content_top
-    if content_top is not None:
-        current_y = max(current_y, content_top)
-    items_font = items_font or context.fontdisks
-    left_margin = context.x - 11
-    available_width = max(0, context.width - left_margin)
-    lines = _wrap_lines_to_width(lines, items_font, available_width)
-    line_height = _get_line_height(items_font)
-    line_step = line_height + 2
-    available_height = context.height - current_y - 2
-    lines_per_page = max(1, available_height // line_step)
-    total_pages = max(1, (len(lines) + lines_per_page - 1) // lines_per_page)
-    page_index = max(0, min(page_index, total_pages - 1))
-    start = page_index * lines_per_page
-    end = start + lines_per_page
-    page_lines = lines[start:end]
-    for line in page_lines:
-        draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
-        current_y += line_step
-    if total_pages > 1:
-        left_indicator = "<" if page_index > 0 else ""
-        right_indicator = ">" if page_index < total_pages - 1 else ""
-        indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
-        indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
-        indicator_width = indicator_bbox[2] - indicator_bbox[0]
-        indicator_height = indicator_bbox[3] - indicator_bbox[1]
-        draw.text(
-            (context.width - indicator_width - 2, context.height - indicator_height - 2),
-            indicator,
-            font=items_font,
-            fill=255,
-        )
-    context.disp.display(context.image)
-    return total_pages, page_index
+    with _display_lock:
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        current_y = context.top
+        header_font = title_font or context.fonts.get("title", context.fontdisks)
+        if title:
+            layout = draw_title_with_icon(
+                title,
+                title_font=header_font,
+                icon=title_icon,
+                icon_font=title_icon_font,
+                extra_gap=2,
+                left_margin=context.x - 11,
+            )
+            current_y = layout.content_top
+        if content_top is not None:
+            current_y = max(current_y, content_top)
+        items_font = items_font or context.fontdisks
+        left_margin = context.x - 11
+        available_width = max(0, context.width - left_margin)
+        lines = _wrap_lines_to_width(lines, items_font, available_width)
+        line_height = _get_line_height(items_font)
+        line_step = line_height + 2
+        available_height = context.height - current_y - 2
+        lines_per_page = max(1, available_height // line_step)
+        total_pages = max(1, (len(lines) + lines_per_page - 1) // lines_per_page)
+        page_index = max(0, min(page_index, total_pages - 1))
+        start = page_index * lines_per_page
+        end = start + lines_per_page
+        page_lines = lines[start:end]
+        for line in page_lines:
+            draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
+            current_y += line_step
+        if total_pages > 1:
+            left_indicator = "<" if page_index > 0 else ""
+            right_indicator = ">" if page_index < total_pages - 1 else ""
+            indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+            indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
+            indicator_width = indicator_bbox[2] - indicator_bbox[0]
+            indicator_height = indicator_bbox[3] - indicator_bbox[1]
+            draw.text(
+                (context.width - indicator_width - 2, context.height - indicator_height - 2),
+                indicator,
+                font=items_font,
+                fill=255,
+            )
+        context.disp.display(context.image)
+        mark_display_dirty()
+        return total_pages, page_index
 
 
 def basemenu(state: app_state.AppState) -> None:
@@ -527,49 +563,51 @@ def basemenu(state: app_state.AppState) -> None:
     context = get_display_context()
     devices = list_media_devices()
     devices_present = bool(devices)
-    if not devices:
-        context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        text = "INSERT USB"
-        text_bbox = context.draw.textbbox((0, 0), text, font=context.fontinsert)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        text_x = (context.width - text_width) // 2
-        text_y = (context.height - text_height) // 2
-        context.draw.text((text_x, text_y), text, font=context.fontinsert, fill=255)
-        state.usb_list_index = 0
-    else:
-        if state.usb_list_index >= len(devices):
-            state.usb_list_index = max(len(devices) - 1, 0)
-        menu_items = []
-        for device in devices:
-            menu_items.append(
-                MenuItem(
-                    [
-                        f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB",
-                        f"{get_vendor(device)} {get_model(device)}",
-                    ]
+    with _display_lock:
+        if not devices:
+            context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+            text = "INSERT USB"
+            text_bbox = context.draw.textbbox((0, 0), text, font=context.fontinsert)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            text_x = (context.width - text_width) // 2
+            text_y = (context.height - text_height) // 2
+            context.draw.text((text_x, text_y), text, font=context.fontinsert, fill=255)
+            state.usb_list_index = 0
+        else:
+            if state.usb_list_index >= len(devices):
+                state.usb_list_index = max(len(devices) - 1, 0)
+            menu_items = []
+            for device in devices:
+                menu_items.append(
+                    MenuItem(
+                        [
+                            f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB",
+                            f"{get_vendor(device)} {get_model(device)}",
+                        ]
+                    )
                 )
+            start_index = max(0, state.usb_list_index - 1)
+            max_start = max(len(menu_items) - app_state.VISIBLE_ROWS, 0)
+            if start_index > max_start:
+                start_index = max_start
+            visible_items = menu_items[start_index : start_index + app_state.VISIBLE_ROWS]
+            visible_selected_index = state.usb_list_index - start_index
+            if state.index not in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+                state.index = app_state.MENU_COPY
+            footer_selected = None
+            if state.index in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+                footer_selected = state.index
+            menu = Menu(
+                items=visible_items,
+                selected_index=visible_selected_index,
+                footer=["COPY", "VIEW", "ERASE"],
+                footer_selected_index=footer_selected,
+                footer_positions=[context.x - 11, context.x + 32, context.x + 71],
             )
-        start_index = max(0, state.usb_list_index - 1)
-        max_start = max(len(menu_items) - app_state.VISIBLE_ROWS, 0)
-        if start_index > max_start:
-            start_index = max_start
-        visible_items = menu_items[start_index : start_index + app_state.VISIBLE_ROWS]
-        visible_selected_index = state.usb_list_index - start_index
-        if state.index not in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
-            state.index = app_state.MENU_COPY
-        footer_selected = None
-        if state.index in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
-            footer_selected = state.index
-        menu = Menu(
-            items=visible_items,
-            selected_index=visible_selected_index,
-            footer=["COPY", "VIEW", "ERASE"],
-            footer_selected_index=footer_selected,
-            footer_positions=[context.x - 11, context.x + 32, context.x + 71],
-        )
-        render_menu(menu, context.draw, context.width, context.height, context.fonts)
-    context.disp.display(context.image)
+            render_menu(menu, context.draw, context.width, context.height, context.fonts)
+        context.disp.display(context.image)
+        mark_display_dirty()
     state.lcdstart = datetime.now()
     state.run_once = 0
     if not devices_present:
