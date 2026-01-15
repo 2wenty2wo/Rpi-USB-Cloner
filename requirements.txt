@@ -11,3 +11,6 @@ luma.oled==3.12.0
 
 # Raspberry Pi GPIO control
 RPi.GPIO==0.7.1
+
+# Web server (HTTP + WebSocket)
+aiohttp==3.9.5
