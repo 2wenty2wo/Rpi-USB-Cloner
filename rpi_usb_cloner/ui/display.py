@@ -82,6 +82,7 @@ See Also:
 """
 import os
 import time
+from io import BytesIO
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -206,6 +207,15 @@ def capture_screenshot() -> Optional[Path]:
         if _log_debug:
             _log_debug(f"Screenshot failed: {error}")
         return None
+
+
+def get_display_png_bytes() -> bytes:
+    """Return the current OLED frame buffer as PNG bytes."""
+    context = get_display_context()
+    buffer = BytesIO()
+    image = context.image.copy()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 def init_display() -> DisplayContext:
