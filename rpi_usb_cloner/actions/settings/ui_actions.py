@@ -161,17 +161,3 @@ def toggle_screenshots() -> None:
     status = "ENABLED" if enabled else "DISABLED"
     screens.render_status_template("SCREENSHOTS", f"Screenshots {status}")
     time.sleep(1.5)
-
-
-def toggle_web_server() -> None:
-    """Toggle web server enabled/disabled."""
-    enabled = settings.get_bool("web_server_enabled", default=False)
-    enabled = not enabled
-    settings.set_bool("web_server_enabled", enabled)
-    status = "ENABLED" if enabled else "DISABLED"
-    screens.render_status_template(
-        "WEB SERVER",
-        f"Web server {status}",
-        progress_line="Restart required",
-    )
-    time.sleep(2.0)

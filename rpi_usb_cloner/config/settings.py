@@ -24,7 +24,6 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "verify_partition_hash_timeout_seconds": None,
     "screenshots_enabled": False,
     "screenshots_dir": "/home/pi/oled_screenshots",
-    "web_server_enabled": False,
 }
 
 
