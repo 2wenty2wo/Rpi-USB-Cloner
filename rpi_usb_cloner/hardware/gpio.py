@@ -3,8 +3,6 @@ from typing import Callable, Dict, Optional, Any
 
 import RPi.GPIO as GPIO
 
-from rpi_usb_cloner.hardware import virtual_gpio
-
 PIN_A = 5
 PIN_B = 6
 PIN_L = 27
@@ -24,19 +22,7 @@ def setup_gpio():
 
 
 def read_button(pin):
-    """Read button state from GPIO pin or virtual button press.
-
-    Returns GPIO.HIGH (1) if not pressed, GPIO.LOW (0) if pressed.
-    Virtual button presses from the web UI are merged with physical button states.
-    """
-    physical_state = GPIO.input(pin)
-    # If physical button is pressed, return LOW
-    if physical_state == GPIO.LOW:
-        return GPIO.LOW
-    # Otherwise check for virtual press
-    if virtual_gpio.has_virtual_press(pin):
-        return GPIO.LOW
-    return GPIO.HIGH
+    return GPIO.input(pin)
 
 
 def read_buttons(pins):

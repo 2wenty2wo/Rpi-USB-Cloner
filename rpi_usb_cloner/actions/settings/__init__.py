@@ -37,7 +37,6 @@ from .ui_actions import (
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
-    toggle_web_server,
     wifi_settings,
 )
 from .update_manager import (
@@ -66,7 +65,6 @@ __all__ = [
     "heroicons_demo",
     "preview_title_font",
     "toggle_screenshots",
-    "toggle_web_server",
     # Update manager
     "update_version",
     "get_update_status",
