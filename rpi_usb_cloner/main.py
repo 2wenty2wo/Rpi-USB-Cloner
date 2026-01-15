@@ -119,6 +119,7 @@ from rpi_usb_cloner.storage.mount import (
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
+from rpi_usb_cloner.web import server as web_server
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu.model import get_screen_icon
@@ -178,6 +179,10 @@ def main(argv=None):
     display.set_display_context(context)
     app_context.display = context
     display.configure_display_helpers(log_debug=log_debug)
+    try:
+        web_server.start_server(log_debug=log_debug)
+    except OSError as error:
+        log_debug(f"Web server failed to start: {error}")
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
     configure_format_helpers(log_debug=log_debug)
