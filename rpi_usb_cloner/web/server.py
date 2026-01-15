@@ -148,7 +148,7 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
 
 
 def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=None):
-    runner_queue: "queue.Queue[Optional[web.AppRunner]]"
+    runner_queue: "queue.Queue[tuple[str, object]]"
     import queue
 
     runner_queue = queue.Queue(maxsize=1)
@@ -168,8 +168,13 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
             await site.start()
             return runner
 
-        runner = loop.run_until_complete(start_site())
-        runner_queue.put(runner)
+        try:
+            runner = loop.run_until_complete(start_site())
+        except Exception as exc:
+            runner_queue.put(("error", exc))
+            loop.close()
+            return
+        runner_queue.put(("ok", runner))
         if log_debug:
             log_debug(f"Web server started at http://{host}:{port}")
         try:
@@ -180,5 +185,11 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
 
     thread = threading.Thread(target=run_app, daemon=True)
     thread.start()
-    runner = runner_queue.get()
+    try:
+        status, payload = runner_queue.get(timeout=5)
+    except queue.Empty as exc:
+        raise TimeoutError("Web server failed to start within timeout.") from exc
+    if status == "error":
+        raise payload
+    runner = payload
     return runner, thread
