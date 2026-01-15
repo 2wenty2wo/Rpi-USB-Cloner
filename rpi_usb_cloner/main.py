@@ -179,10 +179,18 @@ def main(argv=None):
     display.set_display_context(context)
     app_context.display = context
     display.configure_display_helpers(log_debug=log_debug)
-    try:
-        web_server.start_server(log_debug=log_debug)
-    except OSError as error:
-        log_debug(f"Web server failed to start: {error}")
+    web_server_enabled = os.environ.get("WEB_SERVER_ENABLED", "1").lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+    if web_server_enabled:
+        try:
+            web_server.start_server(log_debug=log_debug)
+        except OSError as error:
+            log_debug(f"Web server failed to start: {error}")
+    else:
+        log_debug("Web server disabled via WEB_SERVER_ENABLED")
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
     configure_format_helpers(log_debug=log_debug)

@@ -1,14 +1,17 @@
 """Minimal HTTP server for serving the OLED display buffer."""
 from __future__ import annotations
 
+import asyncio
 import threading
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Optional
+
+from aiohttp import web
 
 from rpi_usb_cloner.ui import display
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
+FRAME_DELAY_SECONDS = 0.15
 
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="en">
@@ -47,11 +50,11 @@ HTML_PAGE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       margin-bottom: 16px;
+      overflow: hidden;
     }
-    .screen img {
+    .screen canvas {
       width: 100%;
       height: 100%;
-      object-fit: contain;
       image-rendering: pixelated;
     }
     .buttons {
@@ -77,7 +80,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <div class="panel">
     <h1>OLED Display</h1>
     <div class="screen">
-      <img src="/screen.png" alt="OLED screen preview" />
+      <canvas id="screen" width="128" height="64"></canvas>
     </div>
     <div class="buttons">
       <button>UP</button>
@@ -88,41 +91,94 @@ HTML_PAGE = """<!DOCTYPE html>
       <button>RIGHT</button>
     </div>
   </div>
+  <script>
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${protocol}//${window.location.host}/ws/screen`;
+    const socket = new WebSocket(socketUrl);
+    socket.binaryType = 'arraybuffer';
+
+    socket.addEventListener('message', async (event) => {
+      const blob = new Blob([event.data], { type: 'image/png' });
+      const bitmap = await createImageBitmap(blob);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (typeof bitmap.close === 'function') {
+        bitmap.close();
+      }
+    });
+  </script>
 </body>
 </html>
 """
 
 
-class DisplayRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
-        if self.path.startswith("/screen.png"):
-            png_bytes = display.get_display_png_bytes()
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "image/png")
-            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-            self.send_header("Pragma", "no-cache")
-            self.send_header("Content-Length", str(len(png_bytes)))
-            self.end_headers()
-            self.wfile.write(png_bytes)
-            return
-        if self.path == "/" or self.path.startswith("/?"):
-            body = HTML_PAGE.encode("utf-8")
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-            return
-        self.send_error(HTTPStatus.NOT_FOUND, "Not Found")
+def _build_headers() -> dict[str, str]:
+    return {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+    }
 
-    def log_message(self, format: str, *args) -> None:
-        return
+
+async def handle_root(request: web.Request) -> web.Response:
+    return web.Response(text=HTML_PAGE, content_type="text/html", headers=_build_headers())
+
+
+async def handle_screen_png(request: web.Request) -> web.Response:
+    png_bytes = display.get_display_png_bytes()
+    return web.Response(body=png_bytes, content_type="image/png", headers=_build_headers())
+
+
+async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
+    ws = web.WebSocketResponse(autoping=True)
+    await ws.prepare(request)
+    try:
+        while not ws.closed:
+            png_bytes = display.get_display_png_bytes()
+            await ws.send_bytes(png_bytes)
+            await asyncio.sleep(FRAME_DELAY_SECONDS)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+    finally:
+        await ws.close()
+    return ws
 
 
 def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=None):
-    server = ThreadingHTTPServer((host, port), DisplayRequestHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    runner_queue: "queue.Queue[Optional[web.AppRunner]]"
+    import queue
+
+    runner_queue = queue.Queue(maxsize=1)
+
+    def run_app() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        app = web.Application()
+        app.router.add_get("/", handle_root)
+        app.router.add_get("/screen.png", handle_screen_png)
+        app.router.add_get("/ws/screen", handle_screen_ws)
+
+        async def start_site() -> web.AppRunner:
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, host, port)
+            await site.start()
+            return runner
+
+        runner = loop.run_until_complete(start_site())
+        runner_queue.put(runner)
+        if log_debug:
+            log_debug(f"Web server started at http://{host}:{port}")
+        try:
+            loop.run_forever()
+        finally:
+            loop.run_until_complete(runner.cleanup())
+            loop.close()
+
+    thread = threading.Thread(target=run_app, daemon=True)
     thread.start()
-    if log_debug:
-        log_debug(f"Web server started at http://{host}:{port}")
-    return server, thread
+    runner = runner_queue.get()
+    return runner, thread
