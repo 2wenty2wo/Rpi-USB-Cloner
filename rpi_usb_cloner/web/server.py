@@ -13,6 +13,36 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 FRAME_DELAY_SECONDS = 0.15
 
+
+class DisplayUpdateNotifier:
+    """Async notifier for display updates shared across websocket clients."""
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+        self._condition = asyncio.Condition()
+        self._update_id = 0
+
+    def get_update_id(self) -> int:
+        return self._update_id
+
+    async def wait_for_update(self, last_update_id: int, timeout: float) -> int:
+        async with self._condition:
+            if self._update_id > last_update_id:
+                return self._update_id
+            try:
+                await asyncio.wait_for(self._condition.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                return self._update_id
+            return self._update_id
+
+    async def _mark_update(self) -> None:
+        async with self._condition:
+            self._update_id += 1
+            self._condition.notify_all()
+
+    def mark_update_threadsafe(self) -> None:
+        self._loop.call_soon_threadsafe(lambda: asyncio.create_task(self._mark_update()))
+
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,13 +161,31 @@ async def handle_screen_png(request: web.Request) -> web.Response:
 
 
 async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams OLED display updates.
+
+    This handler waits for display updates (dirty flag) before sending frames,
+    which prevents flickering caused by capturing partial renders.
+    """
+    notifier = request.app["display_notifier"]
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
     try:
+        # Send initial frame
+        png_bytes = display.get_display_png_bytes()
+        await ws.send_bytes(png_bytes)
+        display.clear_dirty_flag()
+
+        last_update_id = notifier.get_update_id()
         while not ws.closed:
+            # Wait for display to be updated (with timeout to keep connection alive)
+            last_update_id = await notifier.wait_for_update(
+                last_update_id, FRAME_DELAY_SECONDS
+            )
+            if ws.closed:
+                break
             png_bytes = display.get_display_png_bytes()
             await ws.send_bytes(png_bytes)
-            await asyncio.sleep(FRAME_DELAY_SECONDS)
+            display.clear_dirty_flag()
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -157,9 +205,22 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         app = web.Application()
+        notifier = DisplayUpdateNotifier(loop)
+        stop_event = threading.Event()
+        app["display_notifier"] = notifier
+        app["display_stop_event"] = stop_event
         app.router.add_get("/", handle_root)
         app.router.add_get("/screen.png", handle_screen_png)
         app.router.add_get("/ws/screen", handle_screen_ws)
+
+        def notify_display_updates() -> None:
+            while not stop_event.is_set():
+                updated = display.wait_for_display_update(FRAME_DELAY_SECONDS)
+                if stop_event.is_set():
+                    break
+                if updated:
+                    notifier.mark_update_threadsafe()
+                    display.clear_dirty_flag()
 
         async def start_site() -> web.AppRunner:
             runner = web.AppRunner(app)
@@ -177,9 +238,15 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
         runner_queue.put(("ok", runner))
         if log_debug:
             log_debug(f"Web server started at http://{host}:{port}")
+        notifier_thread = threading.Thread(
+            target=notify_display_updates, daemon=True
+        )
+        notifier_thread.start()
         try:
             loop.run_forever()
         finally:
+            stop_event.set()
+            notifier_thread.join(timeout=1)
             loop.run_until_complete(runner.cleanup())
             loop.close()
 
