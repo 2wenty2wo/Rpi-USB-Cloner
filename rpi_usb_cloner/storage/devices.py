@@ -260,7 +260,19 @@ def _collect_device_mountpoints(device: dict) -> list[str]:
     return mountpoints
 
 
-def unmount_device(device) -> bool:
+def unmount_device(device, raise_on_failure: bool = False) -> bool:
+    """Unmount a device and all its partitions.
+
+    Args:
+        device: Device dict from lsblk
+        raise_on_failure: If True, raise UnmountFailedError instead of returning False
+
+    Returns:
+        True if all mountpoints unmounted successfully, False otherwise
+
+    Raises:
+        UnmountFailedError: If raise_on_failure=True and unmount fails
+    """
     mountpoints = _collect_device_mountpoints(device)
     if not mountpoints:
         return True
@@ -279,6 +291,13 @@ def unmount_device(device) -> bool:
         _log_debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
         if _error_handler:
             _error_handler(["UNMOUNT FAILED", *failed_mounts])
+
+        if raise_on_failure:
+            # Import here to avoid circular dependency
+            from rpi_usb_cloner.storage.exceptions import UnmountFailedError
+            device_name = device.get("name") if isinstance(device, dict) else str(device)
+            raise UnmountFailedError(device_name, failed_mounts)
+
         return False
     return True
 

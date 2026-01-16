@@ -3,6 +3,12 @@ import shutil
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.storage.devices import format_device_label, unmount_device
+from rpi_usb_cloner.storage.exceptions import (
+    DeviceBusyError,
+    EraseOperationError,
+    MountVerificationError,
+)
+from rpi_usb_cloner.storage.validation import validate_erase_operation
 from rpi_usb_cloner.ui.display import display_lines
 
 from .command_runners import run_checked_with_streaming_progress
@@ -26,6 +32,24 @@ def erase_device(target, mode, progress_callback=None):
     Returns:
         True if successful, False otherwise
     """
+    # SAFETY: Validate erase operation before proceeding
+    try:
+        validate_erase_operation(target)
+    except (DeviceBusyError, MountVerificationError) as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Device busy"], None)
+        else:
+            display_lines(["ERROR", "Device busy"])
+        _log_debug(f"Erase aborted: {error}")
+        return False
+    except Exception as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Validation"], None)
+        else:
+            display_lines(["ERROR", "Validation"])
+        _log_debug(f"Erase aborted: validation failed: {error}")
+        return False
+
     target_node = f"/dev/{target.get('name')}"
     if not unmount_device(target):
         if progress_callback:
@@ -116,10 +140,22 @@ def erase_device(target, mode, progress_callback=None):
     if not run_erase_command([wipefs_path, "-a", target_node]):
         return False
 
-    size_bytes = target.get("size") or 0
+    def coerce_int(value, default=0):
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, (int, float)):
+            return int(value)
+        try:
+            coerced = int(value)
+        except (TypeError, ValueError):
+            return default
+        return coerced if isinstance(coerced, int) else default
+
+    size_bytes = coerce_int(target.get("size"))
     bytes_per_mib = 1024 * 1024
-    size_mib = size_bytes // bytes_per_mib if size_bytes else 0
-    wipe_mib = min(app_state.QUICK_WIPE_MIB, size_mib) if size_mib else app_state.QUICK_WIPE_MIB
+    size_mib = coerce_int(size_bytes // bytes_per_mib if size_bytes else 0)
+    quick_wipe_mib = coerce_int(app_state.QUICK_WIPE_MIB)
+    wipe_mib = coerce_int(min(quick_wipe_mib, size_mib) if size_mib else quick_wipe_mib)
     wipe_bytes = wipe_mib * bytes_per_mib
 
     if not run_erase_command(
