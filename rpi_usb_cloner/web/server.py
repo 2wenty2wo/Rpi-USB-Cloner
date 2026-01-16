@@ -181,8 +181,8 @@ HTML_PAGE = """<!DOCTYPE html>
     /* Action buttons on the right */
     .action-buttons {
       position: relative;
-      width: 160px;
-      height: 160px;
+      width: 180px;
+      height: 180px;
     }
     .btn-ok {
       position: absolute;
