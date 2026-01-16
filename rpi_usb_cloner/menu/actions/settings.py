@@ -81,6 +81,10 @@ def toggle_screenshots() -> None:
     settings_actions.toggle_screenshots()
 
 
+def toggle_web_server() -> None:
+    settings_actions.toggle_web_server()
+
+
 def update_version() -> None:
     context = get_action_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))

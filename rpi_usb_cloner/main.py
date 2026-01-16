@@ -179,18 +179,28 @@ def main(argv=None):
     display.set_display_context(context)
     app_context.display = context
     display.configure_display_helpers(log_debug=log_debug)
-    web_server_enabled = os.environ.get("WEB_SERVER_ENABLED", "1").lower() not in {
-        "0",
-        "false",
-        "no",
-    }
+
+    # Check web server enabled setting (default: False for new installations)
+    # Environment variable WEB_SERVER_ENABLED can override the setting
+    web_server_enabled_setting = settings_store.get_bool("web_server_enabled", default=False)
+    web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
+
+    if web_server_env_override is not None:
+        web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
+        if web_server_enabled:
+            log_debug("Web server enabled via WEB_SERVER_ENABLED environment variable")
+        else:
+            log_debug("Web server disabled via WEB_SERVER_ENABLED environment variable")
+    else:
+        web_server_enabled = web_server_enabled_setting
+
     if web_server_enabled:
         try:
             web_server.start_server(log_debug=log_debug)
         except OSError as error:
             log_debug(f"Web server failed to start: {error}")
     else:
-        log_debug("Web server disabled via WEB_SERVER_ENABLED")
+        log_debug("Web server disabled in settings")
     devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
     configure_format_helpers(log_debug=log_debug)

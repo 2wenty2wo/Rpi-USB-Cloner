@@ -3,6 +3,8 @@ from typing import Callable, Dict, Optional, Any
 
 import RPi.GPIO as GPIO
 
+from rpi_usb_cloner.hardware import virtual_gpio
+
 PIN_A = 5
 PIN_B = 6
 PIN_L = 27
@@ -30,7 +32,13 @@ def read_buttons(pins):
 
 
 def is_pressed(pin):
-    return read_button(pin) == GPIO.LOW
+    """Check if a button is pressed (physical or virtual).
+
+    Returns True if either:
+    - The physical GPIO pin is LOW (pressed), OR
+    - There's an active virtual button press for this pin
+    """
+    return read_button(pin) == GPIO.LOW or virtual_gpio.is_virtual_button_pressed(pin)
 
 
 def cleanup():
@@ -82,18 +90,28 @@ def poll_button_events(
         ... }, poll_interval=0.1)
     """
     # Initialize previous button states (HIGH = not pressed, LOW = pressed)
-    prev_states = {pin: read_button(pin) for pin in button_handlers.keys()}
+    # Track both physical and virtual button states
+    prev_physical_states = {pin: read_button(pin) for pin in button_handlers.keys()}
+    prev_virtual_states = {pin: False for pin in button_handlers.keys()}
 
     while True:
-        # Check each button for falling edge (press event)
+        # Check each button for falling edge (press event) from physical OR virtual sources
         for pin, handler in button_handlers.items():
-            current_state = read_button(pin)
-            # Falling edge: button was HIGH (not pressed) and is now LOW (pressed)
-            if prev_states[pin] and not current_state:
+            current_physical_state = read_button(pin)
+            current_virtual_state = virtual_gpio.is_virtual_button_pressed(pin)
+
+            # Physical falling edge: button was HIGH (not pressed) and is now LOW (pressed)
+            physical_press = prev_physical_states[pin] and not current_physical_state
+            # Virtual press: virtual button was not pressed and is now pressed
+            virtual_press = not prev_virtual_states[pin] and current_virtual_state
+
+            if physical_press or virtual_press:
                 result = handler()
                 if result is not None:
                     return result
-            prev_states[pin] = current_state
+
+            prev_physical_states[pin] = current_physical_state
+            prev_virtual_states[pin] = current_virtual_state
 
         # Call loop callback if provided (e.g., for screen updates)
         if loop_callback:
