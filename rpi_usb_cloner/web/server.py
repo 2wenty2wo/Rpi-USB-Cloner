@@ -180,10 +180,19 @@ HTML_PAGE = """<!DOCTYPE html>
     }
     /* Action buttons on the right */
     .action-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      align-items: center;
+      position: relative;
+      width: 180px;
+      height: 180px;
+    }
+    .btn-ok {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+    .btn-back {
+      position: absolute;
+      bottom: 0;
+      left: 0;
     }
     .action-btn {
       width: 90px;
