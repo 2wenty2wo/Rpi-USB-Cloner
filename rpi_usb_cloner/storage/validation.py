@@ -110,12 +110,16 @@ def validate_devices_different(source, destination) -> None:
     # Compare base device names (strip partition numbers)
     # e.g., sda1 -> sda, nvme0n1p1 -> nvme0n1
     def get_base_device(name: str) -> str:
-        # Handle nvme devices (nvme0n1p1 -> nvme0n1)
+        # Handle nvme devices (nvme0n1p1 -> nvme0n1, but nvme0n1 stays as is)
         if "nvme" in name and "p" in name:
             return name.split("p")[0]
-        # Handle mmcblk devices (mmcblk0p1 -> mmcblk0)
-        if "mmcblk" in name and "p" in name:
-            return name.split("p")[0]
+        # Handle mmcblk devices (mmcblk0p1 -> mmcblk0, but mmcblk0 stays as is)
+        if "mmcblk" in name:
+            if "p" in name:
+                return name.split("p")[0]
+            else:
+                # For mmcblk0, mmcblk1, etc., return as-is
+                return name
         # Handle regular devices (sda1 -> sda)
         # Strip trailing digits
         base = name.rstrip("0123456789")
@@ -228,8 +232,13 @@ def validate_clone_operation(source, destination, check_space: bool = True) -> N
     validate_device_unmounted(destination)
 
     # 4. Check sufficient space (optional, can be skipped for exact mode)
+    # Only validate if both devices are dicts AND both have size information
     if check_space and isinstance(source, dict) and isinstance(destination, dict):
-        validate_sufficient_space(source, destination)
+        source_size = source.get("size")
+        dest_size = destination.get("size")
+        # Only validate space if we have size info for both devices
+        if source_size is not None and dest_size is not None:
+            validate_sufficient_space(source, destination)
 
 
 def validate_format_operation(device) -> None:

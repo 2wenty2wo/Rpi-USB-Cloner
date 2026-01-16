@@ -165,6 +165,7 @@ class TestValidateDevicesDifferent:
 
     def test_mmcblk_different_devices(self):
         """Test different MMC devices pass validation."""
+        # mmcblk0 and mmcblk1 are different physical devices
         validate_devices_different("mmcblk0", "mmcblk1")  # Should not raise
 
 
