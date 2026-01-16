@@ -153,7 +153,7 @@ def erase_device(target, mode, progress_callback=None):
 
     size_bytes = coerce_int(target.get("size"))
     bytes_per_mib = 1024 * 1024
-    size_mib = size_bytes // bytes_per_mib if size_bytes else 0
+    size_mib = coerce_int(size_bytes // bytes_per_mib if size_bytes else 0)
     quick_wipe_mib = coerce_int(app_state.QUICK_WIPE_MIB)
     wipe_mib = coerce_int(min(quick_wipe_mib, size_mib) if size_mib else quick_wipe_mib)
     wipe_bytes = wipe_mib * bytes_per_mib
