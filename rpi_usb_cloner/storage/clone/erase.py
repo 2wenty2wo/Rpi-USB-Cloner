@@ -140,10 +140,19 @@ def erase_device(target, mode, progress_callback=None):
     if not run_erase_command([wipefs_path, "-a", target_node]):
         return False
 
-    size_bytes = target.get("size") or 0
+    size_bytes = target.get("size")
+    if not isinstance(size_bytes, (int, float)):
+        size_bytes = 0
+    size_bytes = int(size_bytes)
     bytes_per_mib = 1024 * 1024
     size_mib = size_bytes // bytes_per_mib if size_bytes else 0
-    wipe_mib = min(app_state.QUICK_WIPE_MIB, size_mib) if size_mib else app_state.QUICK_WIPE_MIB
+    quick_wipe_mib = app_state.QUICK_WIPE_MIB
+    if not isinstance(quick_wipe_mib, int):
+        try:
+            quick_wipe_mib = int(quick_wipe_mib)
+        except (TypeError, ValueError):
+            quick_wipe_mib = 0
+    wipe_mib = min(quick_wipe_mib, size_mib) if size_mib else quick_wipe_mib
     wipe_bytes = wipe_mib * bytes_per_mib
 
     if not run_erase_command(
