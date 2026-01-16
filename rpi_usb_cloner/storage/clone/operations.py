@@ -16,7 +16,10 @@ from rpi_usb_cloner.storage.exceptions import (
     MountVerificationError,
     SourceDestinationSameError,
 )
-from rpi_usb_cloner.storage.validation import validate_clone_operation
+from rpi_usb_cloner.storage.validation import (
+    validate_clone_operation,
+    validate_device_unmounted,
+)
 from rpi_usb_cloner.ui.display import display_lines
 
 from .command_runners import run_checked_command, run_checked_with_streaming_progress
@@ -171,7 +174,12 @@ def clone_device(source, target, mode=None):
     try:
         # For exact mode, we don't check space since we're doing raw copy
         check_space = mode not in ("exact", None) or os.environ.get("CLONE_MODE") != "exact"
-        validate_clone_operation(source, target, check_space=check_space)
+        validate_clone_operation(
+            source,
+            target,
+            check_space=check_space,
+            check_unmounted=False,
+        )
     except SourceDestinationSameError as error:
         display_lines(["FAILED", "Same device!"])
         _log_debug(f"Clone aborted: {error}")
@@ -206,6 +214,12 @@ def clone_device(source, target, mode=None):
         _log_debug("Clone aborted: target unmount failed")
         return False
     try:
+        validate_device_unmounted(target)
+    except (DeviceBusyError, MountVerificationError) as error:
+        display_lines(["FAILED", "Device busy"])
+        _log_debug(f"Clone aborted: target still mounted: {error}")
+        return False
+    try:
         clone_dd(source, target, total_bytes=source.get("size"), title="CLONING")
     except RuntimeError as error:
         display_lines(["FAILED", str(error)[:20]])
@@ -226,7 +240,12 @@ def clone_device_smart(source, target):
     """
     # SAFETY: Validate clone operation before proceeding
     try:
-        validate_clone_operation(source, target, check_space=True)
+        validate_clone_operation(
+            source,
+            target,
+            check_space=True,
+            check_unmounted=False,
+        )
     except SourceDestinationSameError as error:
         display_lines(["FAILED", "Same device!"])
         _log_debug(f"Smart clone aborted: {error}")
@@ -249,6 +268,12 @@ def clone_device_smart(source, target):
     if not unmount_device(target):
         display_lines(["FAILED", "Unmount target"])
         _log_debug("Smart clone aborted: target unmount failed")
+        return False
+    try:
+        validate_device_unmounted(target)
+    except (DeviceBusyError, MountVerificationError) as error:
+        display_lines(["FAILED", "Device busy"])
+        _log_debug(f"Smart clone aborted: target still mounted: {error}")
         return False
     try:
         display_lines(["CLONING", "Copy table"])

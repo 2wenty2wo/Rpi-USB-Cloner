@@ -207,7 +207,12 @@ def validate_sufficient_space(source, destination) -> None:
         )
 
 
-def validate_clone_operation(source, destination, check_space: bool = True) -> None:
+def validate_clone_operation(
+    source,
+    destination,
+    check_space: bool = True,
+    check_unmounted: bool = True,
+) -> None:
     """Perform all validations required before a clone operation.
 
     This is a convenience function that runs all safety checks in the
@@ -217,6 +222,7 @@ def validate_clone_operation(source, destination, check_space: bool = True) -> N
         source: Source device dict or name
         destination: Destination device dict or name
         check_space: Whether to validate sufficient space (default True)
+        check_unmounted: Whether to validate destination unmounted (default True)
 
     Raises:
         Various exceptions from the exceptions module if validation fails
@@ -229,7 +235,8 @@ def validate_clone_operation(source, destination, check_space: bool = True) -> N
     validate_devices_different(source, destination)
 
     # 3. Check destination is unmounted
-    validate_device_unmounted(destination)
+    if check_unmounted:
+        validate_device_unmounted(destination)
 
     # 4. Check sufficient space (optional, can be skipped for exact mode)
     # Only validate if both devices are dicts AND both have size information
