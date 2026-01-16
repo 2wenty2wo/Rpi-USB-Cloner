@@ -121,12 +121,23 @@ HTML_PAGE = """<!DOCTYPE html>
     /* D-pad on the left */
     .dpad-container {
       position: relative;
-      width: 140px;
-      height: 140px;
+      width: 180px;
+      height: 180px;
+    }
+    .dpad-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .dpad-cross {
+      fill: #000;
+    }
+    .dpad-arrow {
+      fill: #fff;
     }
     .dpad-btn {
       position: absolute;
-      background: #000;
+      background: transparent;
       border: none;
       color: #fff;
       cursor: pointer;
@@ -135,45 +146,35 @@ HTML_PAGE = """<!DOCTYPE html>
       justify-content: center;
       user-select: none;
     }
-    .dpad-btn:active {
-      background: #333;
+    .dpad-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
     }
-    .dpad-center {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      background: #1c1f26;
-      top: 50px;
-      left: 50px;
-      border-radius: 4px;
+    .dpad-btn:active {
+      background: rgba(255, 255, 255, 0.18);
     }
     .dpad-up {
-      width: 40px;
-      height: 50px;
-      left: 50px;
+      width: 60px;
+      height: 70px;
+      left: 60px;
       top: 0;
-      clip-path: polygon(20% 100%, 50% 0%, 80% 100%);
     }
     .dpad-down {
-      width: 40px;
-      height: 50px;
-      left: 50px;
+      width: 60px;
+      height: 70px;
+      left: 60px;
       bottom: 0;
-      clip-path: polygon(20% 0%, 50% 100%, 80% 0%);
     }
     .dpad-left {
-      width: 50px;
-      height: 40px;
+      width: 70px;
+      height: 60px;
       left: 0;
-      top: 50px;
-      clip-path: polygon(100% 20%, 0% 50%, 100% 80%);
+      top: 60px;
     }
     .dpad-right {
-      width: 50px;
-      height: 40px;
+      width: 70px;
+      height: 60px;
       right: 0;
-      top: 50px;
-      clip-path: polygon(0% 20%, 100% 50%, 0% 80%);
+      top: 60px;
     }
     /* Action buttons on the right */
     .action-buttons {
@@ -183,8 +184,8 @@ HTML_PAGE = """<!DOCTYPE html>
       align-items: center;
     }
     .action-btn {
-      width: 80px;
-      height: 80px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
       border: none;
       cursor: pointer;
@@ -195,18 +196,31 @@ HTML_PAGE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       user-select: none;
+      padding: 0;
+      background: transparent;
     }
-    .btn-back {
-      background: #1a1a1a;
+    .action-btn svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
-    .btn-back:active {
-      background: #333;
+    .action-btn circle {
+      fill: #000;
+      transition: fill 0.15s ease, filter 0.15s ease;
     }
-    .btn-ok {
-      background: #1a1a1a;
+    .action-btn text {
+      fill: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
     }
-    .btn-ok:active {
-      background: #333;
+    .action-btn:hover circle {
+      fill: #1a1a1a;
+      filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.12));
+    }
+    .action-btn:active circle {
+      fill: #333;
     }
     .status {
       margin-top: 20px;
@@ -231,16 +245,32 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="controls-container">
       <!-- D-pad on the left -->
       <div class="dpad-container">
+        <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+          <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
+          <path class="dpad-arrow" d="M100 38l12 20H88z" />
+          <path class="dpad-arrow" d="M100 162l-12-20h24z" />
+          <path class="dpad-arrow" d="M38 100l20-12v24z" />
+          <path class="dpad-arrow" d="M162 100l-20 12V88z" />
+        </svg>
         <button class="dpad-btn dpad-up" data-button="UP"></button>
         <button class="dpad-btn dpad-down" data-button="DOWN"></button>
         <button class="dpad-btn dpad-left" data-button="LEFT"></button>
         <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
-        <div class="dpad-center"></div>
       </div>
       <!-- Action buttons on the right -->
       <div class="action-buttons">
-        <button class="action-btn btn-back" data-button="BACK">BACK</button>
-        <button class="action-btn btn-ok" data-button="OK">OK</button>
+        <button class="action-btn btn-back" data-button="BACK">
+          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            <circle cx="50" cy="50" r="46" />
+            <text x="50" y="56" text-anchor="middle">BACK</text>
+          </svg>
+        </button>
+        <button class="action-btn btn-ok" data-button="OK">
+          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+            <circle cx="50" cy="50" r="46" />
+            <text x="50" y="56" text-anchor="middle">OK</text>
+          </svg>
+        </button>
       </div>
     </div>
     <div class="status" id="status">Connecting...</div>
