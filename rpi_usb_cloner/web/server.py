@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from dataclasses import dataclass
 from typing import Optional
 
 from aiohttp import web
@@ -13,6 +14,23 @@ from rpi_usb_cloner.hardware import gpio, virtual_gpio
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 FRAME_DELAY_SECONDS = 0.15
+
+
+@dataclass
+class ServerHandle:
+    runner: web.AppRunner
+    thread: threading.Thread
+    loop: asyncio.AbstractEventLoop
+    stop_event: threading.Event
+
+    def stop(self, timeout: float = 5.0) -> None:
+        if self.loop.is_running():
+            self.stop_event.set()
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        self.thread.join(timeout=timeout)
+
+
+_current_handle: Optional[ServerHandle] = None
 
 
 class DisplayUpdateNotifier:
@@ -444,7 +462,26 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+def is_running() -> bool:
+    return _current_handle is not None and _current_handle.thread.is_alive()
+
+
+def stop_server(timeout: float = 5.0, log_debug=None) -> bool:
+    global _current_handle
+    handle = _current_handle
+    if handle is None:
+        return False
+    handle.stop(timeout=timeout)
+    _current_handle = None
+    if log_debug:
+        log_debug("Web server stopped")
+    return True
+
+
 def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=None):
+    global _current_handle
+    if is_running():
+        return _current_handle
     runner_queue: "queue.Queue[tuple[str, object]]"
     import queue
 
@@ -485,7 +522,7 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
             runner_queue.put(("error", exc))
             loop.close()
             return
-        runner_queue.put(("ok", runner))
+        runner_queue.put(("ok", runner, loop, stop_event))
         if log_debug:
             log_debug(f"Web server started at http://{host}:{port}")
         notifier_thread = threading.Thread(
@@ -508,5 +545,12 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
         raise TimeoutError("Web server failed to start within timeout.") from exc
     if status == "error":
         raise payload
-    runner = payload
-    return runner, thread
+    runner, loop, stop_event = payload
+    handle = ServerHandle(
+        runner=runner,
+        thread=thread,
+        loop=loop,
+        stop_event=stop_event,
+    )
+    _current_handle = handle
+    return handle
