@@ -266,18 +266,18 @@ def main(argv=None):
         menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
         last_selected_name = app_context.active_drive
         prev_states = {
-            "A": gpio.read_button(gpio.PIN_A),
-            "L": gpio.read_button(gpio.PIN_L),
-            "R": gpio.read_button(gpio.PIN_R),
-            "U": gpio.read_button(gpio.PIN_U),
-            "D": gpio.read_button(gpio.PIN_D),
+            "A": gpio.is_pressed(gpio.PIN_A),
+            "L": gpio.is_pressed(gpio.PIN_L),
+            "R": gpio.is_pressed(gpio.PIN_R),
+            "U": gpio.is_pressed(gpio.PIN_U),
+            "D": gpio.is_pressed(gpio.PIN_D),
         }
         while True:
-            current_a = gpio.read_button(gpio.PIN_A)
-            if prev_states["A"] and not current_a:
+            current_a = gpio.is_pressed(gpio.PIN_A)
+            if not prev_states["A"] and current_a:
                 return
-            current_l = gpio.read_button(gpio.PIN_L)
-            if prev_states["L"] and not current_l:
+            current_l = gpio.is_pressed(gpio.PIN_L)
+            if not prev_states["L"] and current_l:
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
@@ -290,8 +290,8 @@ def main(argv=None):
                     screens,
                     page_index,
                 )
-            current_r = gpio.read_button(gpio.PIN_R)
-            if prev_states["R"] and not current_r:
+            current_r = gpio.is_pressed(gpio.PIN_R)
+            if not prev_states["R"] and current_r:
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
@@ -304,8 +304,8 @@ def main(argv=None):
                     screens,
                     page_index,
                 )
-            current_u = gpio.read_button(gpio.PIN_U)
-            if prev_states["U"] and not current_u:
+            current_u = gpio.is_pressed(gpio.PIN_U)
+            if not prev_states["U"] and current_u:
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
@@ -318,8 +318,8 @@ def main(argv=None):
                     screens,
                     page_index,
                 )
-            current_d = gpio.read_button(gpio.PIN_D)
-            if prev_states["D"] and not current_d:
+            current_d = gpio.is_pressed(gpio.PIN_D)
+            if not prev_states["D"] and current_d:
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
@@ -444,13 +444,13 @@ def main(argv=None):
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
     prev_states = {
-        "U": gpio.read_button(gpio.PIN_U),
-        "D": gpio.read_button(gpio.PIN_D),
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-        "C": gpio.read_button(gpio.PIN_C),
+        "U": gpio.is_pressed(gpio.PIN_U),
+        "D": gpio.is_pressed(gpio.PIN_D),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+        "C": gpio.is_pressed(gpio.PIN_C),
     }
     repeat_state = {
         "U": {"next_repeat": None},
@@ -520,26 +520,26 @@ def main(argv=None):
                     state.lcdstart = datetime.now()
                     state.run_once = 0
                     prev_states = {
-                        "U": gpio.read_button(gpio.PIN_U),
-                        "D": gpio.read_button(gpio.PIN_D),
-                        "L": gpio.read_button(gpio.PIN_L),
-                        "R": gpio.read_button(gpio.PIN_R),
-                        "A": gpio.read_button(gpio.PIN_A),
-                        "B": gpio.read_button(gpio.PIN_B),
-                        "C": gpio.read_button(gpio.PIN_C),
+                        "U": gpio.is_pressed(gpio.PIN_U),
+                        "D": gpio.is_pressed(gpio.PIN_D),
+                        "L": gpio.is_pressed(gpio.PIN_L),
+                        "R": gpio.is_pressed(gpio.PIN_R),
+                        "A": gpio.is_pressed(gpio.PIN_A),
+                        "B": gpio.is_pressed(gpio.PIN_B),
+                        "C": gpio.is_pressed(gpio.PIN_C),
                     }
                     render_current_screen(force=True)
                     screensaver_active = False
                     continue
 
             current_states = {
-                "U": gpio.read_button(gpio.PIN_U),
-                "D": gpio.read_button(gpio.PIN_D),
-                "L": gpio.read_button(gpio.PIN_L),
-                "R": gpio.read_button(gpio.PIN_R),
-                "A": gpio.read_button(gpio.PIN_A),
-                "B": gpio.read_button(gpio.PIN_B),
-                "C": gpio.read_button(gpio.PIN_C),
+                "U": gpio.is_pressed(gpio.PIN_U),
+                "D": gpio.is_pressed(gpio.PIN_D),
+                "L": gpio.is_pressed(gpio.PIN_L),
+                "R": gpio.is_pressed(gpio.PIN_R),
+                "A": gpio.is_pressed(gpio.PIN_A),
+                "B": gpio.is_pressed(gpio.PIN_B),
+                "C": gpio.is_pressed(gpio.PIN_C),
             }
             app_context.input_state = current_states
             button_pressed = False
@@ -549,8 +549,8 @@ def main(argv=None):
 
             def handle_repeat_button(key, direction):
                 nonlocal button_pressed, render_requested
-                is_pressed = not current_states[key]
-                was_pressed = not prev_states[key]
+                is_pressed = current_states[key]
+                was_pressed = prev_states[key]
                 if is_pressed and not was_pressed:
                     log_debug(f"Button {key} pressed")
                     menu_navigator.move_selection(direction, dynamic_visible_rows)
@@ -573,17 +573,17 @@ def main(argv=None):
 
             handle_repeat_button("U", -1)
             handle_repeat_button("D", 1)
-            if prev_states["L"] and not current_states["L"]:
+            if not prev_states["L"] and current_states["L"]:
                 log_debug("Button LEFT pressed")
                 handle_back()
                 button_pressed = True
                 render_requested = True
-            if prev_states["A"] and not current_states["A"]:
+            if not prev_states["A"] and current_states["A"]:
                 log_debug("Button BACK pressed")
                 handle_back()
                 button_pressed = True
                 render_requested = True
-            if prev_states["R"] and not current_states["R"]:
+            if not prev_states["R"] and current_states["R"]:
                 log_debug("Button RIGHT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
@@ -591,7 +591,7 @@ def main(argv=None):
                     force_render = True
                 button_pressed = True
                 render_requested = True
-            if prev_states["B"] and not current_states["B"]:
+            if not prev_states["B"] and current_states["B"]:
                 log_debug("Button SELECT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
@@ -599,7 +599,7 @@ def main(argv=None):
                     force_render = True
                 button_pressed = True
                 render_requested = True
-            if prev_states["C"] and not current_states["C"]:
+            if not prev_states["C"] and current_states["C"]:
                 log_debug("Button C pressed")
                 button_pressed = True
                 if settings_store.get_bool("screenshots_enabled", default=False):
