@@ -99,17 +99,19 @@ HTML_PAGE = """<!DOCTYPE html>
       border: 2px solid #3a3f4b;
       border-radius: 6px;
       width: 100%;
-      height: 200px;
+      aspect-ratio: 2 / 1;
+      max-width: 512px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 24px;
+      margin: 0 auto 24px;
       overflow: hidden;
     }
     .screen canvas {
       width: 100%;
       height: 100%;
       image-rendering: pixelated;
+      object-fit: contain;
     }
     .controls-container {
       display: flex;
