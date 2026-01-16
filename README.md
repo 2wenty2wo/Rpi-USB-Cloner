@@ -212,6 +212,12 @@ Keep your cloner up to date with the latest features and bug fixes.
 
 **Method 2: Update via command line**
 
+**Troubleshooting update checks**
+If you run update checks as sudo/root, Git may report "dubious ownership," and the UI can show `status: unable to ...`. Fix this by marking the repo as a safe directory (adjust the path to your install directory):
+```sh
+sudo git config --global --add safe.directory /home/pi/Rpi-USB-Cloner
+```
+
 If using **Option A (virtual environment)**:
 ```sh
 # Navigate to repository directory
