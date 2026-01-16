@@ -53,6 +53,12 @@ from rpi_usb_cloner.storage.devices import (
     run_command,
     unmount_device,
 )
+from rpi_usb_cloner.storage.exceptions import (
+    DeviceBusyError,
+    FormatOperationError,
+    MountVerificationError,
+)
+from rpi_usb_cloner.storage.validation import validate_format_operation
 
 _log_debug = None
 
@@ -259,6 +265,20 @@ def format_device(
     device_name = device.get("name")
     if not device_name:
         log_debug("Device has no name field")
+        return False
+
+    # SAFETY: Validate format operation before proceeding
+    try:
+        validate_format_operation(device)
+    except (DeviceBusyError, MountVerificationError) as error:
+        log_debug(f"Format aborted: {error}")
+        if progress_callback:
+            progress_callback(["Device busy"], None)
+        return False
+    except Exception as error:
+        log_debug(f"Format aborted: validation failed: {error}")
+        if progress_callback:
+            progress_callback(["Validation failed"], None)
         return False
 
     device_path = f"/dev/{device_name}"

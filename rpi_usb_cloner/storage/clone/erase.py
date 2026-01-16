@@ -3,6 +3,12 @@ import shutil
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.storage.devices import format_device_label, unmount_device
+from rpi_usb_cloner.storage.exceptions import (
+    DeviceBusyError,
+    EraseOperationError,
+    MountVerificationError,
+)
+from rpi_usb_cloner.storage.validation import validate_erase_operation
 from rpi_usb_cloner.ui.display import display_lines
 
 from .command_runners import run_checked_with_streaming_progress
@@ -26,6 +32,24 @@ def erase_device(target, mode, progress_callback=None):
     Returns:
         True if successful, False otherwise
     """
+    # SAFETY: Validate erase operation before proceeding
+    try:
+        validate_erase_operation(target)
+    except (DeviceBusyError, MountVerificationError) as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Device busy"], None)
+        else:
+            display_lines(["ERROR", "Device busy"])
+        _log_debug(f"Erase aborted: {error}")
+        return False
+    except Exception as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Validation"], None)
+        else:
+            display_lines(["ERROR", "Validation"])
+        _log_debug(f"Erase aborted: validation failed: {error}")
+        return False
+
     target_node = f"/dev/{target.get('name')}"
     if not unmount_device(target):
         if progress_callback:

@@ -9,6 +9,14 @@ from rpi_usb_cloner.storage.devices import (
     human_size,
     unmount_device,
 )
+from rpi_usb_cloner.storage.exceptions import (
+    CloneOperationError,
+    DeviceBusyError,
+    InsufficientSpaceError,
+    MountVerificationError,
+    SourceDestinationSameError,
+)
+from rpi_usb_cloner.storage.validation import validate_clone_operation
 from rpi_usb_cloner.ui.display import display_lines
 
 from .command_runners import run_checked_command, run_checked_with_streaming_progress
@@ -159,6 +167,28 @@ def clone_device(source, target, mode=None):
     Returns:
         True if successful, False otherwise
     """
+    # SAFETY: Validate clone operation before proceeding
+    try:
+        # For exact mode, we don't check space since we're doing raw copy
+        check_space = mode not in ("exact", None) or os.environ.get("CLONE_MODE") != "exact"
+        validate_clone_operation(source, target, check_space=check_space)
+    except SourceDestinationSameError as error:
+        display_lines(["FAILED", "Same device!"])
+        _log_debug(f"Clone aborted: {error}")
+        return False
+    except InsufficientSpaceError as error:
+        display_lines(["FAILED", "No space"])
+        _log_debug(f"Clone aborted: {error}")
+        return False
+    except (DeviceBusyError, MountVerificationError) as error:
+        display_lines(["FAILED", "Device busy"])
+        _log_debug(f"Clone aborted: {error}")
+        return False
+    except Exception as error:
+        display_lines(["FAILED", "Validation"])
+        _log_debug(f"Clone aborted: validation failed: {error}")
+        return False
+
     if mode is None:
         mode = os.environ.get("CLONE_MODE", "smart")
     mode = normalize_clone_mode(mode)
@@ -194,6 +224,26 @@ def clone_device_smart(source, target):
     Returns:
         True if successful, False otherwise
     """
+    # SAFETY: Validate clone operation before proceeding
+    try:
+        validate_clone_operation(source, target, check_space=True)
+    except SourceDestinationSameError as error:
+        display_lines(["FAILED", "Same device!"])
+        _log_debug(f"Smart clone aborted: {error}")
+        return False
+    except InsufficientSpaceError as error:
+        display_lines(["FAILED", "No space"])
+        _log_debug(f"Smart clone aborted: {error}")
+        return False
+    except (DeviceBusyError, MountVerificationError) as error:
+        display_lines(["FAILED", "Device busy"])
+        _log_debug(f"Smart clone aborted: {error}")
+        return False
+    except Exception as error:
+        display_lines(["FAILED", "Validation"])
+        _log_debug(f"Smart clone aborted: validation failed: {error}")
+        return False
+
     source_node = f"/dev/{source.get('name')}"
     target_node = f"/dev/{target.get('name')}"
     if not unmount_device(target):
