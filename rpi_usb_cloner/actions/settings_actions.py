@@ -44,6 +44,7 @@ from rpi_usb_cloner.actions.settings import (
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
+    toggle_web_server,
     update_version,
     wifi_settings,
 )
@@ -97,6 +98,7 @@ __all__ = [
     "heroicons_demo",
     "preview_title_font",
     "toggle_screenshots",
+    "toggle_web_server",
     "update_version",
     "restart_service",
     "stop_service",
