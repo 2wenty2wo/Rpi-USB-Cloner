@@ -9,7 +9,11 @@ from rpi_usb_cloner.storage.exceptions import (
     MountVerificationError,
 )
 from rpi_usb_cloner.storage.validation import validate_erase_operation
-from rpi_usb_cloner.ui.display import display_lines
+import rpi_usb_cloner.ui.display as display
+
+
+def display_lines(lines):
+    return display.display_lines(lines)
 
 from .command_runners import run_checked_with_streaming_progress
 from .progress import _log_debug
