@@ -15,10 +15,21 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         default=app_state.ENABLE_SLEEP,
     )
     screensaver_state = "ON" if screensaver_enabled else "OFF"
+
+    web_server_enabled = settings_store.get_bool(
+        "web_server_enabled",
+        default=False,
+    )
+    web_server_state = "ON" if web_server_enabled else "OFF"
+
     return [
         MenuItem(
             label="WIFI",
             action=menu_actions.wifi_settings,
+        ),
+        MenuItem(
+            label=f"WEB SERVER: {web_server_state}",
+            action=menu_actions.toggle_web_server,
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
