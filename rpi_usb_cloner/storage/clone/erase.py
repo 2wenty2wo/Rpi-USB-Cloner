@@ -9,7 +9,7 @@ from rpi_usb_cloner.storage.exceptions import (
     MountVerificationError,
 )
 from rpi_usb_cloner.storage.validation import validate_erase_operation
-from rpi_usb_cloner.ui.display import display_lines
+import rpi_usb_cloner.ui.display as display
 
 from .command_runners import run_checked_with_streaming_progress
 from .progress import _log_debug
@@ -39,14 +39,14 @@ def erase_device(target, mode, progress_callback=None):
         if progress_callback:
             progress_callback(["ERROR", "Device busy"], None)
         else:
-            display_lines(["ERROR", "Device busy"])
+            display.display_lines(["ERROR", "Device busy"])
         _log_debug(f"Erase aborted: {error}")
         return False
     except Exception as error:
         if progress_callback:
             progress_callback(["ERROR", "Validation"], None)
         else:
-            display_lines(["ERROR", "Validation"])
+            display.display_lines(["ERROR", "Validation"])
         _log_debug(f"Erase aborted: validation failed: {error}")
         return False
 
@@ -55,7 +55,7 @@ def erase_device(target, mode, progress_callback=None):
         if progress_callback:
             progress_callback(["ERROR", "Unmount failed"], None)
         else:
-            display_lines(["ERROR", "Unmount failed"])
+            display.display_lines(["ERROR", "Unmount failed"])
         _log_debug("Erase aborted: target unmount failed")
         return False
     mode = (mode or "").lower()
@@ -74,7 +74,7 @@ def erase_device(target, mode, progress_callback=None):
         if progress_callback:
             progress_callback(["ERROR", message], None)
         else:
-            display_lines(["ERROR", message])
+            display.display_lines(["ERROR", message])
 
     def run_erase_command(command, total_bytes=None):
         try:
