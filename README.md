@@ -86,6 +86,23 @@ cd Rpi-USB-Cloner
    After enabling I2C, confirm the display address is either **0x3C** or **0x3D**.
    The OLED driver class depends on the panel type, so verify whether your panel is **SSD1306** or **SH1106**.
 
+   **Optional: Set a faster I2C baud rate (1 MHz)**
+   1. Open the config file (path depends on your Raspberry Pi OS version):
+      ```sh
+      # Newer Raspberry Pi OS releases
+      sudo nano /boot/firmware/config.txt
+      ```
+      On some versions, the file lives at `/boot/config.txt` instead. Use whichever path exists.
+   2. Add or update the following line under other `dtparam` entries:
+      ```ini
+      dtparam=i2c_baudrate=1000000
+      ```
+   3. Save and exit (`Ctrl+O`, `Enter`, then `Ctrl+X`).
+   4. Reboot to apply:
+      ```sh
+      sudo reboot
+      ```
+
 4. Install Python and required system libraries:
    ```sh
    sudo apt install -y python3 python3-pip python3-dev python3-venv git \
