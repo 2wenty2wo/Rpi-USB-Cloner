@@ -5,6 +5,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import keyboard, menus, screens, screensaver
+from rpi_usb_cloner.web import server as web_server
 from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
 
 
@@ -160,4 +161,25 @@ def toggle_screenshots() -> None:
     settings.set_bool("screenshots_enabled", enabled)
     status = "ENABLED" if enabled else "DISABLED"
     screens.render_status_template("SCREENSHOTS", f"Screenshots {status}")
+    time.sleep(1.5)
+
+
+def toggle_web_server() -> None:
+    """Toggle web server enabled/disabled."""
+    enabled = settings.get_bool("web_server_enabled", default=False)
+    if enabled:
+        settings.set_bool("web_server_enabled", False)
+        web_server.stop_server()
+        screens.render_status_template("WEB SERVER", "Web server DISABLED")
+        time.sleep(1.5)
+        return
+
+    try:
+        web_server.start_server()
+    except OSError:
+        screens.render_status_template("WEB SERVER", "Start FAILED")
+        time.sleep(1.5)
+        return
+    settings.set_bool("web_server_enabled", True)
+    screens.render_status_template("WEB SERVER", "Web server ENABLED")
     time.sleep(1.5)
