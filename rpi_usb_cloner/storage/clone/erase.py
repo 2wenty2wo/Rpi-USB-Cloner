@@ -11,6 +11,8 @@ from rpi_usb_cloner.storage.exceptions import (
 from rpi_usb_cloner.storage.validation import validate_erase_operation
 import rpi_usb_cloner.ui.display as display
 
+display_lines = display.display_lines
+
 from .command_runners import run_checked_with_streaming_progress
 from .progress import _log_debug
 
