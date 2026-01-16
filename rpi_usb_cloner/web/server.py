@@ -522,7 +522,7 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
             runner_queue.put(("error", exc))
             loop.close()
             return
-        runner_queue.put(("ok", runner, loop, stop_event))
+        runner_queue.put(("ok", (runner, loop, stop_event)))
         if log_debug:
             log_debug(f"Web server started at http://{host}:{port}")
         notifier_thread = threading.Thread(
