@@ -240,7 +240,6 @@ HTML_PAGE = """<!DOCTYPE html>
 </head>
 <body>
   <div class="panel">
-    <h1>OLED Display</h1>
     <div class="screen">
       <canvas id="screen" width="128" height="64"></canvas>
     </div>
