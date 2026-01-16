@@ -1,3 +1,5 @@
+import os
+
 from rpi_usb_cloner.menu import MenuItem, definitions
 
 
@@ -15,10 +17,29 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         default=app_state.ENABLE_SLEEP,
     )
     screensaver_state = "ON" if screensaver_enabled else "OFF"
+
+    web_server_enabled_setting = settings_store.get_bool(
+        "web_server_enabled",
+        default=False,
+    )
+    web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
+    if web_server_env_override is not None:
+        web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
+        web_server_state = "ON" if web_server_enabled else "OFF"
+        web_server_label = f"WEB SERVER: {web_server_state} (ENV)"
+    else:
+        web_server_enabled = web_server_enabled_setting
+        web_server_state = "ON" if web_server_enabled else "OFF"
+        web_server_label = f"WEB SERVER: {web_server_state}"
+
     return [
         MenuItem(
             label="WIFI",
             action=menu_actions.wifi_settings,
+        ),
+        MenuItem(
+            label=web_server_label,
+            action=menu_actions.toggle_web_server,
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
