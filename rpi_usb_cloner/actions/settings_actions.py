@@ -39,6 +39,7 @@ from rpi_usb_cloner.actions.settings import (
     screensaver_settings,
     select_restore_partition_mode,
     select_screensaver_gif,
+    show_about_credits,  # Display credits screen from assets/credits.png
     shutdown_system,
     stop_service,
     toggle_screensaver_enabled,
@@ -99,6 +100,7 @@ __all__ = [
     "preview_title_font",
     "toggle_screenshots",
     "toggle_web_server",
+    "show_about_credits",  # ABOUT menu: Display credits screen
     "update_version",
     "restart_service",
     "stop_service",

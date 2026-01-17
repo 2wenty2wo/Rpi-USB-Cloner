@@ -57,6 +57,7 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
             label="UPDATE",
             action=menu_actions.update_version,
         ),
+        # Display credits screen from ui/assets/credits.png
         MenuItem(
             label="ABOUT",
             action=menu_actions.show_about_credits,
