@@ -211,14 +211,14 @@
       info: 'bg-info'
     };
 
-    function appendLog(level, message, details = {}, source = 'UI', timestamp = null) {
+    function appendLog(level, message, details = {}, source = 'UI', timestamp = null, tags = null) {
       if (!logFrame) {
         return;
       }
       const entry = document.createElement('div');
       entry.className = 'list-group-item d-flex align-items-start gap-2';
       entry.dataset.source = source;
-      const timestampValue = timestamp || new Date().toISOString();
+      const timestampValue = timestamp ?? new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
       const prefix = source ? `[${source}] ` : '';
       const badge = document.createElement('span');
@@ -230,7 +230,20 @@
       const timestampEl = document.createElement('span');
       timestampEl.className = 'text-muted';
       timestampEl.textContent = `[${timestampValue}] `;
-      content.append(timestampEl, `${prefix}${message}${payload}`);
+      const messageEl = document.createElement('span');
+      messageEl.textContent = `${prefix}${message}${payload}`;
+      content.append(timestampEl, messageEl);
+      if (Array.isArray(tags) && tags.length > 0) {
+        const tagList = document.createElement('span');
+        tagList.className = 'ms-2 d-inline-flex gap-1';
+        tags.forEach((tag) => {
+          const tagBadge = document.createElement('span');
+          tagBadge.className = 'badge bg-azure-lt text-uppercase';
+          tagBadge.textContent = String(tag);
+          tagList.appendChild(tagBadge);
+        });
+        content.appendChild(tagList);
+      }
       entry.append(badge, content);
       if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
         logFrame.textContent = '';
@@ -358,11 +371,10 @@
           const message = typeof entry.message === 'string' ? entry.message : JSON.stringify(entry);
           const level = entry.level || 'log';
           const tags = Array.isArray(entry.tags) ? entry.tags : [];
-          const details = tags.length ? { tags } : {};
           const source = entry.source || 'APP';
           const timestamp = entry.timestamp || null;
           if (message.trim().length > 0) {
-            appendLog(level, message, details, source, timestamp);
+            appendLog(level, message, {}, source, timestamp, tags);
           }
         }
       });

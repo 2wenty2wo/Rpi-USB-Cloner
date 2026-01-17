@@ -108,7 +108,15 @@ def _serialize_log_entries(entries: list[LogEntry | str]) -> list[object]:
     serialized: list[object] = []
     for entry in entries:
         if isinstance(entry, LogEntry):
-            serialized.append(entry.to_dict())
+            serialized.append(
+                {
+                    "message": entry.message,
+                    "level": entry.level,
+                    "tags": list(entry.tags),
+                    "timestamp": entry.timestamp.isoformat(),
+                    "source": entry.source,
+                }
+            )
         else:
             serialized.append(str(entry))
     return serialized
