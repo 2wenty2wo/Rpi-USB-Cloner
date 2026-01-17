@@ -232,17 +232,23 @@
               </div>
             </div>
             <div class="col-12 col-lg-6">
-              <div class="card">
+              <div class="card d-flex flex-column" style="height: 420px;">
                 <div class="card-header">
                   <h3 class="card-title">
                     <span class="lucide-icon lucide-icon-logs" aria-hidden="true"></span>
                     Logs
                   </h3>
                 </div>
-                <div class="card-body p-0">
-                  <div id="debug-log" class="list-group list-group-flush"></div>
+                <div class="card-body p-0 flex-grow-1" style="min-height: 0;">
+                  <div id="debug-log" class="list-group list-group-flush overflow-auto h-100"></div>
                 </div>
-                <div class="card-footer text-muted small">Logs appear here as events are recorded.</div>
+                <div class="card-footer d-flex align-items-center pt-4 mt-auto">
+                  <label class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
+                    <span class="form-check-label">Auto-scroll</span>
+                  </label>
+                  <span class="text-muted small ms-auto">Logs appear here as events are recorded.</span>
+                </div>
               </div>
             </div>
           </div>
@@ -255,6 +261,8 @@
     const DEBUG_UI = true;
 
     const logFrame = document.getElementById('debug-log');
+    const autoScrollToggle = document.getElementById('auto-scroll-toggle');
+    let autoScrollEnabled = true;
     const levelBadgeClasses = {
       error: 'bg-danger',
       warn: 'bg-warning',
@@ -301,7 +309,9 @@
         logFrame.textContent = '';
       }
       logFrame.appendChild(entry);
-      logFrame.scrollTop = logFrame.scrollHeight;
+      if (autoScrollEnabled) {
+        logFrame.scrollTop = logFrame.scrollHeight;
+      }
     }
 
     function clearAppLogEntries() {
@@ -517,6 +527,12 @@
         sendButtonPress(button);
       });
     });
+
+    if (autoScrollToggle) {
+      autoScrollToggle.addEventListener('change', (event) => {
+        autoScrollEnabled = event.target.checked;
+      });
+    }
 
     // Initialize connections
     connectScreenSocket();
