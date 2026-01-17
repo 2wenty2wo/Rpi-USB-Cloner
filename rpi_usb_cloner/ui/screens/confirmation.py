@@ -123,6 +123,7 @@ def render_confirmation_screen(
         fill = 0 if is_selected else 255
         draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
+    display.mark_display_dirty()
 
 
 def render_update_buttons_screen(
@@ -241,6 +242,7 @@ def render_update_buttons_screen(
         fill = 0 if is_selected else 255
         draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
+    display.mark_display_dirty()
     return selected_index
 
 
@@ -360,4 +362,5 @@ def render_verify_finish_buttons_screen(
         fill = 0 if is_selected else 255
         draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
+    display.mark_display_dirty()
     return selected_index
