@@ -15,14 +15,19 @@ Usage:
 """
 
 # Screen-level icons (used in menu navigation)
-MAIN_ICON = chr(59059)  # layers-plus - main menu
+MAIN_ICON = chr(58365)  # copy-plus - main menu
 SETTINGS_ICON = chr(57925)  # settings icon
 TOOLS_ICON = chr(57580)  # tools icon
 FILE_BROWSER_ICON = chr(58175)  # folders icon
-IMAGES_ICON = chr(57559)  # images icon
+IMAGES_ICON = chr(57559)  # folder icon
 DRIVES_ICON = chr(57581)  # hard-drive icon
 ICONS_DEMO_ICON = chr(57922)  # icons icon
 SCREENS_ICON = chr(57629)  # screens icon
+UPDATE_ICON = chr(57669)  # refresh-cw - update screens
+WIFI_ICON = chr(57774)  # wifi - wifi screens
+POWER_ICON = chr(57664)  # power - power screens
+DEVELOP_ICON = chr(57729)  # terminal - develop screen
+LOGS_ICON = chr(58021)  # chart-line - logs screen
 
 # Action icons (used in operations and confirmations)
 ALERT_ICON = chr(57639)  # octagon-alert - warnings and errors
@@ -46,13 +51,13 @@ SYMBOLS_ICON = chr(57422)  # symbols mode selector
 SCREEN_ICONS = {
     "main": MAIN_ICON,
     "settings": SETTINGS_ICON,
-    "develop": "",  # No icon assigned
-    "update": "",  # No icon assigned
-    "power": "",  # No icon assigned
+    "develop": DEVELOP_ICON,
+    "update": UPDATE_ICON,
+    "power": POWER_ICON,
     "screensaver": "",  # No icon assigned
-    "wifi": "",  # No icon assigned
+    "wifi": WIFI_ICON,
     "tools": TOOLS_ICON,
-    "logs": "",  # No icon assigned
+    "logs": LOGS_ICON,
     "file_browser": FILE_BROWSER_ICON,
     "images": IMAGES_ICON,
     "drives": DRIVES_ICON,
