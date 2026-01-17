@@ -22,11 +22,15 @@ class TestEraseDevice:
         """Setup common mocks for erase tests."""
         with patch("rpi_usb_cloner.storage.clone.erase.shutil.which") as mock_which, \
              patch("rpi_usb_cloner.storage.clone.erase.unmount_device") as mock_unmount, \
+             patch("rpi_usb_cloner.storage.clone.erase.get_device_by_name") as mock_get_device, \
+             patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted") as mock_validate_unmounted, \
              patch("rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress") as mock_run, \
              patch("rpi_usb_cloner.storage.clone.erase.display_lines") as mock_display:
             yield {
                 "which": mock_which,
                 "unmount": mock_unmount,
+                "get_device": mock_get_device,
+                "validate_unmounted": mock_validate_unmounted,
                 "run": mock_run,
                 "display": mock_display,
             }

@@ -212,6 +212,8 @@ class TestEraseWorkflow:
             "size": 16000000000,
         }
 
+    @patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted")
+    @patch("rpi_usb_cloner.storage.clone.erase.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.erase.unmount_device")
     @patch("rpi_usb_cloner.storage.clone.erase.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress")
@@ -220,6 +222,8 @@ class TestEraseWorkflow:
         mock_run,
         mock_which,
         mock_unmount,
+        mock_get_device,
+        mock_validate_unmounted,
         mock_target,
     ):
         """Test complete secure erase workflow."""
@@ -232,6 +236,8 @@ class TestEraseWorkflow:
         mock_unmount.assert_called_once_with(mock_target)
         mock_run.assert_called_once()
 
+    @patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted")
+    @patch("rpi_usb_cloner.storage.clone.erase.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.erase.unmount_device")
     @patch("rpi_usb_cloner.storage.clone.erase.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress")
@@ -242,6 +248,8 @@ class TestEraseWorkflow:
         mock_run,
         mock_which,
         mock_unmount,
+        mock_get_device,
+        mock_validate_unmounted,
         mock_target,
     ):
         """Test complete quick erase workflow."""

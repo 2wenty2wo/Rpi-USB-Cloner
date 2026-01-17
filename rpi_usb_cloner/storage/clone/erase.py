@@ -2,13 +2,20 @@
 import shutil
 
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.storage.devices import format_device_label, unmount_device
+from rpi_usb_cloner.storage.devices import (
+    format_device_label,
+    get_device_by_name,
+    unmount_device,
+)
 from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
     EraseOperationError,
     MountVerificationError,
 )
-from rpi_usb_cloner.storage.validation import validate_erase_operation
+from rpi_usb_cloner.storage.validation import (
+    validate_device_unmounted,
+    validate_erase_operation,
+)
 import rpi_usb_cloner.ui.display as display
 
 
@@ -38,7 +45,7 @@ def erase_device(target, mode, progress_callback=None):
     """
     # SAFETY: Validate erase operation before proceeding
     try:
-        validate_erase_operation(target)
+        validate_erase_operation(target, check_unmounted=False)
     except (DeviceBusyError, MountVerificationError) as error:
         if progress_callback:
             progress_callback(["ERROR", "Device busy"], None)
@@ -61,6 +68,23 @@ def erase_device(target, mode, progress_callback=None):
         else:
             display_lines(["ERROR", "Unmount failed"])
         _log_debug("Erase aborted: target unmount failed")
+        return False
+    try:
+        refreshed_target = get_device_by_name(target.get("name")) or target
+        validate_device_unmounted(refreshed_target)
+    except (DeviceBusyError, MountVerificationError) as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Device busy"], None)
+        else:
+            display_lines(["ERROR", "Device busy"])
+        _log_debug(f"Erase aborted: {error}")
+        return False
+    except Exception as error:
+        if progress_callback:
+            progress_callback(["ERROR", "Validation"], None)
+        else:
+            display_lines(["ERROR", "Validation"])
+        _log_debug(f"Erase aborted: validation failed: {error}")
         return False
     mode = (mode or "").lower()
     device_label = format_device_label(target)
