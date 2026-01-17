@@ -50,6 +50,7 @@ from typing import Callable, List, Optional
 
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
+    get_device_by_name,
     run_command,
     unmount_device,
 )
@@ -58,7 +59,10 @@ from rpi_usb_cloner.storage.exceptions import (
     FormatOperationError,
     MountVerificationError,
 )
-from rpi_usb_cloner.storage.validation import validate_format_operation
+from rpi_usb_cloner.storage.validation import (
+    validate_device_unmounted,
+    validate_format_operation,
+)
 
 _log_debug = None
 
@@ -269,7 +273,7 @@ def format_device(
 
     # SAFETY: Validate format operation before proceeding
     try:
-        validate_format_operation(device)
+        validate_format_operation(device, check_unmounted=False)
     except (DeviceBusyError, MountVerificationError) as error:
         log_debug(f"Format aborted: {error}")
         if progress_callback:
@@ -304,6 +308,20 @@ def format_device(
             return False
     except Exception as error:
         log_debug(f"Failed to unmount device: {error}")
+        return False
+
+    try:
+        refreshed_device = get_device_by_name(device_name) or device
+        validate_device_unmounted(refreshed_device)
+    except (DeviceBusyError, MountVerificationError) as error:
+        log_debug(f"Format aborted: {error}")
+        if progress_callback:
+            progress_callback(["Device busy"], None)
+        return False
+    except Exception as error:
+        log_debug(f"Format aborted: mount verification failed: {error}")
+        if progress_callback:
+            progress_callback(["Validation failed"], None)
         return False
 
     # Create partition table

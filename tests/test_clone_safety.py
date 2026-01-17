@@ -218,21 +218,28 @@ class TestFormatSafety:
     """Test safety checks in format operations."""
 
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
+    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    def test_mounted_device_rejected_format(self, mock_unmount, mock_validation):
+    def test_mounted_device_rejected_format(
+        self, mock_unmount, mock_validate_unmounted, mock_validation
+    ):
         """Test that format rejects mounted device."""
         from rpi_usb_cloner.storage.format import format_device
 
         device = {"name": "sda", "mountpoint": "/mnt/usb"}
 
-        mock_validation.side_effect = MountVerificationError("sda", "/mnt/usb")
+        mock_validation.return_value = None
+        mock_unmount.return_value = True
+        mock_validate_unmounted.side_effect = MountVerificationError("sda", "/mnt/usb")
 
         result = format_device(device, "ext4", "quick")
 
         assert result is False
         mock_validation.assert_called_once()
+        mock_validate_unmounted.assert_called_once()
 
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
+    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
     @patch("rpi_usb_cloner.storage.format._create_partition")
@@ -243,6 +250,7 @@ class TestFormatSafety:
         mock_create_part,
         mock_create_table,
         mock_unmount,
+        mock_validate_unmounted,
         mock_validation,
     ):
         """Test that valid format operation proceeds."""
@@ -252,6 +260,7 @@ class TestFormatSafety:
 
         mock_validation.return_value = None
         mock_unmount.return_value = True
+        mock_validate_unmounted.return_value = None
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -260,32 +269,45 @@ class TestFormatSafety:
 
         assert result is True
         mock_validation.assert_called_once()
+        mock_validate_unmounted.assert_called_once()
 
 
 class TestEraseSafety:
     """Test safety checks in erase operations."""
 
     @patch("rpi_usb_cloner.storage.clone.erase.validate_erase_operation")
+    @patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.clone.erase.unmount_device")
-    def test_mounted_device_rejected_erase(self, mock_unmount, mock_validation):
+    def test_mounted_device_rejected_erase(
+        self, mock_unmount, mock_validate_unmounted, mock_validation
+    ):
         """Test that erase rejects mounted device."""
         from rpi_usb_cloner.storage.clone.erase import erase_device
 
         device = {"name": "sda", "mountpoint": "/mnt/usb"}
 
-        mock_validation.side_effect = MountVerificationError("sda", "/mnt/usb")
+        mock_validation.return_value = None
+        mock_unmount.return_value = True
+        mock_validate_unmounted.side_effect = MountVerificationError("sda", "/mnt/usb")
 
         result = erase_device(device, "quick")
 
         assert result is False
         mock_validation.assert_called_once()
+        mock_validate_unmounted.assert_called_once()
 
     @patch("rpi_usb_cloner.storage.clone.erase.validate_erase_operation")
+    @patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.clone.erase.unmount_device")
     @patch("rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress")
     @patch("shutil.which")
     def test_valid_erase_proceeds(
-        self, mock_which, mock_run_progress, mock_unmount, mock_validation
+        self,
+        mock_which,
+        mock_run_progress,
+        mock_unmount,
+        mock_validate_unmounted,
+        mock_validation,
     ):
         """Test that valid erase operation proceeds."""
         from rpi_usb_cloner.storage.clone.erase import erase_device
@@ -294,6 +316,7 @@ class TestEraseSafety:
 
         mock_validation.return_value = None
         mock_unmount.return_value = True
+        mock_validate_unmounted.return_value = None
         mock_which.return_value = "/usr/bin/wipefs"
         mock_run_progress.return_value = None
 
@@ -301,6 +324,7 @@ class TestEraseSafety:
 
         assert result is True
         mock_validation.assert_called_once()
+        mock_validate_unmounted.assert_called_once()
 
 
 class TestUnmountWithRaiseOnFailure:

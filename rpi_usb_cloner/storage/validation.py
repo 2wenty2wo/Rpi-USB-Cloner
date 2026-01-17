@@ -248,11 +248,12 @@ def validate_clone_operation(
             validate_sufficient_space(source, destination)
 
 
-def validate_format_operation(device) -> None:
+def validate_format_operation(device, check_unmounted: bool = True) -> None:
     """Perform all validations required before a format operation.
 
     Args:
         device: Device dict or name to format
+        check_unmounted: Whether to validate device unmounted (default True)
 
     Raises:
         Various exceptions from the exceptions module if validation fails
@@ -261,14 +262,16 @@ def validate_format_operation(device) -> None:
     validate_device_exists(device)
 
     # 2. Check device is unmounted
-    validate_device_unmounted(device)
+    if check_unmounted:
+        validate_device_unmounted(device)
 
 
-def validate_erase_operation(device) -> None:
+def validate_erase_operation(device, check_unmounted: bool = True) -> None:
     """Perform all validations required before an erase operation.
 
     Args:
         device: Device dict or name to erase
+        check_unmounted: Whether to validate device unmounted (default True)
 
     Raises:
         Various exceptions from the exceptions module if validation fails
@@ -277,4 +280,5 @@ def validate_erase_operation(device) -> None:
     validate_device_exists(device)
 
     # 2. Check device is unmounted
-    validate_device_unmounted(device)
+    if check_unmounted:
+        validate_device_unmounted(device)

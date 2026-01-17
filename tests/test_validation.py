@@ -347,6 +347,17 @@ class TestValidateFormatOperation:
         mock_unmount.assert_called_once()
 
     @patch("rpi_usb_cloner.storage.validation.validate_device_exists")
+    @patch("rpi_usb_cloner.storage.validation.validate_device_unmounted")
+    def test_format_validation_skip_unmounted(self, mock_unmount, mock_exists):
+        """Test format validation without unmounted check."""
+        device = {"name": "sda"}
+
+        validate_format_operation(device, check_unmounted=False)
+
+        mock_exists.assert_called_once()
+        mock_unmount.assert_not_called()
+
+    @patch("rpi_usb_cloner.storage.validation.validate_device_exists")
     def test_format_validation_fails_on_nonexistent(self, mock_exists):
         """Test format validation fails when device doesn't exist."""
         mock_exists.side_effect = DeviceNotFoundError("sda")
@@ -367,6 +378,17 @@ class TestValidateEraseOperation:
 
         mock_exists.assert_called_once()
         mock_unmount.assert_called_once()
+
+    @patch("rpi_usb_cloner.storage.validation.validate_device_exists")
+    @patch("rpi_usb_cloner.storage.validation.validate_device_unmounted")
+    def test_erase_validation_skip_unmounted(self, mock_unmount, mock_exists):
+        """Test erase validation without unmounted check."""
+        device = {"name": "sda"}
+
+        validate_erase_operation(device, check_unmounted=False)
+
+        mock_exists.assert_called_once()
+        mock_unmount.assert_not_called()
 
     @patch("rpi_usb_cloner.storage.validation.validate_device_exists")
     def test_erase_validation_fails_on_nonexistent(self, mock_exists):
