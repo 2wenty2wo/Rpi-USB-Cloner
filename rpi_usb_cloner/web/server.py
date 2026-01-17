@@ -89,6 +89,14 @@ HTML_PAGE = """<!DOCTYPE html>
       width: 100%;
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
     }
+    .layout {
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+    }
+    .device-panel {
+      flex: 1;
+    }
     h1 {
       font-size: 20px;
       margin: 0 0 12px;
@@ -246,11 +254,11 @@ HTML_PAGE = """<!DOCTYPE html>
       color: #c44;
     }
     .log-panel {
-      margin-top: 18px;
       background: #12151c;
       border: 1px solid #2c3340;
       border-radius: 8px;
       padding: 12px;
+      flex: 1;
     }
     .log-panel h2 {
       font-size: 12px;
@@ -292,49 +300,64 @@ HTML_PAGE = """<!DOCTYPE html>
       color: #7f8896;
       margin-top: 6px;
     }
+    @media (max-width: 700px) {
+      .layout {
+        flex-direction: column;
+      }
+      .log-panel {
+        order: 0;
+      }
+      .device-panel {
+        order: 1;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="panel">
-    <div class="screen">
-      <canvas id="screen" width="128" height="64"></canvas>
-    </div>
-    <div class="controls-container">
-      <!-- D-pad on the left -->
-      <div class="dpad-container">
-        <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-          <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
-          <path class="dpad-arrow" d="M100 38l12 20H88z" />
-          <path class="dpad-arrow" d="M100 162l-12-20h24z" />
-          <path class="dpad-arrow" d="M38 100l20-12v24z" />
-          <path class="dpad-arrow" d="M162 100l-20 12V88z" />
-        </svg>
-        <button class="dpad-btn dpad-up" data-button="UP"></button>
-        <button class="dpad-btn dpad-down" data-button="DOWN"></button>
-        <button class="dpad-btn dpad-left" data-button="LEFT"></button>
-        <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
+    <div class="layout">
+      <div class="device-panel">
+        <div class="screen">
+          <canvas id="screen" width="128" height="64"></canvas>
+        </div>
+        <div class="controls-container">
+          <!-- D-pad on the left -->
+          <div class="dpad-container">
+            <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+              <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
+              <path class="dpad-arrow" d="M100 38l12 20H88z" />
+              <path class="dpad-arrow" d="M100 162l-12-20h24z" />
+              <path class="dpad-arrow" d="M38 100l20-12v24z" />
+              <path class="dpad-arrow" d="M162 100l-20 12V88z" />
+            </svg>
+            <button class="dpad-btn dpad-up" data-button="UP"></button>
+            <button class="dpad-btn dpad-down" data-button="DOWN"></button>
+            <button class="dpad-btn dpad-left" data-button="LEFT"></button>
+            <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
+          </div>
+          <!-- Action buttons on the right -->
+          <div class="action-buttons">
+            <button class="action-btn btn-back" data-button="BACK">
+              <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <circle cx="50" cy="50" r="46" />
+                <text x="50" y="56" text-anchor="middle">BACK</text>
+              </svg>
+            </button>
+            <button class="action-btn btn-ok" data-button="OK">
+              <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <circle cx="50" cy="50" r="46" />
+                <text x="50" y="56" text-anchor="middle">OK</text>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="status" id="status">Connecting...</div>
       </div>
-      <!-- Action buttons on the right -->
-      <div class="action-buttons">
-        <button class="action-btn btn-back" data-button="BACK">
-          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-            <circle cx="50" cy="50" r="46" />
-            <text x="50" y="56" text-anchor="middle">BACK</text>
-          </svg>
-        </button>
-        <button class="action-btn btn-ok" data-button="OK">
-          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-            <circle cx="50" cy="50" r="46" />
-            <text x="50" y="56" text-anchor="middle">OK</text>
-          </svg>
-        </button>
+      <div class="log-panel">
+        <h2>Debug Logs</h2>
+        <div class="log-frame" id="debug-log"></div>
+        <div class="log-help">Logs appear here as events are recorded.</div>
       </div>
-    </div>
-    <div class="status" id="status">Connecting...</div>
-    <div class="log-panel">
-      <h2>Debug Logs</h2>
-      <div class="log-frame" id="debug-log"></div>
-      <div class="log-help">Logs appear here as events are recorded.</div>
     </div>
   </div>
   <script>
