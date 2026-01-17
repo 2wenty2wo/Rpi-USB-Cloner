@@ -21,15 +21,11 @@ from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
 from rpi_usb_cloner.ui import display, renderer
 
-# Import constants from constants module to avoid circular imports
-# Re-export them here for backward compatibility
-from rpi_usb_cloner.ui.constants import (
-    BUTTON_POLL_DELAY,
-    DEFAULT_SCROLL_CYCLE_SECONDS,
-    DEFAULT_SCROLL_REFRESH_INTERVAL,
-    INITIAL_REPEAT_DELAY,
-    REPEAT_INTERVAL,
-)
+INITIAL_REPEAT_DELAY = 0.3
+REPEAT_INTERVAL = 0.08
+BUTTON_POLL_DELAY = 0.01
+DEFAULT_SCROLL_CYCLE_SECONDS = 6.0
+DEFAULT_SCROLL_REFRESH_INTERVAL = 0.04
 
 
 @dataclass
