@@ -32,7 +32,7 @@ class AppContext:
     input_state: Dict[str, bool] = field(default_factory=dict)
     active_drive: Optional[str] = None
     discovered_drives: List[str] = field(default_factory=list)
-    log_buffer: Deque[LogEntry] = field(default_factory=lambda: deque(maxlen=100))
+    log_buffer: Deque[LogEntry] = field(default_factory=lambda: deque(maxlen=500))
     operation_active: bool = False
     allow_back_interrupt: bool = False
 
