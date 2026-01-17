@@ -30,6 +30,9 @@
     .lucide-icon-logs::before {
       content: "\e5f4";
     }
+    .lucide-icon-copy-plus::before {
+      content: "\e3fd";
+    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -161,6 +164,21 @@
 </head>
 <body>
   <div class="page">
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="#" aria-label="Rpi USB Cloner">
+          <span class="lucide-icon lucide-icon-copy-plus" aria-hidden="true"></span>
+          <span>Rpi USB CLONER</span>
+        </a>
+        <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
+          <div class="nav-item">
+            <span class="nav-link d-flex align-items-center small" id="status">
+              <span class="status status-red"><span class="status-dot"></span>Disconnected</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
     <div class="page-wrapper">
       <div class="page-body">
         <div class="container-xl">
@@ -209,9 +227,6 @@
                         </button>
                       </div>
                     </div>
-                  </div>
-                  <div class="text-center small mt-3" id="status">
-                    <span class="status status-red"><span class="status-dot"></span>Disconnected</span>
                   </div>
                 </div>
               </div>
@@ -456,7 +471,7 @@
       const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
       const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
 
-      statusEl.className = 'text-center small mt-3';
+      statusEl.className = 'nav-link d-flex align-items-center small';
       if (screenConnected && controlConnected) {
         statusEl.innerHTML = '<span class="status status-green"><span class="status-dot status-dot-animated"></span>Connected</span>';
       } else if (screenConnected || controlConnected) {
