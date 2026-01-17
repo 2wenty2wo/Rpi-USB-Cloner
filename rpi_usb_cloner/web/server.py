@@ -275,6 +275,7 @@ HTML_PAGE = """<!DOCTYPE html>
       padding: 12px;
       flex: 1;
       min-height: var(--preview-height);
+      height: var(--preview-height);
       display: flex;
       flex-direction: column;
     }
@@ -291,6 +292,7 @@ HTML_PAGE = """<!DOCTYPE html>
       border-radius: 6px;
       padding: 8px;
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: 11px;
