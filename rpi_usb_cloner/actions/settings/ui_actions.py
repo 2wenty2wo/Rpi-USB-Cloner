@@ -2,7 +2,7 @@
 import time
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
@@ -208,6 +208,8 @@ def show_about_credits() -> None:
 
     # Display the image
     with display._display_lock:
+        context.image = credits_image
+        context.draw = ImageDraw.Draw(context.image)
         context.disp.display(credits_image)
         display.mark_display_dirty()
 
