@@ -253,7 +253,7 @@
         return;
       }
       const entry = document.createElement('div');
-      entry.className = `list-group-item bg-dark border-secondary d-flex align-items-start gap-2 log-entry log-${level}`;
+      entry.className = `list-group-item d-flex align-items-start gap-2 log-entry log-${level}`;
       entry.dataset.source = source;
       const timestamp = new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
@@ -263,8 +263,11 @@
       badge.className = `badge ${badgeClass} text-uppercase`;
       badge.textContent = level;
       const content = document.createElement('code');
-      content.className = 'text-muted small';
-      content.textContent = `[${timestamp}] ${prefix}${message}${payload}`;
+      content.className = 'text-light small';
+      const timestampEl = document.createElement('span');
+      timestampEl.className = 'text-muted';
+      timestampEl.textContent = `[${timestamp}] `;
+      content.append(timestampEl, `${prefix}${message}${payload}`);
       entry.append(badge, content);
       if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
         logFrame.textContent = '';
