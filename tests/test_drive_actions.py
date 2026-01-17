@@ -113,11 +113,11 @@ def mock_dependencies(mocker):
     mocker.patch("rpi_usb_cloner.actions.drive_actions.menus.select_format_type", return_value="quick")
 
     # Mock storage functions
-    mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.list_usb_disks", return_value=[])
-    mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.get_children", return_value=[])
-    mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.format_device_label", side_effect=lambda x: x.get("name") if isinstance(x, dict) else str(x))
+    mocker.patch("rpi_usb_cloner.actions.drive_actions.list_usb_disks", return_value=[])
+    mocker.patch("rpi_usb_cloner.actions.drive_actions.get_children", return_value=[])
+    mocker.patch("rpi_usb_cloner.actions.drive_actions.format_device_label", side_effect=lambda x: x.get("name") if isinstance(x, dict) else str(x))
     mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.is_root_device", return_value=False)
-    mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.human_size", side_effect=lambda x: f"{x}B" if x else "0B")
+    mocker.patch("rpi_usb_cloner.actions.drive_actions.human_size", side_effect=lambda x: f"{x}B" if x else "0B")
     mocker.patch("rpi_usb_cloner.actions.drive_actions.clone_device", return_value=True)
     mocker.patch("rpi_usb_cloner.actions.drive_actions.erase_device", return_value=True)
     mocker.patch("rpi_usb_cloner.actions.drive_actions.find_image_repos", return_value=[])
@@ -142,7 +142,7 @@ class TestCollectMountpoints:
     def test_device_with_mountpoint(self, mocker):
         """Test collecting mountpoint from device."""
         device = {"name": "sda", "mountpoint": "/mnt/usb", "children": []}
-        mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.get_children", return_value=[])
+        mocker.patch("rpi_usb_cloner.actions.drive_actions.get_children", return_value=[])
 
         mountpoints = drive_actions._collect_mountpoints(device)
 
@@ -159,7 +159,14 @@ class TestCollectMountpoints:
             {"name": "sda1", "mountpoint": "/mnt/part1", "children": []},
             {"name": "sda2", "mountpoint": "/mnt/part2", "children": []},
         ]
-        mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.get_children", return_value=children)
+
+        # Mock get_children to return appropriate values for each device
+        def mock_get_children(dev):
+            if dev.get("name") == "sda":
+                return children
+            return []
+
+        mocker.patch("rpi_usb_cloner.actions.drive_actions.get_children", side_effect=mock_get_children)
 
         mountpoints = drive_actions._collect_mountpoints(device)
 
@@ -168,7 +175,7 @@ class TestCollectMountpoints:
     def test_device_without_mountpoints(self, mocker):
         """Test device with no mountpoints."""
         device = {"name": "sda", "mountpoint": None, "children": []}
-        mocker.patch("rpi_usb_cloner.actions.drive_actions.devices.get_children", return_value=[])
+        mocker.patch("rpi_usb_cloner.actions.drive_actions.get_children", return_value=[])
 
         mountpoints = drive_actions._collect_mountpoints(device)
 
