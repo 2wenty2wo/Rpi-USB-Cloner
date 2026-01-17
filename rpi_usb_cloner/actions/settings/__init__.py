@@ -34,6 +34,7 @@ from .ui_actions import (
     screensaver_settings,
     select_restore_partition_mode,
     select_screensaver_gif,
+    show_about_credits,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
@@ -67,6 +68,7 @@ __all__ = [
     "preview_title_font",
     "toggle_screenshots",
     "toggle_web_server",
+    "show_about_credits",
     # Update manager
     "update_version",
     "get_update_status",

@@ -108,3 +108,7 @@ def restart_system() -> None:
 def shutdown_system() -> None:
     context = get_action_context()
     _run_operation(lambda: settings_actions.shutdown_system(log_debug=context.log_debug))
+
+
+def show_about_credits() -> None:
+    settings_actions.show_about_credits()
