@@ -589,7 +589,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=WRITE_TITLE_ICON,
+        title_icon=WRITE_ICON,
     )
     if "error" in error_holder:
         error = error_holder["error"]
@@ -1180,7 +1180,7 @@ def _write_iso_image(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=WRITE_TITLE_ICON,
+        title_icon=WRITE_ICON,
     )
     if "error" in error_holder:
         error = error_holder["error"]
@@ -1210,6 +1210,6 @@ def _write_iso_image(
         "WRITE ISO",
         "SUCCESS",
         extra_lines=summary_lines,
-        title_icon=WRITE_TITLE_ICON,
+        title_icon=WRITE_ICON,
     )
     screens.wait_for_ack()
