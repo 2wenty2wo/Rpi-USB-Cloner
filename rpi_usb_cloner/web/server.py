@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import pkgutil
 import threading
 from dataclasses import dataclass
 from functools import lru_cache
@@ -70,7 +71,14 @@ TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "index.html"
 
 @lru_cache(maxsize=1)
 def _load_template() -> str:
-    return TEMPLATE_PATH.read_text(encoding="utf-8")
+    template_bytes = pkgutil.get_data("rpi_usb_cloner.web", "templates/index.html")
+    if template_bytes is not None:
+        return template_bytes.decode("utf-8")
+    if TEMPLATE_PATH.exists():
+        return TEMPLATE_PATH.read_text(encoding="utf-8")
+    raise FileNotFoundError(
+        "Web UI template not found. Ensure templates/index.html is packaged."
+    )
 
 
 def _build_headers() -> dict[str, str]:
