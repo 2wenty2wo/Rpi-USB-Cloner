@@ -28,12 +28,14 @@ def list_available_gifs(directory: Path = SCREENSAVER_DIR) -> list[Path]:
 
 
 def _render_placeholder(context: display.DisplayContext, lines: list[str]) -> None:
-    context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    y = context.top
-    for line in lines:
-        context.draw.text((0, y), line, font=context.fontmain, fill=255)
-        y += 10
-    context.disp.display(context.image)
+    with display._display_lock:
+        context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        y = context.top
+        for line in lines:
+            context.draw.text((0, y), line, font=context.fontmain, fill=255)
+            y += 10
+        context.disp.display(context.image)
+        display.mark_display_dirty()
 
 
 def _prepare_frame(frame: Image.Image, size: tuple[int, int]) -> Image.Image:
@@ -99,7 +101,10 @@ def play_screensaver(
                 if input_checker():
                     return True
                 prepared = _prepare_frame(frame, (context.width, context.height))
-                context.disp.display(prepared)
+                with display._display_lock:
+                    context.image.paste(prepared)
+                    context.disp.display(context.image)
+                    display.mark_display_dirty()
                 if _sleep_with_input_check(_frame_duration_seconds(frame), input_checker):
                     return True
             image.seek(0)
