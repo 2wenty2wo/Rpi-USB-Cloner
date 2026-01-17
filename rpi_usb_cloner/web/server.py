@@ -333,22 +333,12 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="status" id="status">Connecting...</div>
     <div class="log-panel">
       <h2>Debug Logs</h2>
-      <div class="log-frame" id="debug-log">
-        Debug logging is disabled. Add <strong>?debug=1</strong> to the URL or set
-        <strong>localStorage.rpiUsbClonerDebug=1</strong> to enable logs.
-      </div>
-      <div class="log-help">Logs appear here when debug logging is enabled.</div>
+      <div class="log-frame" id="debug-log"></div>
+      <div class="log-help">Logs appear here as events are recorded.</div>
     </div>
   </div>
   <script>
-    const DEBUG_UI = (() => {
-      const params = new URLSearchParams(window.location.search);
-      if (params.has('debug')) {
-        return ['1', 'true', 'yes'].includes(params.get('debug'));
-      }
-      const stored = window.localStorage.getItem('rpiUsbClonerDebug');
-      return ['1', 'true', 'yes'].includes(stored);
-    })();
+    const DEBUG_UI = true;
 
     const logFrame = document.getElementById('debug-log');
 
@@ -369,9 +359,6 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     function debugLog(level, message, details = {}) {
-      if (!DEBUG_UI) {
-        return;
-      }
       const logger = console[level] || console.log;
       logger(message, {
         timestamp: new Date().toISOString(),
