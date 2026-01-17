@@ -406,9 +406,13 @@ def main(argv=None):
         )
 
     last_render_state = {"key": None}
+    last_screen_id = {"value": None}
 
     def render_current_screen(force=False):
         current_screen = menu_navigator.current_screen()
+        if current_screen.screen_id != last_screen_id["value"]:
+            log_debug(f"Screen changed: {last_screen_id['value']} -> {current_screen.screen_id}")
+            last_screen_id["value"] = current_screen.screen_id
         if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
             app_context.active_drive = drives.select_active_drive(
@@ -578,7 +582,6 @@ def main(argv=None):
                 is_pressed = current_states[key]
                 was_pressed = prev_states[key]
                 if is_pressed and not was_pressed:
-                    log_debug(f"Button {key} pressed")
                     menu_navigator.move_selection(direction, dynamic_visible_rows)
                     button_pressed = True
                     render_requested = True
@@ -600,17 +603,14 @@ def main(argv=None):
             handle_repeat_button("U", -1)
             handle_repeat_button("D", 1)
             if not prev_states["L"] and current_states["L"]:
-                log_debug("Button LEFT pressed")
                 handle_back()
                 button_pressed = True
                 render_requested = True
             if not prev_states["A"] and current_states["A"]:
-                log_debug("Button BACK pressed")
                 handle_back()
                 button_pressed = True
                 render_requested = True
             if not prev_states["R"] and current_states["R"]:
-                log_debug("Button RIGHT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
@@ -618,7 +618,6 @@ def main(argv=None):
                 button_pressed = True
                 render_requested = True
             if not prev_states["B"] and current_states["B"]:
-                log_debug("Button SELECT pressed")
                 action = menu_navigator.activate(dynamic_visible_rows)
                 if action:
                     action()
@@ -626,7 +625,6 @@ def main(argv=None):
                 button_pressed = True
                 render_requested = True
             if not prev_states["C"] and current_states["C"]:
-                log_debug("Button C pressed")
                 button_pressed = True
                 if settings_store.get_bool("screenshots_enabled", default=False):
                     screenshot_path = display.capture_screenshot()
