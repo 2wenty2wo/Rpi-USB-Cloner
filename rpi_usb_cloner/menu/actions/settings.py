@@ -82,7 +82,11 @@ def toggle_screenshots() -> None:
 
 
 def toggle_web_server() -> None:
-    settings_actions.toggle_web_server()
+    context = get_action_context()
+    settings_actions.toggle_web_server(
+        app_context=context.app_context,
+        log_debug=context.log_debug,
+    )
 
 
 def update_version() -> None:

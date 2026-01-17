@@ -8,6 +8,7 @@ from typing import Optional
 
 from aiohttp import web
 
+from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
 
@@ -388,20 +389,31 @@ HTML_PAGE = """<!DOCTYPE html>
 
     const logFrame = document.getElementById('debug-log');
 
-    function appendLog(level, message, details = {}) {
+    function appendLog(level, message, details = {}, source = 'UI') {
       if (!logFrame) {
         return;
       }
       const entry = document.createElement('div');
       entry.className = `log-entry log-${level}`;
+      entry.dataset.source = source;
       const timestamp = new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
-      entry.textContent = `[${timestamp}] ${message}${payload}`;
+      const prefix = source ? `[${source}] ` : '';
+      entry.textContent = `[${timestamp}] ${prefix}${message}${payload}`;
       if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
         logFrame.textContent = '';
       }
       logFrame.appendChild(entry);
       logFrame.scrollTop = logFrame.scrollHeight;
+    }
+
+    function clearAppLogEntries() {
+      if (!logFrame) {
+        return;
+      }
+      logFrame.querySelectorAll('.log-entry[data-source="APP"]').forEach((entry) => {
+        entry.remove();
+      });
     }
 
     function debugLog(level, message, details = {}) {
@@ -410,7 +422,7 @@ HTML_PAGE = """<!DOCTYPE html>
         timestamp: new Date().toISOString(),
         ...details
       });
-      appendLog(level, message, details);
+      appendLog(level, message, details, 'UI');
     }
 
     function socketDetails(socket, url, extra = {}) {
@@ -428,9 +440,11 @@ HTML_PAGE = """<!DOCTYPE html>
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const screenSocketUrl = `${protocol}//${window.location.host}/ws/screen`;
     const controlSocketUrl = `${protocol}//${window.location.host}/ws/control`;
+    const logSocketUrl = `${protocol}//${window.location.host}/ws/logs`;
 
     let screenSocket = null;
     let controlSocket = null;
+    let logSocket = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
 
@@ -495,6 +509,52 @@ HTML_PAGE = """<!DOCTYPE html>
       });
     }
 
+    function handleLogEntries(entries) {
+      if (!Array.isArray(entries)) {
+        return;
+      }
+      entries.forEach((entry) => {
+        if (typeof entry === 'string' && entry.trim().length > 0) {
+          appendLog('log', entry, {}, 'APP');
+        }
+      });
+    }
+
+    function connectLogSocket() {
+      logSocket = new WebSocket(logSocketUrl);
+
+      logSocket.addEventListener('open', () => {
+        debugLog('log', 'Log WebSocket connected', socketDetails(logSocket, logSocketUrl));
+      });
+
+      logSocket.addEventListener('message', (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'snapshot' || payload.type === 'append') {
+            if (payload.type === 'snapshot') {
+              clearAppLogEntries();
+            }
+            handleLogEntries(payload.entries);
+          } else if (payload.type === 'error') {
+            debugLog('warn', 'Log WebSocket error payload', payload);
+          }
+        } catch (error) {
+          debugLog('error', 'Failed to parse log payload', { error });
+        }
+      });
+
+      logSocket.addEventListener('close', () => {
+        debugLog('warn', 'Log WebSocket disconnected', socketDetails(logSocket, logSocketUrl));
+        setTimeout(connectLogSocket, 2000);
+      });
+
+      logSocket.addEventListener('error', (err) => {
+        debugLog('error', 'Log WebSocket error', socketDetails(logSocket, logSocketUrl, {
+          error: err
+        }));
+      });
+    }
+
     function updateStatus() {
       const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
       const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
@@ -551,6 +611,7 @@ HTML_PAGE = """<!DOCTYPE html>
     // Initialize connections
     connectScreenSocket();
     connectControlSocket();
+    connectLogSocket();
   </script>
 </body>
 </html>
@@ -562,6 +623,20 @@ def _build_headers() -> dict[str, str]:
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
     }
+
+
+def _diff_log_buffer(previous: list[str], current: list[str]) -> tuple[list[str], bool]:
+    if not previous:
+        return current, bool(current)
+    if previous == current:
+        return [], False
+    if current[: len(previous)] == previous:
+        return current[len(previous) :], False
+    max_overlap = min(len(previous), len(current))
+    for overlap in range(max_overlap, 0, -1):
+        if previous[-overlap:] == current[:overlap]:
+            return current[overlap:], False
+    return current, True
 
 
 async def handle_root(request: web.Request) -> web.Response:
@@ -671,6 +746,45 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams application log buffer updates."""
+    log_debug = request.app.get("log_debug")
+    app_context: Optional[AppContext] = request.app.get("app_context")
+    ws = web.WebSocketResponse(autoping=True)
+    await ws.prepare(request)
+    if not app_context:
+        await ws.send_json({"type": "error", "message": "Log buffer unavailable"})
+        await ws.close()
+        return ws
+    if log_debug:
+        log_debug(f"Log WebSocket connected from {request.remote}")
+    last_snapshot: list[str] = []
+    try:
+        snapshot = list(app_context.log_buffer)
+        if snapshot:
+            await ws.send_json({"type": "snapshot", "entries": snapshot})
+        last_snapshot = snapshot
+        while not ws.closed:
+            await asyncio.sleep(0.5)
+            current = list(app_context.log_buffer)
+            new_entries, reset = _diff_log_buffer(last_snapshot, current)
+            if reset and current:
+                await ws.send_json({"type": "snapshot", "entries": current})
+            elif new_entries:
+                await ws.send_json({"type": "append", "entries": new_entries})
+            last_snapshot = current
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        if log_debug:
+            log_debug(f"Log WebSocket error: {exc}")
+    finally:
+        await ws.close()
+        if log_debug:
+            log_debug(f"Log WebSocket disconnected from {request.remote}")
+    return ws
+
+
 def is_running() -> bool:
     return _current_handle is not None and _current_handle.thread.is_alive()
 
@@ -687,7 +801,12 @@ def stop_server(timeout: float = 5.0, log_debug=None) -> bool:
     return True
 
 
-def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=None):
+def start_server(
+    host: str = DEFAULT_HOST,
+    port: int = DEFAULT_PORT,
+    log_debug=None,
+    app_context: Optional[AppContext] = None,
+):
     global _current_handle
     if is_running():
         return _current_handle
@@ -705,10 +824,12 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
         app["display_notifier"] = notifier
         app["display_stop_event"] = stop_event
         app["log_debug"] = log_debug
+        app["app_context"] = app_context
         app.router.add_get("/", handle_root)
         app.router.add_get("/screen.png", handle_screen_png)
         app.router.add_get("/ws/screen", handle_screen_ws)
         app.router.add_get("/ws/control", handle_control_ws)
+        app.router.add_get("/ws/logs", handle_logs_ws)
 
         def notify_display_updates() -> None:
             while not stop_event.is_set():
