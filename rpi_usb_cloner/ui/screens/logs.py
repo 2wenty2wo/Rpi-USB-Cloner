@@ -2,6 +2,7 @@
 
 import time
 
+from rpi_usb_cloner.app.context import LogEntry
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import menus
@@ -13,7 +14,10 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
     title_icon = get_screen_icon("logs")
 
     def render(page: int) -> tuple[int, int]:
-        lines = list(app_context.log_buffer)[-max_lines:]
+        lines = [
+            entry.message if isinstance(entry, LogEntry) else str(entry)
+            for entry in list(app_context.log_buffer)[-max_lines:]
+        ]
         if not lines:
             lines = ["No logs yet."]
         return render_info_screen(title, lines, page_index=page, title_icon=title_icon)

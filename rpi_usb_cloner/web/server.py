@@ -11,7 +11,7 @@ from typing import Optional
 
 from aiohttp import web
 
-from rpi_usb_cloner.app.context import AppContext
+from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
 
@@ -88,7 +88,9 @@ def _build_headers() -> dict[str, str]:
     }
 
 
-def _diff_log_buffer(previous: list[str], current: list[str]) -> tuple[list[str], bool]:
+def _diff_log_buffer(
+    previous: list[LogEntry | str], current: list[LogEntry | str]
+) -> tuple[list[LogEntry | str], bool]:
     if not previous:
         return current, bool(current)
     if previous == current:
@@ -100,6 +102,16 @@ def _diff_log_buffer(previous: list[str], current: list[str]) -> tuple[list[str]
         if previous[-overlap:] == current[:overlap]:
             return current[overlap:], False
     return current, True
+
+
+def _serialize_log_entries(entries: list[LogEntry | str]) -> list[object]:
+    serialized: list[object] = []
+    for entry in entries:
+        if isinstance(entry, LogEntry):
+            serialized.append(entry.to_dict())
+        else:
+            serialized.append(str(entry))
+    return serialized
 
 
 async def handle_root(request: web.Request) -> web.Response:
@@ -223,20 +235,24 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
         return ws
     if log_debug:
         log_debug(f"Log WebSocket connected from {request.remote}")
-    last_snapshot: list[str] = []
+    last_snapshot: list[LogEntry | str] = []
     try:
         snapshot = list(app_context.log_buffer)
         if snapshot:
-            await ws.send_json({"type": "snapshot", "entries": snapshot})
+            await ws.send_json({"type": "snapshot", "entries": _serialize_log_entries(snapshot)})
         last_snapshot = snapshot
         while not ws.closed:
             await asyncio.sleep(0.5)
             current = list(app_context.log_buffer)
             new_entries, reset = _diff_log_buffer(last_snapshot, current)
             if reset and current:
-                await ws.send_json({"type": "snapshot", "entries": current})
+                await ws.send_json(
+                    {"type": "snapshot", "entries": _serialize_log_entries(current)}
+                )
             elif new_entries:
-                await ws.send_json({"type": "append", "entries": new_entries})
+                await ws.send_json(
+                    {"type": "append", "entries": _serialize_log_entries(new_entries)}
+                )
             last_snapshot = current
     except asyncio.CancelledError:
         raise

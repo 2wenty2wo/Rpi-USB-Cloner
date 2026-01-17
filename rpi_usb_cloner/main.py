@@ -169,10 +169,18 @@ def main(argv=None):
 
     app_context = AppContext()
 
-    def log_debug(message):
-        app_context.add_log(message)
+    def log_debug(message, *, level="debug", tags=None, timestamp=None, source=None):
+        entry_timestamp = timestamp or datetime.now()
+        app_context.add_log(
+            message,
+            level=level,
+            tags=tags,
+            timestamp=entry_timestamp,
+            source=source,
+        )
         if debug_enabled:
-            print(f"[DEBUG] {message}")
+            message_text = message.message if hasattr(message, "message") else message
+            print(f"[DEBUG] {message_text}")
 
     gpio.setup_gpio()
     context = display.init_display()
@@ -185,25 +193,27 @@ def main(argv=None):
     web_server_enabled_setting = settings_store.get_bool("web_server_enabled", default=False)
     web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
 
+    web_log_debug = partial(log_debug, tags=["web", "ws"])
     if web_server_env_override is not None:
         web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
         if web_server_enabled:
-            log_debug("Web server enabled via WEB_SERVER_ENABLED environment variable")
+            web_log_debug("Web server enabled via WEB_SERVER_ENABLED environment variable")
         else:
-            log_debug("Web server disabled via WEB_SERVER_ENABLED environment variable")
+            web_log_debug("Web server disabled via WEB_SERVER_ENABLED environment variable")
     else:
         web_server_enabled = web_server_enabled_setting
 
     if web_server_enabled:
         try:
-            web_server.start_server(log_debug=log_debug, app_context=app_context)
+            web_server.start_server(log_debug=web_log_debug, app_context=app_context)
         except OSError as error:
-            log_debug(f"Web server failed to start: {error}")
+            web_log_debug(f"Web server failed to start: {error}")
     else:
-        log_debug("Web server disabled in settings")
-    devices.configure_device_helpers(log_debug=log_debug, error_handler=display.display_lines)
+        web_log_debug("Web server disabled in settings")
+    usb_log_debug = partial(log_debug, tags=["usb"])
+    devices.configure_device_helpers(log_debug=usb_log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
-    configure_format_helpers(log_debug=log_debug)
+    configure_format_helpers(log_debug=partial(log_debug, tags=["format"]))
     wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
 
     state = app_state.AppState()
@@ -219,11 +229,11 @@ def main(argv=None):
         try:
             devices_list = drives.list_media_drive_names()
         except Exception as error:
-            log_debug(f"Failed to list media devices: {error}")
+            usb_log_debug(f"Failed to list media devices: {error}")
             return []
         snapshot = sorted(devices_list)
         if snapshot != last_usb_snapshot:
-            log_debug(f"USB snapshot: {snapshot}")
+            usb_log_debug(f"USB snapshot: {snapshot}")
             last_usb_snapshot = snapshot
         return snapshot
 
@@ -232,11 +242,11 @@ def main(argv=None):
         try:
             devices_list = drives.list_raw_usb_disk_names()
         except Exception as error:
-            log_debug(f"Failed to list raw USB devices: {error}")
+            usb_log_debug(f"Failed to list raw USB devices: {error}")
             return []
         snapshot = sorted(devices_list)
         if snapshot != last_raw_usb_snapshot:
-            log_debug(f"Raw USB snapshot: {snapshot}")
+            usb_log_debug(f"Raw USB snapshot: {snapshot}")
             last_raw_usb_snapshot = snapshot
         return snapshot
 
