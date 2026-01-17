@@ -74,10 +74,10 @@ def mock_display_context(mock_ssd1306_device):
 def reset_display_context():
     """Auto-use fixture to reset display context before each test."""
     display._display_context = None
-    display._display_dirty = False
+    display._display_dirty.clear()
     yield
     display._display_context = None
-    display._display_dirty = False
+    display._display_dirty.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -459,7 +459,7 @@ class TestScreenshot:
     def test_capture_screenshot(self, mocker, mock_display_context, tmp_path):
         """Test capturing a screenshot."""
         mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_display_context)
-        mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=str(tmp_path))
+        mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=str(tmp_path))
 
         screenshot_path = display.capture_screenshot()
 
@@ -469,7 +469,7 @@ class TestScreenshot:
     def test_capture_screenshot_no_directory(self, mocker, mock_display_context):
         """Test screenshot capture when directory is not set."""
         mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_display_context)
-        mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=None)
+        mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=None)
 
         screenshot_path = display.capture_screenshot()
 
