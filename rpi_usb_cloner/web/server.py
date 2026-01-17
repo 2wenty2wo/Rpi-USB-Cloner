@@ -95,13 +95,16 @@ HTML_PAGE = """<!DOCTYPE html>
       flex-direction: column;
       gap: 24px;
     }
-    .preview-log-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 24px;
+    .device-card {
+      background: #000;
+      border: 2px solid #3a3f4b;
+      border-radius: 6px;
+      padding: 20px;
+      width: 100%;
+      box-sizing: border-box;
     }
     .device-panel {
-      flex: 1;
+      width: 100%;
     }
     h1 {
       font-size: 20px;
@@ -273,11 +276,12 @@ HTML_PAGE = """<!DOCTYPE html>
       border: 2px solid #3a3f4b;
       border-radius: 6px;
       padding: 12px;
-      flex: 1;
+      width: 100%;
       min-height: var(--preview-height);
       height: var(--preview-height);
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
     }
     .log-card h2 {
       font-size: 12px;
@@ -321,14 +325,9 @@ HTML_PAGE = """<!DOCTYPE html>
       margin-top: 6px;
     }
     @media (max-width: 700px) {
-      .preview-log-row {
+      .controls-container {
         flex-direction: column;
-      }
-      .log-card {
-        order: 0;
-      }
-      .device-panel {
-        order: 1;
+        gap: 24px;
       }
     }
   </style>
@@ -336,7 +335,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
   <div class="panel">
     <div class="layout">
-      <div class="preview-log-row">
+      <div class="device-card">
         <div class="device-panel">
           <div class="preview-card">
             <div class="screen">
@@ -376,11 +375,11 @@ HTML_PAGE = """<!DOCTYPE html>
           </div>
           <div class="status" id="status">Connecting...</div>
         </div>
-        <div class="log-card">
-          <h2>Debug Logs</h2>
-          <div class="log-frame" id="debug-log"></div>
-          <div class="log-help">Logs appear here as events are recorded.</div>
-        </div>
+      </div>
+      <div class="log-card">
+        <h2>Debug Logs</h2>
+        <div class="log-frame" id="debug-log"></div>
+        <div class="log-help">Logs appear here as events are recorded.</div>
       </div>
     </div>
   </div>
