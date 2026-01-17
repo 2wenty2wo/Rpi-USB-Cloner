@@ -74,24 +74,24 @@ def mock_display_context(mock_ssd1306_device):
 def reset_display_context():
     """Auto-use fixture to reset display context before each test."""
     display._display_context = None
-    display._display_dirty = False
+    display._display_dirty.clear()
     yield
     display._display_context = None
-    display._display_dirty = False
+    display._display_dirty.clear()
 
 
 @pytest.fixture(autouse=True)
-def mock_hardware_dependencies(mocker):
+def mock_hardware_dependencies(mocker, tmp_path):
     """Auto-use fixture that mocks hardware dependencies."""
     # Mock luma.oled
     mocker.patch("rpi_usb_cloner.ui.display.ssd1306")
     mocker.patch("rpi_usb_cloner.ui.display.i2c")
 
-    # Mock font paths
-    mocker.patch("rpi_usb_cloner.ui.display.Path")
+    # Mock font assets directory to avoid file system dependencies
+    mocker.patch("rpi_usb_cloner.ui.display.ASSETS_DIR", tmp_path / "assets")
 
     # Mock settings
-    mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=None)
+    mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=None)
 
 
 # ==============================================================================
@@ -459,7 +459,7 @@ class TestScreenshot:
     def test_capture_screenshot(self, mocker, mock_display_context, tmp_path):
         """Test capturing a screenshot."""
         mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_display_context)
-        mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=str(tmp_path))
+        mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=str(tmp_path))
 
         screenshot_path = display.capture_screenshot()
 
@@ -469,7 +469,7 @@ class TestScreenshot:
     def test_capture_screenshot_no_directory(self, mocker, mock_display_context):
         """Test screenshot capture when directory is not set."""
         mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_display_context)
-        mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=None)
+        mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=None)
 
         screenshot_path = display.capture_screenshot()
 
@@ -498,30 +498,27 @@ class TestDirtyFlag:
         display.mark_display_dirty()
 
         # Should set internal flag
-        assert display._display_dirty is True
+        assert display._display_dirty.is_set()
 
     def test_clear_dirty_flag(self):
         """Test clearing dirty flag."""
         display.mark_display_dirty()
         display.clear_dirty_flag()
 
-        assert display._display_dirty is False
+        assert not display._display_dirty.is_set()
 
     def test_wait_for_display_update(self, mocker):
         """Test waiting for display update."""
-        # Mock threading.Event
-        mock_event = MagicMock()
-        mocker.patch("rpi_usb_cloner.ui.display.threading.Event", return_value=mock_event)
+        # Mock the _display_dirty Event's wait method
+        mock_wait = mocker.patch.object(display._display_dirty, 'wait', return_value=True)
 
         display.mark_display_dirty()
-
-        # Simulate event being set
-        mock_event.wait.return_value = True
 
         result = display.wait_for_display_update(timeout=1.0)
 
         # Should wait for event
-        assert mock_event.wait.called
+        assert mock_wait.called
+        assert result is True
 
 
 # ==============================================================================
