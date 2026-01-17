@@ -689,20 +689,20 @@ def _select_partitions_checklist(partition_labels: list[str]) -> Optional[list[b
         render_screen()
 
         # Poll for button events
-        if gpio.read_button(gpio.PIN_U):
+        if gpio.is_pressed(gpio.PIN_U):
             cursor_index = max(0, cursor_index - 1)
             time.sleep(0.15)
-        elif gpio.read_button(gpio.PIN_D):
+        elif gpio.is_pressed(gpio.PIN_D):
             cursor_index = min(len(partition_labels) - 1, cursor_index + 1)
             time.sleep(0.15)
-        elif gpio.read_button(gpio.PIN_L) or gpio.read_button(gpio.PIN_R):
+        elif gpio.is_pressed(gpio.PIN_L) or gpio.is_pressed(gpio.PIN_R):
             # Toggle current selection
             selected[cursor_index] = not selected[cursor_index]
             time.sleep(0.15)
-        elif gpio.read_button(gpio.PIN_B):
+        elif gpio.is_pressed(gpio.PIN_B):
             # Confirm
             return selected
-        elif gpio.read_button(gpio.PIN_A):
+        elif gpio.is_pressed(gpio.PIN_A):
             # Cancel
             return None
 

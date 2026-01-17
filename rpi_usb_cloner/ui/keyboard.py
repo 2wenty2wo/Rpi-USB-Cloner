@@ -12,7 +12,7 @@ from rpi_usb_cloner.hardware.gpio import (
     PIN_L,
     PIN_R,
     PIN_U,
-    read_button,
+    is_pressed,
 )
 from rpi_usb_cloner.ui import display, menus
 from rpi_usb_cloner.ui.icons import LOWERCASE_ICON, SYMBOLS_ICON, UPPERCASE_ICON
@@ -310,13 +310,13 @@ def prompt_text(
     mode_index = mode_items.index(layout_mode)
     menus.wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
-        "U": read_button(PIN_U),
-        "D": read_button(PIN_D),
-        "L": read_button(PIN_L),
-        "R": read_button(PIN_R),
-        "A": read_button(PIN_A),
-        "B": read_button(PIN_B),
-        "C": read_button(PIN_C),
+        "U": is_pressed(PIN_U),
+        "D": is_pressed(PIN_D),
+        "L": is_pressed(PIN_L),
+        "R": is_pressed(PIN_R),
+        "A": is_pressed(PIN_A),
+        "B": is_pressed(PIN_B),
+        "C": is_pressed(PIN_C),
     }
     last_press_time = {key: 0.0 for key in prev_states}
     last_repeat_time = {key: 0.0 for key in prev_states}
@@ -335,7 +335,7 @@ def prompt_text(
             title_icon_font,
         )
         now = time.monotonic()
-        current_u = read_button(PIN_U)
+        current_u = is_pressed(PIN_U)
         if prev_states["U"] and not current_u:
             if selected_band == "modes":
                 selected_band = "chars"
@@ -346,7 +346,7 @@ def prompt_text(
                 if selected_band == "modes":
                     selected_band = "chars"
                     last_repeat_time["U"] = now
-        current_d = read_button(PIN_D)
+        current_d = is_pressed(PIN_D)
         if prev_states["D"] and not current_d:
             if selected_band == "chars":
                 selected_band = "modes"
@@ -359,7 +359,7 @@ def prompt_text(
                     selected_band = "modes"
                     mode_index = mode_items.index(layout_mode)
                     last_repeat_time["D"] = now
-        current_l = read_button(PIN_L)
+        current_l = is_pressed(PIN_L)
         if prev_states["L"] and not current_l:
             if selected_band == "modes":
                 mode_index = max(0, mode_index - 1)
@@ -374,7 +374,7 @@ def prompt_text(
                 else:
                     selected_col = max(0, selected_col - 1)
                 last_repeat_time["L"] = now
-        current_r = read_button(PIN_R)
+        current_r = is_pressed(PIN_R)
         if prev_states["R"] and not current_r:
             if selected_band == "modes":
                 mode_index = min(len(mode_items) - 1, mode_index + 1)
@@ -389,10 +389,10 @@ def prompt_text(
                 else:
                     selected_col = min(len(keys) - 1, selected_col + 1)
                 last_repeat_time["R"] = now
-        current_a = read_button(PIN_A)
+        current_a = is_pressed(PIN_A)
         if prev_states["A"] and not current_a:
             return None
-        current_b = read_button(PIN_B)
+        current_b = is_pressed(PIN_B)
         if prev_states["B"] and not current_b:
             if selected_band == "modes":
                 selected_mode = mode_items[mode_index]
@@ -420,7 +420,7 @@ def prompt_text(
                     selected_col = min(selected_col, len(keys) - 1)
                 else:
                     value += key
-        current_c = read_button(PIN_C)
+        current_c = is_pressed(PIN_C)
         if prev_states["C"] and not current_c:
             return value
         prev_states["U"] = current_u

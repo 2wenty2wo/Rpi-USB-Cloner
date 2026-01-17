@@ -54,15 +54,15 @@ def copy_drive(
     )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
     prev_states = {
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-        "C": gpio.read_button(gpio.PIN_C),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+        "C": gpio.is_pressed(gpio.PIN_C),
     }
     try:
         while True:
-            current_R = gpio.read_button(gpio.PIN_R)
+            current_R = gpio.is_pressed(gpio.PIN_R)
             if prev_states["R"] and not current_R:
                 if confirm_selection == app_state.CONFIRM_NO:
                     confirm_selection = app_state.CONFIRM_YES
@@ -73,18 +73,18 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: YES")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-            current_L = gpio.read_button(gpio.PIN_L)
+            current_L = gpio.is_pressed(gpio.PIN_L)
             if prev_states["L"] and not current_L:
                 if confirm_selection == app_state.CONFIRM_YES:
                     confirm_selection = app_state.CONFIRM_NO
                     _log_debug(log_debug, "Copy menu selection changed: NO")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-            current_A = gpio.read_button(gpio.PIN_A)
+            current_A = gpio.is_pressed(gpio.PIN_A)
             if prev_states["A"] and not current_A:
                 _log_debug(log_debug, "Copy menu: Button A pressed")
                 return
-            current_B = gpio.read_button(gpio.PIN_B)
+            current_B = gpio.is_pressed(gpio.PIN_B)
             if prev_states["B"] and not current_B:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
@@ -102,7 +102,7 @@ def copy_drive(
                     return
                 if confirm_selection == app_state.CONFIRM_NO:
                     return
-            current_C = gpio.read_button(gpio.PIN_C)
+            current_C = gpio.is_pressed(gpio.PIN_C)
             if prev_states["C"] and not current_C:
                 _log_debug(log_debug, "Copy menu: Button C pressed")
                 if _handle_screenshot():
@@ -142,18 +142,18 @@ def drive_info(
     )
     last_selected_name = get_selected_usb_name()
     prev_states = {
-        "A": gpio.read_button(gpio.PIN_A),
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "U": gpio.read_button(gpio.PIN_U),
-        "D": gpio.read_button(gpio.PIN_D),
-        "C": gpio.read_button(gpio.PIN_C),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "U": gpio.is_pressed(gpio.PIN_U),
+        "D": gpio.is_pressed(gpio.PIN_D),
+        "C": gpio.is_pressed(gpio.PIN_C),
     }
     while True:
-        current_a = gpio.read_button(gpio.PIN_A)
+        current_a = gpio.is_pressed(gpio.PIN_A)
         if prev_states["A"] and not current_a:
             return
-        current_l = gpio.read_button(gpio.PIN_L)
+        current_l = gpio.is_pressed(gpio.PIN_L)
         if prev_states["L"] and not current_l:
             page_index = max(0, page_index - 1)
             total_pages, page_index = _view_devices(
@@ -161,7 +161,7 @@ def drive_info(
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
-        current_r = gpio.read_button(gpio.PIN_R)
+        current_r = gpio.is_pressed(gpio.PIN_R)
         if prev_states["R"] and not current_r:
             page_index = min(total_pages - 1, page_index + 1)
             total_pages, page_index = _view_devices(
@@ -169,7 +169,7 @@ def drive_info(
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
-        current_u = gpio.read_button(gpio.PIN_U)
+        current_u = gpio.is_pressed(gpio.PIN_U)
         if prev_states["U"] and not current_u:
             page_index = max(0, page_index - 1)
             total_pages, page_index = _view_devices(
@@ -177,7 +177,7 @@ def drive_info(
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
-        current_d = gpio.read_button(gpio.PIN_D)
+        current_d = gpio.is_pressed(gpio.PIN_D)
         if prev_states["D"] and not current_d:
             page_index = min(total_pages - 1, page_index + 1)
             total_pages, page_index = _view_devices(
@@ -185,7 +185,7 @@ def drive_info(
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
-        current_c = gpio.read_button(gpio.PIN_C)
+        current_c = gpio.is_pressed(gpio.PIN_C)
         if prev_states["C"] and not current_c:
             if _handle_screenshot():
                 total_pages, page_index = _view_devices(
