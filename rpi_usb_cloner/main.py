@@ -196,7 +196,7 @@ def main(argv=None):
 
     if web_server_enabled:
         try:
-            web_server.start_server(log_debug=log_debug)
+            web_server.start_server(log_debug=log_debug, app_context=app_context)
         except OSError as error:
             log_debug(f"Web server failed to start: {error}")
     else:
