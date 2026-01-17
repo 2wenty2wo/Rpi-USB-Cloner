@@ -392,6 +392,8 @@ def main(argv=None):
             )
         if screen.screen_id == definitions.DRIVES_MENU.screen_id:
             return active_drive_label or "NO DRIVE SELECTED"
+        if screen.screen_id == definitions.MAIN_MENU.screen_id:
+            return active_drive_label or "NO DRIVE SELECTED"
         return status_line
 
     def get_visible_rows_for_screen(screen, status_line=None):
