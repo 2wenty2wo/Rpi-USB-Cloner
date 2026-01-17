@@ -245,6 +245,53 @@ HTML_PAGE = """<!DOCTYPE html>
     .status.disconnected {
       color: #c44;
     }
+    .log-panel {
+      margin-top: 18px;
+      background: #12151c;
+      border: 1px solid #2c3340;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .log-panel h2 {
+      font-size: 12px;
+      margin: 0 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9aa4b2;
+    }
+    .log-frame {
+      background: #0b0e14;
+      border: 1px solid #202735;
+      border-radius: 6px;
+      padding: 8px;
+      height: 140px;
+      overflow-y: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #d6deeb;
+      white-space: pre-wrap;
+    }
+    .log-entry {
+      margin: 0 0 6px;
+    }
+    .log-entry:last-child {
+      margin-bottom: 0;
+    }
+    .log-entry.log-error {
+      color: #ff8f8f;
+    }
+    .log-entry.log-warn {
+      color: #ffd27d;
+    }
+    .log-entry.log-debug {
+      color: #9ad0ff;
+    }
+    .log-help {
+      font-size: 11px;
+      color: #7f8896;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -284,8 +331,64 @@ HTML_PAGE = """<!DOCTYPE html>
       </div>
     </div>
     <div class="status" id="status">Connecting...</div>
+    <div class="log-panel">
+      <h2>Debug Logs</h2>
+      <div class="log-frame" id="debug-log">
+        Debug logging is disabled. Add <strong>?debug=1</strong> to the URL or set
+        <strong>localStorage.rpiUsbClonerDebug=1</strong> to enable logs.
+      </div>
+      <div class="log-help">Logs appear here when debug logging is enabled.</div>
+    </div>
   </div>
   <script>
+    const DEBUG_UI = (() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('debug')) {
+        return ['1', 'true', 'yes'].includes(params.get('debug'));
+      }
+      const stored = window.localStorage.getItem('rpiUsbClonerDebug');
+      return ['1', 'true', 'yes'].includes(stored);
+    })();
+
+    const logFrame = document.getElementById('debug-log');
+
+    function appendLog(level, message, details = {}) {
+      if (!logFrame) {
+        return;
+      }
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${level}`;
+      const timestamp = new Date().toISOString();
+      const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
+      entry.textContent = `[${timestamp}] ${message}${payload}`;
+      if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
+        logFrame.textContent = '';
+      }
+      logFrame.appendChild(entry);
+      logFrame.scrollTop = logFrame.scrollHeight;
+    }
+
+    function debugLog(level, message, details = {}) {
+      if (!DEBUG_UI) {
+        return;
+      }
+      const logger = console[level] || console.log;
+      logger(message, {
+        timestamp: new Date().toISOString(),
+        ...details
+      });
+      appendLog(level, message, details);
+    }
+
+    function socketDetails(socket, url, extra = {}) {
+      return {
+        url,
+        readyState: socket ? socket.readyState : 'uninitialized',
+        reconnectAttempts,
+        ...extra
+      };
+    }
+
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
     const statusEl = document.getElementById('status');
@@ -304,7 +407,7 @@ HTML_PAGE = """<!DOCTYPE html>
       screenSocket.binaryType = 'arraybuffer';
 
       screenSocket.addEventListener('open', () => {
-        console.log('Screen WebSocket connected');
+        debugLog('log', 'Screen WebSocket connected', socketDetails(screenSocket, screenSocketUrl));
         updateStatus();
       });
 
@@ -319,13 +422,15 @@ HTML_PAGE = """<!DOCTYPE html>
       });
 
       screenSocket.addEventListener('close', () => {
-        console.log('Screen WebSocket disconnected');
+        debugLog('warn', 'Screen WebSocket disconnected', socketDetails(screenSocket, screenSocketUrl));
         updateStatus();
         setTimeout(connectScreenSocket, 2000);
       });
 
       screenSocket.addEventListener('error', (err) => {
-        console.error('Screen WebSocket error:', err);
+        debugLog('error', 'Screen WebSocket error', socketDetails(screenSocket, screenSocketUrl, {
+          error: err
+        }));
       });
     }
 
@@ -334,13 +439,15 @@ HTML_PAGE = """<!DOCTYPE html>
       controlSocket = new WebSocket(controlSocketUrl);
 
       controlSocket.addEventListener('open', () => {
-        console.log('Control WebSocket connected');
+        debugLog('log', 'Control WebSocket connected', socketDetails(controlSocket, controlSocketUrl));
         reconnectAttempts = 0;
         updateStatus();
       });
 
       controlSocket.addEventListener('close', () => {
-        console.log('Control WebSocket disconnected');
+        debugLog('warn', 'Control WebSocket disconnected', socketDetails(controlSocket, controlSocketUrl, {
+          willReconnect: reconnectAttempts < maxReconnectAttempts
+        }));
         updateStatus();
         if (reconnectAttempts < maxReconnectAttempts) {
           reconnectAttempts++;
@@ -349,7 +456,9 @@ HTML_PAGE = """<!DOCTYPE html>
       });
 
       controlSocket.addEventListener('error', (err) => {
-        console.error('Control WebSocket error:', err);
+        debugLog('error', 'Control WebSocket error', socketDetails(controlSocket, controlSocketUrl, {
+          error: err
+        }));
       });
     }
 
@@ -367,15 +476,26 @@ HTML_PAGE = """<!DOCTYPE html>
         statusEl.textContent = 'Disconnected';
         statusEl.className = 'status disconnected';
       }
+
+      debugLog('debug', 'Status updated', {
+        screenReadyState: screenSocket ? screenSocket.readyState : 'uninitialized',
+        controlReadyState: controlSocket ? controlSocket.readyState : 'uninitialized',
+        screenConnected,
+        controlConnected
+      });
     }
 
     // Send button press to the server
     function sendButtonPress(button) {
       if (controlSocket && controlSocket.readyState === WebSocket.OPEN) {
         controlSocket.send(JSON.stringify({ button: button }));
-        console.log('Button pressed:', button);
+        debugLog('log', 'Button pressed', socketDetails(controlSocket, controlSocketUrl, {
+          button
+        }));
       } else {
-        console.warn('Control socket not connected');
+        debugLog('warn', 'Control socket not connected', socketDetails(controlSocket, controlSocketUrl, {
+          button
+        }));
       }
     }
 
@@ -427,8 +547,11 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     which prevents flickering caused by capturing partial renders.
     """
     notifier = request.app["display_notifier"]
+    log_debug = request.app.get("log_debug")
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
+    if log_debug:
+        log_debug(f"Screen WebSocket connected from {request.remote}")
     try:
         # Send initial frame
         png_bytes = display.get_display_png_bytes()
@@ -448,10 +571,13 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
             display.clear_dirty_flag()
     except asyncio.CancelledError:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        if log_debug:
+            log_debug(f"Screen WebSocket error: {exc}")
     finally:
         await ws.close()
+        if log_debug:
+            log_debug(f"Screen WebSocket disconnected from {request.remote}")
     return ws
 
 
@@ -461,8 +587,11 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     Receives button press commands and injects them as virtual GPIO events.
     Message format: {"button": "UP|DOWN|LEFT|RIGHT|BACK|OK"}
     """
+    log_debug = request.app.get("log_debug")
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
+    if log_debug:
+        log_debug(f"Control WebSocket connected from {request.remote}")
 
     # Button name to GPIO pin mapping
     button_map = {
@@ -487,17 +616,24 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
                         pin = button_map[button]
                         virtual_gpio.inject_button_press(pin)
                     else:
+                        if log_debug:
+                            log_debug(f"Unknown control button payload: {data}")
                         await ws.send_json({"error": f"Unknown button: {button}"})
                 except (json.JSONDecodeError, KeyError) as e:
+                    if log_debug:
+                        log_debug(f"Invalid control payload: {msg.data} ({e})")
                     await ws.send_json({"error": f"Invalid message format: {e}"})
             elif msg.type == web.WSMsgType.ERROR:
                 break
     except asyncio.CancelledError:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        if log_debug:
+            log_debug(f"Control WebSocket error: {exc}")
     finally:
         await ws.close()
+        if log_debug:
+            log_debug(f"Control WebSocket disconnected from {request.remote}")
 
     return ws
 
@@ -535,6 +671,7 @@ def start_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, log_debug=N
         stop_event = threading.Event()
         app["display_notifier"] = notifier
         app["display_stop_event"] = stop_event
+        app["log_debug"] = log_debug
         app.router.add_get("/", handle_root)
         app.router.add_get("/screen.png", handle_screen_png)
         app.router.add_get("/ws/screen", handle_screen_ws)
