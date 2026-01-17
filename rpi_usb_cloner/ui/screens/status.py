@@ -5,6 +5,7 @@ from typing import Iterable, Optional
 
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui.constants import BUTTON_POLL_DELAY
 
 
 def render_status_template(
@@ -39,7 +40,7 @@ def show_coming_soon(title="COMING SOON", delay=1) -> None:
 def wait_for_ack(
     *,
     buttons: Optional[Iterable[int]] = None,
-    poll_delay: float = menus.BUTTON_POLL_DELAY,
+    poll_delay: float = BUTTON_POLL_DELAY,
 ) -> None:
     if buttons is None:
         buttons = (gpio.PIN_A, gpio.PIN_B)
