@@ -39,6 +39,13 @@
     }
     .dpad-arrow {
       fill: #fff;
+      transition: fill 0.15s ease;
+    }
+    .dpad-container:has(.dpad-up:hover) .dpad-arrow-up,
+    .dpad-container:has(.dpad-down:hover) .dpad-arrow-down,
+    .dpad-container:has(.dpad-left:hover) .dpad-arrow-left,
+    .dpad-container:has(.dpad-right:hover) .dpad-arrow-right {
+      fill: #ff4d4f;
     }
     .dpad-btn {
       position: absolute;
@@ -197,10 +204,10 @@
                 <div class="dpad-container">
                   <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
                     <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
-                    <path class="dpad-arrow" d="M100 38l12 20H88z" />
-                    <path class="dpad-arrow" d="M100 162l-12-20h24z" />
-                    <path class="dpad-arrow" d="M38 100l20-12v24z" />
-                    <path class="dpad-arrow" d="M162 100l-20 12V88z" />
+                    <path class="dpad-arrow dpad-arrow-up" d="M100 38l12 20H88z" />
+                    <path class="dpad-arrow dpad-arrow-down" d="M100 162l-12-20h24z" />
+                    <path class="dpad-arrow dpad-arrow-left" d="M38 100l20-12v24z" />
+                    <path class="dpad-arrow dpad-arrow-right" d="M162 100l-20 12V88z" />
                   </svg>
                   <button class="dpad-btn dpad-up" data-button="UP"></button>
                   <button class="dpad-btn dpad-down" data-button="DOWN"></button>
