@@ -6,6 +6,30 @@
   <title>Rpi USB Cloner</title>
   <link rel="stylesheet" href="/static/tabler/tabler.min.css" />
   <style>
+    @font-face {
+      font-family: 'Lucide';
+      src: url('/ui-assets/fonts/lucide.ttf') format('truetype');
+      font-display: swap;
+    }
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .lucide-icon {
+      font-family: 'Lucide';
+      font-size: 1.1em;
+      line-height: 1;
+    }
+    .lucide-icon::before {
+      display: inline-block;
+    }
+    .lucide-icon-tv::before {
+      content: "\e203";
+    }
+    .lucide-icon-logs::before {
+      content: "\e5f4";
+    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -144,7 +168,10 @@
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
-                  <h3 class="card-title">Preview</h3>
+                  <h3 class="card-title">
+                    <span class="lucide-icon lucide-icon-tv" aria-hidden="true"></span>
+                    Preview
+                  </h3>
                 </div>
                 <div class="card-body">
                   <div class="ratio ratio-2x1 mb-4">
@@ -190,7 +217,10 @@
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
-                  <h3 class="card-title">Logs</h3>
+                  <h3 class="card-title">
+                    <span class="lucide-icon lucide-icon-logs" aria-hidden="true"></span>
+                    Logs
+                  </h3>
                 </div>
                 <div class="card-body p-0">
                   <div id="debug-log" class="list-group list-group-flush"></div>
