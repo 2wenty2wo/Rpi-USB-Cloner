@@ -7,6 +7,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.ui import display, menus, renderer
 
+_progress_scroll_signature: Optional[tuple[str, ...]] = None
+_progress_scroll_start_time: Optional[float] = None
+
 
 def render_progress_screen(
     title: str,
@@ -53,7 +56,18 @@ def render_progress_screen(
         display._measure_text_width(context.draw, line, body_font) for line in display_lines
     ]
     text_area_left = int((context.width - max_text_width) / 2)
-    scroll_start_time = time.monotonic() if any(width > max_text_width for width in line_widths) else None
+    global _progress_scroll_signature
+    global _progress_scroll_start_time
+    needs_scroll = any(width > max_text_width for width in line_widths)
+    if needs_scroll:
+        signature = tuple(display_lines)
+        if _progress_scroll_signature != signature or _progress_scroll_start_time is None:
+            _progress_scroll_signature = signature
+            _progress_scroll_start_time = time.monotonic()
+    else:
+        _progress_scroll_signature = None
+        _progress_scroll_start_time = None
+    scroll_start_time = _progress_scroll_start_time
 
     def render_frame(current_ratio: Optional[float], phase: float = 0.0) -> None:
         draw = context.draw
