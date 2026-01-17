@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 
 from PIL import Image, ImageDraw, ImageFont
 
-from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui import display, menus, renderer
 
 
 def render_progress_screen(
@@ -26,14 +26,18 @@ def render_progress_screen(
         title_icon=title_icon,
         title_icon_font=title_icon_font,
     )
+    max_text_width = context.width - 8
     wrapped_lines = display._wrap_lines_to_width(
         list(lines),
         body_font,
-        context.width - 8,
+        max_text_width,
     )
+    display_lines = wrapped_lines[:2]
     line_height = display._get_line_height(body_font)
     line_step = line_height + 2
-    text_height = max(line_height, len(wrapped_lines) * line_step - 2)
+    text_height = 0
+    if display_lines:
+        text_height = max(line_height, len(display_lines) * line_step - 2)
     bar_height = max(10, line_height + 4)
     bar_width = context.width - 16
     bar_y = int(content_top + (context.height - content_top) * 0.65)
@@ -44,6 +48,12 @@ def render_progress_screen(
     max_bar_y = context.height - bar_height - 4
     bar_y = max(min_bar_y, min(bar_y, max_bar_y))
     bar_x = int((context.width - bar_width) / 2)
+
+    line_widths = [
+        display._measure_text_width(context.draw, line, body_font) for line in display_lines
+    ]
+    text_area_left = int((context.width - max_text_width) / 2)
+    scroll_start_time = time.monotonic() if any(width > max_text_width for width in line_widths) else None
 
     def render_frame(current_ratio: Optional[float], phase: float = 0.0) -> None:
         draw = context.draw
@@ -63,9 +73,18 @@ def render_progress_screen(
                 draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
 
         current_y = text_start_y
-        for line in wrapped_lines:
-            text_width = display._measure_text_width(draw, line, body_font)
-            line_x = int((context.width - text_width) / 2)
+        now = time.monotonic()
+        for line, line_width in zip(display_lines, line_widths):
+            x_offset = renderer.calculate_horizontal_scroll_offset(
+                now=now,
+                scroll_start_time=scroll_start_time,
+                text_width=line_width,
+                max_width=max_text_width,
+            )
+            if x_offset == 0:
+                line_x = int((context.width - line_width) / 2)
+            else:
+                line_x = text_area_left + x_offset
             draw.text((line_x, current_y), line, font=body_font, fill=255)
             current_y += line_step
 
