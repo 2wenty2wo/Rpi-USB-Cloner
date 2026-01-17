@@ -167,9 +167,6 @@
       line-height: 1.4;
       white-space: pre-wrap;
     }
-    .log-entry {
-      background: transparent;
-    }
   </style>
 </head>
 <body class="bg-dark text-white">
@@ -223,7 +220,7 @@
         </div>
       </div>
       <div class="col-12 col-lg-8">
-        <div class="card bg-dark border border-secondary">
+        <div class="card">
           <div class="card-header">
             <h2 class="h5 mb-0">Debug Logs</h2>
           </div>
@@ -253,7 +250,7 @@
         return;
       }
       const entry = document.createElement('div');
-      entry.className = `list-group-item d-flex align-items-start gap-2 log-entry log-${level}`;
+      entry.className = 'list-group-item d-flex align-items-start gap-2';
       entry.dataset.source = source;
       const timestamp = new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
@@ -263,7 +260,7 @@
       badge.className = `badge ${badgeClass} text-uppercase`;
       badge.textContent = level;
       const content = document.createElement('code');
-      content.className = 'text-light small';
+      content.className = 'small';
       const timestampEl = document.createElement('span');
       timestampEl.className = 'text-muted';
       timestampEl.textContent = `[${timestamp}] `;
@@ -280,7 +277,7 @@
       if (!logFrame) {
         return;
       }
-      logFrame.querySelectorAll('.log-entry[data-source="APP"]').forEach((entry) => {
+      logFrame.querySelectorAll('[data-source="APP"]').forEach((entry) => {
         entry.remove();
       });
     }
