@@ -91,7 +91,7 @@ def mock_hardware_dependencies(mocker):
     mocker.patch("rpi_usb_cloner.ui.display.Path")
 
     # Mock settings
-    mocker.patch("rpi_usb_cloner.ui.display.settings.get_setting", return_value=None)
+    mocker.patch("rpi_usb_cloner.ui.display.get_setting", return_value=None)
 
 
 # ==============================================================================
