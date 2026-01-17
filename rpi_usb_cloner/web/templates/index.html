@@ -210,7 +210,9 @@
                       </div>
                     </div>
                   </div>
-                  <div class="text-center text-muted small mt-3" id="status">Connecting...</div>
+                  <div class="text-center small mt-3" id="status">
+                    <span class="status status-red"><span class="status-dot"></span>Disconnected</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -456,14 +458,9 @@
 
       statusEl.className = 'text-center small mt-3';
       if (screenConnected && controlConnected) {
-        statusEl.textContent = 'Connected';
-        statusEl.classList.add('text-success');
-      } else if (screenConnected || controlConnected) {
-        statusEl.textContent = 'Partially Connected';
-        statusEl.classList.add('text-muted');
+        statusEl.innerHTML = '<span class="status status-green"><span class="status-dot status-dot-animated"></span>Connected</span>';
       } else {
-        statusEl.textContent = 'Disconnected';
-        statusEl.classList.add('text-danger');
+        statusEl.innerHTML = '<span class="status status-red"><span class="status-dot"></span>Disconnected</span>';
       }
 
       debugLog('debug', 'Status updated', {
