@@ -10,6 +10,7 @@ from rpi_usb_cloner.services.drives import (
     _get_repo_device_names,
     _is_repo_on_mount,
     get_active_drive_label,
+    invalidate_repo_cache,
     list_media_drive_labels,
     list_media_drive_names,
     list_usb_disk_labels,
@@ -108,6 +109,7 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_no_repos(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test when no repos are found."""
+        invalidate_repo_cache()  # Clear cache before test
         mock_find_repos.return_value = []
 
         result = _get_repo_device_names()
@@ -120,6 +122,7 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_repo_on_device(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test identifying device containing repo."""
+        invalidate_repo_cache()  # Clear cache before test
         mock_find_repos.return_value = [Path("/mnt/usb/clonezilla")]
         mock_list_usb.return_value = [
             {"name": "sda", "size": 8000000000},
@@ -139,6 +142,7 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_multiple_repo_devices(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test multiple devices containing repos."""
+        invalidate_repo_cache()  # Clear cache before test
         mock_find_repos.return_value = [
             Path("/mnt/usb1/repo1"),
             Path("/mnt/usb2/repo2"),
@@ -163,6 +167,7 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_device_without_name(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test device without name is skipped."""
+        invalidate_repo_cache()  # Clear cache before test
         mock_find_repos.return_value = [Path("/mnt/usb/repo")]
         mock_list_usb.return_value = [
             {"size": 8000000000},  # No name
