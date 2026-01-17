@@ -60,6 +60,7 @@ from .settings import (
     stop_service,
     restart_system,
     shutdown_system,
+    show_about_credits,
 )
 
 # Common utility (used by all action modules)
@@ -107,6 +108,7 @@ __all__ = [
     "stop_service",
     "restart_system",
     "shutdown_system",
+    "show_about_credits",
     # Utility
     "noop",
 ]
