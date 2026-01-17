@@ -106,7 +106,7 @@ cd Rpi-USB-Cloner
 4. Install Python and required system libraries:
    ```sh
    sudo apt install -y python3 python3-pip python3-dev python3-venv git \
-     libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g
+     libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g partclone
    ```
 
 5. Install Python dependencies (Bookworm enforces PEP 668):
