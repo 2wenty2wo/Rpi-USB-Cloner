@@ -476,6 +476,8 @@ def main(argv=None):
                     log_debug(
                         f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
                     )
+                    # Invalidate repo cache when USB devices change to avoid stale data
+                    drives.invalidate_repo_cache()
                     selected_name = None
                     if (
                         app_context.discovered_drives

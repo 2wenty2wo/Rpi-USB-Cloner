@@ -76,6 +76,10 @@ from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
 
 
+# Cache for repo device names to avoid expensive scanning on every menu render
+_repo_device_cache: Optional[Set[str]] = None
+
+
 @dataclass
 class DriveSnapshot:
     discovered: List[str]
@@ -100,11 +104,34 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
     return repo_path == mount_path or mount_path in repo_path.parents
 
 
+def invalidate_repo_cache() -> None:
+    """Invalidate the repo device cache.
+
+    Call this when USB devices change to force a rescan of repo devices.
+    This avoids expensive partition scanning on every menu render while still
+    staying up-to-date when devices are added/removed.
+    """
+    global _repo_device_cache
+    _repo_device_cache = None
+
+
 def _get_repo_device_names() -> Set[str]:
-    """Get the set of device names that are repo drives."""
+    """Get the set of device names that are repo drives.
+
+    This function caches results to avoid expensive partition scanning on every
+    menu render. The cache is invalidated when USB devices change.
+    """
+    global _repo_device_cache
+
+    # Return cached value if available
+    if _repo_device_cache is not None:
+        return _repo_device_cache
+
+    # Scan for repo devices (expensive operation)
     repos = find_image_repos()
     if not repos:
-        return set()
+        _repo_device_cache = set()
+        return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
@@ -121,6 +148,8 @@ def _get_repo_device_names() -> Set[str]:
             if device_name:
                 repo_devices.add(device_name)
 
+    # Cache the result
+    _repo_device_cache = repo_devices
     return repo_devices
 
 
