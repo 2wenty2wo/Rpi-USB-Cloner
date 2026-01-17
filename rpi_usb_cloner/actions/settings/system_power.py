@@ -123,26 +123,26 @@ def confirm_action(
     )
     menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
     prev_states = {
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
     }
     while True:
-        current_r = gpio.read_button(gpio.PIN_R)
+        current_r = gpio.is_pressed(gpio.PIN_R)
         if prev_states["R"] and not current_r:
             if selection == app_state.CONFIRM_NO:
                 selection = app_state.CONFIRM_YES
                 log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
-        current_l = gpio.read_button(gpio.PIN_L)
+        current_l = gpio.is_pressed(gpio.PIN_L)
         if prev_states["L"] and not current_l:
             if selection == app_state.CONFIRM_YES:
                 selection = app_state.CONFIRM_NO
                 log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
-        current_a = gpio.read_button(gpio.PIN_A)
+        current_a = gpio.is_pressed(gpio.PIN_A)
         if prev_states["A"] and not current_a:
             return False
-        current_b = gpio.read_button(gpio.PIN_B)
+        current_b = gpio.is_pressed(gpio.PIN_B)
         if prev_states["B"] and not current_b:
             return selection == app_state.CONFIRM_YES
         prev_states["R"] = current_r
