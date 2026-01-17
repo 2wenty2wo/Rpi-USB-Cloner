@@ -50,6 +50,10 @@ def render_progress_screen(
     min_bar_y = int(text_bottom + 6)
     max_bar_y = context.height - bar_height - 4
     bar_y = max(min_bar_y, min(bar_y, max_bar_y))
+    text_area_height = max(0, bar_y - content_top - 6)
+    text_start_y = content_top + max(0, (text_area_height - text_height) // 2)
+    text_bottom = text_start_y + text_height
+    min_bar_y = int(text_bottom + 6)
     bar_x = int((context.width - bar_width) / 2)
 
     line_widths = [
