@@ -459,6 +459,8 @@
       statusEl.className = 'text-center small mt-3';
       if (screenConnected && controlConnected) {
         statusEl.innerHTML = '<span class="status status-green"><span class="status-dot status-dot-animated"></span>Connected</span>';
+      } else if (screenConnected || controlConnected) {
+        statusEl.innerHTML = '<span class="status status-yellow"><span class="status-dot"></span>Partially Connected</span>';
       } else {
         statusEl.innerHTML = '<span class="status status-red"><span class="status-dot"></span>Disconnected</span>';
       }
