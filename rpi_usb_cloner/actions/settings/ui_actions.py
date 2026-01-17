@@ -1,10 +1,13 @@
 """UI action handlers for settings screens."""
 import time
+from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.menu.model import get_screen_icon
-from rpi_usb_cloner.ui import keyboard, menus, screens, screensaver
+from rpi_usb_cloner.ui import keyboard, menus, screens, screensaver, display
 from rpi_usb_cloner.web import server as web_server
 from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
 
@@ -183,3 +186,32 @@ def toggle_web_server() -> None:
     settings.set_bool("web_server_enabled", True)
     screens.render_status_template("WEB SERVER", "Web server ENABLED")
     time.sleep(1.5)
+
+
+def show_about_credits() -> None:
+    """Display the credits screen."""
+    context = display.get_display_context()
+    assets_dir = Path(__file__).resolve().parent.parent.parent / "ui" / "assets"
+    credits_path = assets_dir / "credits.png"
+
+    if not credits_path.exists():
+        screens.render_status_template("ABOUT", "Credits not found")
+        time.sleep(1.5)
+        return
+
+    # Load and display the credits image
+    credits_image = Image.open(credits_path).convert("1")
+
+    # Resize if necessary to fit the display
+    if credits_image.size != (context.width, context.height):
+        credits_image = credits_image.resize((context.width, context.height))
+
+    # Display the image
+    with display._display_lock:
+        context.image = credits_image
+        context.draw = ImageDraw.Draw(context.image)
+        context.disp.display(credits_image)
+        display.mark_display_dirty()
+
+    # Wait for user to press back or OK button
+    screens.wait_for_ack()
