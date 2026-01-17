@@ -6,23 +6,6 @@
   <title>Rpi USB Cloner</title>
   <link rel="stylesheet" href="/static/tabler/tabler.min.css" />
   <style>
-    body {
-      min-height: 100vh;
-    }
-    .screen {
-      width: 100%;
-      aspect-ratio: 2 / 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-    .screen canvas {
-      width: 100%;
-      height: 100%;
-      image-rendering: pixelated;
-      object-fit: contain;
-    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -146,39 +129,22 @@
     .action-btn:active circle {
       fill: #000;
     }
-    .status {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 12px;
-      color: #888;
-    }
-    .status.connected {
-      color: #4a9;
-    }
-    .status.disconnected {
-      color: #c44;
-    }
-    #debug-log {
-      min-height: 220px;
-      max-height: 220px;
-      overflow-y: auto;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 11px;
-      line-height: 1.4;
-      white-space: pre-wrap;
+    #screen {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
   </style>
 </head>
-<body class="bg-dark text-white">
+<body>
   <div class="container py-4">
     <div class="row g-4 justify-content-center">
       <div class="col-12 col-lg-8">
-        <div class="card bg-dark border border-secondary">
+        <div class="card">
           <div class="card-body">
-            <div class="card bg-dark border border-secondary mb-3">
+            <div class="card mb-3">
               <div class="card-body p-3">
-                <div class="screen">
-                  <canvas id="screen" width="128" height="64"></canvas>
+                <div class="ratio ratio-2x1">
+                  <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
                 </div>
               </div>
             </div>
@@ -215,7 +181,7 @@
                 </div>
               </div>
             </div>
-            <div class="status" id="status">Connecting...</div>
+            <div class="text-center text-muted small mt-3" id="status">Connecting...</div>
           </div>
         </div>
       </div>
@@ -302,6 +268,7 @@
 
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     const statusEl = document.getElementById('status');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const screenSocketUrl = `${protocol}//${window.location.host}/ws/screen`;
@@ -425,15 +392,16 @@
       const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
       const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
 
+      statusEl.className = 'text-center small mt-3';
       if (screenConnected && controlConnected) {
         statusEl.textContent = 'Connected';
-        statusEl.className = 'status connected';
+        statusEl.classList.add('text-success');
       } else if (screenConnected || controlConnected) {
         statusEl.textContent = 'Partially Connected';
-        statusEl.className = 'status';
+        statusEl.classList.add('text-muted');
       } else {
         statusEl.textContent = 'Disconnected';
-        statusEl.className = 'status disconnected';
+        statusEl.classList.add('text-danger');
       }
 
       debugLog('debug', 'Status updated', {
