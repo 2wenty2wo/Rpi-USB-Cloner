@@ -136,64 +136,66 @@
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <div class="row g-4 justify-content-center">
-      <div class="col-12 col-lg-8">
-        <div class="card">
-          <div class="card-body">
-            <div class="card mb-3">
-              <div class="card-body p-3">
-                <div class="ratio ratio-2x1">
-                  <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
+  <div class="page">
+    <div class="page-wrapper">
+      <div class="page-body">
+        <div class="container-xl">
+          <div class="row row-cards">
+            <div class="col-12 col-lg-8">
+              <div class="card">
+                <div class="card-body">
+                  <div class="ratio ratio-2x1 mb-3">
+                    <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
+                  </div>
+                  <div class="row g-4 justify-content-between align-items-center">
+                    <div class="col-12 col-md-6 d-flex justify-content-center">
+                      <div class="dpad-container">
+                        <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+                          <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
+                          <path class="dpad-arrow dpad-arrow-up" d="M100 38l12 20H88z" />
+                          <path class="dpad-arrow dpad-arrow-down" d="M100 162l-12-20h24z" />
+                          <path class="dpad-arrow dpad-arrow-left" d="M38 100l20-12v24z" />
+                          <path class="dpad-arrow dpad-arrow-right" d="M162 100l-20 12V88z" />
+                        </svg>
+                        <button class="dpad-btn dpad-up" data-button="UP"></button>
+                        <button class="dpad-btn dpad-down" data-button="DOWN"></button>
+                        <button class="dpad-btn dpad-left" data-button="LEFT"></button>
+                        <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex justify-content-center">
+                      <div class="action-buttons">
+                        <button class="action-btn btn btn-circle btn-dark btn-back" data-button="BACK">
+                          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <circle cx="50" cy="50" r="46" />
+                            <text x="50" y="56" text-anchor="middle">BACK</text>
+                          </svg>
+                        </button>
+                        <button class="action-btn btn btn-circle btn-dark btn-ok" data-button="OK">
+                          <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <circle cx="50" cy="50" r="46" />
+                            <text x="50" y="56" text-anchor="middle">OK</text>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="text-center text-muted small mt-3" id="status">Connecting...</div>
                 </div>
               </div>
             </div>
-            <div class="row g-4 justify-content-between align-items-center">
-              <div class="col-12 col-md-6 d-flex justify-content-center">
-                <div class="dpad-container">
-                  <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-                    <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
-                    <path class="dpad-arrow dpad-arrow-up" d="M100 38l12 20H88z" />
-                    <path class="dpad-arrow dpad-arrow-down" d="M100 162l-12-20h24z" />
-                    <path class="dpad-arrow dpad-arrow-left" d="M38 100l20-12v24z" />
-                    <path class="dpad-arrow dpad-arrow-right" d="M162 100l-20 12V88z" />
-                  </svg>
-                  <button class="dpad-btn dpad-up" data-button="UP"></button>
-                  <button class="dpad-btn dpad-down" data-button="DOWN"></button>
-                  <button class="dpad-btn dpad-left" data-button="LEFT"></button>
-                  <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
+            <div class="col-12 col-lg-8">
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="h5 mb-0">Debug Logs</h2>
                 </div>
-              </div>
-              <div class="col-12 col-md-6 d-flex justify-content-center">
-                <div class="action-buttons">
-                  <button class="action-btn btn btn-circle btn-dark btn-back" data-button="BACK">
-                    <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                      <circle cx="50" cy="50" r="46" />
-                      <text x="50" y="56" text-anchor="middle">BACK</text>
-                    </svg>
-                  </button>
-                  <button class="action-btn btn btn-circle btn-dark btn-ok" data-button="OK">
-                    <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                      <circle cx="50" cy="50" r="46" />
-                      <text x="50" y="56" text-anchor="middle">OK</text>
-                    </svg>
-                  </button>
+                <div class="card-body p-0">
+                  <div id="debug-log" class="list-group list-group-flush"></div>
                 </div>
+                <div class="card-footer text-muted small">Logs appear here as events are recorded.</div>
               </div>
             </div>
-            <div class="text-center text-muted small mt-3" id="status">Connecting...</div>
           </div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-8">
-        <div class="card">
-          <div class="card-header">
-            <h2 class="h5 mb-0">Debug Logs</h2>
-          </div>
-          <div class="card-body p-0">
-            <div id="debug-log" class="list-group list-group-flush"></div>
-          </div>
-          <div class="card-footer text-muted small">Logs appear here as events are recorded.</div>
         </div>
       </div>
     </div>
