@@ -88,8 +88,14 @@ HTML_PAGE = """<!DOCTYPE html>
       max-width: 600px;
       width: 100%;
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+      --preview-height: 220px;
     }
     .layout {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .preview-log-row {
       display: flex;
       align-items: flex-start;
       gap: 24px;
@@ -102,17 +108,26 @@ HTML_PAGE = """<!DOCTYPE html>
       margin: 0 0 12px;
       text-align: center;
     }
-    .screen {
+    .preview-card {
       background: #000;
       border: 2px solid #3a3f4b;
       border-radius: 6px;
+      padding: 12px;
       width: 100%;
-      aspect-ratio: 2 / 1;
       max-width: 512px;
+      min-height: var(--preview-height);
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 24px;
+      box-sizing: border-box;
+    }
+    .screen {
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
     }
     .screen canvas {
@@ -253,14 +268,17 @@ HTML_PAGE = """<!DOCTYPE html>
     .status.disconnected {
       color: #c44;
     }
-    .log-panel {
-      background: #12151c;
-      border: 1px solid #2c3340;
-      border-radius: 8px;
+    .log-card {
+      background: #000;
+      border: 2px solid #3a3f4b;
+      border-radius: 6px;
       padding: 12px;
       flex: 1;
+      min-height: var(--preview-height);
+      display: flex;
+      flex-direction: column;
     }
-    .log-panel h2 {
+    .log-card h2 {
       font-size: 12px;
       margin: 0 0 8px;
       text-transform: uppercase;
@@ -272,7 +290,7 @@ HTML_PAGE = """<!DOCTYPE html>
       border: 1px solid #202735;
       border-radius: 6px;
       padding: 8px;
-      height: 140px;
+      flex: 1;
       overflow-y: auto;
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: 11px;
@@ -301,10 +319,10 @@ HTML_PAGE = """<!DOCTYPE html>
       margin-top: 6px;
     }
     @media (max-width: 700px) {
-      .layout {
+      .preview-log-row {
         flex-direction: column;
       }
-      .log-panel {
+      .log-card {
         order: 0;
       }
       .device-panel {
@@ -316,11 +334,14 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
   <div class="panel">
     <div class="layout">
-      <div class="device-panel">
-        <div class="screen">
-          <canvas id="screen" width="128" height="64"></canvas>
-        </div>
-        <div class="controls-container">
+      <div class="preview-log-row">
+        <div class="device-panel">
+          <div class="preview-card">
+            <div class="screen">
+              <canvas id="screen" width="128" height="64"></canvas>
+            </div>
+          </div>
+          <div class="controls-container">
           <!-- D-pad on the left -->
           <div class="dpad-container">
             <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
@@ -350,13 +371,14 @@ HTML_PAGE = """<!DOCTYPE html>
               </svg>
             </button>
           </div>
+          </div>
+          <div class="status" id="status">Connecting...</div>
         </div>
-        <div class="status" id="status">Connecting...</div>
-      </div>
-      <div class="log-panel">
-        <h2>Debug Logs</h2>
-        <div class="log-frame" id="debug-log"></div>
-        <div class="log-help">Logs appear here as events are recorded.</div>
+        <div class="log-card">
+          <h2>Debug Logs</h2>
+          <div class="log-frame" id="debug-log"></div>
+          <div class="log-help">Logs appear here as events are recorded.</div>
+        </div>
       </div>
     </div>
   </div>
