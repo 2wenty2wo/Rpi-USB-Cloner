@@ -161,7 +161,7 @@ disallow_untyped_defs = false
 include-package-data = true
 
 [tool.setuptools.package-data]
-"rpi_usb_cloner.web" = ["templates/*.html"]
+"rpi_usb_cloner.web" = ["templates/*.html", "static/**/*"]
 
 [[tool.mypy.overrides]]
 module = ["RPi.*", "luma.*"]
