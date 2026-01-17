@@ -395,6 +395,7 @@ HTML_PAGE = """<!DOCTYPE html>
       }
       const entry = document.createElement('div');
       entry.className = `log-entry log-${level}`;
+      entry.dataset.source = source;
       const timestamp = new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
       const prefix = source ? `[${source}] ` : '';
@@ -404,6 +405,15 @@ HTML_PAGE = """<!DOCTYPE html>
       }
       logFrame.appendChild(entry);
       logFrame.scrollTop = logFrame.scrollHeight;
+    }
+
+    function clearAppLogEntries() {
+      if (!logFrame) {
+        return;
+      }
+      logFrame.querySelectorAll('.log-entry[data-source="APP"]').forEach((entry) => {
+        entry.remove();
+      });
     }
 
     function debugLog(level, message, details = {}) {
@@ -521,6 +531,9 @@ HTML_PAGE = """<!DOCTYPE html>
         try {
           const payload = JSON.parse(event.data);
           if (payload.type === 'snapshot' || payload.type === 'append') {
+            if (payload.type === 'snapshot') {
+              clearAppLogEntries();
+            }
             handleLogEntries(payload.entries);
           } else if (payload.type === 'error') {
             debugLog('warn', 'Log WebSocket error payload', payload);
