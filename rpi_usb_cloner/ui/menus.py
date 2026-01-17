@@ -361,7 +361,7 @@ def select_list(
                 )
                 last_rendered_index = selected_index
         current_u = is_pressed(PIN_U)
-        if prev_states["U"] and not current_u:
+        if not prev_states["U"] and current_u:
             action_taken = True
             next_index = max(0, selected_index - 1)
             if next_index != selected_index:
@@ -369,7 +369,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+        elif current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - 1)
@@ -378,7 +378,7 @@ def select_list(
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["U"] = now
         current_d = is_pressed(PIN_D)
-        if prev_states["D"] and not current_d:
+        if not prev_states["D"] and current_d:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + 1)
             if next_index != selected_index:
@@ -386,7 +386,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+        elif current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + 1)
@@ -395,7 +395,7 @@ def select_list(
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["D"] = now
         current_l = is_pressed(PIN_L)
-        if prev_states["L"] and not current_l:
+        if not prev_states["L"] and current_l:
             action_taken = True
             next_index = max(0, selected_index - visible_rows)
             if next_index != selected_index:
@@ -403,7 +403,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["L"] = now
             last_repeat_time["L"] = now
-        elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+        elif current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - visible_rows)
@@ -412,7 +412,7 @@ def select_list(
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["L"] = now
         current_r = is_pressed(PIN_R)
-        if prev_states["R"] and not current_r:
+        if not prev_states["R"] and current_r:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + visible_rows)
             if next_index != selected_index:
@@ -420,7 +420,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["R"] = now
             last_repeat_time["R"] = now
-        elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+        elif current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + visible_rows)
@@ -429,10 +429,10 @@ def select_list(
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["R"] = now
         current_a = is_pressed(PIN_A)
-        if prev_states["A"] and not current_a:
+        if not prev_states["A"] and current_a:
             return None
         current_b = is_pressed(PIN_B)
-        if prev_states["B"] and not current_b:
+        if not prev_states["B"] and current_b:
             return selected_index
         current_c = is_pressed(PIN_C)
         prev_states["U"] = current_u

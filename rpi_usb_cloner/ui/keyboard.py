@@ -336,38 +336,38 @@ def prompt_text(
         )
         now = time.monotonic()
         current_u = is_pressed(PIN_U)
-        if prev_states["U"] and not current_u:
+        if not prev_states["U"] and current_u:
             if selected_band == "modes":
                 selected_band = "chars"
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif not current_u and now - last_press_time["U"] >= menus.INITIAL_REPEAT_DELAY:
+        elif current_u and now - last_press_time["U"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= menus.REPEAT_INTERVAL:
                 if selected_band == "modes":
                     selected_band = "chars"
                     last_repeat_time["U"] = now
         current_d = is_pressed(PIN_D)
-        if prev_states["D"] and not current_d:
+        if not prev_states["D"] and current_d:
             if selected_band == "chars":
                 selected_band = "modes"
                 mode_index = mode_items.index(layout_mode)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif not current_d and now - last_press_time["D"] >= menus.INITIAL_REPEAT_DELAY:
+        elif current_d and now - last_press_time["D"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= menus.REPEAT_INTERVAL:
                 if selected_band == "chars":
                     selected_band = "modes"
                     mode_index = mode_items.index(layout_mode)
                     last_repeat_time["D"] = now
         current_l = is_pressed(PIN_L)
-        if prev_states["L"] and not current_l:
+        if not prev_states["L"] and current_l:
             if selected_band == "modes":
                 mode_index = max(0, mode_index - 1)
             else:
                 selected_col = max(0, selected_col - 1)
             last_press_time["L"] = now
             last_repeat_time["L"] = now
-        elif not current_l and now - last_press_time["L"] >= menus.INITIAL_REPEAT_DELAY:
+        elif current_l and now - last_press_time["L"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= menus.REPEAT_INTERVAL:
                 if selected_band == "modes":
                     mode_index = max(0, mode_index - 1)
@@ -375,14 +375,14 @@ def prompt_text(
                     selected_col = max(0, selected_col - 1)
                 last_repeat_time["L"] = now
         current_r = is_pressed(PIN_R)
-        if prev_states["R"] and not current_r:
+        if not prev_states["R"] and current_r:
             if selected_band == "modes":
                 mode_index = min(len(mode_items) - 1, mode_index + 1)
             else:
                 selected_col = min(len(keys) - 1, selected_col + 1)
             last_press_time["R"] = now
             last_repeat_time["R"] = now
-        elif not current_r and now - last_press_time["R"] >= menus.INITIAL_REPEAT_DELAY:
+        elif current_r and now - last_press_time["R"] >= menus.INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= menus.REPEAT_INTERVAL:
                 if selected_band == "modes":
                     mode_index = min(len(mode_items) - 1, mode_index + 1)
@@ -390,10 +390,10 @@ def prompt_text(
                     selected_col = min(len(keys) - 1, selected_col + 1)
                 last_repeat_time["R"] = now
         current_a = is_pressed(PIN_A)
-        if prev_states["A"] and not current_a:
+        if not prev_states["A"] and current_a:
             return None
         current_b = is_pressed(PIN_B)
-        if prev_states["B"] and not current_b:
+        if not prev_states["B"] and current_b:
             if selected_band == "modes":
                 selected_mode = mode_items[mode_index]
                 if selected_mode == "ok":
@@ -421,7 +421,7 @@ def prompt_text(
                 else:
                     value += key
         current_c = is_pressed(PIN_C)
-        if prev_states["C"] and not current_c:
+        if not prev_states["C"] and current_c:
             return value
         prev_states["U"] = current_u
         prev_states["D"] = current_d
