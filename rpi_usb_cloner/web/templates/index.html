@@ -165,23 +165,10 @@
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: 11px;
       line-height: 1.4;
-      color: #d6deeb;
       white-space: pre-wrap;
     }
     .log-entry {
-      margin: 0 0 6px;
-    }
-    .log-entry:last-child {
-      margin-bottom: 0;
-    }
-    .log-entry.log-error {
-      color: #ff8f8f;
-    }
-    .log-entry.log-warn {
-      color: #ffd27d;
-    }
-    .log-entry.log-debug {
-      color: #9ad0ff;
+      background: transparent;
     }
   </style>
 </head>
@@ -237,13 +224,13 @@
       </div>
       <div class="col-12 col-lg-8">
         <div class="card bg-dark border border-secondary">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <h2 class="h5 mb-0">Debug Logs</h2>
-            </div>
-            <div id="debug-log" class="bg-dark border border-secondary rounded p-2"></div>
-            <div class="text-muted small mt-2">Logs appear here as events are recorded.</div>
+          <div class="card-header">
+            <h2 class="h5 mb-0">Debug Logs</h2>
           </div>
+          <div class="card-body p-0">
+            <div id="debug-log" class="list-group list-group-flush"></div>
+          </div>
+          <div class="card-footer text-muted small">Logs appear here as events are recorded.</div>
         </div>
       </div>
     </div>
@@ -253,18 +240,32 @@
     const DEBUG_UI = true;
 
     const logFrame = document.getElementById('debug-log');
+    const levelBadgeClasses = {
+      error: 'bg-danger',
+      warn: 'bg-warning',
+      debug: 'bg-primary',
+      log: 'bg-secondary',
+      info: 'bg-info'
+    };
 
     function appendLog(level, message, details = {}, source = 'UI') {
       if (!logFrame) {
         return;
       }
       const entry = document.createElement('div');
-      entry.className = `log-entry log-${level}`;
+      entry.className = `list-group-item bg-dark border-secondary d-flex align-items-start gap-2 log-entry log-${level}`;
       entry.dataset.source = source;
       const timestamp = new Date().toISOString();
       const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
       const prefix = source ? `[${source}] ` : '';
-      entry.textContent = `[${timestamp}] ${prefix}${message}${payload}`;
+      const badge = document.createElement('span');
+      const badgeClass = levelBadgeClasses[level] || 'bg-secondary';
+      badge.className = `badge ${badgeClass} text-uppercase`;
+      badge.textContent = level;
+      const content = document.createElement('code');
+      content.className = 'text-muted small';
+      content.textContent = `[${timestamp}] ${prefix}${message}${payload}`;
+      entry.append(badge, content);
       if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
         logFrame.textContent = '';
       }
