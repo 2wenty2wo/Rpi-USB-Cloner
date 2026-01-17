@@ -562,6 +562,9 @@ def select_menu_screen_list(
         now = time.monotonic()
         action_taken = False
         current_u = is_pressed(PIN_U)
+        if not prev_states["U"] and current_u:
+            last_press_time["U"] = now
+            last_repeat_time["U"] = now
         if prev_states["U"] and not current_u:
             action_taken = True
             next_index = max(0, selected_index - 1)
@@ -569,7 +572,7 @@ def select_menu_screen_list(
                 selected_index = next_index
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+        elif current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - 1)
@@ -577,6 +580,9 @@ def select_menu_screen_list(
                     selected_index = next_index
                 last_repeat_time["U"] = now
         current_d = is_pressed(PIN_D)
+        if not prev_states["D"] and current_d:
+            last_press_time["D"] = now
+            last_repeat_time["D"] = now
         if prev_states["D"] and not current_d:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + 1)
@@ -584,7 +590,7 @@ def select_menu_screen_list(
                 selected_index = next_index
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+        elif current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + 1)
@@ -592,6 +598,9 @@ def select_menu_screen_list(
                     selected_index = next_index
                 last_repeat_time["D"] = now
         current_l = is_pressed(PIN_L)
+        if not prev_states["L"] and current_l:
+            last_press_time["L"] = now
+            last_repeat_time["L"] = now
         if prev_states["L"] and not current_l:
             action_taken = True
             next_index = max(0, selected_index - visible_rows)
@@ -599,7 +608,7 @@ def select_menu_screen_list(
                 selected_index = next_index
             last_press_time["L"] = now
             last_repeat_time["L"] = now
-        elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+        elif current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - visible_rows)
@@ -607,6 +616,9 @@ def select_menu_screen_list(
                     selected_index = next_index
                 last_repeat_time["L"] = now
         current_r = is_pressed(PIN_R)
+        if not prev_states["R"] and current_r:
+            last_press_time["R"] = now
+            last_repeat_time["R"] = now
         if prev_states["R"] and not current_r:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + visible_rows)
@@ -614,7 +626,7 @@ def select_menu_screen_list(
                 selected_index = next_index
             last_press_time["R"] = now
             last_repeat_time["R"] = now
-        elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+        elif current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + visible_rows)
