@@ -129,6 +129,10 @@
     .action-btn:active circle {
       fill: #000;
     }
+    #screen {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
   </style>
 </head>
 <body>
@@ -264,6 +268,7 @@
 
     const canvas = document.getElementById('screen');
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     const statusEl = document.getElementById('status');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const screenSocketUrl = `${protocol}//${window.location.host}/ws/screen`;
