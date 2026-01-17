@@ -153,6 +153,9 @@ sudo -E python3 rpi-usb-cloner.py --debug
 
 > **Note:** The `-E` flag preserves your environment variables. Root permissions are required for disk operations; if you start without `sudo`, the OLED will display a prompt to run as root.
 
+**Web UI debug logging:**
+Append `?debug=1` to the web UI URL (e.g., `http://<pi-ip>:8000/?debug=1`) to enable browser console logs and the on-page debug log panel. You can also persist the toggle in the browser by running `localStorage.setItem("rpiUsbClonerDebug", "1")` and disable it with `localStorage.removeItem("rpiUsbClonerDebug")`.
+
 
 #### 5) Stop the running process
 If running in the foreground, press **Ctrl+C** in the terminal where it was started.
