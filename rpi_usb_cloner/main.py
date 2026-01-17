@@ -212,6 +212,7 @@ def main(argv=None):
         default=app_state.ENABLE_SLEEP,
     )
     last_usb_snapshot = None
+    last_raw_usb_snapshot = None
 
     def get_usb_snapshot():
         nonlocal last_usb_snapshot
@@ -224,6 +225,19 @@ def main(argv=None):
         if snapshot != last_usb_snapshot:
             log_debug(f"USB snapshot: {snapshot}")
             last_usb_snapshot = snapshot
+        return snapshot
+
+    def get_raw_usb_snapshot():
+        nonlocal last_raw_usb_snapshot
+        try:
+            devices_list = drives.list_raw_usb_disk_names()
+        except Exception as error:
+            log_debug(f"Failed to list raw USB devices: {error}")
+            return []
+        snapshot = sorted(devices_list)
+        if snapshot != last_raw_usb_snapshot:
+            log_debug(f"Raw USB snapshot: {snapshot}")
+            last_raw_usb_snapshot = snapshot
         return snapshot
 
     get_device_items = partial(
@@ -443,6 +457,7 @@ def main(argv=None):
     render_current_screen(force=True)
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
+    state.last_seen_raw_devices = get_raw_usb_snapshot()
     prev_states = {
         "U": gpio.is_pressed(gpio.PIN_U),
         "D": gpio.is_pressed(gpio.PIN_D),
@@ -468,6 +483,13 @@ def main(argv=None):
             force_render = False
             now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
+                raw_devices = get_raw_usb_snapshot()
+                if raw_devices != state.last_seen_raw_devices:
+                    log_debug(
+                        f"Raw USB devices changed: {state.last_seen_raw_devices} -> {raw_devices}"
+                    )
+                    drives.invalidate_repo_cache()
+                    state.last_seen_raw_devices = raw_devices
                 current_devices = get_usb_snapshot()
                 if current_devices != app_context.discovered_drives:
                     log_debug(
@@ -476,6 +498,8 @@ def main(argv=None):
                     log_debug(
                         f"USB devices changed: {app_context.discovered_drives} -> {current_devices}"
                     )
+                    # Invalidate repo cache when USB devices change to avoid stale data
+                    drives.invalidate_repo_cache()
                     selected_name = None
                     if (
                         app_context.discovered_drives
