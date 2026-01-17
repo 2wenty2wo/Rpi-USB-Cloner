@@ -217,23 +217,23 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
     menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
 
     prev_states = {
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "U": gpio.read_button(gpio.PIN_U),
-        "D": gpio.read_button(gpio.PIN_D),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "U": gpio.is_pressed(gpio.PIN_U),
+        "D": gpio.is_pressed(gpio.PIN_D),
     }
 
     while True:
         # Button A - Exit
-        current_a = gpio.read_button(gpio.PIN_A)
-        if prev_states["A"] and not current_a:
+        current_a = gpio.is_pressed(gpio.PIN_A)
+        if not prev_states["A"] and current_a:
             return
 
         # Button B - Go back (same as left)
-        current_b = gpio.read_button(gpio.PIN_B)
-        if prev_states["B"] and not current_b:
+        current_b = gpio.is_pressed(gpio.PIN_B)
+        if not prev_states["B"] and current_b:
             if path_stack:
                 # Pop from stack and restore previous state
                 current_items, selected_index = path_stack.pop()
@@ -246,22 +246,22 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
                 render()
 
         # Button UP - Move selection up
-        current_u = gpio.read_button(gpio.PIN_U)
-        if prev_states["U"] and not current_u:
+        current_u = gpio.is_pressed(gpio.PIN_U)
+        if not prev_states["U"] and current_u:
             if current_items:
                 selected_index = (selected_index - 1) % len(current_items)
                 render()
 
         # Button DOWN - Move selection down
-        current_d = gpio.read_button(gpio.PIN_D)
-        if prev_states["D"] and not current_d:
+        current_d = gpio.is_pressed(gpio.PIN_D)
+        if not prev_states["D"] and current_d:
             if current_items:
                 selected_index = (selected_index + 1) % len(current_items)
                 render()
 
         # Button LEFT - Go back to parent directory
-        current_l = gpio.read_button(gpio.PIN_L)
-        if prev_states["L"] and not current_l:
+        current_l = gpio.is_pressed(gpio.PIN_L)
+        if not prev_states["L"] and current_l:
             if path_stack:
                 # Pop from stack and restore previous state
                 current_items, selected_index = path_stack.pop()
@@ -274,8 +274,8 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
                 render()
 
         # Button RIGHT - Enter directory or view file
-        current_r = gpio.read_button(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
+        current_r = gpio.is_pressed(gpio.PIN_R)
+        if not prev_states["R"] and current_r:
             if current_items and 0 <= selected_index < len(current_items):
                 selected_item = current_items[selected_index]
 
