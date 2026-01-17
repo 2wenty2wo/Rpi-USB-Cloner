@@ -295,6 +295,8 @@ def start_server(
         app.router.add_get("/ws/screen", handle_screen_ws)
         app.router.add_get("/ws/control", handle_control_ws)
         app.router.add_get("/ws/logs", handle_logs_ws)
+        static_dir = Path(__file__).resolve().parent / "static"
+        app.router.add_static("/static/", str(static_dir))
 
         def notify_display_updates() -> None:
             while not stop_event.is_set():
