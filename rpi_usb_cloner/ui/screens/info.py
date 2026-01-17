@@ -64,42 +64,42 @@ def wait_for_paginated_input(
     nav_buttons = (gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D)
     menus.wait_for_buttons_release(buttons + nav_buttons, poll_delay=poll_delay)
     prev_states = {
-        "A": gpio.read_button(gpio.PIN_A),
-        "B": gpio.read_button(gpio.PIN_B),
-        "L": gpio.read_button(gpio.PIN_L),
-        "R": gpio.read_button(gpio.PIN_R),
-        "U": gpio.read_button(gpio.PIN_U),
-        "D": gpio.read_button(gpio.PIN_D),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "U": gpio.is_pressed(gpio.PIN_U),
+        "D": gpio.is_pressed(gpio.PIN_D),
     }
     while True:
-        current_a = gpio.read_button(gpio.PIN_A)
+        current_a = gpio.is_pressed(gpio.PIN_A)
         if gpio.PIN_A in buttons and prev_states["A"] and not current_a:
             return
-        current_b = gpio.read_button(gpio.PIN_B)
+        current_b = gpio.is_pressed(gpio.PIN_B)
         if gpio.PIN_B in buttons and prev_states["B"] and not current_b:
             return
         if total_pages > 1:
-            current_l = gpio.read_button(gpio.PIN_L)
+            current_l = gpio.is_pressed(gpio.PIN_L)
             if prev_states["L"] and not current_l:
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render(page_index)
-            current_r = gpio.read_button(gpio.PIN_R)
+            current_r = gpio.is_pressed(gpio.PIN_R)
             if prev_states["R"] and not current_r:
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render(page_index)
-            current_u = gpio.read_button(gpio.PIN_U)
+            current_u = gpio.is_pressed(gpio.PIN_U)
             if prev_states["U"] and not current_u:
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render(page_index)
-            current_d = gpio.read_button(gpio.PIN_D)
+            current_d = gpio.is_pressed(gpio.PIN_D)
             if prev_states["D"] and not current_d:
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render(page_index)
         else:
-            current_l = gpio.read_button(gpio.PIN_L)
-            current_r = gpio.read_button(gpio.PIN_R)
-            current_u = gpio.read_button(gpio.PIN_U)
-            current_d = gpio.read_button(gpio.PIN_D)
+            current_l = gpio.is_pressed(gpio.PIN_L)
+            current_r = gpio.is_pressed(gpio.PIN_R)
+            current_u = gpio.is_pressed(gpio.PIN_U)
+            current_d = gpio.is_pressed(gpio.PIN_D)
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["L"] = current_l

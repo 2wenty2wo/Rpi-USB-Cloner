@@ -326,13 +326,13 @@ def select_list(
     last_scroll_render = time.monotonic()
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
-        "U": read_button(PIN_U),
-        "D": read_button(PIN_D),
-        "L": read_button(PIN_L),
-        "R": read_button(PIN_R),
-        "A": read_button(PIN_A),
-        "B": read_button(PIN_B),
-        "C": read_button(PIN_C),
+        "U": is_pressed(PIN_U),
+        "D": is_pressed(PIN_D),
+        "L": is_pressed(PIN_L),
+        "R": is_pressed(PIN_R),
+        "A": is_pressed(PIN_A),
+        "B": is_pressed(PIN_B),
+        "C": is_pressed(PIN_C),
     }
     last_press_time = {key: 0.0 for key in prev_states}
     last_repeat_time = {key: 0.0 for key in prev_states}
@@ -360,8 +360,8 @@ def select_list(
                     scroll_start_time=scroll_start_time,
                 )
                 last_rendered_index = selected_index
-        current_u = read_button(PIN_U)
-        if prev_states["U"] and not current_u:
+        current_u = is_pressed(PIN_U)
+        if not prev_states["U"] and current_u:
             action_taken = True
             next_index = max(0, selected_index - 1)
             if next_index != selected_index:
@@ -369,7 +369,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif not current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+        elif current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - 1)
@@ -377,8 +377,8 @@ def select_list(
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["U"] = now
-        current_d = read_button(PIN_D)
-        if prev_states["D"] and not current_d:
+        current_d = is_pressed(PIN_D)
+        if not prev_states["D"] and current_d:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + 1)
             if next_index != selected_index:
@@ -386,7 +386,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif not current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+        elif current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + 1)
@@ -394,8 +394,8 @@ def select_list(
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["D"] = now
-        current_l = read_button(PIN_L)
-        if prev_states["L"] and not current_l:
+        current_l = is_pressed(PIN_L)
+        if not prev_states["L"] and current_l:
             action_taken = True
             next_index = max(0, selected_index - visible_rows)
             if next_index != selected_index:
@@ -403,7 +403,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["L"] = now
             last_repeat_time["L"] = now
-        elif not current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+        elif current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = max(0, selected_index - visible_rows)
@@ -411,8 +411,8 @@ def select_list(
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["L"] = now
-        current_r = read_button(PIN_R)
-        if prev_states["R"] and not current_r:
+        current_r = is_pressed(PIN_R)
+        if not prev_states["R"] and current_r:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + visible_rows)
             if next_index != selected_index:
@@ -420,7 +420,7 @@ def select_list(
                 scroll_start_time = time.monotonic() if enable_scroll else None
             last_press_time["R"] = now
             last_repeat_time["R"] = now
-        elif not current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+        elif current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
             if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 action_taken = True
                 next_index = min(len(items) - 1, selected_index + visible_rows)
@@ -428,13 +428,13 @@ def select_list(
                     selected_index = next_index
                     scroll_start_time = time.monotonic() if enable_scroll else None
                 last_repeat_time["R"] = now
-        current_a = read_button(PIN_A)
-        if prev_states["A"] and not current_a:
+        current_a = is_pressed(PIN_A)
+        if not prev_states["A"] and current_a:
             return None
-        current_b = read_button(PIN_B)
-        if prev_states["B"] and not current_b:
+        current_b = is_pressed(PIN_B)
+        if not prev_states["B"] and current_b:
             return selected_index
-        current_c = read_button(PIN_C)
+        current_c = is_pressed(PIN_C)
         prev_states["U"] = current_u
         prev_states["D"] = current_d
         prev_states["L"] = current_l
@@ -548,20 +548,20 @@ def select_menu_screen_list(
     last_rendered_index = selected_index
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
-        "U": read_button(PIN_U),
-        "D": read_button(PIN_D),
-        "L": read_button(PIN_L),
-        "R": read_button(PIN_R),
-        "A": read_button(PIN_A),
-        "B": read_button(PIN_B),
-        "C": read_button(PIN_C),
+        "U": is_pressed(PIN_U),
+        "D": is_pressed(PIN_D),
+        "L": is_pressed(PIN_L),
+        "R": is_pressed(PIN_R),
+        "A": is_pressed(PIN_A),
+        "B": is_pressed(PIN_B),
+        "C": is_pressed(PIN_C),
     }
     last_press_time = {key: 0.0 for key in prev_states}
     last_repeat_time = {key: 0.0 for key in prev_states}
     while True:
         now = time.monotonic()
         action_taken = False
-        current_u = read_button(PIN_U)
+        current_u = is_pressed(PIN_U)
         if prev_states["U"] and not current_u:
             action_taken = True
             next_index = max(0, selected_index - 1)
@@ -576,7 +576,7 @@ def select_menu_screen_list(
                 if next_index != selected_index:
                     selected_index = next_index
                 last_repeat_time["U"] = now
-        current_d = read_button(PIN_D)
+        current_d = is_pressed(PIN_D)
         if prev_states["D"] and not current_d:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + 1)
@@ -591,7 +591,7 @@ def select_menu_screen_list(
                 if next_index != selected_index:
                     selected_index = next_index
                 last_repeat_time["D"] = now
-        current_l = read_button(PIN_L)
+        current_l = is_pressed(PIN_L)
         if prev_states["L"] and not current_l:
             action_taken = True
             next_index = max(0, selected_index - visible_rows)
@@ -606,7 +606,7 @@ def select_menu_screen_list(
                 if next_index != selected_index:
                     selected_index = next_index
                 last_repeat_time["L"] = now
-        current_r = read_button(PIN_R)
+        current_r = is_pressed(PIN_R)
         if prev_states["R"] and not current_r:
             action_taken = True
             next_index = min(len(items) - 1, selected_index + visible_rows)
@@ -621,13 +621,13 @@ def select_menu_screen_list(
                 if next_index != selected_index:
                     selected_index = next_index
                 last_repeat_time["R"] = now
-        current_a = read_button(PIN_A)
+        current_a = is_pressed(PIN_A)
         if prev_states["A"] and not current_a:
             return None
-        current_b = read_button(PIN_B)
+        current_b = is_pressed(PIN_B)
         if prev_states["B"] and not current_b:
             return selected_index
-        current_c = read_button(PIN_C)
+        current_c = is_pressed(PIN_C)
         prev_states["U"] = current_u
         prev_states["D"] = current_d
         prev_states["L"] = current_l
