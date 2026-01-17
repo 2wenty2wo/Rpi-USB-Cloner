@@ -189,7 +189,21 @@ def toggle_web_server() -> None:
 
 
 def show_about_credits() -> None:
-    """Display the credits screen."""
+    """Display the credits screen from assets/credits.png.
+
+    This function is called from the ABOUT menu option in Settings.
+    It displays the credits.png image on the OLED screen and waits
+    for the user to press back or OK button to return to the menu.
+
+    Image path: rpi_usb_cloner/ui/assets/credits.png
+
+    Flow:
+    1. Settings menu -> ABOUT option
+    2. menu_actions.show_about_credits() called
+    3. settings_actions.show_about_credits() re-exported
+    4. This function loads and displays credits.png
+    5. User presses button to return to Settings menu
+    """
     context = display.get_display_context()
     assets_dir = Path(__file__).resolve().parent.parent.parent / "ui" / "assets"
     credits_path = assets_dir / "credits.png"
@@ -199,17 +213,17 @@ def show_about_credits() -> None:
         time.sleep(1.5)
         return
 
-    # Load and display the credits image
+    # Load and display the credits image (convert to 1-bit for OLED)
     credits_image = Image.open(credits_path).convert("1")
 
-    # Resize if necessary to fit the display
+    # Resize if necessary to fit the OLED display dimensions
     if credits_image.size != (context.width, context.height):
         credits_image = credits_image.resize((context.width, context.height))
 
-    # Display the image
+    # Display the image on the OLED screen
     with display._display_lock:
         context.disp.display(credits_image)
         display.mark_display_dirty()
 
-    # Wait for user to press back or OK button
+    # Wait for user to press back (PIN_A) or OK (PIN_B) button
     screens.wait_for_ack()

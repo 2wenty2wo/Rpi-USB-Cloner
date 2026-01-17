@@ -111,4 +111,9 @@ def shutdown_system() -> None:
 
 
 def show_about_credits() -> None:
+    """Display the ABOUT/credits screen.
+
+    Shows credits.png from ui/assets and waits for user to press back/OK.
+    Re-exports from: rpi_usb_cloner.actions.settings.ui_actions.show_about_credits
+    """
     settings_actions.show_about_credits()
