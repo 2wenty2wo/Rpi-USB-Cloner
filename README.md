@@ -17,7 +17,7 @@ Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 ## ✅ Prerequisites
 
 **Hardware**
-- Raspberry Pi Zero
+- Raspberry Pi Zero / Zero 2
 - Adafruit 128x64 1.3" OLED Bonnet
 - Zero4U USB Hub
 
