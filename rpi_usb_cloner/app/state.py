@@ -25,3 +25,4 @@ class AppState:
     lcdstart: datetime = field(default_factory=datetime.now)
     last_usb_check: float = 0.0
     last_seen_devices: List[str] = field(default_factory=list)
+    last_seen_raw_devices: List[str] = field(default_factory=list)

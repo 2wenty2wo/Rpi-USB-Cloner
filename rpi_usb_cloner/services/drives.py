@@ -185,6 +185,11 @@ def list_usb_disk_names() -> List[str]:
     ]
 
 
+def list_raw_usb_disk_names() -> List[str]:
+    """List USB disk names without filtering repo drives."""
+    return [device.get("name") for device in list_usb_disks() if device.get("name")]
+
+
 def list_usb_disk_labels() -> List[str]:
     """List USB disk labels, excluding repo drives."""
     repo_devices = _get_repo_device_names()
