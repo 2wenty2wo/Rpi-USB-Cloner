@@ -18,7 +18,6 @@ from rpi_usb_cloner.storage.devices import (
     human_size,
     list_usb_disks,
 )
-from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
 from PIL import ImageDraw
@@ -217,7 +216,7 @@ def erase_drive(
     log_debug: Optional[Callable[[str], None]],
     get_selected_usb_name: Callable[[], Optional[str]],
 ) -> None:
-    repo_devices = _get_repo_device_names()
+    repo_devices = drives._get_repo_device_names()
     target_devices = [
         device for device in list_usb_disks() if device.get("name") not in repo_devices
     ]
@@ -335,29 +334,10 @@ def _collect_mountpoints(device: dict) -> Set[str]:
     return mountpoints
 
 
-def _get_repo_device_names() -> Set[str]:
-    """Get the set of device names that are repo drives."""
-    repos = find_image_repos()
-    if not repos:
-        return set()
-
-    repo_devices: Set[str] = set()
-    usb_devices = list_usb_disks()
-
-    for device in usb_devices:
-        mountpoints = _collect_mountpoints(device)
-        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
-            device_name = device.get("name")
-            if device_name:
-                repo_devices.add(device_name)
-
-    return repo_devices
-
-
 def _pick_source_target(
     get_selected_usb_name: Callable[[], Optional[str]],
 ) -> tuple[Optional[dict], Optional[dict]]:
-    repo_devices = _get_repo_device_names()
+    repo_devices = drives._get_repo_device_names()
     devices_list = [
         device
         for device in list_usb_disks()
@@ -841,7 +821,7 @@ def format_drive(
     from rpi_usb_cloner.ui import keyboard
 
     # Get target device
-    repo_devices = _get_repo_device_names()
+    repo_devices = drives._get_repo_device_names()
     target_devices = [
         device for device in list_usb_disks() if device.get("name") not in repo_devices
     ]
