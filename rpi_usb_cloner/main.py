@@ -109,13 +109,7 @@ from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.mount import (
-    get_device_name,
-    get_model,
-    get_size,
-    get_vendor,
-    list_media_devices,
-)
+from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
@@ -123,6 +117,28 @@ from rpi_usb_cloner.web import server as web_server
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu.model import get_screen_icon
+
+
+# Wrapper functions to adapt device dict interface from list_usb_disks()
+# to the interface expected by drive_info.py functions
+def get_device_name_from_dict(device: dict) -> str:
+    """Extract device name from device dict."""
+    return device.get("name", "")
+
+
+def get_size_from_dict(device: dict) -> int:
+    """Extract size in bytes from device dict."""
+    return device.get("size", 0)
+
+
+def get_vendor_from_dict(device: dict) -> str:
+    """Extract vendor from device dict."""
+    return device.get("vendor", "")
+
+
+def get_model_from_dict(device: dict) -> str:
+    """Extract model from device dict."""
+    return device.get("model", "")
 
 
 def main(argv=None):
@@ -278,11 +294,11 @@ def main(argv=None):
         page_index = 0
         total_pages, page_index = render_drive_info(
             app_context.active_drive,
-            list_media_devices,
-            get_device_name,
-            get_size,
-            get_vendor,
-            get_model,
+            list_usb_disks,
+            get_device_name_from_dict,
+            get_size_from_dict,
+            get_vendor_from_dict,
+            get_model_from_dict,
             display,
             screens,
             page_index,
@@ -305,11 +321,11 @@ def main(argv=None):
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_media_devices,
-                    get_device_name,
-                    get_size,
-                    get_vendor,
-                    get_model,
+                    list_usb_disks,
+                    get_device_name_from_dict,
+                    get_size_from_dict,
+                    get_vendor_from_dict,
+                    get_model_from_dict,
                     display,
                     screens,
                     page_index,
@@ -319,11 +335,11 @@ def main(argv=None):
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_media_devices,
-                    get_device_name,
-                    get_size,
-                    get_vendor,
-                    get_model,
+                    list_usb_disks,
+                    get_device_name_from_dict,
+                    get_size_from_dict,
+                    get_vendor_from_dict,
+                    get_model_from_dict,
                     display,
                     screens,
                     page_index,
@@ -333,11 +349,11 @@ def main(argv=None):
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_media_devices,
-                    get_device_name,
-                    get_size,
-                    get_vendor,
-                    get_model,
+                    list_usb_disks,
+                    get_device_name_from_dict,
+                    get_size_from_dict,
+                    get_vendor_from_dict,
+                    get_model_from_dict,
                     display,
                     screens,
                     page_index,
@@ -347,11 +363,11 @@ def main(argv=None):
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_media_devices,
-                    get_device_name,
-                    get_size,
-                    get_vendor,
-                    get_model,
+                    list_usb_disks,
+                    get_device_name_from_dict,
+                    get_size_from_dict,
+                    get_vendor_from_dict,
+                    get_model_from_dict,
                     display,
                     screens,
                     page_index,
@@ -395,10 +411,10 @@ def main(argv=None):
         if screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             return get_device_status_line(
                 app_context.active_drive,
-                list_media_devices,
-                get_device_name,
-                get_vendor,
-                get_model,
+                list_usb_disks,
+                get_device_name_from_dict,
+                get_vendor_from_dict,
+                get_model_from_dict,
             )
         if screen.screen_id == definitions.DRIVES_MENU.screen_id:
             return active_drive_label or "NO DRIVE SELECTED"

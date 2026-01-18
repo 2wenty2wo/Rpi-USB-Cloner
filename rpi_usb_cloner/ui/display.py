@@ -95,13 +95,7 @@ from luma.oled.device import ssd1306
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
-from rpi_usb_cloner.storage.mount import (
-    get_device_name,
-    get_model,
-    get_size,
-    get_vendor,
-    list_media_devices,
-)
+from rpi_usb_cloner.storage.devices import list_usb_disks
 
 
 @dataclass
@@ -561,7 +555,7 @@ def basemenu(state: app_state.AppState) -> None:
     from rpi_usb_cloner.ui.menus import Menu, MenuItem, render_menu
 
     context = get_display_context()
-    devices = list_media_devices()
+    devices = list_usb_disks()
     devices_present = bool(devices)
     with _display_lock:
         if not devices:
