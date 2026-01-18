@@ -36,6 +36,18 @@
     .lucide-icon-activity::before {
       content: "\e038";
     }
+    .lucide-icon-cpu::before {
+      content: "\e0a9";
+    }
+    .lucide-icon-memory-stick::before {
+      content: "\e445";
+    }
+    .lucide-icon-hard-drive::before {
+      content: "\e0ed";
+    }
+    .lucide-icon-thermometer::before {
+      content: "\e186";
+    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -204,7 +216,10 @@
                     <!-- CPU Usage -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
-                        <small class="text-muted">CPU Usage</small>
+                        <small class="text-muted d-flex align-items-center gap-1">
+                          <span class="lucide-icon lucide-icon-cpu" aria-hidden="true"></span>
+                          CPU Usage
+                        </small>
                         <span id="cpu-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress" style="height: 8px;">
@@ -214,7 +229,10 @@
                     <!-- Memory Usage -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
-                        <small class="text-muted">Memory</small>
+                        <small class="text-muted d-flex align-items-center gap-1">
+                          <span class="lucide-icon lucide-icon-memory-stick" aria-hidden="true"></span>
+                          Memory
+                        </small>
                         <span id="memory-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress" style="height: 8px;">
@@ -225,7 +243,10 @@
                     <!-- Disk Usage -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
-                        <small class="text-muted">Disk Space</small>
+                        <small class="text-muted d-flex align-items-center gap-1">
+                          <span class="lucide-icon lucide-icon-hard-drive" aria-hidden="true"></span>
+                          Disk Space
+                        </small>
                         <span id="disk-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress" style="height: 8px;">
@@ -236,7 +257,10 @@
                     <!-- Temperature -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
-                        <small class="text-muted">Temperature</small>
+                        <small class="text-muted d-flex align-items-center gap-1">
+                          <span class="lucide-icon lucide-icon-thermometer" aria-hidden="true"></span>
+                          Temperature
+                        </small>
                         <span id="temp-value" class="fw-bold">--</span>
                       </div>
                       <div class="progress" style="height: 8px;">
