@@ -115,6 +115,7 @@ def invalidate_repo_cache() -> None:
     staying up-to-date when devices are added/removed.
     """
     global _repo_device_cache
+    print("[DEBUG] [REPO] Invalidating repo cache")
     _repo_device_cache = None
 
 
@@ -128,41 +129,41 @@ def _get_repo_device_names() -> Set[str]:
 
     # Return cached value if available
     if _repo_device_cache is not None:
-        logger.debug(f"Returning cached repo devices: {_repo_device_cache}")
+        print(f"[DEBUG] [REPO] Returning cached repo devices: {_repo_device_cache}")
         return _repo_device_cache
 
     # Scan for repo devices (expensive operation)
-    logger.debug("Scanning for repo devices...")
+    print("[DEBUG] [REPO] Scanning for repo devices...")
     repos = find_image_repos()
-    logger.debug(f"Found {len(repos)} repo path(s): {repos}")
+    print(f"[DEBUG] [REPO] Found {len(repos)} repo path(s): {repos}")
 
     if not repos:
         _repo_device_cache = set()
-        logger.debug("No repos found, caching empty set")
+        print("[DEBUG] [REPO] No repos found, caching empty set")
         return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
     repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
-    logger.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
+    print(f"[DEBUG] [REPO] Checking {len(usb_devices)} USB device(s) against repo paths")
 
     for device in usb_devices:
         device_name = device.get("name")
         mountpoints = _collect_mountpoints(device)
-        logger.debug(f"Device {device_name}: mountpoints = {mountpoints}")
+        print(f"[DEBUG] [REPO] Device {device_name}: mountpoints = {mountpoints}")
 
         for mount in mountpoints:
             mount_path = Path(mount).resolve(strict=False)
             for repo_path in repo_paths:
                 is_match = _is_repo_on_mount(repo_path, mount_path)
                 if is_match:
-                    logger.debug(f"  MATCH: repo {repo_path} on mount {mount_path}")
+                    print(f"[DEBUG] [REPO]   MATCH: repo {repo_path} on mount {mount_path}")
                     if device_name:
                         repo_devices.add(device_name)
                         break
 
     # Cache the result
-    logger.debug(f"Identified repo devices: {repo_devices}")
+    print(f"[DEBUG] [REPO] Identified repo devices: {repo_devices}")
     _repo_device_cache = repo_devices
     return repo_devices
 
