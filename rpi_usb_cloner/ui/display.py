@@ -455,6 +455,7 @@ def draw_title_with_icon(
                 is_image_icon = False
                 icon_image = None
                 icon_width = 0
+                icon = None
         else:
             # Lucide icon (Unicode character)
             icon_font = icon_font or _get_lucide_font()
