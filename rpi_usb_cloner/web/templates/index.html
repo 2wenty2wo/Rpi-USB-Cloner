@@ -310,6 +310,43 @@
                   <div class="ratio ratio-2x1 mb-4">
                     <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
                   </div>
+                  <!-- Keyboard Mode Footer -->
+                  <div id="keyboard-footer" class="alert alert-info mb-4" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <div>
+                        <strong>Keyboard Mode:</strong> <span id="keyboard-mode-name">Lower</span>
+                      </div>
+                      <div class="text-muted small">
+                        <kbd>←</kbd><kbd>→</kbd> Navigate | <kbd>↑</kbd><kbd>↓</kbd> Switch Band | <kbd>OK</kbd> Select
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Keyboard Character Select Modal -->
+                  <div id="keyboard-modal" class="card" style="display: none; position: absolute; z-index: 1000; top: 0; left: 0; right: 0; margin: 1rem; background: rgba(255, 255, 255, 0.98);">
+                    <div class="card-header">
+                      <h3 class="card-title" id="keyboard-title">Keyboard Input</h3>
+                    </div>
+                    <div class="card-body">
+                      <div class="mb-3">
+                        <label class="form-label">Current Input:</label>
+                        <div class="form-control" id="keyboard-value" style="font-family: monospace; background: #f8f9fa;">
+
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Available Characters:</label>
+                        <div id="keyboard-chars" class="d-flex flex-wrap gap-1" style="max-height: 200px; overflow-y: auto;">
+                          <!-- Character buttons will be inserted here -->
+                        </div>
+                      </div>
+                      <div>
+                        <label class="form-label">Mode Selectors:</label>
+                        <div id="keyboard-modes" class="d-flex flex-wrap gap-2">
+                          <!-- Mode buttons will be inserted here -->
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <div class="row g-4 justify-content-between align-items-center">
                     <div class="col-12 col-md-6 d-flex justify-content-center">
                       <div class="dpad-container">
@@ -652,7 +689,6 @@
     // Connect to screen WebSocket for display streaming
     function connectScreenSocket() {
       screenSocket = new WebSocket(screenSocketUrl);
-      screenSocket.binaryType = 'arraybuffer';
 
       screenSocket.addEventListener('open', () => {
         debugLog('log', 'Screen WebSocket connected', socketDetails(screenSocket, screenSocketUrl));
@@ -660,12 +696,30 @@
       });
 
       screenSocket.addEventListener('message', async (event) => {
-        const blob = new Blob([event.data], { type: 'image/png' });
-        const bitmap = await createImageBitmap(blob);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        if (typeof bitmap.close === 'function') {
-          bitmap.close();
+        try {
+          // Parse JSON message with PNG and keyboard state
+          const message = JSON.parse(event.data);
+
+          if (message.type === 'screen_update') {
+            // Decode base64 PNG and render to canvas
+            const pngData = atob(message.png);
+            const pngArray = new Uint8Array(pngData.length);
+            for (let i = 0; i < pngData.length; i++) {
+              pngArray[i] = pngData.charCodeAt(i);
+            }
+            const blob = new Blob([pngArray], { type: 'image/png' });
+            const bitmap = await createImageBitmap(blob);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            if (typeof bitmap.close === 'function') {
+              bitmap.close();
+            }
+
+            // Update keyboard UI if keyboard is active
+            updateKeyboardUI(message.keyboard);
+          }
+        } catch (error) {
+          debugLog('error', 'Failed to parse screen message', { error: error.message });
         }
       });
 
@@ -857,6 +911,90 @@
         screenConnected,
         controlConnected
       });
+    }
+
+    // Update keyboard UI based on keyboard state
+    function updateKeyboardUI(keyboardState) {
+      const modal = document.getElementById('keyboard-modal');
+      const footer = document.getElementById('keyboard-footer');
+      const titleEl = document.getElementById('keyboard-title');
+      const valueEl = document.getElementById('keyboard-value');
+      const charsEl = document.getElementById('keyboard-chars');
+      const modesEl = document.getElementById('keyboard-modes');
+      const modeNameEl = document.getElementById('keyboard-mode-name');
+
+      if (!keyboardState || !keyboardState.active) {
+        // Hide keyboard UI when not active
+        if (modal) modal.style.display = 'none';
+        if (footer) footer.style.display = 'none';
+        return;
+      }
+
+      // Show keyboard UI
+      if (modal) modal.style.display = 'block';
+      if (footer) footer.style.display = 'block';
+
+      // Update title
+      if (titleEl) titleEl.textContent = keyboardState.title || 'Keyboard Input';
+
+      // Update current value (masked or plain)
+      if (valueEl) {
+        valueEl.textContent = keyboardState.value || '';
+      }
+
+      // Update mode name in footer
+      if (modeNameEl) {
+        const modeNames = {
+          'upper': 'Uppercase',
+          'lower': 'Lowercase',
+          'numbers': 'Numbers',
+          'symbols': 'Symbols'
+        };
+        modeNameEl.textContent = modeNames[keyboardState.layout_mode] || keyboardState.layout_mode;
+      }
+
+      // Update available characters
+      if (charsEl && keyboardState.available_keys) {
+        charsEl.innerHTML = '';
+        keyboardState.available_keys.forEach((key, index) => {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-sm';
+          if (keyboardState.selected_band === 'chars' && index === keyboardState.selected_col) {
+            btn.className += ' btn-primary';
+          } else {
+            btn.className += ' btn-outline-secondary';
+          }
+          btn.textContent = key === 'SPACE' ? '␣' : key;
+          btn.style.minWidth = '40px';
+          charsEl.appendChild(btn);
+        });
+      }
+
+      // Update mode selectors
+      if (modesEl && keyboardState.mode_items) {
+        modesEl.innerHTML = '';
+        const modeLabels = {
+          'upper': 'ABC',
+          'lower': 'abc',
+          'numbers': '123',
+          'symbols': '#@!',
+          'back': '⌫ Back',
+          'ok': '✓ OK'
+        };
+        keyboardState.mode_items.forEach((mode, index) => {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-sm';
+          if (keyboardState.layout_mode === mode) {
+            btn.className += ' btn-success';
+          } else if (keyboardState.selected_band === 'modes' && index === keyboardState.mode_index) {
+            btn.className += ' btn-primary';
+          } else {
+            btn.className += ' btn-outline-secondary';
+          }
+          btn.textContent = modeLabels[mode] || mode;
+          modesEl.appendChild(btn);
+        });
+      }
     }
 
     // Send button press to the server

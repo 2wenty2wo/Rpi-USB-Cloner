@@ -87,7 +87,7 @@ from io import BytesIO
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from PIL import Image, ImageDraw, ImageFont
 from luma.core.interface.serial import i2c
@@ -254,6 +254,29 @@ def get_display_png_bytes() -> bytes:
         image = context.image.copy()
         image.save(buffer, format="PNG")
         return buffer.getvalue()
+
+
+def get_display_with_keyboard_state() -> tuple[bytes, Optional[Dict]]:
+    """Return the current OLED frame buffer as PNG bytes along with keyboard state.
+
+    This function is thread-safe and will acquire the display lock
+    to ensure a consistent snapshot of the display buffer.
+
+    Returns:
+        Tuple of (png_bytes, keyboard_state). keyboard_state is None if keyboard
+        is not active, otherwise a dict with keyboard UI state.
+    """
+    from rpi_usb_cloner.ui import keyboard
+
+    context = get_display_context()
+    with _display_lock:
+        buffer = BytesIO()
+        image = context.image.copy()
+        image.save(buffer, format="PNG")
+        png_bytes = buffer.getvalue()
+
+    keyboard_state = keyboard.get_keyboard_state()
+    return (png_bytes, keyboard_state)
 
 
 def init_display() -> DisplayContext:

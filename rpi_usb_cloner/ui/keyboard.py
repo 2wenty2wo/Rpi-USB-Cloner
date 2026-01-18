@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from PIL import ImageFont
 
@@ -23,6 +23,10 @@ KEY_CONFIRM = "OK"
 KEY_CANCEL = "CANCEL"
 KEY_SHIFT = "SHIFT"
 PASSWORD_ICON_GLYPH = ""
+
+
+# Global keyboard state for web UI synchronization
+_keyboard_state: Optional[Dict] = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,23 @@ DEFAULT_LAYOUT = KeyboardLayout(
 _keyboard_fonts: Optional[
     tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
 ] = None
+
+
+def get_keyboard_state() -> Optional[Dict]:
+    """Get the current keyboard state for web UI synchronization.
+
+    Returns:
+        Dictionary with keyboard state if keyboard is active, None otherwise.
+        State includes: title, value (masked if password), layout_mode, selected_col,
+        selected_band, available_keys, mode_items, mode_index.
+    """
+    return _keyboard_state
+
+
+def _set_keyboard_state(state: Optional[Dict]) -> None:
+    """Set the keyboard state for web UI synchronization."""
+    global _keyboard_state
+    _keyboard_state = state
 
 
 def _get_keyboard_fonts() -> tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]:
@@ -140,6 +161,21 @@ def _render_keyboard(
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     keys = layout.get_keys(layout_mode)
+
+    # Update keyboard state for web UI
+    mode_items = ["upper", "lower", "numbers", "symbols", "back", "ok"]
+    _set_keyboard_state({
+        "active": True,
+        "title": title,
+        "value": "*" * len(value) if masked else value,
+        "masked": masked,
+        "layout_mode": layout_mode,
+        "selected_col": selected_col,
+        "selected_band": selected_band,
+        "available_keys": keys,
+        "mode_items": mode_items,
+        "mode_index": mode_index,
+    })
     current_y = context.top
     title_font = context.fonts.get("title", context.fontdisks)
     padding = 2
@@ -302,13 +338,14 @@ def prompt_text(
     title_icon: Optional[str] = None,
     title_icon_font: Optional[ImageFont.ImageFont] = None,
 ) -> Optional[str]:
-    value = initial
-    selected_col = 0
-    selected_band = "chars"
-    layout_mode = "lower"
-    mode_items = ["upper", "lower", "numbers", "symbols", "back", "ok"]
-    mode_index = mode_items.index(layout_mode)
-    menus.wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
+    try:
+        value = initial
+        selected_col = 0
+        selected_band = "chars"
+        layout_mode = "lower"
+        mode_items = ["upper", "lower", "numbers", "symbols", "back", "ok"]
+        mode_index = mode_items.index(layout_mode)
+        menus.wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": is_pressed(PIN_U),
         "D": is_pressed(PIN_D),
@@ -431,3 +468,6 @@ def prompt_text(
         prev_states["B"] = current_b
         prev_states["C"] = current_c
         time.sleep(menus.BUTTON_POLL_DELAY)
+    finally:
+        # Clear keyboard state when done
+        _set_keyboard_state(None)

@@ -139,11 +139,21 @@ async def handle_screen_png(request: web.Request) -> web.Response:
 
 
 async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
-    """WebSocket handler that streams OLED display updates.
+    """WebSocket handler that streams OLED display updates with keyboard state.
 
     This handler waits for display updates (dirty flag) before sending frames,
     which prevents flickering caused by capturing partial renders.
+
+    Sends JSON messages with format:
+    {
+        "type": "screen_update",
+        "png": <base64 encoded PNG bytes>,
+        "keyboard": <keyboard state dict or null>
+    }
     """
+    import base64
+    import json
+
     notifier = request.app["display_notifier"]
     log_debug = request.app.get("log_debug")
     ws = web.WebSocketResponse(autoping=True)
@@ -151,9 +161,14 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     if log_debug:
         log_debug(f"Screen WebSocket connected from {request.remote}")
     try:
-        # Send initial frame
-        png_bytes = display.get_display_png_bytes()
-        await ws.send_bytes(png_bytes)
+        # Send initial frame with keyboard state
+        png_bytes, keyboard_state = display.get_display_with_keyboard_state()
+        message = {
+            "type": "screen_update",
+            "png": base64.b64encode(png_bytes).decode('utf-8'),
+            "keyboard": keyboard_state
+        }
+        await ws.send_str(json.dumps(message))
         display.clear_dirty_flag()
 
         last_update_id = notifier.get_update_id()
@@ -164,8 +179,13 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
             )
             if ws.closed:
                 break
-            png_bytes = display.get_display_png_bytes()
-            await ws.send_bytes(png_bytes)
+            png_bytes, keyboard_state = display.get_display_with_keyboard_state()
+            message = {
+                "type": "screen_update",
+                "png": base64.b64encode(png_bytes).decode('utf-8'),
+                "keyboard": keyboard_state
+            }
+            await ws.send_str(json.dumps(message))
             display.clear_dirty_flag()
     except asyncio.CancelledError:
         raise
