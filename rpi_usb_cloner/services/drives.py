@@ -66,6 +66,7 @@ See Also:
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
@@ -75,11 +76,11 @@ from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
 
+logger = logging.getLogger(__name__)
+
 
 # Cache for repo device names to avoid expensive scanning on every menu render
 _repo_device_cache: Optional[Set[str]] = None
-
-_log_debug = None
 
 
 @dataclass
@@ -106,18 +107,6 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
     return repo_path == mount_path or mount_path in repo_path.parents
 
 
-def configure_drive_helpers(log_debug=None) -> None:
-    """Configure logging for drive helpers."""
-    global _log_debug
-    _log_debug = log_debug
-
-
-def log_debug(message: str) -> None:
-    """Log debug message if logger is configured."""
-    if _log_debug:
-        _log_debug(message)
-
-
 def invalidate_repo_cache() -> None:
     """Invalidate the repo device cache.
 
@@ -126,7 +115,6 @@ def invalidate_repo_cache() -> None:
     staying up-to-date when devices are added/removed.
     """
     global _repo_device_cache
-    log_debug("[REPO] Invalidating repo cache")
     _repo_device_cache = None
 
 
@@ -140,41 +128,41 @@ def _get_repo_device_names() -> Set[str]:
 
     # Return cached value if available
     if _repo_device_cache is not None:
-        log_debug(f"[REPO] Returning cached repo devices: {_repo_device_cache}")
+        logger.debug(f"Returning cached repo devices: {_repo_device_cache}")
         return _repo_device_cache
 
     # Scan for repo devices (expensive operation)
-    log_debug("[REPO] Scanning for repo devices...")
+    logger.debug("Scanning for repo devices...")
     repos = find_image_repos()
-    log_debug(f"[REPO] Found {len(repos)} repo path(s): {repos}")
+    logger.debug(f"Found {len(repos)} repo path(s): {repos}")
 
     if not repos:
         _repo_device_cache = set()
-        log_debug("[REPO] No repos found, caching empty set")
+        logger.debug("No repos found, caching empty set")
         return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
     repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
-    log_debug(f"[REPO] Checking {len(usb_devices)} USB device(s) against repo paths")
+    logger.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
 
     for device in usb_devices:
         device_name = device.get("name")
         mountpoints = _collect_mountpoints(device)
-        log_debug(f"[REPO] Device {device_name}: mountpoints = {mountpoints}")
+        logger.debug(f"Device {device_name}: mountpoints = {mountpoints}")
 
         for mount in mountpoints:
             mount_path = Path(mount).resolve(strict=False)
             for repo_path in repo_paths:
                 is_match = _is_repo_on_mount(repo_path, mount_path)
                 if is_match:
-                    log_debug(f"[REPO]   MATCH: repo {repo_path} on mount {mount_path}")
+                    logger.debug(f"  MATCH: repo {repo_path} on mount {mount_path}")
                     if device_name:
                         repo_devices.add(device_name)
                         break
 
     # Cache the result
-    log_debug(f"[REPO] Identified repo devices: {repo_devices}")
+    logger.debug(f"Identified repo devices: {repo_devices}")
     _repo_device_cache = repo_devices
     return repo_devices
 
