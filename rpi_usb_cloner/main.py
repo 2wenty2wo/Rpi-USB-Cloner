@@ -108,6 +108,7 @@ from rpi_usb_cloner.app.menu_builders import (
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.services import drives, wifi
+from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
@@ -294,7 +295,7 @@ def main(argv=None):
         page_index = 0
         total_pages, page_index = render_drive_info(
             app_context.active_drive,
-            list_usb_disks,
+            list_usb_disks_filtered,
             get_device_name_from_dict,
             get_size_from_dict,
             get_vendor_from_dict,
@@ -321,7 +322,7 @@ def main(argv=None):
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_usb_disks,
+                    list_usb_disks_filtered,
                     get_device_name_from_dict,
                     get_size_from_dict,
                     get_vendor_from_dict,
@@ -335,7 +336,7 @@ def main(argv=None):
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_usb_disks,
+                    list_usb_disks_filtered,
                     get_device_name_from_dict,
                     get_size_from_dict,
                     get_vendor_from_dict,
@@ -349,7 +350,7 @@ def main(argv=None):
                 page_index = max(0, page_index - 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_usb_disks,
+                    list_usb_disks_filtered,
                     get_device_name_from_dict,
                     get_size_from_dict,
                     get_vendor_from_dict,
@@ -363,7 +364,7 @@ def main(argv=None):
                 page_index = min(total_pages - 1, page_index + 1)
                 total_pages, page_index = render_drive_info(
                     app_context.active_drive,
-                    list_usb_disks,
+                    list_usb_disks_filtered,
                     get_device_name_from_dict,
                     get_size_from_dict,
                     get_vendor_from_dict,
@@ -411,7 +412,7 @@ def main(argv=None):
         if screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             return get_device_status_line(
                 app_context.active_drive,
-                list_usb_disks,
+                list_usb_disks_filtered,
                 get_device_name_from_dict,
                 get_vendor_from_dict,
                 get_model_from_dict,
