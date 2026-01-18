@@ -4,6 +4,7 @@ import os
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Callable, Iterable, Optional, Set
 
 from rpi_usb_cloner.app import state as app_state
@@ -18,8 +19,9 @@ from rpi_usb_cloner.storage.devices import (
     human_size,
     list_usb_disks,
 )
+from rpi_usb_cloner.storage.image_repo import REPO_FLAG_FILENAME
 from rpi_usb_cloner.ui import display, menus, screens
-from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
+from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, FOLDER_ICON, SPARKLES_ICON
 from PIL import ImageDraw
 
 
@@ -1148,6 +1150,131 @@ def unmount_drive(
         else:
             display.display_lines(["POWER OFF", "FAILED"])
         time.sleep(1)
+
+
+def create_repo_drive(
+    *,
+    state: app_state.AppState,
+    log_debug: Optional[Callable[[str], None]],
+    get_selected_usb_name: Callable[[], Optional[str]],
+) -> None:
+    """Create a repository drive by adding the flag file to the root."""
+    from rpi_usb_cloner.storage import mount
+
+    # Get target device (exclude existing repo drives)
+    repo_devices = drives._get_repo_device_names()
+    target_devices = [
+        device for device in list_usb_disks() if device.get("name") not in repo_devices
+    ]
+    if not target_devices:
+        screens.render_error_screen(
+            title="CREATE REPO",
+            message="No USB found",
+            title_icon=FOLDER_ICON,
+            message_icon=ALERT_ICON,
+            message_icon_size=24,
+        )
+        time.sleep(1)
+        return
+
+    target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
+    selected_name = get_selected_usb_name()
+    target = None
+    if selected_name:
+        for device in target_devices:
+            if device.get("name") == selected_name:
+                target = device
+                break
+    if not target:
+        target = target_devices[-1]
+
+    target_name = target.get("name")
+
+    # Confirmation
+    prompt_lines = [f"Create repo on {target_name}?"]
+    if not _confirm_destructive_action(
+        state=state,
+        log_debug=log_debug,
+        prompt_lines=prompt_lines,
+    ):
+        return
+
+    # Find first partition and mount it if needed
+    partitions = list(get_children(target))
+    if not partitions:
+        screens.render_error_screen(
+            title="CREATE REPO",
+            message="No partitions found",
+            title_icon=FOLDER_ICON,
+            message_icon=ALERT_ICON,
+            message_icon_size=24,
+        )
+        time.sleep(1)
+        return
+
+    # Try to find a mounted partition or mount the first one
+    mountpoint = None
+    partition_name = None
+    for partition in partitions:
+        mp = partition.get("mountpoint")
+        if mp:
+            mountpoint = Path(mp)
+            partition_name = partition.get("name")
+            break
+
+    # If no mounted partition found, try to mount the first one
+    if not mountpoint:
+        first_partition = partitions[0]
+        partition_name = first_partition.get("name")
+        if partition_name:
+            partition_node = f"/dev/{partition_name}"
+            try:
+                mount.mount_partition(partition_node, name=partition_name)
+                # Refresh device info to get new mountpoint
+                for device in list_usb_disks():
+                    for child in get_children(device):
+                        if child.get("name") == partition_name:
+                            mp = child.get("mountpoint")
+                            if mp:
+                                mountpoint = Path(mp)
+                            break
+                    if mountpoint:
+                        break
+            except (ValueError, RuntimeError) as e:
+                _log_debug(log_debug, f"Failed to mount {partition_node}: {e}")
+
+    if not mountpoint:
+        screens.render_error_screen(
+            title="CREATE REPO",
+            message="Mount failed",
+            title_icon=FOLDER_ICON,
+            message_icon=ALERT_ICON,
+            message_icon_size=24,
+        )
+        time.sleep(1)
+        return
+
+    # Create the flag file
+    flag_path = mountpoint / REPO_FLAG_FILENAME
+    try:
+        display.display_lines(["CREATING", "REPO..."])
+        flag_path.touch()
+        _log_debug(log_debug, f"Created repo flag file at {flag_path}")
+
+        # Invalidate repo cache so the drive is recognized as a repo immediately
+        drives.invalidate_repo_cache()
+
+        screens.render_status_template("CREATE REPO", "Done", progress_line="Complete.")
+    except (OSError, PermissionError) as e:
+        _log_debug(log_debug, f"Failed to create repo flag file: {e}")
+        screens.render_error_screen(
+            title="CREATE REPO",
+            message="Failed to create",
+            title_icon=FOLDER_ICON,
+            message_icon=ALERT_ICON,
+            message_icon_size=24,
+        )
+    time.sleep(1)
 
 
 def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:

@@ -22,5 +22,6 @@ DRIVES_MENU = MenuScreen(
         menu_entry("FORMAT DRIVE", action=menu_actions.format_drive),
         menu_entry("UNMOUNT DRIVE", action=menu_actions.unmount_drive),
         menu_entry("ERASE DRIVE", action=menu_actions.erase_drive),
+        menu_entry("CREATE REPO", action=menu_actions.create_repo_drive),
     ],
 )
