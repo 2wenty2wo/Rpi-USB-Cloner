@@ -275,44 +275,220 @@
       info: 'bg-info'
     };
 
+    // Format timestamp as relative time (e.g., "2 minutes ago")
+    function formatRelativeTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHr / 24);
+
+      if (diffSec < 5) return 'just now';
+      if (diffSec < 60) return `${diffSec}s ago`;
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
+      if (diffDay === 1) return 'yesterday';
+      if (diffDay < 7) return `${diffDay}d ago`;
+
+      // For older logs, show date and time
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // Parse and format message to be more human-readable
+    function formatLogMessage(message, details, source) {
+      // Try to parse JSON from message if present
+      let parsedDetails = details || {};
+
+      // Check if message is about button press (with details.button)
+      if (message === 'Button pressed' && parsedDetails.button) {
+        const button = parsedDetails.button;
+        const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
+                     button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
+                     button === 'SELECT' || button === 'OK' ? '✓' :
+                     button === 'BACK' ? '◀️' : '🔘';
+        return {
+          formatted: `${icon} Button: ${button}`,
+          details: null,
+          tags: []
+        };
+      }
+
+      // Check if message contains button press info (e.g., "Button pressed: UP")
+      const buttonMatch = message.match(/Button pressed:\s*(\w+)/);
+      if (buttonMatch) {
+        const button = buttonMatch[1];
+        const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
+                     button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
+                     button === 'SELECT' || button === 'OK' ? '✓' :
+                     button === 'BACK' ? '◀️' : '🔘';
+        return {
+          formatted: `${icon} Button: ${button}`,
+          details: null,
+          tags: []
+        };
+      }
+
+      // Check if message contains button press info with JSON
+      const buttonJsonMatch = message.match(/Button pressed\s*({.*})/);
+      if (buttonJsonMatch) {
+        try {
+          const buttonData = JSON.parse(buttonJsonMatch[1]);
+          const button = buttonData.button || 'unknown';
+          const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
+                       button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
+                       button === 'SELECT' || button === 'OK' ? '✓' :
+                       button === 'BACK' ? '◀️' : '🔘';
+          return {
+            formatted: `${icon} Button: ${button}`,
+            details: null,
+            tags: []
+          };
+        } catch (e) {
+          // Fall through to default formatting
+        }
+      }
+
+      // Check if message contains screen change info
+      const screenMatch = message.match(/Screen changed:\s*(\w+)\s*->\s*(\w+)/);
+      if (screenMatch) {
+        const [, from, to] = screenMatch;
+        return {
+          formatted: `Screen: ${from} → ${to}`,
+          details: null,
+          tags: ['NAVIGATION']
+        };
+      }
+
+      // Check for WebSocket connection messages
+      const wsMatch = message.match(/(Log|Screen|Control)\s+WebSocket\s+(connected|disconnected|error)/i);
+      if (wsMatch) {
+        const [, wsType, status] = wsMatch;
+        const icon = status === 'connected' ? '🟢' : status === 'disconnected' ? '🔴' : '⚠️';
+        return {
+          formatted: `${icon} ${wsType} WebSocket ${status}`,
+          details: null,
+          tags: ['WEBSOCKET']
+        };
+      }
+
+      // Check for socket not connected warnings
+      if (message.includes('socket not connected')) {
+        return {
+          formatted: `⚠️ ${message}`,
+          details: parsedDetails.button ? { button: parsedDetails.button } : null,
+          tags: ['WARNING']
+        };
+      }
+
+      // Default: return message as-is
+      return {
+        formatted: message,
+        details: parsedDetails,
+        tags: []
+      };
+    }
+
     function appendLog(level, message, details = {}, source = 'UI', timestamp = null, tags = null) {
       if (!logFrame) {
         return;
       }
+
       const entry = document.createElement('div');
-      entry.className = 'list-group-item d-flex align-items-start gap-2';
+      entry.className = 'list-group-item d-flex align-items-start gap-2 py-2';
       entry.dataset.source = source;
+
       const timestampValue = timestamp ?? new Date().toISOString();
-      const payload = Object.keys(details).length ? ` ${JSON.stringify(details)}` : '';
-      const prefix = source ? `[${source}] ` : '';
+      const formattedMsg = formatLogMessage(message, details, source);
+
+      // Level badge - larger and more readable
       const badge = document.createElement('span');
       const badgeClass = levelBadgeClasses[level] || 'bg-secondary';
-      badge.className = `badge ${badgeClass} text-uppercase`;
+      badge.className = `badge ${badgeClass} text-uppercase fw-bold`;
+      badge.style.fontSize = '0.7rem';
+      badge.style.padding = '0.35rem 0.5rem';
+      badge.style.minWidth = '4.5rem';
+      badge.style.textAlign = 'center';
       badge.textContent = level;
-      const content = document.createElement('code');
-      content.className = 'small';
+
+      // Content wrapper
+      const content = document.createElement('div');
+      content.className = 'flex-grow-1';
+
+      // Timestamp - relative time with tooltip showing exact time
       const timestampEl = document.createElement('span');
-      timestampEl.className = 'text-muted';
-      timestampEl.textContent = `[${timestampValue}] `;
+      timestampEl.className = 'text-muted me-2';
+      timestampEl.style.fontSize = '0.75rem';
+      timestampEl.textContent = formatRelativeTime(timestampValue);
+      timestampEl.dataset.timestamp = timestampValue;
+      timestampEl.title = new Date(timestampValue).toLocaleString();
+
+      // Source badge
+      const sourceBadge = document.createElement('span');
+      sourceBadge.className = 'badge bg-secondary-lt me-2';
+      sourceBadge.style.fontSize = '0.7rem';
+      sourceBadge.textContent = source;
+
+      // Message
       const messageEl = document.createElement('span');
-      messageEl.textContent = `${prefix}${message}${payload}`;
-      content.append(timestampEl, messageEl);
-      if (Array.isArray(tags) && tags.length > 0) {
-        const tagList = document.createElement('span');
-        tagList.className = 'ms-2 d-inline-flex gap-1';
-        tags.forEach((tag) => {
+      messageEl.style.fontSize = '0.875rem';
+      messageEl.textContent = formattedMsg.formatted;
+
+      // First row: timestamp, source, message
+      const firstRow = document.createElement('div');
+      firstRow.className = 'd-flex align-items-center flex-wrap gap-1';
+      firstRow.append(timestampEl, sourceBadge, messageEl);
+      content.appendChild(firstRow);
+
+      // Tags
+      const allTags = [...formattedMsg.tags, ...(Array.isArray(tags) ? tags : [])];
+      if (allTags.length > 0) {
+        const tagList = document.createElement('div');
+        tagList.className = 'mt-1 d-flex gap-1';
+        allTags.forEach((tag) => {
           const tagBadge = document.createElement('span');
-          tagBadge.className = 'badge bg-azure-lt text-uppercase';
+          tagBadge.className = 'badge bg-azure-lt';
+          tagBadge.style.fontSize = '0.65rem';
           tagBadge.textContent = String(tag);
           tagList.appendChild(tagBadge);
         });
         content.appendChild(tagList);
       }
+
+      // Details - only show if not already parsed
+      if (formattedMsg.details && Object.keys(formattedMsg.details).length > 0) {
+        const detailsEl = document.createElement('div');
+        detailsEl.className = 'mt-1 text-muted';
+        detailsEl.style.fontSize = '0.75rem';
+        detailsEl.style.fontFamily = 'monospace';
+
+        // Format details in a more readable way
+        const detailParts = [];
+        for (const [key, value] of Object.entries(formattedMsg.details)) {
+          if (key === 'url' || key === 'readyState' || key === 'reconnectAttempts') {
+            continue; // Skip technical details already shown
+          }
+          detailParts.push(`${key}: ${JSON.stringify(value)}`);
+        }
+        if (detailParts.length > 0) {
+          detailsEl.textContent = detailParts.join(', ');
+          content.appendChild(detailsEl);
+        }
+      }
+
       entry.append(badge, content);
+
       if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
         logFrame.textContent = '';
       }
       logFrame.appendChild(entry);
+
       if (autoScrollEnabled) {
         logFrame.scrollTop = logFrame.scrollHeight;
       }
@@ -537,6 +713,17 @@
         autoScrollEnabled = event.target.checked;
       });
     }
+
+    // Update relative timestamps every 30 seconds
+    setInterval(() => {
+      if (!logFrame) return;
+      logFrame.querySelectorAll('.list-group-item').forEach((entry) => {
+        const timestampEl = entry.querySelector('.text-muted[title]');
+        if (timestampEl && timestampEl.dataset.timestamp) {
+          timestampEl.textContent = formatRelativeTime(timestampEl.dataset.timestamp);
+        }
+      });
+    }, 30000);
 
     // Initialize connections
     connectScreenSocket();

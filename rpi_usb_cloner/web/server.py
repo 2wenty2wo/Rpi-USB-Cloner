@@ -208,6 +208,12 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
                     if button in button_map:
                         pin = button_map[button]
                         virtual_gpio.inject_button_press(pin)
+                        if log_debug:
+                            log_debug(
+                                f"Button pressed: {button}",
+                                level="info",
+                                tags=["WEB", "INPUT"],
+                            )
                     else:
                         if log_debug:
                             log_debug(f"Unknown control button payload: {data}")
