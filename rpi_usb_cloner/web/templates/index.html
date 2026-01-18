@@ -33,6 +33,9 @@
     .lucide-icon-copy-plus::before {
       content: "\e3fd";
     }
+    .lucide-icon-activity::before {
+      content: "\e001";
+    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -186,6 +189,67 @@
     <div class="page-wrapper">
       <div class="page-body">
         <div class="container-xl">
+          <!-- System Health Card -->
+          <div class="row row-cards mb-3">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <span class="lucide-icon lucide-icon-activity" aria-hidden="true"></span>
+                    System Health
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <!-- CPU Usage -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="mb-1 d-flex align-items-center justify-content-between">
+                        <small class="text-muted">CPU Usage</small>
+                        <span id="cpu-percent" class="fw-bold">--</span>
+                      </div>
+                      <div class="progress" style="height: 8px;">
+                        <div id="cpu-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                    </div>
+                    <!-- Memory Usage -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="mb-1 d-flex align-items-center justify-content-between">
+                        <small class="text-muted">Memory</small>
+                        <span id="memory-percent" class="fw-bold">--</span>
+                      </div>
+                      <div class="progress" style="height: 8px;">
+                        <div id="memory-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                      <small id="memory-detail" class="text-muted">-- / -- MB</small>
+                    </div>
+                    <!-- Disk Usage -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="mb-1 d-flex align-items-center justify-content-between">
+                        <small class="text-muted">Disk Space</small>
+                        <span id="disk-percent" class="fw-bold">--</span>
+                      </div>
+                      <div class="progress" style="height: 8px;">
+                        <div id="disk-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                      <small id="disk-detail" class="text-muted">-- / -- GB</small>
+                    </div>
+                    <!-- Temperature -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                      <div class="mb-1 d-flex align-items-center justify-content-between">
+                        <small class="text-muted">Temperature</small>
+                        <span id="temp-value" class="fw-bold">--</span>
+                      </div>
+                      <div class="progress" style="height: 8px;">
+                        <div id="temp-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                      </div>
+                      <small id="temp-detail" class="text-muted">Raspberry Pi</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Preview and Logs Cards -->
           <div class="row row-cards">
             <div class="col-12 col-lg-6">
               <div class="card">
@@ -367,7 +431,7 @@
       }
 
       // Check for WebSocket connection messages
-      const wsMatch = message.match(/(Log|Screen|Control)\s+WebSocket\s+(connected|disconnected|error)/i);
+      const wsMatch = message.match(/(Log|Screen|Control|Health)\s+WebSocket\s+(connected|disconnected|error)/i);
       if (wsMatch) {
         const [, wsType, status] = wsMatch;
         const icon = status === 'connected' ? '🟢' : status === 'disconnected' ? '🔴' : '⚠️';
@@ -529,10 +593,12 @@
     const screenSocketUrl = `${protocol}//${window.location.host}/ws/screen`;
     const controlSocketUrl = `${protocol}//${window.location.host}/ws/control`;
     const logSocketUrl = `${protocol}//${window.location.host}/ws/logs`;
+    const healthSocketUrl = `${protocol}//${window.location.host}/ws/health`;
 
     let screenSocket = null;
     let controlSocket = null;
     let logSocket = null;
+    let healthSocket = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
 
@@ -657,6 +723,74 @@
       });
     }
 
+    // Connect to health WebSocket for system metrics
+    function connectHealthSocket() {
+      healthSocket = new WebSocket(healthSocketUrl);
+
+      healthSocket.addEventListener('open', () => {
+        debugLog('log', 'Health WebSocket connected', socketDetails(healthSocket, healthSocketUrl));
+      });
+
+      healthSocket.addEventListener('message', (event) => {
+        try {
+          const health = JSON.parse(event.data);
+          updateHealthMetrics(health);
+        } catch (error) {
+          debugLog('error', 'Failed to parse health payload', { error });
+        }
+      });
+
+      healthSocket.addEventListener('close', () => {
+        debugLog('warn', 'Health WebSocket disconnected', socketDetails(healthSocket, healthSocketUrl));
+        setTimeout(connectHealthSocket, 2000);
+      });
+
+      healthSocket.addEventListener('error', (err) => {
+        debugLog('error', 'Health WebSocket error', socketDetails(healthSocket, healthSocketUrl, {
+          error: err
+        }));
+      });
+    }
+
+    // Update health metrics in the UI
+    function updateHealthMetrics(health) {
+      // Update CPU
+      if (health.cpu) {
+        document.getElementById('cpu-percent').textContent = `${health.cpu.percent}%`;
+        document.getElementById('cpu-bar').style.width = `${health.cpu.percent}%`;
+        document.getElementById('cpu-bar').className = `progress-bar bg-${health.cpu.status}`;
+      }
+
+      // Update Memory
+      if (health.memory) {
+        document.getElementById('memory-percent').textContent = `${health.memory.percent}%`;
+        document.getElementById('memory-bar').style.width = `${health.memory.percent}%`;
+        document.getElementById('memory-bar').className = `progress-bar bg-${health.memory.status}`;
+        document.getElementById('memory-detail').textContent = `${health.memory.used_mb} / ${health.memory.total_mb} MB`;
+      }
+
+      // Update Disk
+      if (health.disk) {
+        document.getElementById('disk-percent').textContent = `${health.disk.percent}%`;
+        document.getElementById('disk-bar').style.width = `${health.disk.percent}%`;
+        document.getElementById('disk-bar').className = `progress-bar bg-${health.disk.status}`;
+        document.getElementById('disk-detail').textContent = `${health.disk.used_gb} / ${health.disk.total_gb} GB`;
+      }
+
+      // Update Temperature
+      if (health.temperature && health.temperature.celsius !== null) {
+        document.getElementById('temp-value').textContent = `${health.temperature.celsius}°C`;
+        // Scale temperature: 0°C = 0%, 100°C = 100%
+        const tempPercent = Math.min(100, Math.max(0, health.temperature.celsius));
+        document.getElementById('temp-bar').style.width = `${tempPercent}%`;
+        document.getElementById('temp-bar').className = `progress-bar bg-${health.temperature.status}`;
+      } else {
+        document.getElementById('temp-value').textContent = 'N/A';
+        document.getElementById('temp-bar').style.width = '0%';
+        document.getElementById('temp-detail').textContent = 'Not available';
+      }
+    }
+
     function updateStatus() {
       const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
       const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
@@ -729,6 +863,7 @@
     connectScreenSocket();
     connectControlSocket();
     connectLogSocket();
+    connectHealthSocket();
   </script>
 </body>
 </html>

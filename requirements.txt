@@ -14,3 +14,6 @@ RPi.GPIO==0.7.1
 
 # Web server (HTTP + WebSocket)
 aiohttp==3.9.5
+
+# System monitoring (CPU, memory, disk, etc.)
+psutil==5.9.8
