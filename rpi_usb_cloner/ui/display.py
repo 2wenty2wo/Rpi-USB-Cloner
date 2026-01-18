@@ -505,7 +505,7 @@ def draw_title_with_icon(
         if icon:
             if is_image_icon and icon_image:
                 # Use PIL Image.paste to draw the image icon
-                icon_y = -1
+                icon_y = 0
                 context.image.paste(icon_image, (left_margin, icon_y))
             else:
                 # Use fixed Y position to keep all icons at same height
