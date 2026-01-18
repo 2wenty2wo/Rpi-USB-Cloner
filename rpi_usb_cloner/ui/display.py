@@ -437,16 +437,35 @@ def draw_title_with_icon(
     title_text = ""
     title_ascent = title_descent = 0
     icon_ascent = icon_descent = 0
+    is_image_icon = False
+    icon_image = None
 
     if icon:
-        icon_font = icon_font or _get_lucide_font()
-        icon_width = _measure_text_width(draw, icon, icon_font)
-        icon_bbox = icon_font.getbbox(icon)
-        try:
-            icon_ascent, icon_descent = icon_font.getmetrics()
-        except AttributeError:
-            icon_ascent = max(0, icon_bbox[3] - icon_bbox[1])
-            icon_descent = 0
+        # Check if icon is a file path to a PNG image
+        if icon.endswith('.png'):
+            is_image_icon = True
+            try:
+                icon_path = Path(icon) if os.path.isabs(icon) else ASSETS_DIR / icon
+                icon_image = Image.open(icon_path).convert("1")
+                icon_width = icon_image.width
+                icon_ascent = icon_image.height
+                icon_descent = 0
+            except (OSError, FileNotFoundError):
+                # Fall back to no icon if image can't be loaded
+                is_image_icon = False
+                icon_image = None
+                icon_width = 0
+                icon = None
+        else:
+            # Lucide icon (Unicode character)
+            icon_font = icon_font or _get_lucide_font()
+            icon_width = _measure_text_width(draw, icon, icon_font)
+            icon_bbox = icon_font.getbbox(icon)
+            try:
+                icon_ascent, icon_descent = icon_font.getmetrics()
+            except AttributeError:
+                icon_ascent = max(0, icon_bbox[3] - icon_bbox[1])
+                icon_descent = 0
 
     title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
     if title:
@@ -485,11 +504,15 @@ def draw_title_with_icon(
 
         # Position icon at consistent Y coordinate
         if icon:
-            # Use fixed Y position to keep all icons at same height
-            # Positioned slightly above screen edge to align with title text
-            icon_y = -1
-
-            draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
+            if is_image_icon and icon_image:
+                # Use PIL Image.paste to draw the image icon
+                icon_y = -1
+                context.image.paste(icon_image, (left_margin, icon_y))
+            else:
+                # Use fixed Y position to keep all icons at same height
+                # Positioned slightly above screen edge to align with title text
+                icon_y = -1
+                draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
 
     content_top = context.top + line_height + TITLE_PADDING + extra_gap
     return TitleLayout(
