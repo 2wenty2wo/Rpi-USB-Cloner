@@ -15,7 +15,7 @@ Usage:
 """
 
 # Screen-level icons (used in menu navigation)
-MAIN_ICON = "logo-16x16-blackbg.png"  # custom logo - main menu
+MAIN_ICON = "logo12x12-backbg.png"  # custom logo - main menu
 SETTINGS_ICON = chr(57925)  # settings icon
 TOOLS_ICON = chr(57580)  # tools icon
 FILE_BROWSER_ICON = chr(58175)  # folders icon
