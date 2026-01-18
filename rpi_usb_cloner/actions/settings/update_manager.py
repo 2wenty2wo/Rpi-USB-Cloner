@@ -353,30 +353,30 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         if refresh_update_menu():
             refresh_needed = True
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if prev_states["L"] and not current_l:
+        if not prev_states["L"] and current_l:
             if selection == 1:
                 selection = 0
                 refresh_needed = True
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
+        if not prev_states["R"] and current_r:
             if selection == 0:
                 selection = 1
                 refresh_needed = True
         current_u = gpio.is_pressed(gpio.PIN_U)
-        if prev_states["U"] and not current_u:
+        if not prev_states["U"] and current_u:
             if selection == 1:
                 selection = 0
                 refresh_needed = True
         current_d = gpio.is_pressed(gpio.PIN_D)
-        if prev_states["D"] and not current_d:
+        if not prev_states["D"] and current_d:
             if selection == 0:
                 selection = 1
                 refresh_needed = True
         current_a = gpio.is_pressed(gpio.PIN_A)
-        if prev_states["A"] and not current_a:
+        if not prev_states["A"] and current_a:
             return
         current_b = gpio.is_pressed(gpio.PIN_B)
-        if prev_states["B"] and not current_b:
+        if not prev_states["B"] and current_b:
             if selection == 0:
                 if not check_done.is_set():
                     status = "Checking..."

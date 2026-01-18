@@ -130,20 +130,20 @@ def confirm_action(
     }
     while True:
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
+        if not prev_states["R"] and current_r:
             if selection == app_state.CONFIRM_NO:
                 selection = app_state.CONFIRM_YES
                 log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if prev_states["L"] and not current_l:
+        if not prev_states["L"] and current_l:
             if selection == app_state.CONFIRM_YES:
                 selection = app_state.CONFIRM_NO
                 log_debug_msg(log_debug, f"Confirmation selection changed: {selection}")
         current_a = gpio.is_pressed(gpio.PIN_A)
-        if prev_states["A"] and not current_a:
+        if not prev_states["A"] and current_a:
             return False
         current_b = gpio.is_pressed(gpio.PIN_B)
-        if prev_states["B"] and not current_b:
+        if not prev_states["B"] and current_b:
             return selection == app_state.CONFIRM_YES
         prev_states["R"] = current_r
         prev_states["L"] = current_l
