@@ -118,6 +118,18 @@ class DisplayContext:
 _context: Optional[DisplayContext] = None
 _log_debug = None
 _display_lock = threading.RLock()
+
+
+def _device_menu_lines(device: dict) -> list[str]:
+    name = device.get("name", "")
+    size_bytes = device.get("size") or 0
+    size_gb = size_bytes / 1024**3
+    vendor = (device.get("vendor") or "").strip()
+    model = (device.get("model") or "").strip()
+    return [
+        f"{name} {size_gb:.2f}GB",
+        f"{vendor} {model}".strip(),
+    ]
 _display_dirty = threading.Event()
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TITLE_PADDING = 0
@@ -575,10 +587,7 @@ def basemenu(state: app_state.AppState) -> None:
             for device in devices:
                 menu_items.append(
                     MenuItem(
-                        [
-                            f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB",
-                            f"{get_vendor(device)} {get_model(device)}",
-                        ]
+                        _device_menu_lines(device)
                     )
                 )
             start_index = max(0, state.usb_list_index - 1)
