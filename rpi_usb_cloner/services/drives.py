@@ -201,6 +201,20 @@ def list_usb_disk_labels() -> List[str]:
     ]
 
 
+def list_usb_disks_filtered() -> List[dict]:
+    """List USB disks, excluding repo drives.
+
+    Returns the full device dictionaries (like list_usb_disks) but filters
+    out devices that are identified as image repositories.
+    """
+    repo_devices = _get_repo_device_names()
+    return [
+        device
+        for device in list_usb_disks()
+        if device.get("name") not in repo_devices
+    ]
+
+
 def refresh_drives(active_drive: Optional[str]) -> DriveSnapshot:
     discovered = list_media_drive_names()
     active = active_drive if active_drive in discovered else None
@@ -222,6 +236,10 @@ def select_active_drive(
 
 def get_active_drive_label(active_drive: Optional[str]) -> Optional[str]:
     if not active_drive:
+        return None
+    # Don't show label for repo drives
+    repo_devices = _get_repo_device_names()
+    if active_drive in repo_devices:
         return None
     for device in list_usb_disks():
         device_name = device.get("name")
