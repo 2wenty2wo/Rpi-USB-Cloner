@@ -14,6 +14,11 @@ from aiohttp import web
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
+from rpi_usb_cloner.web.system_health import (
+    get_system_health,
+    get_temperature_status,
+    get_usage_status,
+)
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
@@ -280,6 +285,65 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams system health metrics.
+
+    Sends CPU, memory, disk, and temperature data every 2 seconds.
+    """
+    log_debug = request.app.get("log_debug")
+    ws = web.WebSocketResponse(autoping=True)
+    await ws.prepare(request)
+    if log_debug:
+        log_debug(f"Health WebSocket connected from {request.remote}")
+
+    try:
+        while not ws.closed:
+            health = get_system_health()
+
+            # Build response with status colors
+            response = {
+                "cpu": {
+                    "percent": round(health.cpu_percent, 1),
+                    "status": get_usage_status(health.cpu_percent),
+                },
+                "memory": {
+                    "percent": round(health.memory_percent, 1),
+                    "used_mb": health.memory_used_mb,
+                    "total_mb": health.memory_total_mb,
+                    "status": get_usage_status(health.memory_percent),
+                },
+                "disk": {
+                    "percent": round(health.disk_percent, 1),
+                    "used_gb": round(health.disk_used_gb, 1),
+                    "total_gb": round(health.disk_total_gb, 1),
+                    "status": get_usage_status(health.disk_percent),
+                },
+                "temperature": None,
+            }
+
+            # Add temperature if available
+            if health.temperature_celsius is not None:
+                response["temperature"] = {
+                    "celsius": round(health.temperature_celsius, 1),
+                    "status": get_temperature_status(health.temperature_celsius),
+                }
+
+            await ws.send_json(response)
+            await asyncio.sleep(2.0)  # Update every 2 seconds
+
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        if log_debug:
+            log_debug(f"Health WebSocket error: {exc}")
+    finally:
+        await ws.close()
+        if log_debug:
+            log_debug(f"Health WebSocket disconnected from {request.remote}")
+
+    return ws
+
+
 def is_running() -> bool:
     return _current_handle is not None and _current_handle.thread.is_alive()
 
@@ -325,6 +389,7 @@ def start_server(
         app.router.add_get("/ws/screen", handle_screen_ws)
         app.router.add_get("/ws/control", handle_control_ws)
         app.router.add_get("/ws/logs", handle_logs_ws)
+        app.router.add_get("/ws/health", handle_health_ws)
         static_dir = Path(__file__).resolve().parent / "static"
         app.router.add_static("/static/", str(static_dir))
         ui_assets_dir = Path(__file__).resolve().parents[1] / "ui" / "assets"
