@@ -426,6 +426,7 @@
       timestampEl.className = 'text-muted me-2';
       timestampEl.style.fontSize = '0.75rem';
       timestampEl.textContent = formatRelativeTime(timestampValue);
+      timestampEl.dataset.timestamp = timestampValue;
       timestampEl.title = new Date(timestampValue).toLocaleString();
 
       // Source badge
@@ -718,9 +719,8 @@
       if (!logFrame) return;
       logFrame.querySelectorAll('.list-group-item').forEach((entry) => {
         const timestampEl = entry.querySelector('.text-muted[title]');
-        if (timestampEl && timestampEl.title) {
-          const isoTimestamp = new Date(timestampEl.title).toISOString();
-          timestampEl.textContent = formatRelativeTime(isoTimestamp);
+        if (timestampEl && timestampEl.dataset.timestamp) {
+          timestampEl.textContent = formatRelativeTime(timestampEl.dataset.timestamp);
         }
       });
     }, 30000);
