@@ -157,9 +157,9 @@ def list_media_drive_names() -> List[str]:
     """List media drive names, excluding repo drives."""
     repo_devices = _get_repo_device_names()
     return [
-        get_device_name(device)
-        for device in list_media_devices()
-        if get_device_name(device) not in repo_devices
+        device.get("name")
+        for device in list_usb_disks()
+        if device.get("name") and device.get("name") not in repo_devices
     ]
 
 
@@ -167,10 +167,11 @@ def list_media_drive_labels() -> List[str]:
     """List media drive labels, excluding repo drives."""
     repo_devices = _get_repo_device_names()
     labels = []
-    for device in list_media_devices():
-        device_name = get_device_name(device)
-        if device_name not in repo_devices:
-            label = f"{device_name} {get_size(device) / 1024 ** 3:.2f}GB"
+    for device in list_usb_disks():
+        device_name = device.get("name")
+        if device_name and device_name not in repo_devices:
+            size_bytes = device.get("size", 0)
+            label = f"{device_name} {size_bytes / 1024 ** 3:.2f}GB"
             labels.append(label)
     return labels
 
@@ -222,7 +223,9 @@ def select_active_drive(
 def get_active_drive_label(active_drive: Optional[str]) -> Optional[str]:
     if not active_drive:
         return None
-    for device in list_media_devices():
-        if get_device_name(device) == active_drive:
-            return f"{get_device_name(device)} {get_size(device) / 1024 ** 3:.2f}GB"
+    for device in list_usb_disks():
+        device_name = device.get("name")
+        if device_name == active_drive:
+            size_bytes = device.get("size", 0)
+            return f"{device_name} {size_bytes / 1024 ** 3:.2f}GB"
     return active_drive
