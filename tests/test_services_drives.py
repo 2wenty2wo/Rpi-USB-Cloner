@@ -185,22 +185,29 @@ class TestListMediaDriveNames:
     """Tests for list_media_drive_names function."""
 
     @patch("rpi_usb_cloner.services.drives._get_repo_device_names")
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    def test_list_all_drives(self, mock_list_media, mock_get_repos):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_list_all_drives(self, mock_list_usb, mock_get_repos):
         """Test listing all non-repo drives."""
         mock_get_repos.return_value = set()
-        mock_list_media.return_value = ["/dev/sda", "/dev/sdb"]
+        mock_list_usb.return_value = [
+            {"name": "sda", "size": 8000000000},
+            {"name": "sdb", "size": 16000000000},
+        ]
 
         result = list_media_drive_names()
 
         assert result == ["sda", "sdb"]
 
     @patch("rpi_usb_cloner.services.drives._get_repo_device_names")
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    def test_exclude_repo_drives(self, mock_list_media, mock_get_repos):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_exclude_repo_drives(self, mock_list_usb, mock_get_repos):
         """Test excluding repo drives from list."""
         mock_get_repos.return_value = {"sdb"}
-        mock_list_media.return_value = ["/dev/sda", "/dev/sdb", "/dev/sdc"]
+        mock_list_usb.return_value = [
+            {"name": "sda", "size": 8000000000},
+            {"name": "sdb", "size": 16000000000},
+            {"name": "sdc", "size": 32000000000},
+        ]
 
         result = list_media_drive_names()
 
@@ -212,18 +219,14 @@ class TestListMediaDriveLabels:
     """Tests for list_media_drive_labels function."""
 
     @patch("rpi_usb_cloner.services.drives._get_repo_device_names")
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    @patch("rpi_usb_cloner.services.drives.get_device_name")
-    @patch("rpi_usb_cloner.services.drives.get_size")
-    def test_list_drive_labels(self, mock_get_size, mock_get_name, mock_list_media, mock_get_repos):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_list_drive_labels(self, mock_list_usb, mock_get_repos):
         """Test listing drive labels with size."""
         mock_get_repos.return_value = set()
-        mock_list_media.return_value = [
-            {"name": "sda"},
-            {"name": "sdb"},
+        mock_list_usb.return_value = [
+            {"name": "sda", "size": 8000000000},
+            {"name": "sdb", "size": 16000000000},
         ]
-        mock_get_name.side_effect = ["sda", "sdb"]
-        mock_get_size.side_effect = [8000000000, 16000000000]  # 8GB, 16GB
 
         result = list_media_drive_labels()
 
@@ -231,18 +234,14 @@ class TestListMediaDriveLabels:
         assert "sdb 14.90GB" in result
 
     @patch("rpi_usb_cloner.services.drives._get_repo_device_names")
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    @patch("rpi_usb_cloner.services.drives.get_device_name")
-    @patch("rpi_usb_cloner.services.drives.get_size")
-    def test_exclude_repo_from_labels(self, mock_get_size, mock_get_name, mock_list_media, mock_get_repos):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_exclude_repo_from_labels(self, mock_list_usb, mock_get_repos):
         """Test excluding repo drives from labels."""
         mock_get_repos.return_value = {"sdb"}
-        mock_list_media.return_value = [
-            {"name": "sda"},
-            {"name": "sdb"},
+        mock_list_usb.return_value = [
+            {"name": "sda", "size": 8000000000},
+            {"name": "sdb", "size": 16000000000},
         ]
-        mock_get_name.side_effect = ["sda", "sdb"]
-        mock_get_size.side_effect = [8000000000, 16000000000]
 
         result = list_media_drive_labels()
 
@@ -375,31 +374,28 @@ class TestSelectActiveDrive:
 class TestGetActiveDriveLabel:
     """Tests for get_active_drive_label function."""
 
-    @patch("rpi_usb_cloner.services.drives.get_size")
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    def test_get_label_for_existing_drive(self, mock_list, mock_get_size):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_get_label_for_existing_drive(self, mock_list_usb):
         """Test getting label for existing drive."""
-        mock_list.return_value = ["/dev/sda", "/dev/sdb"]
-        mock_get_size.return_value = 16000000000
+        mock_list_usb.return_value = [
+            {"name": "sda", "size": 8000000000},
+            {"name": "sdb", "size": 16000000000},
+        ]
 
         result = get_active_drive_label("sdb")
 
         assert result == "sdb 14.90GB"
 
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    def test_get_label_for_none(self, mock_list):
+    def test_get_label_for_none(self):
         """Test getting label for None returns None."""
         result = get_active_drive_label(None)
 
         assert result is None
-        mock_list.assert_not_called()
 
-    @patch("rpi_usb_cloner.services.drives.list_media_devices")
-    @patch("rpi_usb_cloner.services.drives.get_device_name")
-    def test_get_label_for_nonexistent_drive(self, mock_get_name, mock_list):
+    @patch("rpi_usb_cloner.services.drives.list_usb_disks")
+    def test_get_label_for_nonexistent_drive(self, mock_list_usb):
         """Test getting label for drive not in media devices."""
-        mock_list.return_value = [{"name": "sda"}]
-        mock_get_name.return_value = "sda"
+        mock_list_usb.return_value = [{"name": "sda", "size": 8000000000}]
 
         result = get_active_drive_label("sdb")
 
