@@ -228,9 +228,6 @@ def main(argv=None):
     else:
         web_log_debug("Web server disabled in settings")
     usb_log_debug = partial(log_debug, tags=["usb"])
-    drives.configure_drive_helpers(
-        log_debug=partial(log_debug, tags=["repo"]) if debug_enabled else None
-    )
     devices.configure_device_helpers(log_debug=usb_log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=log_debug)
     configure_format_helpers(log_debug=partial(log_debug, tags=["format"]))
