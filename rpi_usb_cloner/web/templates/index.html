@@ -204,9 +204,6 @@
       image-rendering: crisp-edges;
       border: 10px solid black;
     }
-    .log-card {
-      height: 600px;
-    }
   </style>
 </head>
 <body>
@@ -362,15 +359,15 @@
               </div>
             </div>
             <div class="col-12 col-lg-6">
-              <div class="card log-card d-flex flex-column">
+              <div class="card h-100 d-flex flex-column">
                 <div class="card-header">
                   <h3 class="card-title fw-semibold fs-4">
                     <span class="lucide-icon lucide-icon-logs" aria-hidden="true"></span>
                     Logs
                   </h3>
                 </div>
-                <div class="card-body p-0 flex-grow-1" style="min-height: 0;">
-                  <div id="debug-log" class="list-group list-group-flush overflow-auto h-100"></div>
+                <div class="card-body p-0 flex-grow-1 d-flex">
+                  <div id="debug-log" class="list-group list-group-flush flex-grow-1 overflow-auto"></div>
                 </div>
                 <div class="card-footer d-flex align-items-center pt-4 mt-auto">
                   <label class="form-check form-switch m-0">
@@ -599,21 +596,19 @@
 
       // Timestamp - relative time with tooltip showing exact time
       const timestampEl = document.createElement('span');
-      timestampEl.className = 'text-muted me-2';
-      timestampEl.style.fontSize = '0.75rem';
+      timestampEl.className = 'text-secondary fs-7 lh-sm me-2';
       timestampEl.textContent = formatRelativeTime(timestampValue);
       timestampEl.dataset.timestamp = timestampValue;
       timestampEl.title = new Date(timestampValue).toLocaleString();
 
       // Source badge
       const sourceBadge = document.createElement('span');
-      sourceBadge.className = 'badge bg-secondary-lt me-2';
-      sourceBadge.style.fontSize = '0.7rem';
+      sourceBadge.className = 'badge bg-secondary-lt me-2 fs-7';
       sourceBadge.textContent = source;
 
       // Message
       const messageEl = document.createElement('span');
-      messageEl.style.fontSize = '0.875rem';
+      messageEl.className = 'fs-6';
       messageEl.textContent = formattedMsg.formatted;
 
       // First row: timestamp, source, message
@@ -640,9 +635,7 @@
       // Details - only show if not already parsed
       if (formattedMsg.details && Object.keys(formattedMsg.details).length > 0) {
         const detailsEl = document.createElement('div');
-        detailsEl.className = 'mt-1 text-muted';
-        detailsEl.style.fontSize = '0.75rem';
-        detailsEl.style.fontFamily = 'monospace';
+        detailsEl.className = 'mt-1 text-secondary fs-7 lh-sm font-monospace';
 
         // Format details in a more readable way
         const detailParts = [];
