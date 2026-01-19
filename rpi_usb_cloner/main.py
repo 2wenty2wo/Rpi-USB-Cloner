@@ -240,6 +240,7 @@ def main(argv=None):
     )
     last_usb_snapshot = None
     last_raw_usb_snapshot = None
+    last_mount_snapshot = None
 
     def get_usb_snapshot():
         nonlocal last_usb_snapshot
@@ -265,6 +266,31 @@ def main(argv=None):
         if snapshot != last_raw_usb_snapshot:
             usb_log_debug(f"Raw USB snapshot: {snapshot}")
             last_raw_usb_snapshot = snapshot
+        return snapshot
+
+    def get_usb_mount_snapshot():
+        nonlocal last_mount_snapshot
+
+        def collect_mountpoints(device, mountpoints):
+            mountpoint = device.get("mountpoint")
+            name = device.get("name") or ""
+            if mountpoint:
+                mountpoints.append((name, mountpoint))
+            for child in device.get("children", []) or []:
+                collect_mountpoints(child, mountpoints)
+
+        try:
+            usb_devices = list_usb_disks()
+        except Exception as error:
+            usb_log_debug(f"Failed to list USB mountpoints: {error}")
+            return []
+        mountpoints = []
+        for device in usb_devices:
+            collect_mountpoints(device, mountpoints)
+        snapshot = sorted(mountpoints)
+        if snapshot != last_mount_snapshot:
+            usb_log_debug(f"USB mount snapshot: {snapshot}")
+            last_mount_snapshot = snapshot
         return snapshot
 
     get_device_items = partial(
@@ -491,6 +517,7 @@ def main(argv=None):
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
     state.last_seen_raw_devices = get_raw_usb_snapshot()
+    state.last_seen_mount_snapshot = get_usb_mount_snapshot()
     prev_states = {
         "U": gpio.is_pressed(gpio.PIN_U),
         "D": gpio.is_pressed(gpio.PIN_D),
@@ -523,6 +550,14 @@ def main(argv=None):
                     )
                     drives.invalidate_repo_cache()
                     state.last_seen_raw_devices = raw_devices
+                mount_snapshot = get_usb_mount_snapshot()
+                if mount_snapshot != state.last_seen_mount_snapshot:
+                    log_debug(
+                        "USB mountpoints changed: "
+                        f"{state.last_seen_mount_snapshot} -> {mount_snapshot}"
+                    )
+                    drives.invalidate_repo_cache()
+                    state.last_seen_mount_snapshot = mount_snapshot
                 current_devices = get_usb_snapshot()
                 if current_devices != app_context.discovered_drives:
                     log_debug(

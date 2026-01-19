@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List
+from typing import List, Tuple
 
 MENU_COPY = 0
 MENU_VIEW = 1
@@ -26,3 +26,4 @@ class AppState:
     last_usb_check: float = 0.0
     last_seen_devices: List[str] = field(default_factory=list)
     last_seen_raw_devices: List[str] = field(default_factory=list)
+    last_seen_mount_snapshot: List[Tuple[str, str]] = field(default_factory=list)
