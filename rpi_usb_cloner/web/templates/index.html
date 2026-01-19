@@ -26,11 +26,6 @@
       src: url('/ui-assets/fonts/lucide.ttf') format('truetype');
       font-display: swap;
     }
-    .card-title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
     .lucide-icon {
       font-family: 'Lucide';
       font-size: 1.1em;
@@ -241,7 +236,7 @@
             <div class="col-12">
               <div class="card">
                 <div class="card-header">
-                  <h3 class="card-title fw-semibold fs-4">
+                  <h3 class="card-title fw-semibold fs-4 d-flex align-items-center gap-2">
                     <span class="lucide-icon lucide-icon-activity" aria-hidden="true"></span>
                     System Health
                   </h3>
@@ -258,7 +253,7 @@
                         <span id="cpu-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress progress-sm">
-                        <div id="cpu-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div id="cpu-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                     </div>
                     <!-- Memory Usage -->
@@ -271,7 +266,7 @@
                         <span id="memory-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress progress-sm">
-                        <div id="memory-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div id="memory-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                       <small id="memory-detail" class="text-secondary">-- / -- MB</small>
                     </div>
@@ -285,7 +280,7 @@
                         <span id="disk-percent" class="fw-bold">--</span>
                       </div>
                       <div class="progress progress-sm">
-                        <div id="disk-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div id="disk-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                       <small id="disk-detail" class="text-secondary">-- / -- GB</small>
                     </div>
@@ -299,7 +294,7 @@
                         <span id="temp-value" class="fw-bold">--</span>
                       </div>
                       <div class="progress progress-sm">
-                        <div id="temp-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div id="temp-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                       <small id="temp-detail" class="text-secondary">Raspberry Pi</small>
                     </div>
@@ -313,7 +308,7 @@
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
-                  <h3 class="card-title fw-semibold fs-4">
+                  <h3 class="card-title fw-semibold fs-4 d-flex align-items-center gap-2">
                     <span class="lucide-icon lucide-icon-tv" aria-hidden="true"></span>
                     Preview
                   </h3>
@@ -361,7 +356,7 @@
             <div class="col-12 col-lg-6">
               <div class="card h-100 d-flex flex-column">
                 <div class="card-header">
-                  <h3 class="card-title fw-semibold fs-4">
+                  <h3 class="card-title fw-semibold fs-4 d-flex align-items-center gap-2">
                     <span class="lucide-icon lucide-icon-logs" aria-hidden="true"></span>
                     Logs
                   </h3>
