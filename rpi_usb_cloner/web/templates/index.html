@@ -926,6 +926,19 @@
     }
 
     // Update USB devices list in the UI
+    function escapeHtml(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function updateDevicesList(devices) {
       const container = document.getElementById('usb-devices-container');
       const countBadge = document.getElementById('device-count');
@@ -954,7 +967,7 @@
         // Determine status badge color and icon
         let statusColor = 'secondary';
         let statusIcon = 'disc';
-        let statusText = device.status;
+        let statusText = escapeHtml(device.status);
 
         if (device.status === 'ready') {
           statusColor = 'success';
@@ -973,9 +986,14 @@
         // Build mountpoint list
         let mountpointHtml = '';
         if (device.mountpoints && device.mountpoints.length > 0) {
-          const mountsList = device.mountpoints.map(mp => `<code class="text-secondary">${mp}</code>`).join(', ');
+          const mountsList = device.mountpoints.map(mp => `<code class="text-secondary">${escapeHtml(mp)}</code>`).join(', ');
           mountpointHtml = `<div class="text-secondary small mt-1">Mounted: ${mountsList}</div>`;
         }
+
+        const label = escapeHtml(device.label);
+        const path = escapeHtml(device.path);
+        const sizeFormatted = escapeHtml(device.size_formatted);
+        const fstype = escapeHtml(device.fstype);
 
         return `
           <div class="list-group-item">
@@ -984,10 +1002,10 @@
                 <span class="lucide-icon lucide-icon-usb text-primary" style="font-size: 1.5rem;"></span>
               </div>
               <div class="col">
-                <div class="fw-semibold">${device.label}</div>
+                <div class="fw-semibold">${label}</div>
                 <div class="text-secondary small">
-                  ${device.path} • ${device.size_formatted}
-                  ${device.fstype ? `• ${device.fstype}` : ''}
+                  ${path} • ${sizeFormatted}
+                  ${fstype ? `• ${fstype}` : ''}
                 </div>
                 ${mountpointHtml}
               </div>
