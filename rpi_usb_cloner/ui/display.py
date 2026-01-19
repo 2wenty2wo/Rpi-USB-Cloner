@@ -95,7 +95,6 @@ from luma.oled.device import ssd1306
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
-from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 
 
 @dataclass
@@ -588,6 +587,7 @@ def render_paginated_lines(
 
 def basemenu(state: app_state.AppState) -> None:
     from rpi_usb_cloner.ui.menus import Menu, MenuItem, render_menu
+    from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 
     context = get_display_context()
     devices = list_usb_disks_filtered()
