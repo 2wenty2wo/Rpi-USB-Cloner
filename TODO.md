@@ -10,6 +10,9 @@
 - [ ] Keyboard character select doesn't show on web UI (only OLED display)
 - [ ] Keyboard mode bottom footer missing from web UI
 
+### Low Priority
+- [ ] When text is scrolling (for eg in the 'choose image' screen, depending on the length the text is changes the speed of the scroll. I want all iteams to scroll at the same speed.
+
 ## 🚀 Features
 
 ### Core Functionality
