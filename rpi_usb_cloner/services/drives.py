@@ -67,6 +67,7 @@ See Also:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
@@ -107,6 +108,24 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
     return repo_path == mount_path or mount_path in repo_path.parents
 
 
+def _get_checkout_root() -> Optional[Path]:
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "pyproject.toml").exists() and (candidate / "rpi_usb_cloner").is_dir():
+        return candidate
+    return None
+
+
+def _get_configured_repo_paths() -> List[Path]:
+    repo_paths: List[Path] = []
+    configured = os.environ.get("RPI_USB_CLONER_REPO_PATH", "")
+    for entry in (path.strip() for path in configured.split(os.pathsep) if path.strip()):
+        repo_paths.append(Path(entry).expanduser())
+    checkout_root = _get_checkout_root()
+    if checkout_root:
+        repo_paths.append(checkout_root)
+    return repo_paths
+
+
 def invalidate_repo_cache() -> None:
     """Invalidate the repo device cache.
 
@@ -134,16 +153,31 @@ def _get_repo_device_names() -> Set[str]:
     # Scan for repo devices (expensive operation)
     logger.debug("Scanning for repo devices...")
     repos = find_image_repos()
-    logger.debug(f"Found {len(repos)} repo path(s): {repos}")
+    configured_paths = _get_configured_repo_paths()
+    repo_candidates = repos + configured_paths
+    logger.debug(
+        "Found %d repo path(s): %s; configured candidate(s): %s",
+        len(repos),
+        repos,
+        configured_paths,
+    )
 
-    if not repos:
+    if not repo_candidates:
         _repo_device_cache = set()
         logger.debug("No repos found, caching empty set")
         return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
-    repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
+    repo_paths = []
+    for repo in repo_candidates:
+        repo_path = Path(repo).resolve(strict=False)
+        if repo_path.exists():
+            repo_paths.append(repo_path)
+    if not repo_paths:
+        _repo_device_cache = set()
+        logger.debug("Repo candidates did not resolve to existing paths")
+        return _repo_device_cache
     logger.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
 
     for device in usb_devices:
