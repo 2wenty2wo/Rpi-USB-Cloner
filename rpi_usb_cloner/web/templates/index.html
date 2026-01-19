@@ -441,11 +441,11 @@
     const autoScrollToggle = document.getElementById('auto-scroll-toggle');
     let autoScrollEnabled = true;
     const levelBadgeClasses = {
-      error: 'bg-danger',
-      warn: 'bg-warning',
-      debug: 'bg-primary',
-      log: 'bg-secondary',
-      info: 'bg-info'
+      error: 'bg-danger text-white',
+      warn: 'bg-warning text-dark',
+      debug: 'bg-primary text-white',
+      log: 'bg-secondary text-white',
+      info: 'bg-info text-dark'
     };
 
     // Format timestamp as relative time (e.g., "2 minutes ago")
@@ -583,11 +583,7 @@
       // Level badge - larger and more readable
       const badge = document.createElement('span');
       const badgeClass = levelBadgeClasses[level] || 'bg-secondary';
-      badge.className = `badge ${badgeClass} text-uppercase fw-bold`;
-      badge.style.fontSize = '0.7rem';
-      badge.style.padding = '0.35rem 0.5rem';
-      badge.style.minWidth = '4.5rem';
-      badge.style.textAlign = 'center';
+      badge.className = `badge badge-sm ${badgeClass} text-uppercase fw-bold text-center px-2`;
       badge.textContent = level;
 
       // Content wrapper
@@ -603,7 +599,7 @@
 
       // Source badge
       const sourceBadge = document.createElement('span');
-      sourceBadge.className = 'badge bg-secondary-lt me-2 fs-7';
+      sourceBadge.className = 'badge badge-sm bg-secondary-lt text-secondary me-2';
       sourceBadge.textContent = source;
 
       // Message
@@ -624,8 +620,7 @@
         tagList.className = 'mt-1 d-flex gap-1';
         allTags.forEach((tag) => {
           const tagBadge = document.createElement('span');
-          tagBadge.className = 'badge bg-azure-lt';
-          tagBadge.style.fontSize = '0.65rem';
+        tagBadge.className = 'badge badge-sm bg-azure-lt text-azure';
           tagBadge.textContent = String(tag);
           tagList.appendChild(tagBadge);
         });
