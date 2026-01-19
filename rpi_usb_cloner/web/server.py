@@ -344,6 +344,83 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams USB device information.
+
+    Sends list of detected USB devices with their status every 2 seconds.
+    """
+    log_debug = request.app.get("log_debug")
+    ws = web.WebSocketResponse(autoping=True)
+    await ws.prepare(request)
+    if log_debug:
+        log_debug(f"Devices WebSocket connected from {request.remote}")
+
+    try:
+        while not ws.closed:
+            from rpi_usb_cloner.services.drives import list_usb_disks_filtered
+            from rpi_usb_cloner.storage.devices import human_size, get_children
+
+            devices = list_usb_disks_filtered()
+
+            # Build response with device information
+            device_list = []
+            for device in devices:
+                name = device.get("name", "")
+                size = device.get("size", 0)
+                vendor = device.get("vendor", "").strip()
+                model = device.get("model", "").strip()
+                tran = device.get("tran", "")
+                fstype = device.get("fstype", "")
+
+                # Collect mountpoints
+                mountpoints = []
+                if device.get("mountpoint"):
+                    mountpoints.append(device.get("mountpoint"))
+                for child in get_children(device):
+                    if child.get("mountpoint"):
+                        mountpoints.append(child.get("mountpoint"))
+
+                # Determine status
+                if mountpoints:
+                    status = "mounted"
+                elif fstype:
+                    status = "ready"
+                else:
+                    status = "unformatted"
+
+                # Build device label
+                device_label = f"{vendor} {model}".strip() if vendor or model else "Unknown Device"
+
+                device_list.append({
+                    "name": name,
+                    "path": f"/dev/{name}",
+                    "size": size,
+                    "size_formatted": human_size(size),
+                    "vendor": vendor,
+                    "model": model,
+                    "label": device_label,
+                    "transport": tran,
+                    "fstype": fstype,
+                    "mountpoints": mountpoints,
+                    "status": status,
+                })
+
+            await ws.send_json({"devices": device_list})
+            await asyncio.sleep(2.0)  # Update every 2 seconds
+
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        if log_debug:
+            log_debug(f"Devices WebSocket error: {exc}")
+    finally:
+        await ws.close()
+        if log_debug:
+            log_debug(f"Devices WebSocket disconnected from {request.remote}")
+
+    return ws
+
+
 def is_running() -> bool:
     return _current_handle is not None and _current_handle.thread.is_alive()
 
@@ -390,6 +467,7 @@ def start_server(
         app.router.add_get("/ws/control", handle_control_ws)
         app.router.add_get("/ws/logs", handle_logs_ws)
         app.router.add_get("/ws/health", handle_health_ws)
+        app.router.add_get("/ws/devices", handle_devices_ws)
         static_dir = Path(__file__).resolve().parent / "static"
         app.router.add_static("/static/", str(static_dir))
         ui_assets_dir = Path(__file__).resolve().parents[1] / "ui" / "assets"
