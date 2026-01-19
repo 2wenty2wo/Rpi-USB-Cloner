@@ -66,6 +66,12 @@
     .lucide-icon-github::before {
       content: "\e0e6";
     }
+    .lucide-icon-sun::before {
+      content: "\e178";
+    }
+    .lucide-icon-moon::before {
+      content: "\e13e";
+    }
     /* D-pad on the left */
     .dpad-container {
       position: relative;
@@ -208,6 +214,11 @@
           <span>Rpi USB CLONER</span>
         </a>
         <div class="navbar-nav flex-row order-md-last ms-auto align-items-center">
+          <div class="nav-item">
+            <button class="nav-link d-flex align-items-center" id="theme-toggle" aria-label="Toggle theme" style="background: none; border: none; cursor: pointer;">
+              <span class="lucide-icon lucide-icon-sun" id="theme-icon" aria-hidden="true"></span>
+            </button>
+          </div>
           <div class="nav-item">
             <a class="nav-link d-flex align-items-center" href="https://github.com/2wenty2wo/Rpi-USB-Cloner" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub">
               <span class="lucide-icon lucide-icon-github" aria-hidden="true"></span>
@@ -372,6 +383,56 @@
     </div>
   </div>
   <script src="/static/tabler/tabler.min.js"></script>
+  <script>
+    // Theme toggle functionality
+    (function() {
+      const themeToggle = document.getElementById('theme-toggle');
+      const themeIcon = document.getElementById('theme-icon');
+      const htmlElement = document.documentElement;
+
+      // Get theme from localStorage or default to light
+      function getStoredTheme() {
+        return localStorage.getItem('theme') || 'light';
+      }
+
+      // Save theme to localStorage
+      function setStoredTheme(theme) {
+        localStorage.setItem('theme', theme);
+      }
+
+      // Apply theme to the document
+      function applyTheme(theme) {
+        htmlElement.setAttribute('data-bs-theme', theme);
+        updateIcon(theme);
+      }
+
+      // Update the icon based on current theme
+      function updateIcon(theme) {
+        if (theme === 'dark') {
+          themeIcon.className = 'lucide-icon lucide-icon-moon';
+        } else {
+          themeIcon.className = 'lucide-icon lucide-icon-sun';
+        }
+      }
+
+      // Toggle between light and dark themes
+      function toggleTheme() {
+        const currentTheme = htmlElement.getAttribute('data-bs-theme') || 'light';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+        setStoredTheme(newTheme);
+      }
+
+      // Initialize theme on page load
+      const initialTheme = getStoredTheme();
+      applyTheme(initialTheme);
+
+      // Add click event listener to toggle button
+      if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+      }
+    })();
+  </script>
   <script>
     const DEBUG_UI = true;
 
