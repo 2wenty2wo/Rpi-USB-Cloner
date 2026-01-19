@@ -67,6 +67,18 @@
     .lucide-icon-moon::before {
       content: "\e11e";
     }
+    .lucide-icon-usb::before {
+      content: "\e21f";
+    }
+    .lucide-icon-check-circle::before {
+      content: "\e088";
+    }
+    .lucide-icon-alert-circle::before {
+      content: "\e045";
+    }
+    .lucide-icon-disc::before {
+      content: "\e0cb";
+    }
     /* Dark mode logo styling */
     [data-bs-theme="dark"] .navbar-brand img {
       filter: invert(1) brightness(1.2);
@@ -297,6 +309,31 @@
                         <div id="temp-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                       <small id="temp-detail" class="text-secondary">Raspberry Pi</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- USB Devices Card -->
+          <div class="row row-cards mb-3">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title fw-semibold fs-4 d-flex align-items-center gap-2">
+                    <span class="lucide-icon lucide-icon-usb" aria-hidden="true"></span>
+                    USB Devices
+                  </h3>
+                  <div class="card-actions">
+                    <span id="device-count" class="badge bg-secondary">0 devices</span>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="usb-devices-container">
+                    <div class="text-center text-muted py-4">
+                      <span class="lucide-icon lucide-icon-usb" style="font-size: 2rem;" aria-hidden="true"></span>
+                      <p class="mt-2">No USB devices detected</p>
+                      <p class="text-secondary small">Connect a USB drive to get started</p>
                     </div>
                   </div>
                 </div>
@@ -689,11 +726,13 @@
     const controlSocketUrl = `${protocol}//${window.location.host}/ws/control`;
     const logSocketUrl = `${protocol}//${window.location.host}/ws/logs`;
     const healthSocketUrl = `${protocol}//${window.location.host}/ws/health`;
+    const devicesSocketUrl = `${protocol}//${window.location.host}/ws/devices`;
 
     let screenSocket = null;
     let controlSocket = null;
     let logSocket = null;
     let healthSocket = null;
+    let devicesSocket = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
 
@@ -886,6 +925,133 @@
       }
     }
 
+    // Update USB devices list in the UI
+    function escapeHtml(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function updateDevicesList(devices) {
+      const container = document.getElementById('usb-devices-container');
+      const countBadge = document.getElementById('device-count');
+
+      if (!devices || devices.length === 0) {
+        // Show empty state
+        container.innerHTML = `
+          <div class="text-center text-muted py-4">
+            <span class="lucide-icon lucide-icon-usb" style="font-size: 2rem;" aria-hidden="true"></span>
+            <p class="mt-2">No USB devices detected</p>
+            <p class="text-secondary small">Connect a USB drive to get started</p>
+          </div>
+        `;
+        countBadge.textContent = '0 devices';
+        countBadge.className = 'badge bg-secondary';
+        return;
+      }
+
+      // Update count badge
+      const deviceText = devices.length === 1 ? 'device' : 'devices';
+      countBadge.textContent = `${devices.length} ${deviceText}`;
+      countBadge.className = 'badge bg-primary';
+
+      // Build device list
+      const deviceItems = devices.map(device => {
+        // Determine status badge color and icon
+        let statusColor = 'secondary';
+        let statusIcon = 'disc';
+        let statusText = escapeHtml(device.status);
+
+        if (device.status === 'ready') {
+          statusColor = 'success';
+          statusIcon = 'check-circle';
+          statusText = 'Ready';
+        } else if (device.status === 'mounted') {
+          statusColor = 'info';
+          statusIcon = 'disc';
+          statusText = 'Mounted';
+        } else if (device.status === 'unformatted') {
+          statusColor = 'warning';
+          statusIcon = 'alert-circle';
+          statusText = 'Unformatted';
+        }
+
+        // Build mountpoint list
+        let mountpointHtml = '';
+        if (device.mountpoints && device.mountpoints.length > 0) {
+          const mountsList = device.mountpoints.map(mp => `<code class="text-secondary">${escapeHtml(mp)}</code>`).join(', ');
+          mountpointHtml = `<div class="text-secondary small mt-1">Mounted: ${mountsList}</div>`;
+        }
+
+        const label = escapeHtml(device.label);
+        const path = escapeHtml(device.path);
+        const sizeFormatted = escapeHtml(device.size_formatted);
+        const fstype = escapeHtml(device.fstype);
+
+        return `
+          <div class="list-group-item">
+            <div class="row align-items-center">
+              <div class="col-auto">
+                <span class="lucide-icon lucide-icon-usb text-primary" style="font-size: 1.5rem;"></span>
+              </div>
+              <div class="col">
+                <div class="fw-semibold">${label}</div>
+                <div class="text-secondary small">
+                  ${path} • ${sizeFormatted}
+                  ${fstype ? `• ${fstype}` : ''}
+                </div>
+                ${mountpointHtml}
+              </div>
+              <div class="col-auto">
+                <span class="badge bg-${statusColor} d-flex align-items-center gap-1">
+                  <span class="lucide-icon lucide-icon-${statusIcon}"></span>
+                  ${statusText}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `<div class="list-group list-group-flush">${deviceItems}</div>`;
+    }
+
+    // Connect to devices WebSocket for USB device updates
+    function connectDevicesSocket() {
+      devicesSocket = new WebSocket(devicesSocketUrl);
+
+      devicesSocket.addEventListener('open', () => {
+        debugLog('log', 'Devices WebSocket connected', socketDetails(devicesSocket, devicesSocketUrl));
+      });
+
+      devicesSocket.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          updateDevicesList(data.devices);
+        } catch (error) {
+          debugLog('error', 'Failed to parse devices payload', { error });
+        }
+      });
+
+      devicesSocket.addEventListener('close', () => {
+        debugLog('warn', 'Devices WebSocket disconnected', socketDetails(devicesSocket, devicesSocketUrl));
+        setTimeout(connectDevicesSocket, 2000);
+      });
+
+      devicesSocket.addEventListener('error', (err) => {
+        debugLog('error', 'Devices WebSocket error', socketDetails(devicesSocket, devicesSocketUrl, {
+          error: err
+        }));
+      });
+    }
+
     function updateStatus() {
       const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
       const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
@@ -959,6 +1125,7 @@
     connectControlSocket();
     connectLogSocket();
     connectHealthSocket();
+    connectDevicesSocket();
   </script>
 </body>
 </html>
