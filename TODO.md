@@ -3,6 +3,3 @@
 
 # Keyboard:
 - Keyboard character select and keyboard mode bottom footer doesn't show on web ui, only on the OLED display.
-
-# Icons:
-- Make main menu icon skinnier. 1x12pc.
