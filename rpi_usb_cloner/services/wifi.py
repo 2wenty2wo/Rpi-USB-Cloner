@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Sequence
 
+from rpi_usb_cloner.logging import get_logger
+
 _log_debug: Callable[[str], None]
 _error_handler: Optional[Callable[[Iterable[str]], None]]
 _command_runner: Optional[Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]]]
@@ -16,7 +18,7 @@ def _noop_logger(message: str) -> None:
     return None
 
 
-_log_debug = _noop_logger
+_log_debug = get_logger(tags=["wifi"], source=__name__).debug
 _error_handler = None
 _command_runner = None
 _STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}

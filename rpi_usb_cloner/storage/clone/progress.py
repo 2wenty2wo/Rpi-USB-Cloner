@@ -1,6 +1,7 @@
 """Progress monitoring and formatting for clone operations."""
 import re
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage.devices import human_size
 
 
@@ -115,7 +116,7 @@ def parse_progress_from_output(stderr_output, total_bytes=None, title="WORKING")
 
 
 # Global debug logger
-_log_debug_func = None
+_log_debug_func = get_logger(tags=["clone", "progress"], source=__name__).debug
 
 
 def configure_progress_logger(log_debug=None):

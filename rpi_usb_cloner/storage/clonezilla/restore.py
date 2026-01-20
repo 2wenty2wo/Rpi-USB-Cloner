@@ -1,7 +1,6 @@
 """Clonezilla image restoration operations."""
 from __future__ import annotations
 
-import logging
 import os
 import shutil
 import subprocess
@@ -9,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import (
     format_filesystem_type,
@@ -28,7 +28,7 @@ from .partition_table import (
     normalize_partition_mode,
 )
 
-logger = logging.getLogger(__name__)
+log = get_logger(source=__name__)
 
 
 def get_blockdev_size_bytes(device_node: str) -> Optional[int]:
@@ -465,7 +465,7 @@ def restore_clonezilla_image(
             if observed_count >= required_partitions:
                 break
             if observed_count < required_partitions:
-                logger.warning(
+                log.warning(
                     "Partition count mismatch after %s layout op (expected %s, saw %s).",
                     op.kind,
                     required_partitions,

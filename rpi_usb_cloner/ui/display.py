@@ -95,6 +95,7 @@ from luma.oled.device import ssd1306
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
+from rpi_usb_cloner.logging import get_logger
 
 
 @dataclass
@@ -115,7 +116,7 @@ class DisplayContext:
 
 
 _context: Optional[DisplayContext] = None
-_log_debug = None
+_log_debug = get_logger(tags=["display"], source=__name__).debug
 _display_lock = threading.RLock()
 
 

@@ -6,7 +6,6 @@ file formats, and metadata that Clonezilla produces.
 """
 from __future__ import annotations
 
-import logging
 import os
 import re
 import shutil
@@ -17,12 +16,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import resolve_device_node
 
 from .image_discovery import get_partclone_tool
 
-logger = logging.getLogger(__name__)
+log = get_logger(source=__name__)
 
 
 @dataclass
@@ -296,20 +296,20 @@ def save_partition_tables(device_node: str, device_name: str, output_dir: Path) 
     try:
         save_partition_table_sfdisk(device_node, output_dir / f"{device_name}-pt.sf")
     except Exception as e:
-        logger.error(f"Failed to save sfdisk partition table: {e}")
+        log.error(f"Failed to save sfdisk partition table: {e}")
         raise RuntimeError(f"Failed to save partition table: {e}")
 
     # Save parted format (required)
     try:
         save_partition_table_parted(device_node, output_dir / f"{device_name}-pt.parted")
     except Exception as e:
-        logger.warning(f"Failed to save parted partition table: {e}")
+        log.warning(f"Failed to save parted partition table: {e}")
 
     # Save sgdisk format (optional, only for GPT)
     try:
         save_partition_table_sgdisk(device_node, output_dir / f"{device_name}-pt.sgdisk")
     except Exception as e:
-        logger.debug(f"Failed to save sgdisk partition table: {e}")
+        log.debug(f"Failed to save sgdisk partition table: {e}")
 
 
 def create_metadata_files(device_name: str, partitions: list[str], output_dir: Path) -> None:
@@ -605,7 +605,7 @@ def create_clonezilla_backup(
 
     # Unmount all partitions
     if not devices.unmount_device(device_info):
-        logger.error("Failed to unmount device; aborting backup")
+        log.error("Failed to unmount device; aborting backup")
         raise RuntimeError("Failed to unmount device before backup")
 
     # Get partition information
@@ -683,7 +683,7 @@ def create_clonezilla_backup(
 
     except Exception as e:
         # Clean up partial backup
-        logger.error(f"Backup failed: {e}")
+        log.error(f"Backup failed: {e}")
         cleanup_partial_backup(output_dir)
         raise
 
@@ -697,9 +697,9 @@ def cleanup_partial_backup(image_dir: Path) -> None:
     if image_dir.exists() and image_dir.is_dir():
         try:
             shutil.rmtree(image_dir)
-            logger.info(f"Cleaned up partial backup: {image_dir}")
+            log.info(f"Cleaned up partial backup: {image_dir}")
         except Exception as e:
-            logger.error(f"Failed to clean up partial backup {image_dir}: {e}")
+            log.error(f"Failed to clean up partial backup {image_dir}: {e}")
 
 
 def verify_backup_image(
@@ -738,5 +738,5 @@ def verify_backup_image(
         return success
 
     except Exception as e:
-        logger.error(f"Verification failed: {e}")
+        log.error(f"Verification failed: {e}")
         return False

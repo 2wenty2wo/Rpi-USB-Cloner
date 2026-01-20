@@ -66,17 +66,17 @@ See Also:
 """
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
 
-logger = logging.getLogger(__name__)
+log = get_logger(source=__name__)
 
 
 # Cache for repo device names to avoid expensive scanning on every menu render
@@ -137,17 +137,17 @@ def _get_repo_device_names() -> Set[str]:
     if _startup_time is None:
         import time
         _startup_time = time.time()
-        logger.debug("Initialized repo cache startup time")
+        log.debug("Initialized repo cache startup time")
 
     # Return cached value if available
     if _repo_device_cache is not None:
-        logger.debug(f"Returning cached repo devices: {_repo_device_cache}")
+        log.debug(f"Returning cached repo devices: {_repo_device_cache}")
         return _repo_device_cache
 
     # Scan for repo devices (expensive operation)
-    logger.debug("Scanning for repo devices...")
+    log.debug("Scanning for repo devices...")
     repos = find_image_repos()
-    logger.debug(f"Found {len(repos)} repo path(s): {repos}")
+    log.debug(f"Found {len(repos)} repo path(s): {repos}")
 
     if not repos:
         import time
@@ -157,7 +157,7 @@ def _get_repo_device_names() -> Set[str]:
         if in_grace_period:
             # Don't cache empty results during startup grace period
             # USB partitions may still be mounting
-            logger.debug(
+            log.debug(
                 f"No repos found (startup grace period: {elapsed:.1f}s/{_STARTUP_GRACE_PERIOD}s), "
                 "not caching empty result"
             )
@@ -165,31 +165,31 @@ def _get_repo_device_names() -> Set[str]:
         else:
             # After grace period, cache the empty result
             _repo_device_cache = set()
-            logger.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
+            log.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
             return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
     repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
-    logger.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
+    log.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
 
     for device in usb_devices:
         device_name = device.get("name")
         mountpoints = _collect_mountpoints(device)
-        logger.debug(f"Device {device_name}: mountpoints = {mountpoints}")
+        log.debug(f"Device {device_name}: mountpoints = {mountpoints}")
 
         for mount in mountpoints:
             mount_path = Path(mount).resolve(strict=False)
             for repo_path in repo_paths:
                 is_match = _is_repo_on_mount(repo_path, mount_path)
                 if is_match:
-                    logger.debug(f"  MATCH: repo {repo_path} on mount {mount_path}")
+                    log.debug(f"  MATCH: repo {repo_path} on mount {mount_path}")
                     if device_name:
                         repo_devices.add(device_name)
                         break
 
     # Cache the result
-    logger.debug(f"Identified repo devices: {repo_devices}")
+    log.debug(f"Identified repo devices: {repo_devices}")
     _repo_device_cache = repo_devices
     return repo_devices
 

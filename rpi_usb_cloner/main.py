@@ -110,6 +110,7 @@ from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu.model import get_screen_icon
+from rpi_usb_cloner.logging import get_logger, setup_logging
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
@@ -185,32 +186,27 @@ def main(argv=None):
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
     app_context = AppContext()
+    setup_logging(app_context, debug=debug_enabled)
+    log = get_logger(source="APP")
+    log.info("Application starting")
 
     def log_debug(message, *, level="debug", tags=None, timestamp=None, source=None):
-        entry_timestamp = timestamp or datetime.now()
-        app_context.add_log(
-            message,
-            level=level,
-            tags=tags,
-            timestamp=entry_timestamp,
-            source=source,
-        )
-        if debug_enabled:
-            message_text = message.message if hasattr(message, "message") else message
-            print(f"[DEBUG] {message_text}")
+        message_text = message.message if hasattr(message, "message") else message
+        logger = get_logger(tags=tags, source=source or "APP")
+        logger.log(str(level).upper(), message_text)
 
     gpio.setup_gpio()
     context = display.init_display()
     display.set_display_context(context)
     app_context.display = context
-    display.configure_display_helpers(log_debug=log_debug)
+    display.configure_display_helpers(log_debug=get_logger(source="display").debug)
 
     # Check web server enabled setting (default: False for new installations)
     # Environment variable WEB_SERVER_ENABLED can override the setting
     web_server_enabled_setting = settings_store.get_bool("web_server_enabled", default=False)
     web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
 
-    web_log_debug = partial(log_debug, tags=["web", "ws"])
+    web_log_debug = get_logger(tags=["web", "ws"], source="web").debug
     if web_server_env_override is not None:
         web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
         if web_server_enabled:
@@ -229,9 +225,9 @@ def main(argv=None):
         web_log_debug("Web server disabled in settings")
     usb_log_debug = partial(log_debug, tags=["usb"])
     devices.configure_device_helpers(log_debug=usb_log_debug, error_handler=display.display_lines)
-    configure_clone_helpers(log_debug=log_debug)
-    configure_format_helpers(log_debug=partial(log_debug, tags=["format"]))
-    wifi.configure_wifi_helpers(log_debug=log_debug, error_handler=display.display_lines)
+    configure_clone_helpers(log_debug=get_logger(source="clone").debug)
+    configure_format_helpers(log_debug=get_logger(tags=["format"], source="format").debug)
+    wifi.configure_wifi_helpers(log_debug=get_logger(source="wifi").debug, error_handler=display.display_lines)
 
     state = app_state.AppState()
     app_state.ENABLE_SLEEP = settings_store.get_bool(
@@ -416,7 +412,7 @@ def main(argv=None):
             app_context=app_context,
             clone_mode=clone_mode,
             state=state,
-            log_debug=log_debug,
+            log_debug=get_logger(source="actions").debug,
             get_selected_usb_name=lambda: app_context.active_drive,
             show_drive_info=show_drive_info,
         )

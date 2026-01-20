@@ -3,11 +3,13 @@ import re
 import threading
 import time
 from typing import Callable, Iterable, Optional
+from uuid import uuid4
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo, iso
 from rpi_usb_cloner.storage.clonezilla.backup import check_tool_available
 from rpi_usb_cloner.ui import display, menus, screens
@@ -274,6 +276,14 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
         return
 
     # Step 8: Execute backup with progress
+    job_id = f"backup-{uuid4().hex}"
+    op_log = get_logger(job_id=job_id, tags=["backup"], source="backup")
+    op_log.info(
+        "Starting backup: %s -> %s (%s)",
+        source_name,
+        image_dir,
+        compression_type,
+    )
     done = threading.Event()
     error_holder: dict[str, Exception] = {}
     progress_lock = threading.Lock()
@@ -531,6 +541,14 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     progress_written_percent: Optional[str] = None
     progress_ratio_snapshot: Optional[float] = 0.0
     start_time = time.monotonic()
+    job_id = f"restore-{uuid4().hex}"
+    op_log = get_logger(job_id=job_id, tags=["restore"], source="restore")
+    op_log.info(
+        "Starting restore: %s -> %s (mode %s)",
+        selected_dir.name,
+        target.get("name"),
+        partition_mode or "iso",
+    )
 
     def update_progress(lines: list[str], ratio: Optional[float]) -> None:
         nonlocal progress_lines, progress_ratio, progress_written_bytes, progress_written_percent, progress_ratio_snapshot

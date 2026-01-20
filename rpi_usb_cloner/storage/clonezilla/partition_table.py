@@ -7,7 +7,6 @@ This module handles partition table manipulation including:
 """
 from __future__ import annotations
 
-import logging
 import re
 import shutil
 import struct
@@ -15,11 +14,12 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices
 
 from .models import DiskLayoutOp
 
-logger = logging.getLogger(__name__)
+log = get_logger(source=__name__)
 
 
 def collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
@@ -517,7 +517,7 @@ def scale_partition_geometry(
     if target_sectors <= source_sectors:
         return None
     scale = target_sectors / float(source_sectors)
-    logger.info(
+    log.info(
         "Scaling %s partition layout from %s to %s sectors (scale %.3f).",
         layout_label,
         source_sectors,
@@ -546,7 +546,7 @@ def scale_partition_geometry(
         part["new_start"] = start
         part["new_size"] = size
         label = part.get("prefix") or part.get("number") or index
-        logger.info(
+        log.info(
             "Partition %s resize: start %ss size %ss (%s) -> start %ss size %ss (%s)",
             label,
             orig_start,
@@ -642,7 +642,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
         if not op.contents:
             raise RuntimeError("chs.sf data missing or unreadable")
         if not looks_like_sfdisk_script(op.contents):
-            logger.warning("Skipping chs.sf layout op %s: does not look like sfdisk input.", op.path)
+            log.warning("Skipping chs.sf layout op %s: does not look like sfdisk input.", op.path)
             return False
         sfdisk = shutil.which("sfdisk")
         if not sfdisk:
@@ -663,7 +663,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
         if not op.contents:
             raise RuntimeError("Missing parted data")
         if is_parted_print_output(op.contents):
-            logger.debug(
+            log.debug(
                 "Skipping parted layout op %s: detected parted print output instead of script.",
                 op.path,
             )
@@ -688,7 +688,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             raise RuntimeError("Missing compact parted data")
         expanded = expand_parted_compact_script(op.contents)
         if is_parted_print_output(expanded):
-            logger.debug(
+            log.debug(
                 "Skipping compact parted layout op %s: detected parted print output instead of script.",
                 op.path,
             )
