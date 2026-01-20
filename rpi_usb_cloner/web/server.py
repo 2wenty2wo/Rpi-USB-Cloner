@@ -401,6 +401,47 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
+    """WebSocket handler that streams image repository contents."""
+    log = LoggerFactory.for_web()
+    ws = web.WebSocketResponse(autoping=True)
+    await ws.prepare(request)
+    log.debug(f"Images WebSocket connected from {request.remote}", tags=["ws", "websocket", "connection"])
+
+    try:
+        while not ws.closed:
+            from rpi_usb_cloner.storage import image_repo
+
+            repos = image_repo.find_image_repos()
+            image_list = []
+            for repo_path in repos:
+                for image_path in image_repo.list_clonezilla_images(repo_path):
+                    image_type = "clonezilla"
+                    if image_path.is_file() and image_path.suffix.lower() == ".iso":
+                        image_type = "iso"
+                    image_list.append(
+                        {
+                            "name": image_path.name,
+                            "path": str(image_path),
+                            "type": image_type,
+                            "repo_label": str(repo_path),
+                        }
+                    )
+
+            await ws.send_json({"images": image_list})
+            await asyncio.sleep(2.0)
+
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        log.warning(f"Images WebSocket error: {exc}", tags=["ws", "websocket", "error"])
+    finally:
+        await ws.close()
+        log.debug(f"Images WebSocket disconnected from {request.remote}", tags=["ws", "websocket", "connection"])
+
+    return ws
+
+
 def is_running() -> bool:
     return _current_handle is not None and _current_handle.thread.is_alive()
 
@@ -448,6 +489,7 @@ def start_server(
         app.router.add_get("/ws/logs", handle_logs_ws)
         app.router.add_get("/ws/health", handle_health_ws)
         app.router.add_get("/ws/devices", handle_devices_ws)
+        app.router.add_get("/ws/images", handle_images_ws)
         static_dir = Path(__file__).resolve().parent / "static"
         app.router.add_static("/static/", str(static_dir))
         ui_assets_dir = Path(__file__).resolve().parents[1] / "ui" / "assets"

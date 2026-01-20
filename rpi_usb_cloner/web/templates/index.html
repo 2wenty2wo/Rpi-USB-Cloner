@@ -79,6 +79,9 @@
     .lucide-icon-disc::before {
       content: "\e0cb";
     }
+    .lucide-icon-folder::before {
+      content: "\e0d7";
+    }
     /* Dark mode logo styling */
     [data-bs-theme="dark"] .navbar-brand img {
       filter: invert(1) brightness(1.2);
@@ -452,6 +455,28 @@
                       <span class="lucide-icon lucide-icon-usb" style="font-size: 2rem;" aria-hidden="true"></span>
                       <p class="mt-2">No USB devices detected</p>
                       <p class="text-secondary small">Connect a USB drive to get started</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-6">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title fw-semibold fs-4 d-flex align-items-center gap-2">
+                    <span class="lucide-icon lucide-icon-folder" aria-hidden="true"></span>
+                    Image Repo
+                  </h3>
+                  <div class="card-actions">
+                    <span id="image-count" class="badge bg-secondary text-white">0 images</span>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div id="image-repo-container">
+                    <div class="text-center text-muted py-4">
+                      <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
+                      <p class="mt-2">No image repos detected</p>
+                      <p class="text-secondary small">Connect a repo drive to browse available images</p>
                     </div>
                   </div>
                 </div>
@@ -910,12 +935,14 @@
     const logSocketUrl = `${protocol}//${window.location.host}/ws/logs`;
     const healthSocketUrl = `${protocol}//${window.location.host}/ws/health`;
     const devicesSocketUrl = `${protocol}//${window.location.host}/ws/devices`;
+    const imagesSocketUrl = `${protocol}//${window.location.host}/ws/images`;
 
     let screenSocket = null;
     let controlSocket = null;
     let logSocket = null;
     let healthSocket = null;
     let devicesSocket = null;
+    let imagesSocket = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
 
@@ -1208,6 +1235,60 @@
       container.innerHTML = `<div class="list-group list-group-flush">${deviceItems}</div>`;
     }
 
+    function updateImageRepoList(images) {
+      const container = document.getElementById('image-repo-container');
+      const countBadge = document.getElementById('image-count');
+
+      if (!images || images.length === 0) {
+        container.innerHTML = `
+          <div class="text-center text-muted py-4">
+            <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
+            <p class="mt-2">No image repos detected</p>
+            <p class="text-secondary small">Connect a repo drive to browse available images</p>
+          </div>
+        `;
+        countBadge.textContent = '0 images';
+        countBadge.className = 'badge bg-secondary text-white';
+        return;
+      }
+
+      const imageText = images.length === 1 ? 'image' : 'images';
+      countBadge.textContent = `${images.length} ${imageText}`;
+      countBadge.className = 'badge bg-primary text-white';
+
+      const imageItems = images.map((image) => {
+        const name = escapeHtml(image.name);
+        const path = escapeHtml(image.path);
+        const repoLabel = escapeHtml(image.repo_label);
+        const type = image.type === 'iso' ? 'ISO' : 'Clonezilla';
+        const typeColor = image.type === 'iso' ? 'info' : 'primary';
+        const typeIcon = image.type === 'iso' ? 'disc' : 'folder';
+
+        return `
+          <div class="list-group-item">
+            <div class="row align-items-center">
+              <div class="col-auto">
+                <span class="lucide-icon lucide-icon-${typeIcon} text-primary" style="font-size: 1.5rem;"></span>
+              </div>
+              <div class="col">
+                <div class="fw-semibold">${name}</div>
+                <div class="text-secondary small">${path}</div>
+                <div class="text-secondary small mt-1">Repo: <code class="text-secondary">${repoLabel}</code></div>
+              </div>
+              <div class="col-auto">
+                <span class="badge bg-${typeColor} text-white d-flex align-items-center gap-1">
+                  <span class="lucide-icon lucide-icon-${typeIcon}"></span>
+                  ${type}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `<div class="list-group list-group-flush">${imageItems}</div>`;
+    }
+
     // Connect to devices WebSocket for USB device updates
     function connectDevicesSocket() {
       devicesSocket = new WebSocket(devicesSocketUrl);
@@ -1232,6 +1313,34 @@
 
       devicesSocket.addEventListener('error', (err) => {
         debugLog('error', 'Devices WebSocket error', socketDetails(devicesSocket, devicesSocketUrl, {
+          error: err
+        }));
+      });
+    }
+
+    function connectImagesSocket() {
+      imagesSocket = new WebSocket(imagesSocketUrl);
+
+      imagesSocket.addEventListener('open', () => {
+        debugLog('log', 'Images WebSocket connected', socketDetails(imagesSocket, imagesSocketUrl));
+      });
+
+      imagesSocket.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          updateImageRepoList(data.images);
+        } catch (error) {
+          debugLog('error', 'Failed to parse images payload', { error });
+        }
+      });
+
+      imagesSocket.addEventListener('close', () => {
+        debugLog('warn', 'Images WebSocket disconnected', socketDetails(imagesSocket, imagesSocketUrl));
+        setTimeout(connectImagesSocket, 2000);
+      });
+
+      imagesSocket.addEventListener('error', (err) => {
+        debugLog('error', 'Images WebSocket error', socketDetails(imagesSocket, imagesSocketUrl, {
           error: err
         }));
       });
@@ -1336,6 +1445,7 @@
     connectLogSocket();
     connectHealthSocket();
     connectDevicesSocket();
+    connectImagesSocket();
   </script>
 </body>
 </html>
