@@ -64,7 +64,7 @@ def setup_logging(
                 record["message"],
                 level=record["level"].name.lower(),
                 tags=record["extra"].get("tags", []),
-                timestamp=record["time"].datetime,
+                timestamp=record["time"],
                 source=record["extra"].get("source"),
             )
 
