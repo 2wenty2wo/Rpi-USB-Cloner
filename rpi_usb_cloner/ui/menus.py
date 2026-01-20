@@ -249,6 +249,8 @@ def select_list(
         return None
     items_font = items_font or context.fontdisks
     title_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title_icon is None and screen_id:
+        title_icon = get_screen_icon(screen_id)
     content_top = (
         content_top
         if content_top is not None
