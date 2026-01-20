@@ -6,11 +6,12 @@ Pillow==10.1.0
 
 # OLED display drivers for Adafruit 128x64 OLED Bonnet
 # luma.oled depends on luma.core, but we pin both for reproducibility
-luma.core==2.4.2
-luma.oled==3.12.0
+# Only install on Raspberry Pi platforms.
+luma.core==2.4.2; platform_machine == "armv7l" or platform_machine == "aarch64"
+luma.oled==3.12.0; platform_machine == "armv7l" or platform_machine == "aarch64"
 
-# Raspberry Pi GPIO control
-RPi.GPIO==0.7.1
+# Raspberry Pi GPIO control (Raspberry Pi only)
+RPi.GPIO==0.7.1; platform_machine == "armv7l" or platform_machine == "aarch64"
 
 # Web server (HTTP + WebSocket)
 aiohttp==3.9.5
