@@ -372,6 +372,53 @@
                     <span class="lucide-icon lucide-icon-logs" aria-hidden="true"></span>
                     Logs
                   </h3>
+                  <div class="card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-logs-btn" title="Clear all logs">
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <!-- Log Filters -->
+                <div class="card-body pt-2 pb-1 border-bottom">
+                  <div class="row g-2">
+                    <!-- Level Filter -->
+                    <div class="col-auto">
+                      <select class="form-select form-select-sm" id="log-level-filter" title="Filter by log level">
+                        <option value="all">All Levels</option>
+                        <option value="trace">TRACE</option>
+                        <option value="debug">DEBUG</option>
+                        <option value="info">INFO</option>
+                        <option value="success">SUCCESS</option>
+                        <option value="warning">WARNING</option>
+                        <option value="error">ERROR</option>
+                        <option value="critical">CRITICAL</option>
+                      </select>
+                    </div>
+                    <!-- Source Filter -->
+                    <div class="col-auto">
+                      <select class="form-select form-select-sm" id="log-source-filter" title="Filter by source">
+                        <option value="all">All Sources</option>
+                        <option value="system">System</option>
+                        <option value="usb">USB</option>
+                        <option value="clone">Clone</option>
+                        <option value="web">Web</option>
+                        <option value="gpio">GPIO</option>
+                        <option value="menu">Menu</option>
+                        <option value="clonezilla">Clonezilla</option>
+                        <option value="APP">APP</option>
+                        <option value="UI">UI</option>
+                      </select>
+                    </div>
+                    <!-- Search Input -->
+                    <div class="col">
+                      <input type="text" class="form-control form-control-sm" id="log-search-input" placeholder="Search logs..." title="Search in log messages">
+                    </div>
+                  </div>
+                  <!-- Active Tags (shown dynamically) -->
+                  <div id="active-log-tags" class="mt-2 d-none">
+                    <small class="text-muted me-2">Filter by tags:</small>
+                    <div id="active-log-tags-list" class="d-inline-flex gap-1 flex-wrap"></div>
+                  </div>
                 </div>
                 <div class="card-body p-0 d-flex" style="height: 18rem;">
                   <div id="debug-log" class="list-group list-group-flush w-100 h-100 scrollable"></div>
@@ -381,7 +428,7 @@
                     <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
                     <span class="form-check-label">Auto-scroll</span>
                   </label>
-                  <span class="text-secondary small ms-auto">Logs appear here as events are recorded.</span>
+                  <span class="text-secondary small ms-auto" id="log-count-display">0 logs</span>
                 </div>
               </div>
             </div>
@@ -471,14 +518,140 @@
 
     const logFrame = document.getElementById('debug-log');
     const autoScrollToggle = document.getElementById('auto-scroll-toggle');
+    const logLevelFilter = document.getElementById('log-level-filter');
+    const logSourceFilter = document.getElementById('log-source-filter');
+    const logSearchInput = document.getElementById('log-search-input');
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+    const logCountDisplay = document.getElementById('log-count-display');
+    const activeLogTags = document.getElementById('active-log-tags');
+    const activeLogTagsList = document.getElementById('active-log-tags-list');
+
     let autoScrollEnabled = true;
+    let activeTagFilters = new Set();
+
+    // Loguru-compatible badge colors with Tabler classes
     const levelBadgeClasses = {
+      // Loguru levels
+      trace: 'bg-secondary-lt text-secondary',
+      debug: 'bg-primary-lt text-primary',
+      info: 'bg-info text-white',
+      success: 'bg-success text-white',
+      warning: 'bg-warning text-dark',
       error: 'bg-danger text-white',
+      critical: 'bg-red-darken text-white',
+      // Legacy levels (for compatibility)
       warn: 'bg-warning text-dark',
-      debug: 'bg-primary text-white',
-      log: 'bg-secondary text-white',
-      info: 'bg-info text-dark'
+      log: 'bg-secondary-lt text-secondary'
     };
+
+    // Filter logs based on level, source, tags, and search query
+    function filterLogs() {
+      const levelFilter = logLevelFilter.value.toLowerCase();
+      const sourceFilter = logSourceFilter.value.toLowerCase();
+      const searchQuery = logSearchInput.value.toLowerCase();
+
+      const entries = logFrame.querySelectorAll('.list-group-item');
+      let visibleCount = 0;
+
+      entries.forEach(entry => {
+        const entryLevel = entry.dataset.level?.toLowerCase() || '';
+        const entrySource = entry.dataset.source?.toLowerCase() || '';
+        const entryTags = entry.dataset.tags ? entry.dataset.tags.split(',') : [];
+        const entryText = entry.textContent.toLowerCase();
+
+        // Level filter
+        const levelMatch = levelFilter === 'all' || entryLevel === levelFilter;
+
+        // Source filter
+        const sourceMatch = sourceFilter === 'all' || entrySource === sourceFilter;
+
+        // Tag filter (if any tags are selected)
+        const tagMatch = activeTagFilters.size === 0 ||
+          [...activeTagFilters].some(tag => entryTags.includes(tag));
+
+        // Search filter
+        const searchMatch = !searchQuery || entryText.includes(searchQuery);
+
+        // Show/hide entry
+        if (levelMatch && sourceMatch && tagMatch && searchMatch) {
+          entry.classList.remove('d-none');
+          visibleCount++;
+        } else {
+          entry.classList.add('d-none');
+        }
+      });
+
+      // Update count display
+      const totalCount = entries.length;
+      if (visibleCount === totalCount) {
+        logCountDisplay.textContent = `${totalCount} logs`;
+      } else {
+        logCountDisplay.textContent = `${visibleCount} / ${totalCount} logs`;
+      }
+
+      // Auto-scroll if enabled
+      if (autoScrollEnabled && logFrame) {
+        logFrame.scrollTop = logFrame.scrollHeight;
+      }
+    }
+
+    // Toggle tag filter
+    function toggleTagFilter(tag) {
+      if (activeTagFilters.has(tag)) {
+        activeTagFilters.delete(tag);
+      } else {
+        activeTagFilters.add(tag);
+      }
+      updateActiveTagsDisplay();
+      filterLogs();
+    }
+
+    // Update active tags display
+    function updateActiveTagsDisplay() {
+      if (activeTagFilters.size === 0) {
+        activeLogTags.classList.add('d-none');
+        return;
+      }
+
+      activeLogTags.classList.remove('d-none');
+      activeLogTagsList.innerHTML = '';
+
+      activeTagFilters.forEach(tag => {
+        const tagBadge = document.createElement('span');
+        tagBadge.className = 'badge bg-azure text-white';
+        tagBadge.innerHTML = `${tag} <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.65rem; padding: 0.15rem;" aria-label="Remove filter"></button>`;
+        tagBadge.style.cursor = 'pointer';
+        tagBadge.onclick = () => toggleTagFilter(tag);
+        activeLogTagsList.appendChild(tagBadge);
+      });
+    }
+
+    // Clear all logs
+    function clearAllLogs() {
+      if (logFrame) {
+        logFrame.innerHTML = '';
+        logCountDisplay.textContent = '0 logs';
+        activeTagFilters.clear();
+        updateActiveTagsDisplay();
+      }
+    }
+
+    // Setup event listeners
+    if (logLevelFilter) {
+      logLevelFilter.addEventListener('change', filterLogs);
+    }
+
+    if (logSourceFilter) {
+      logSourceFilter.addEventListener('change', filterLogs);
+    }
+
+    if (logSearchInput) {
+      logSearchInput.addEventListener('input', filterLogs);
+    }
+
+    if (clearLogsBtn) {
+      clearLogsBtn.addEventListener('click', clearAllLogs);
+    }
 
     // Format timestamp as relative time (e.g., "2 minutes ago")
     function formatRelativeTime(timestamp) {
@@ -608,15 +781,20 @@
       const entry = document.createElement('div');
       entry.className = 'list-group-item d-flex align-items-start gap-2 py-2';
       entry.dataset.source = source;
+      entry.dataset.level = level.toLowerCase();
 
       const timestampValue = timestamp ?? new Date().toISOString();
       const formattedMsg = formatLogMessage(message, details, source);
 
+      // Collect all tags
+      const allTags = [...formattedMsg.tags, ...(Array.isArray(tags) ? tags : [])];
+      entry.dataset.tags = allTags.join(',');
+
       // Level badge - larger and more readable
       const badge = document.createElement('span');
-      const badgeClass = levelBadgeClasses[level] || 'bg-secondary';
+      const badgeClass = levelBadgeClasses[level.toLowerCase()] || 'bg-secondary';
       badge.className = `badge badge-sm ${badgeClass} text-uppercase fw-bold text-center px-2`;
-      badge.textContent = level;
+      badge.textContent = level.toUpperCase();
 
       // Content wrapper
       const content = document.createElement('div');
@@ -645,15 +823,17 @@
       firstRow.append(timestampEl, sourceBadge, messageEl);
       content.appendChild(firstRow);
 
-      // Tags
-      const allTags = [...formattedMsg.tags, ...(Array.isArray(tags) ? tags : [])];
+      // Tags - clickable for filtering
       if (allTags.length > 0) {
         const tagList = document.createElement('div');
         tagList.className = 'mt-1 d-flex gap-1';
         allTags.forEach((tag) => {
           const tagBadge = document.createElement('span');
-        tagBadge.className = 'badge badge-sm bg-azure-lt text-azure';
+          tagBadge.className = 'badge badge-sm bg-azure-lt text-azure';
+          tagBadge.style.cursor = 'pointer';
           tagBadge.textContent = String(tag);
+          tagBadge.title = `Click to filter by ${tag}`;
+          tagBadge.onclick = () => toggleTagFilter(String(tag));
           tagList.appendChild(tagBadge);
         });
         content.appendChild(tagList);
@@ -684,6 +864,9 @@
         logFrame.textContent = '';
       }
       logFrame.appendChild(entry);
+
+      // Apply filters to new entry and update count
+      filterLogs();
 
       if (autoScrollEnabled) {
         logFrame.scrollTop = logFrame.scrollHeight;
