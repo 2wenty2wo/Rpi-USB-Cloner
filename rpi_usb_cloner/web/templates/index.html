@@ -209,6 +209,21 @@
     .action-btn:active circle {
       fill: #000;
     }
+    @media (max-width: 575.98px) {
+      .preview-controls {
+        flex-wrap: nowrap;
+        gap: 0.75rem;
+      }
+      .preview-controls .dpad-container,
+      .preview-controls .action-buttons {
+        width: 150px;
+        height: 150px;
+      }
+      .preview-controls .action-btn {
+        width: 75px;
+        height: 75px;
+      }
+    }
     #screen {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
@@ -332,8 +347,8 @@
                   <div class="ratio ratio-2x1 mb-4">
                     <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
                   </div>
-                  <div class="row g-4 align-items-center justify-content-between">
-                    <div class="col-12 col-md-6 d-flex justify-content-center">
+                  <div class="row g-4 align-items-center justify-content-between preview-controls">
+                    <div class="col-6 col-md-6 d-flex justify-content-center">
                       <div class="dpad-container">
                         <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
                           <path class="dpad-cross" d="M78 20h44a8 8 0 0 1 8 8v42h42a8 8 0 0 1 8 8v44a8 8 0 0 1-8 8h-42v42a8 8 0 0 1-8 8H78a8 8 0 0 1-8-8v-42H28a8 8 0 0 1-8-8V78a8 8 0 0 1 8-8h42V28a8 8 0 0 1 8-8z" />
@@ -348,7 +363,7 @@
                         <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
                       </div>
                     </div>
-                    <div class="col-12 col-md-6 d-flex justify-content-center">
+                    <div class="col-6 col-md-6 d-flex justify-content-center">
                       <div class="action-buttons">
                         <button class="action-btn btn btn-circle btn-dark btn-back" data-button="BACK">
                           <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
