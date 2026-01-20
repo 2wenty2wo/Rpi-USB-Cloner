@@ -3,7 +3,7 @@
 ## 🐛 Bugs
 
 ### High Priority
-- [ ] 'Choose Image' screen title icon should match the folder icon from 'Images' screen
+
 
 ### Medium Priority
 - [ ] Keyboard character select doesn't show on web UI (only OLED display)
