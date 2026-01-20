@@ -82,6 +82,10 @@ logger = logging.getLogger(__name__)
 # Cache for repo device names to avoid expensive scanning on every menu render
 _repo_device_cache: Optional[Set[str]] = None
 
+# Startup time tracking to avoid caching empty results before partitions mount
+_startup_time: Optional[float] = None
+_STARTUP_GRACE_PERIOD = 3.0  # Don't cache empty results for 3 seconds after startup
+
 
 @dataclass
 class DriveSnapshot:
@@ -123,8 +127,17 @@ def _get_repo_device_names() -> Set[str]:
 
     This function caches results to avoid expensive partition scanning on every
     menu render. The cache is invalidated when USB devices change.
+
+    During the initial startup grace period, empty results are not cached to
+    allow time for USB partitions to mount and repo flag files to become visible.
     """
-    global _repo_device_cache
+    global _repo_device_cache, _startup_time
+
+    # Initialize startup time on first call
+    if _startup_time is None:
+        import time
+        _startup_time = time.time()
+        logger.debug("Initialized repo cache startup time")
 
     # Return cached value if available
     if _repo_device_cache is not None:
@@ -137,9 +150,23 @@ def _get_repo_device_names() -> Set[str]:
     logger.debug(f"Found {len(repos)} repo path(s): {repos}")
 
     if not repos:
-        _repo_device_cache = set()
-        logger.debug("No repos found, caching empty set")
-        return _repo_device_cache
+        import time
+        elapsed = time.time() - _startup_time
+        in_grace_period = elapsed < _STARTUP_GRACE_PERIOD
+
+        if in_grace_period:
+            # Don't cache empty results during startup grace period
+            # USB partitions may still be mounting
+            logger.debug(
+                f"No repos found (startup grace period: {elapsed:.1f}s/{_STARTUP_GRACE_PERIOD}s), "
+                "not caching empty result"
+            )
+            return set()
+        else:
+            # After grace period, cache the empty result
+            _repo_device_cache = set()
+            logger.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
+            return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()

@@ -97,8 +97,8 @@ import time
 from datetime import datetime
 from functools import partial
 
-from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
 from rpi_usb_cloner.app.menu_builders import (
     build_device_items,
@@ -107,17 +107,17 @@ from rpi_usb_cloner.app.menu_builders import (
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.menu import actions as menu_actions
+from rpi_usb_cloner.menu import definitions, navigator
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
+from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
 from rpi_usb_cloner.web import server as web_server
-from rpi_usb_cloner.menu import definitions, navigator
-from rpi_usb_cloner.menu import actions as menu_actions
-from rpi_usb_cloner.menu.model import get_screen_icon
 
 
 # Wrapper functions to adapt device dict interface from list_usb_disks()
