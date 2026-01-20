@@ -5,11 +5,13 @@ import shutil
 import subprocess
 import time
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage.devices import get_children, get_device_by_name, human_size
 from rpi_usb_cloner.ui.display import display_lines
 
 from .models import get_partition_number, resolve_device_node
-from .progress import _log_debug
+
+log = get_logger(source=__name__, tags=["verify"])
 
 
 def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
@@ -18,7 +20,7 @@ def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
     sha_path = shutil.which("sha256sum")
     if not dd_path or not sha_path:
         raise RuntimeError("dd or sha256sum not found")
-    _log_debug(f"Computing sha256 for {device_node}")
+    log.debug(f"Computing sha256 for {device_node}")
     display_lines([title, "Starting..."])
     dd_cmd = [dd_path, f"if={device_node}", "bs=4M", "status=progress"]
     if total_bytes:
@@ -43,7 +45,7 @@ def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
     while True:
         line = dd_proc.stderr.readline()
         if line:
-            _log_debug(f"dd: {line.strip()}")
+            log.debug(f"dd: {line.strip()}")
             match = re.search(r"(\d+)\s+bytes", line)
             if match:
                 bytes_copied = int(match.group(1))
@@ -68,7 +70,7 @@ def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
         raise RuntimeError(message)
     checksum = sha_out.split()[0] if sha_out else ""
     display_lines([title, "Complete"])
-    _log_debug(f"sha256 for {device_node}: {checksum}")
+    log.debug(f"sha256 for {device_node}: {checksum}")
     return checksum
 
 
@@ -116,23 +118,23 @@ def verify_clone(source, target):
             dst_part = f"/dev/{target_parts[index - 1].get('name')}"
         if not dst_part:
             display_lines(["VERIFY", "No target part"])
-            _log_debug(f"Verify failed: no target partition for {src_part}")
+            log.error(f"Verify failed: no target partition for {src_part}")
             return False
-        print(f"Verifying {src_part} -> {dst_part}")
+        log.info(f"Verifying {src_part} -> {dst_part}")
         try:
             src_hash = compute_sha256(src_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} SRC")
             dst_hash = compute_sha256(dst_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} DST")
         except RuntimeError as error:
             display_lines(["VERIFY", "Error"])
-            _log_debug(f"Verify failed ({src_part} -> {dst_part}): {error}")
+            log.error(f"Verify failed ({src_part} -> {dst_part}): {error}")
             return False
         if src_hash != dst_hash:
             display_lines(["VERIFY", "Mismatch"])
-            _log_debug(f"Verify mismatch for {src_part} -> {dst_part}")
-            print(f"Verify failed: {src_part} -> {dst_part}")
+            log.error(f"Verify mismatch for {src_part} -> {dst_part}")
+            log.error(f"Verify failed: {src_part} -> {dst_part}")
             return False
     display_lines(["VERIFY", "Complete"])
-    print("Verify complete: all partitions match")
+    log.info("Verify complete: all partitions match")
     return True
 
 
@@ -147,19 +149,19 @@ def verify_clone_device(source_node, target_node, total_bytes=None):
     Returns:
         True if verification succeeds, False otherwise
     """
-    print(f"Verifying {source_node} -> {target_node}")
+    log.info(f"Verifying {source_node} -> {target_node}")
     try:
         src_hash = compute_sha256(source_node, total_bytes=total_bytes, title="VERIFY SRC")
         dst_hash = compute_sha256(target_node, total_bytes=total_bytes, title="VERIFY DST")
     except RuntimeError as error:
         display_lines(["VERIFY", "Error"])
-        _log_debug(f"Verify failed: {error}")
+        log.error(f"Verify failed: {error}")
         return False
     if src_hash != dst_hash:
         display_lines(["VERIFY", "Mismatch"])
-        _log_debug(f"Verify mismatch for {source_node} -> {target_node}")
-        print("Verify failed: checksum mismatch")
+        log.error(f"Verify mismatch for {source_node} -> {target_node}")
+        log.error("Verify failed: checksum mismatch")
         return False
     display_lines(["VERIFY", "Complete"])
-    print("Verify complete: checksums match")
+    log.info("Verify complete: checksums match")
     return True

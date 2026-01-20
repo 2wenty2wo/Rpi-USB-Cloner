@@ -48,6 +48,7 @@ import subprocess
 import time
 from typing import Callable, List, Optional
 
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_device_by_name,
@@ -64,7 +65,7 @@ from rpi_usb_cloner.storage.validation import (
     validate_format_operation,
 )
 
-_log_debug = None
+_log_debug = get_logger(tags=["format"], source=__name__).debug
 
 
 def configure_format_helpers(log_debug=None) -> None:

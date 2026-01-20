@@ -5,10 +5,12 @@ import threading
 import time
 from datetime import datetime
 from typing import Callable, Iterable, Optional, Set
+from uuid import uuid4
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.config import settings
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device, erase_device
@@ -91,6 +93,9 @@ def copy_drive(
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
                         return
+                    job_id = f"clone-{uuid4().hex}"
+                    op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
+                    op_log.info(f"Starting clone: {source_name} -> {target_name} (mode {mode})")
                     screens.render_status_template("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
                     if clone_device(source, target, mode=mode):
                         screens.render_status_template("COPY", "Done", progress_line="Complete.")
@@ -255,6 +260,9 @@ def erase_drive(
         return
 
     # Threading pattern for progress screen (similar to write_image)
+    job_id = f"erase-{uuid4().hex}"
+    op_log = get_logger(job_id=job_id, tags=["erase"], source="erase")
+    op_log.info(f"Starting erase: {target_name} (mode {mode})")
     done = threading.Event()
     result_holder: dict[str, bool] = {}
     error_holder: dict[str, Exception] = {}

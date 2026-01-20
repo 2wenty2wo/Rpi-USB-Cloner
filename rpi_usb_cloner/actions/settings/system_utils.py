@@ -4,9 +4,8 @@ import re
 import shutil
 import subprocess
 import threading
-from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional
 
 
 _SERVICE_NAME = "rpi-usb-cloner.service"
@@ -40,24 +39,12 @@ def run_command(
 
 
 def log_debug_msg(
-    log_debug: Optional[Callable[..., None]],
+    log_debug: Optional[Callable[[str], None]],
     message: str,
-    *,
-    tags: Optional[Sequence[str]] = None,
-    timestamp: Optional[datetime] = None,
-    level: str = "debug",
-    source: Optional[str] = None,
 ) -> None:
     """Log a debug message if logger is provided."""
     if log_debug:
-        entry_tags = list(tags) if tags else ["settings", "system"]
-        log_debug(
-            message,
-            level=level,
-            tags=entry_tags,
-            timestamp=timestamp or datetime.now(),
-            source=source,
-        )
+        log_debug(message)
 
 
 def get_git_version(
