@@ -97,8 +97,8 @@ import time
 from datetime import datetime
 from functools import partial
 
-from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
 from rpi_usb_cloner.app.menu_builders import (
     build_device_items,
@@ -107,17 +107,17 @@ from rpi_usb_cloner.app.menu_builders import (
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.menu import actions as menu_actions
+from rpi_usb_cloner.menu import definitions, navigator
+from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
+from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
 from rpi_usb_cloner.web import server as web_server
-from rpi_usb_cloner.menu import definitions, navigator
-from rpi_usb_cloner.menu import actions as menu_actions
-from rpi_usb_cloner.menu.model import get_screen_icon
 
 
 # Wrapper functions to adapt device dict interface from list_usb_disks()
@@ -532,6 +532,8 @@ def main(argv=None):
         "D": {"next_repeat": None},
     }
     screensaver_active = False
+    initial_repo_rescan_done = False
+    initial_repo_rescan_time = time.time() + 3.0  # Rescan after 3 seconds
 
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
@@ -542,6 +544,44 @@ def main(argv=None):
             render_requested = False
             force_render = False
             now = time.monotonic()
+            # Initial repo rescan: Invalidate cache after 3 seconds to detect repo drives
+            # that weren't fully mounted on startup. This fixes a race condition where
+            # the repo flag file (.rpi-usb-cloner-image-repo) isn't visible on first
+            # scan because the partition hasn't finished mounting yet.
+            if not initial_repo_rescan_done and time.time() >= initial_repo_rescan_time:
+                log_debug("Performing initial repo rescan (startup mount delay)")
+                drives.invalidate_repo_cache()
+                initial_repo_rescan_done = True
+                # Update mount snapshot to reflect any changes during startup
+                state.last_seen_mount_snapshot = get_usb_mount_snapshot()
+                # Force refresh of device list
+                current_devices = get_usb_snapshot()
+                if current_devices != app_context.discovered_drives:
+                    log_debug(f"Initial rescan: devices changed from {app_context.discovered_drives} to {current_devices}")
+                    selected_name = None
+                    if (
+                        app_context.discovered_drives
+                        and state.usb_list_index < len(app_context.discovered_drives)
+                    ):
+                        selected_name = app_context.discovered_drives[state.usb_list_index]
+                    if selected_name and selected_name in current_devices:
+                        state.usb_list_index = current_devices.index(selected_name)
+                    else:
+                        state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
+                    main_screen = definitions.SCREENS[definitions.MAIN_MENU.screen_id]
+                    main_visible_rows = get_visible_rows_for_screen(main_screen)
+                    menu_navigator.set_selection(
+                        definitions.MAIN_MENU.screen_id,
+                        state.usb_list_index,
+                        main_visible_rows,
+                    )
+                    app_context.discovered_drives = current_devices
+                    app_context.active_drive = drives.select_active_drive(
+                        app_context.discovered_drives,
+                        state.usb_list_index,
+                    )
+                    state.last_seen_devices = current_devices
+                    render_requested = True
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 raw_devices = get_raw_usb_snapshot()
                 if raw_devices != state.last_seen_raw_devices:
