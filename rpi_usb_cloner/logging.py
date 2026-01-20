@@ -4,11 +4,13 @@ import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
-from loguru import Logger, logger
+if TYPE_CHECKING:
+    from loguru import Logger
+    from rpi_usb_cloner.app.context import AppContext
 
-from rpi_usb_cloner.app.context import AppContext
+from loguru import logger
 
 DEFAULT_LOG_DIR = Path(
     os.environ.get(
