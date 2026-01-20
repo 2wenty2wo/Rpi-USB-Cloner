@@ -3,7 +3,6 @@
 ## 🐛 Bugs
 
 ### High Priority
-- [ ] Clicking back button in the "choose image" screen takes you to main menu instead of "images" screen
 - [ ] 'Choose Image' screen title icon should match the folder icon from 'Images' screen
 
 ### Medium Priority
