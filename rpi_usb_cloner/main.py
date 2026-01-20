@@ -31,7 +31,9 @@ Button Mapping:
     C:          Context-specific action (varies by screen)
 
 Command Line Arguments:
-    --debug:                    Enable verbose debug logging to console
+    --debug (-d):               Enable verbose debug logging to console
+    --trace (-t):               Enable ultra-verbose trace logging (button presses,
+                               WebSocket events, cache operations, etc.)
     --restore-partition-mode:   Set Clonezilla partition mode (k0/k/k1/k2)
                                for image restoration operations
 
@@ -147,6 +149,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
     parser.add_argument(
+        "-t",
+        "--trace",
+        action="store_true",
+        help="Enable ultra-verbose trace logging (includes button presses, WebSocket events, etc.)",
+    )
+    parser.add_argument(
         "--restore-partition-mode",
         choices=["k0", "k", "k1", "k2"],
         help="Partition table restore mode (k0, k, k1, k2)",
@@ -181,14 +189,27 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     debug_enabled = args.debug
+    trace_enabled = args.trace
     if args.restore_partition_mode:
         settings_store.set_setting("restore_partition_mode", args.restore_partition_mode)
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
     app_context = AppContext()
-    setup_logging(app_context, debug=debug_enabled)
-    log = get_logger(source="APP")
-    log.info("Application starting")
+    setup_logging(app_context, debug=debug_enabled, trace=trace_enabled)
+
+    # Use LoggerFactory for structured logging
+    from rpi_usb_cloner.logging import LoggerFactory
+
+    log = LoggerFactory.for_system()
+
+    # Log startup with context
+    log.info(
+        "Application starting",
+        debug=debug_enabled,
+        trace=trace_enabled,
+        clone_mode=clone_mode,
+        restore_partition_mode=settings_store.get_setting("restore_partition_mode", "k0"),
+    )
 
     def log_debug(message, *, level="debug", tags=None, timestamp=None, source=None):
         message_text = message.message if hasattr(message, "message") else message
@@ -494,10 +515,10 @@ def main(argv=None):
 
     def handle_back() -> None:
         if app_context.operation_active and not app_context.allow_back_interrupt:
-            log_debug("Back ignored: operation active")
+            # Silently ignore back when operation is active
             return
-        if not menu_navigator.back():
-            log_debug("Back ignored: already at root")
+        # Silently ignore if already at root
+        menu_navigator.back()
 
     def cleanup_display(clear_display=True):
         if clear_display:
