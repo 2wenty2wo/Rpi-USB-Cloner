@@ -5,6 +5,7 @@
 ### High Priority
 - [ ] Clicking back button in the "choose image" screen takes you to main menu instead of "images" screen
 - [ ] 'Choose Image' screen title icon should match the folder icon from 'Images' screen
+- [ ] Repo drive still showing in the drives list screen and in the footer even though I've repeatedly tried to fix this from happening.
 
 ### Medium Priority
 - [ ] Keyboard character select doesn't show on web UI (only OLED display)
