@@ -141,7 +141,6 @@ def _get_repo_device_names() -> Set[str]:
 
     # Return cached value if available
     if _repo_device_cache is not None:
-        log.debug(f"Returning cached repo devices: {_repo_device_cache}")
         return _repo_device_cache
 
     # Scan for repo devices (expensive operation)
