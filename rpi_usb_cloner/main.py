@@ -532,8 +532,16 @@ def main(argv=None):
         "D": {"next_repeat": None},
     }
     screensaver_active = False
-    initial_repo_rescan_done = False
-    initial_repo_rescan_time = time.time() + 3.0  # Rescan after 3 seconds
+    # Multiple quick rescans during startup to catch repos as soon as they mount
+    initial_repo_rescan_times = [
+        time.time() + 0.5,  # First check at 0.5s
+        time.time() + 1.0,  # Second check at 1.0s
+        time.time() + 1.5,  # Third check at 1.5s
+        time.time() + 2.0,  # Fourth check at 2.0s
+        time.time() + 2.5,  # Fifth check at 2.5s
+        time.time() + 3.0,  # Final check at 3.0s
+    ]
+    initial_repo_rescan_index = 0
 
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
@@ -544,20 +552,29 @@ def main(argv=None):
             render_requested = False
             force_render = False
             now = time.monotonic()
-            # Initial repo rescan: Invalidate cache after 3 seconds to detect repo drives
-            # that weren't fully mounted on startup. This fixes a race condition where
-            # the repo flag file (.rpi-usb-cloner-image-repo) isn't visible on first
-            # scan because the partition hasn't finished mounting yet.
-            if not initial_repo_rescan_done and time.time() >= initial_repo_rescan_time:
-                log_debug("Performing initial repo rescan (startup mount delay)")
+            # Initial repo rescan: Perform multiple quick rescans during startup to detect
+            # repo drives as soon as they mount. This fixes a race condition where the
+            # repo flag file (.rpi-usb-cloner-image-repo) isn't visible on first scan
+            # because USB partitions haven't finished mounting yet. We check at 0.5s
+            # intervals up to 3s to catch the repo as early as possible.
+            if (
+                initial_repo_rescan_index < len(initial_repo_rescan_times)
+                and time.time() >= initial_repo_rescan_times[initial_repo_rescan_index]
+            ):
+                log_debug(
+                    f"Performing initial repo rescan #{initial_repo_rescan_index + 1} "
+                    f"(at {initial_repo_rescan_times[initial_repo_rescan_index] - initial_repo_rescan_times[0] + 0.5:.1f}s)"
+                )
                 drives.invalidate_repo_cache()
-                initial_repo_rescan_done = True
+                initial_repo_rescan_index += 1
                 # Update mount snapshot to reflect any changes during startup
                 state.last_seen_mount_snapshot = get_usb_mount_snapshot()
                 # Force refresh of device list
                 current_devices = get_usb_snapshot()
                 if current_devices != app_context.discovered_drives:
-                    log_debug(f"Initial rescan: devices changed from {app_context.discovered_drives} to {current_devices}")
+                    log_debug(
+                        f"Initial rescan: devices changed from {app_context.discovered_drives} to {current_devices}"
+                    )
                     selected_name = None
                     if (
                         app_context.discovered_drives
@@ -567,7 +584,9 @@ def main(argv=None):
                     if selected_name and selected_name in current_devices:
                         state.usb_list_index = current_devices.index(selected_name)
                     else:
-                        state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
+                        state.usb_list_index = min(
+                            state.usb_list_index, max(len(current_devices) - 1, 0)
+                        )
                     main_screen = definitions.SCREENS[definitions.MAIN_MENU.screen_id]
                     main_visible_rows = get_visible_rows_for_screen(main_screen)
                     menu_navigator.set_selection(
