@@ -677,6 +677,17 @@ def main(argv=None):
                 if action:
                     action()
                     force_render = True
+                    # Update button states after action to prevent double-handling of button presses
+                    current_states = {
+                        "U": gpio.is_pressed(gpio.PIN_U),
+                        "D": gpio.is_pressed(gpio.PIN_D),
+                        "L": gpio.is_pressed(gpio.PIN_L),
+                        "R": gpio.is_pressed(gpio.PIN_R),
+                        "A": gpio.is_pressed(gpio.PIN_A),
+                        "B": gpio.is_pressed(gpio.PIN_B),
+                        "C": gpio.is_pressed(gpio.PIN_C),
+                    }
+                    prev_states = current_states.copy()
                 button_pressed = True
                 render_requested = True
             if not prev_states["B"] and current_states["B"]:
@@ -684,6 +695,17 @@ def main(argv=None):
                 if action:
                     action()
                     force_render = True
+                    # Update button states after action to prevent double-handling of button presses
+                    current_states = {
+                        "U": gpio.is_pressed(gpio.PIN_U),
+                        "D": gpio.is_pressed(gpio.PIN_D),
+                        "L": gpio.is_pressed(gpio.PIN_L),
+                        "R": gpio.is_pressed(gpio.PIN_R),
+                        "A": gpio.is_pressed(gpio.PIN_A),
+                        "B": gpio.is_pressed(gpio.PIN_B),
+                        "C": gpio.is_pressed(gpio.PIN_C),
+                    }
+                    prev_states = current_states.copy()
                 button_pressed = True
                 render_requested = True
             if not prev_states["C"] and current_states["C"]:
