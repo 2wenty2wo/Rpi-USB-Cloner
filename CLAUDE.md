@@ -1207,12 +1207,6 @@ def clone_device(source: str, destination: str) -> None:
 - Validate device exists immediately before operation
 - Implement retry logic for transient failures
 
-#### 4. Back Button Navigation Bug
-**Problem**: In "Choose Image" screen, back button returns to main menu instead of "Images" submenu.
-
-**Location**: Menu navigation logic in `menu/navigator.py`
-
-**Temporary Workaround**: Use explicit back navigation instead of stack popping.
 
 ### Performance Considerations
 
