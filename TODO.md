@@ -11,6 +11,7 @@
 
 ### Low Priority
 - [ ] When text is scrolling (for eg in the 'choose image' screen, depending on the length the text is changes the speed of the scroll. I want all iteams to scroll at the same speed.
+- [ ] Screensaver screen shows the "select gif" menu option when the mode is set to Random, it should only show the "select gif" option when the "mode" is set to "selected".
 
 ## 🚀 Features
 
