@@ -21,8 +21,8 @@ DEFAULT_LOG_DIR = Path(
     )
 )
 
-# Add custom TRACE level (level 5, below DEBUG which is 10)
-logger.level("TRACE", no=5, color="<dim>", icon="🔍")
+# Note: TRACE level already exists in loguru at level 5 (below DEBUG which is 10)
+# We don't need to add it, just use it with log.trace()
 
 
 def _should_log_websocket(record) -> bool:
