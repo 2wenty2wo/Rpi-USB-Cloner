@@ -1105,6 +1105,31 @@
       });
     });
 
+    document.addEventListener('keydown', (event) => {
+      const target = event.target;
+      if (target) {
+        const tagName = target.tagName;
+        if (target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+          return;
+        }
+      }
+
+      const keyMap = {
+        ArrowUp: 'UP',
+        ArrowDown: 'DOWN',
+        ArrowLeft: 'LEFT',
+        ArrowRight: 'RIGHT',
+        Enter: 'OK',
+        Escape: 'BACK'
+      };
+
+      const button = keyMap[event.key];
+      if (!button) return;
+
+      event.preventDefault();
+      sendButtonPress(button);
+    });
+
     if (autoScrollToggle) {
       autoScrollToggle.addEventListener('change', (event) => {
         autoScrollEnabled = event.target.checked;
