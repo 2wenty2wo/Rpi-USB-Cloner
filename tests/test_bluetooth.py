@@ -82,6 +82,7 @@ class TestBluetoothService:
         mock_run.assert_called_once_with(
             ["bluetoothctl", "power", "on"],
             capture_output=True,
+            text=True,
             timeout=5,
             check=True,
         )
@@ -106,6 +107,7 @@ class TestBluetoothService:
         mock_run.assert_called_once_with(
             ["bluetoothctl", "power", "off"],
             capture_output=True,
+            text=True,
             timeout=5,
             check=True,
         )
@@ -119,6 +121,31 @@ class TestBluetoothService:
 
         assert result is True
         assert mock_run.call_count == 3  # pairable, discoverable, timeout
+        mock_run.assert_has_calls(
+            [
+                mocker.call(
+                    ["bluetoothctl", "pairable", "on"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                ),
+                mocker.call(
+                    ["bluetoothctl", "discoverable", "on"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                ),
+                mocker.call(
+                    ["bluetoothctl", "discoverable-timeout", "300"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                ),
+            ]
+        )
 
     def test_set_discoverable_disabled(self, bluetooth_service, mocker):
         """Test disabling discoverable mode."""
@@ -129,6 +156,24 @@ class TestBluetoothService:
 
         assert result is True
         assert mock_run.call_count == 2  # pairable, discoverable (no timeout)
+        mock_run.assert_has_calls(
+            [
+                mocker.call(
+                    ["bluetoothctl", "pairable", "off"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                ),
+                mocker.call(
+                    ["bluetoothctl", "discoverable", "off"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                ),
+            ]
+        )
 
     def test_list_paired_devices_empty(self, bluetooth_service, mocker):
         """Test listing paired devices when none paired."""
