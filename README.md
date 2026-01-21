@@ -293,7 +293,7 @@ This installs:
 #### 2) Enable Bluetooth tethering
 
 **Option A: Via OLED menu (recommended)**
-1. Navigate to: *Main Menu → Tools → Bluetooth*
+1. Navigate to: *Main Menu → Settings → Bluetooth*
 2. Select *Enable/Disable* to start Bluetooth tethering
 3. The Pi will create a network bridge at `192.168.55.1`
 
