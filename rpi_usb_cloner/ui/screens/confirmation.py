@@ -4,7 +4,10 @@ from typing import Iterable, Optional
 
 from PIL import ImageFont
 
+from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui import menus
 
 
 def render_confirmation_screen(
@@ -124,6 +127,53 @@ def render_confirmation_screen(
         draw.text((content_x, text_y), label, font=button_font, fill=fill)
     context.disp.display(context.image)
     display.mark_display_dirty()
+
+
+def render_confirmation(
+    app_ctx,
+    title: str,
+    message: str,
+    default: bool = False,
+) -> bool:
+    _ = app_ctx
+    prompt_lines = message.splitlines() if message else [""]
+    confirm_selection = app_state.CONFIRM_YES if default else app_state.CONFIRM_NO
+    render_confirmation_screen(
+        title,
+        prompt_lines,
+        selected_index=confirm_selection,
+    )
+    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    prev_states = {
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+    }
+    while True:
+        current_r = gpio.is_pressed(gpio.PIN_R)
+        if prev_states["R"] and not current_r:
+            if confirm_selection == app_state.CONFIRM_NO:
+                confirm_selection = app_state.CONFIRM_YES
+        current_l = gpio.is_pressed(gpio.PIN_L)
+        if prev_states["L"] and not current_l:
+            if confirm_selection == app_state.CONFIRM_YES:
+                confirm_selection = app_state.CONFIRM_NO
+        current_a = gpio.is_pressed(gpio.PIN_A)
+        if prev_states["A"] and not current_a:
+            return False
+        current_b = gpio.is_pressed(gpio.PIN_B)
+        if prev_states["B"] and not current_b:
+            return confirm_selection == app_state.CONFIRM_YES
+        prev_states["R"] = current_r
+        prev_states["L"] = current_l
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        render_confirmation_screen(
+            title,
+            prompt_lines,
+            selected_index=confirm_selection,
+        )
 
 
 def render_update_buttons_screen(
