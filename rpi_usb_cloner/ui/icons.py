@@ -28,6 +28,7 @@ WIFI_ICON = chr(57774)  # wifi - wifi screens
 POWER_ICON = chr(57664)  # power - power screens
 DEVELOP_ICON = chr(57729)  # terminal - develop screen
 LOGS_ICON = chr(58021)  # chart-line - logs screen
+BLUETOOTH_ICON = chr(57436)  # bluetooth - bluetooth screens
 
 # Action icons (used in operations and confirmations)
 ALERT_ICON = chr(57639)  # octagon-alert - warnings and errors
@@ -56,6 +57,7 @@ SCREEN_ICONS = {
     "power": POWER_ICON,
     "screensaver": "",  # No icon assigned
     "wifi": WIFI_ICON,
+    "bluetooth": BLUETOOTH_ICON,
     "tools": TOOLS_ICON,
     "logs": LOGS_ICON,
     "file_browser": FILE_BROWSER_ICON,
