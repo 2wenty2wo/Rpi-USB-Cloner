@@ -1,5 +1,6 @@
 """Confirmation screen rendering functions."""
 
+import time
 from typing import Iterable, Optional
 
 from PIL import ImageFont
@@ -151,14 +152,17 @@ def render_confirmation(
         "B": gpio.is_pressed(gpio.PIN_B),
     }
     while True:
+        action_taken = False
         current_r = gpio.is_pressed(gpio.PIN_R)
         if prev_states["R"] and not current_r:
             if confirm_selection == app_state.CONFIRM_NO:
                 confirm_selection = app_state.CONFIRM_YES
+                action_taken = True
         current_l = gpio.is_pressed(gpio.PIN_L)
         if prev_states["L"] and not current_l:
             if confirm_selection == app_state.CONFIRM_YES:
                 confirm_selection = app_state.CONFIRM_NO
+                action_taken = True
         current_a = gpio.is_pressed(gpio.PIN_A)
         if prev_states["A"] and not current_a:
             return False
@@ -169,11 +173,13 @@ def render_confirmation(
         prev_states["L"] = current_l
         prev_states["A"] = current_a
         prev_states["B"] = current_b
-        render_confirmation_screen(
-            title,
-            prompt_lines,
-            selected_index=confirm_selection,
-        )
+        if action_taken:
+            render_confirmation_screen(
+                title,
+                prompt_lines,
+                selected_index=confirm_selection,
+            )
+        time.sleep(menus.BUTTON_POLL_DELAY)
 
 
 def render_update_buttons_screen(
