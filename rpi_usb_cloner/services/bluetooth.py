@@ -502,10 +502,9 @@ class BluetoothService:
                     "--dhcp-range="
                     + f"{self.DHCP_RANGE_START},{self.DHCP_RANGE_END},{self.DHCP_LEASE_TIME}",
                     "--no-daemon",
-                    "--log-queries",
                 ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
 
             logger.info("Started DHCP server (dnsmasq)")
