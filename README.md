@@ -106,8 +106,11 @@ cd Rpi-USB-Cloner
 4. Install Python and required system libraries:
    ```sh
    sudo apt install -y python3 python3-pip python3-dev python3-venv git \
-     libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g partclone
+     libopenjp2-7 libfreetype6 libjpeg62-turbo libpng16-16t64 zlib1g partclone \
+     bluez bluez-tools bridge-utils dnsmasq
    ```
+
+   > **Note:** `bluez`, `bluez-tools`, `bridge-utils`, and `dnsmasq` are required for Bluetooth tethering functionality. If you don't plan to use Bluetooth, you can omit these packages.
 
 5. Install Python dependencies (Bookworm enforces PEP 668):
 
@@ -270,27 +273,11 @@ sudo pip install --break-system-packages -r requirements.txt
 
 Access the web UI from your iPhone or other Bluetooth-enabled device without WiFi.
 
+> **Prerequisites:** Bluetooth packages must be installed (see Installation step 4 above). The required packages are: `bluez`, `bluez-tools`, `bridge-utils`, and `dnsmasq`.
+
 ### Setup Bluetooth Tethering
 
-#### 1) Install Bluetooth dependencies
-
-Run the installation script to install required system packages:
-
-```sh
-# Navigate to repository directory
-cd Rpi-USB-Cloner
-
-# Run installation script (requires root)
-sudo ./scripts/install-bluetooth.sh
-```
-
-This installs:
-- `bluez` - Bluetooth stack
-- `bluez-tools` - Bluetooth utilities (bt-agent, bt-network)
-- `bridge-utils` - Network bridging support
-- `dnsmasq` - DHCP server for assigning IPs to connected devices
-
-#### 2) Enable Bluetooth tethering
+#### 1) Enable Bluetooth tethering
 
 **Option A: Via OLED menu (recommended)**
 1. Navigate to: *Main Menu → Settings → Bluetooth*
@@ -306,7 +293,7 @@ Edit `~/.config/rpi-usb-cloner/settings.json`:
 }
 ```
 
-#### 3) Pair your iPhone
+#### 2) Pair your iPhone
 
 1. On the OLED menu, select *Bluetooth → Make Discoverable*
 2. On your iPhone:
@@ -315,7 +302,7 @@ Edit `~/.config/rpi-usb-cloner/settings.json`:
    - Tap to pair
 3. Once paired, your iPhone will automatically connect to the Pi's Bluetooth network
 
-#### 4) Access the web UI
+#### 3) Access the web UI
 
 Open Safari on your iPhone and navigate to:
 ```
