@@ -62,6 +62,40 @@ class BluetoothService:
         self._adapter_name: Optional[str] = None
         self._pan_process: Optional[subprocess.Popen] = None
         self._dnsmasq_process: Optional[subprocess.Popen] = None
+        self._last_error: Optional[str] = None
+
+    @property
+    def last_error(self) -> Optional[str]:
+        """Return the most recent Bluetooth error message, if any."""
+        return self._last_error
+
+    def _clear_last_error(self) -> None:
+        """Clear the stored Bluetooth error message."""
+        self._last_error = None
+
+    def _extract_process_reason(self, error: Exception) -> str:
+        """Extract a user-friendly reason from a subprocess error."""
+        stdout = getattr(error, "stdout", None)
+        stderr = getattr(error, "stderr", None)
+        for candidate in (stderr, stdout):
+            if candidate:
+                reason = candidate.strip()
+                if reason:
+                    return reason
+        return str(error)
+
+    def _format_process_error(self, error: Exception) -> str:
+        """Format subprocess error details for logs."""
+        stdout = getattr(error, "stdout", None)
+        stderr = getattr(error, "stderr", None)
+        details = []
+        if stdout:
+            details.append(f"stdout: {stdout.strip()}")
+        if stderr:
+            details.append(f"stderr: {stderr.strip()}")
+        if details:
+            return f"{error} ({'; '.join(details)})"
+        return str(error)
 
     def get_adapter_name(self) -> Optional[str]:
         """
@@ -194,13 +228,18 @@ class BluetoothService:
             subprocess.run(
                 ["bluetoothctl", "power", "on"],
                 capture_output=True,
+                text=True,
                 timeout=5,
                 check=True,
             )
+            self._clear_last_error()
             logger.info("Bluetooth adapter powered on")
             return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            logger.error(f"Failed to power on Bluetooth: {e}")
+            self._last_error = self._extract_process_reason(e)
+            logger.error(
+                "Failed to power on Bluetooth: %s", self._format_process_error(e)
+            )
             return False
 
     def power_off(self) -> bool:
@@ -214,13 +253,18 @@ class BluetoothService:
             subprocess.run(
                 ["bluetoothctl", "power", "off"],
                 capture_output=True,
+                text=True,
                 timeout=5,
                 check=True,
             )
+            self._clear_last_error()
             logger.info("Bluetooth adapter powered off")
             return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            logger.error(f"Failed to power off Bluetooth: {e}")
+            self._last_error = self._extract_process_reason(e)
+            logger.error(
+                "Failed to power off Bluetooth: %s", self._format_process_error(e)
+            )
             return False
 
     def set_discoverable(self, enabled: bool, timeout: int = 0) -> bool:
@@ -239,6 +283,7 @@ class BluetoothService:
             subprocess.run(
                 ["bluetoothctl", "pairable", "on" if enabled else "off"],
                 capture_output=True,
+                text=True,
                 timeout=5,
                 check=True,
             )
@@ -247,6 +292,7 @@ class BluetoothService:
             subprocess.run(
                 ["bluetoothctl", "discoverable", "on" if enabled else "off"],
                 capture_output=True,
+                text=True,
                 timeout=5,
                 check=True,
             )
@@ -256,14 +302,19 @@ class BluetoothService:
                 subprocess.run(
                     ["bluetoothctl", "discoverable-timeout", str(timeout)],
                     capture_output=True,
+                    text=True,
                     timeout=5,
                     check=True,
                 )
 
+            self._clear_last_error()
             logger.info(f"Discoverable mode: {'enabled' if enabled else 'disabled'}")
             return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            logger.error(f"Failed to set discoverable mode: {e}")
+            self._last_error = self._extract_process_reason(e)
+            logger.error(
+                "Failed to set discoverable mode: %s", self._format_process_error(e)
+            )
             return False
 
     def list_paired_devices(self) -> List[BluetoothDevice]:
@@ -676,6 +727,11 @@ def is_bluetooth_available() -> bool:
 def get_bluetooth_status() -> BluetoothStatus:
     """Get current Bluetooth status."""
     return get_bluetooth_service().get_status()
+
+
+def get_bluetooth_last_error() -> Optional[str]:
+    """Get the most recent Bluetooth error message, if any."""
+    return get_bluetooth_service().last_error
 
 
 def enable_bluetooth_tethering() -> bool:
