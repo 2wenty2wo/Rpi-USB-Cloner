@@ -9,6 +9,7 @@ from rpi_usb_cloner.services.bluetooth import (
     disable_bluetooth_tethering,
     enable_bluetooth_tethering,
     get_bluetooth_status,
+    get_bluetooth_last_error,
     get_paired_devices,
     hide_discoverable,
     is_bluetooth_available,
@@ -21,6 +22,14 @@ from rpi_usb_cloner.ui.screens.status import render_status_screen, wait_for_ack
 from . import get_action_context
 
 logger = logging.getLogger(__name__)
+
+
+def _append_bluetooth_error(message: str) -> str:
+    """Append the last Bluetooth error reason to a message if available."""
+    error_text = get_bluetooth_last_error()
+    if error_text:
+        return f"{message}\nReason: {error_text}"
+    return message
 
 
 def bluetooth_toggle():
@@ -56,7 +65,7 @@ def bluetooth_toggle():
             else:
                 screens.render_error_screen(
                     title="Error",
-                    message="Failed to disable Bluetooth",
+                    message=_append_bluetooth_error("Failed to disable Bluetooth"),
                 )
         except Exception as e:
             logger.error(f"Error disabling Bluetooth: {e}")
@@ -94,7 +103,9 @@ def bluetooth_toggle():
             else:
                 screens.render_error_screen(
                     title="Error",
-                    message="Failed to enable Bluetooth.\nCheck logs for details.",
+                    message=_append_bluetooth_error(
+                        "Failed to enable Bluetooth.\nCheck logs for details."
+                    ),
                 )
         except Exception as e:
             logger.error(f"Error enabling Bluetooth: {e}")
@@ -183,7 +194,7 @@ def bluetooth_discoverable():
         else:
             screens.render_error_screen(
                 title="Error",
-                message="Failed to enable\ndiscoverable mode",
+                message=_append_bluetooth_error("Failed to enable\ndiscoverable mode"),
             )
     except Exception as e:
         logger.error(f"Error making discoverable: {e}")
