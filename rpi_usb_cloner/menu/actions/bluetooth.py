@@ -14,8 +14,8 @@ from rpi_usb_cloner.services.bluetooth import (
     is_bluetooth_available,
     make_discoverable,
 )
+from rpi_usb_cloner.ui import screens
 from rpi_usb_cloner.ui.screens.confirmation import render_confirmation
-from rpi_usb_cloner.ui.screens.error import render_error_screen
 from rpi_usb_cloner.ui.screens.status import render_status_screen, wait_for_ack
 
 from . import get_action_context
@@ -29,8 +29,7 @@ def bluetooth_toggle():
     app_ctx = ctx.app_context
 
     if not is_bluetooth_available():
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Bluetooth Error",
             message="Bluetooth adapter not found.\nCheck hardware.",
         )
@@ -55,15 +54,13 @@ def bluetooth_toggle():
                 set_bool("bluetooth_enabled", False)
                 render_status_screen("Bluetooth Disabled", "Tethering stopped")
             else:
-                render_error_screen(
-                    app_ctx,
+                screens.render_error_screen(
                     title="Error",
                     message="Failed to disable Bluetooth",
                 )
         except Exception as e:
             logger.error(f"Error disabling Bluetooth: {e}")
-            render_error_screen(
-                app_ctx,
+            screens.render_error_screen(
                 title="Error",
                 message=f"Failed to disable:\n{str(e)}",
                 exception=e,
@@ -95,15 +92,13 @@ def bluetooth_toggle():
                     f"Tethering active\n{ip_msg}\n\nPair from iPhone:\nSettings > Bluetooth",
                 )
             else:
-                render_error_screen(
-                    app_ctx,
+                screens.render_error_screen(
                     title="Error",
                     message="Failed to enable Bluetooth.\nCheck logs for details.",
                 )
         except Exception as e:
             logger.error(f"Error enabling Bluetooth: {e}")
-            render_error_screen(
-                app_ctx,
+            screens.render_error_screen(
                 title="Error",
                 message=f"Failed to enable:\n{str(e)}",
                 exception=e,
@@ -116,8 +111,7 @@ def bluetooth_status():
     app_ctx = ctx.app_context
 
     if not is_bluetooth_available():
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Bluetooth Status",
             message="Bluetooth adapter:\nNot found\n\nCheck hardware connection",
         )
@@ -148,8 +142,7 @@ def bluetooth_status():
 
     except Exception as e:
         logger.error(f"Error getting Bluetooth status: {e}")
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Error",
             message=str(e),
             exception=e,
@@ -162,8 +155,7 @@ def bluetooth_discoverable():
     app_ctx = ctx.app_context
 
     if not is_bluetooth_available():
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Bluetooth Error",
             message="Bluetooth adapter not found",
         )
@@ -189,15 +181,13 @@ def bluetooth_discoverable():
                 f"Device: {device_name}\n\nVisible for {timeout//60} min\n\nPair from:\niPhone Settings >\nBluetooth",
             )
         else:
-            render_error_screen(
-                app_ctx,
+            screens.render_error_screen(
                 title="Error",
                 message="Failed to enable\ndiscoverable mode",
             )
     except Exception as e:
         logger.error(f"Error making discoverable: {e}")
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Error",
             message=f"Failed:\n{str(e)}",
             exception=e,
@@ -210,8 +200,7 @@ def bluetooth_connection_info():
     app_ctx = ctx.app_context
 
     if not is_bluetooth_available():
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Bluetooth Error",
             message="Bluetooth adapter not found",
         )
@@ -239,8 +228,7 @@ def bluetooth_connection_info():
 
     except Exception as e:
         logger.error(f"Error getting connection info: {e}")
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Error",
             message=str(e),
             exception=e,
@@ -253,8 +241,7 @@ def bluetooth_paired_devices():
     app_ctx = ctx.app_context
 
     if not is_bluetooth_available():
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Bluetooth Error",
             message="Bluetooth adapter not found",
         )
@@ -285,8 +272,7 @@ def bluetooth_paired_devices():
 
     except Exception as e:
         logger.error(f"Error listing paired devices: {e}")
-        render_error_screen(
-            app_ctx,
+        screens.render_error_screen(
             title="Error",
             message=str(e),
             exception=e,
