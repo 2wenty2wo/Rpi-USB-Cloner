@@ -1,6 +1,8 @@
 """Core cloning operations."""
+
 import os
 import shutil
+from typing import Any, Optional, Union
 
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
@@ -33,7 +35,9 @@ from .models import (
 from .progress import _log_debug
 
 
-def copy_partition_table(src, dst):
+def copy_partition_table(
+    src: Union[str, dict[str, Any]], dst: Union[str, dict[str, Any]]
+) -> None:
     """Copy partition table from source to destination device."""
     src_node = resolve_device_node(src)
     dst_node = resolve_device_node(dst)
@@ -52,7 +56,9 @@ def copy_partition_table(src, dst):
         sgdisk_path = shutil.which("sgdisk")
         if not sgdisk_path:
             raise RuntimeError("sgdisk not found for GPT replicate")
-        run_checked_command([sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node])
+        run_checked_command(
+            [sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node]
+        )
         _log_debug(f"GPT partition table replicated from {src_node} to {dst_node}")
         return
     if label in ("dos", "mbr", "msdos"):
@@ -62,7 +68,13 @@ def copy_partition_table(src, dst):
     raise RuntimeError(f"Unsupported partition table label: {label}")
 
 
-def clone_dd(src, dst, total_bytes=None, title="CLONING", subtitle=None):
+def clone_dd(
+    src: Union[str, dict[str, Any]],
+    dst: Union[str, dict[str, Any]],
+    total_bytes: Optional[int] = None,
+    title: str = "CLONING",
+    subtitle: Optional[str] = None,
+) -> None:
     """Clone a device using dd (raw block-level copy)."""
     dd_path = shutil.which("dd")
     if not dd_path:
@@ -70,14 +82,23 @@ def clone_dd(src, dst, total_bytes=None, title="CLONING", subtitle=None):
     src_node = resolve_device_node(src)
     dst_node = resolve_device_node(dst)
     run_checked_with_streaming_progress(
-        [dd_path, f"if={src_node}", f"of={dst_node}", "bs=4M", "status=progress", "conv=fsync"],
+        [
+            dd_path,
+            f"if={src_node}",
+            f"of={dst_node}",
+            "bs=4M",
+            "status=progress",
+            "conv=fsync",
+        ],
         total_bytes=total_bytes,
         title=title,
         subtitle=subtitle,
     )
 
 
-def clone_partclone(source, target):
+def clone_partclone(
+    source: Union[str, dict[str, Any]], target: Union[str, dict[str, Any]]
+) -> None:
     """Clone a device using partclone (filesystem-aware cloning)."""
     partclone_tools = {
         "ext2": "partclone.ext2",
@@ -95,16 +116,28 @@ def clone_partclone(source, target):
     target_node = resolve_device_node(target)
     source_name = os.path.basename(source_node)
     target_name = os.path.basename(target_node)
-    source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
-    target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+    source_device = get_device_by_name(source_name) or (
+        source if isinstance(source, dict) else None
+    )
+    target_device = get_device_by_name(target_name) or (
+        target if isinstance(target, dict) else None
+    )
     if not source_device or not target_device:
-        clone_dd(source_node, target_node, total_bytes=source.get("size") if isinstance(source, dict) else None)
+        clone_dd(
+            source_node,
+            target_node,
+            total_bytes=source.get("size") if isinstance(source, dict) else None,
+        )
         return
-    source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
+    source_parts = [
+        child for child in get_children(source_device) if child.get("type") == "part"
+    ]
     if not source_parts:
         clone_dd(source_node, target_node, total_bytes=source_device.get("size"))
         return
-    target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+    target_parts = [
+        child for child in get_children(target_device) if child.get("type") == "part"
+    ]
     target_parts_by_number = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
@@ -145,7 +178,13 @@ def clone_partclone(source, target):
 
         if not tool_path:
             # Use raw copy when no partclone tool available
-            clone_dd(src_part, dst_part, total_bytes=part.get("size"), title=title_line, subtitle=info_line)
+            clone_dd(
+                src_part,
+                dst_part,
+                total_bytes=part.get("size"),
+                title=title_line,
+                subtitle=info_line,
+            )
             continue
 
         display_lines([title_line, info_line])
@@ -159,7 +198,11 @@ def clone_partclone(source, target):
             )
 
 
-def clone_device(source, target, mode=None):
+def clone_device(
+    source: Union[str, dict[str, Any]],
+    target: Union[str, dict[str, Any]],
+    mode: Optional[str] = None,
+) -> bool:
     """Clone a device using the specified mode.
 
     Args:
@@ -173,7 +216,9 @@ def clone_device(source, target, mode=None):
     # SAFETY: Validate clone operation before proceeding
     try:
         # For exact mode, we don't check space since we're doing raw copy
-        check_space = mode not in ("exact", None) or os.environ.get("CLONE_MODE") != "exact"
+        check_space = (
+            mode not in ("exact", None) or os.environ.get("CLONE_MODE") != "exact"
+        )
         validate_clone_operation(
             source,
             target,
@@ -228,7 +273,9 @@ def clone_device(source, target, mode=None):
     return True
 
 
-def clone_device_smart(source, target):
+def clone_device_smart(
+    source: Union[str, dict[str, Any]], target: Union[str, dict[str, Any]]
+) -> bool:
     """Clone a device using smart mode (partition-aware).
 
     Args:

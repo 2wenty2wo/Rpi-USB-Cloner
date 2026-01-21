@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Dict, Optional, Any
+from typing import Callable, Dict, Optional, Any, Iterable
 
 import RPi.GPIO as GPIO
 
@@ -16,22 +16,22 @@ PIN_C = 4
 PINS = (PIN_A, PIN_B, PIN_L, PIN_R, PIN_U, PIN_D, PIN_C)
 
 
-def setup_gpio():
+def setup_gpio() -> None:
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
     for pin in PINS:
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
-def read_button(pin):
+def read_button(pin: int) -> int:
     return GPIO.input(pin)
 
 
-def read_buttons(pins):
+def read_buttons(pins: Iterable[int]) -> Dict[int, int]:
     return {pin: read_button(pin) for pin in pins}
 
 
-def is_pressed(pin):
+def is_pressed(pin: int) -> bool:
     """Check if a button is pressed (physical or virtual).
 
     Returns True if either:
@@ -41,7 +41,7 @@ def is_pressed(pin):
     return read_button(pin) == GPIO.LOW or virtual_gpio.is_virtual_button_pressed(pin)
 
 
-def cleanup():
+def cleanup() -> None:
     GPIO.cleanup()
 
 

@@ -152,7 +152,7 @@ line-length = 88
 target-version = ["py38"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 packages = ["rpi_usb_cloner"]
 warn_unused_ignores = true
 warn_redundant_casts = true
