@@ -41,6 +41,7 @@ from .main import MAIN_MENU
 from .drives import DRIVES_MENU, DRIVE_LIST_MENU
 from .images import IMAGES_MENU
 from .tools import TOOLS_MENU
+from .bluetooth import BLUETOOTH_MENU
 from .settings import (
     SETTINGS_MENU,
     SCREENSAVER_MENU,
@@ -61,6 +62,7 @@ __all__ = [
     "DRIVE_LIST_MENU",
     "IMAGES_MENU",
     "TOOLS_MENU",
+    "BLUETOOTH_MENU",
     "SETTINGS_MENU",
     "SCREENSAVER_MENU",
     "POWER_MENU",

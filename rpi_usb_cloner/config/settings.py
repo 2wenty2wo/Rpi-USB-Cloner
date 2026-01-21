@@ -25,6 +25,10 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "screenshots_enabled": False,
     "screenshots_dir": "/home/pi/oled_screenshots",
     "web_server_enabled": False,
+    "bluetooth_enabled": False,
+    "bluetooth_auto_start": False,
+    "bluetooth_device_name": "RPi USB Cloner",
+    "bluetooth_discoverable_timeout": 300,
 }
 
 
