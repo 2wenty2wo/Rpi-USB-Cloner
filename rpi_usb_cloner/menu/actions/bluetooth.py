@@ -16,7 +16,7 @@ from rpi_usb_cloner.services.bluetooth import (
 )
 from rpi_usb_cloner.ui.screens.confirmation import render_confirmation
 from rpi_usb_cloner.ui.screens.error import render_error_screen
-from rpi_usb_cloner.ui.screens.status import render_status
+from rpi_usb_cloner.ui.screens.status import render_status_screen
 
 from . import get_action_context
 
@@ -53,7 +53,7 @@ def bluetooth_toggle():
         try:
             if disable_bluetooth_tethering():
                 set_bool("bluetooth_enabled", False)
-                render_status(app_ctx, "Bluetooth Disabled", "Tethering stopped")
+                render_status_screen("Bluetooth Disabled", "Tethering stopped")
             else:
                 render_error_screen(
                     app_ctx,
@@ -81,7 +81,7 @@ def bluetooth_toggle():
             return
 
         try:
-            render_status(app_ctx, "Starting...", "Enabling Bluetooth PAN")
+            render_status_screen("Starting...", "Enabling Bluetooth PAN")
 
             if enable_bluetooth_tethering():
                 set_bool("bluetooth_enabled", True)
@@ -90,8 +90,7 @@ def bluetooth_toggle():
                 status = get_bluetooth_status()
                 ip_msg = f"IP: {status.ip_address}" if status.ip_address else "Ready"
 
-                render_status(
-                    app_ctx,
+                render_status_screen(
                     "Bluetooth Enabled",
                     f"Tethering active\n{ip_msg}\n\nPair from iPhone:\nSettings > Bluetooth",
                 )
@@ -144,7 +143,7 @@ def bluetooth_status():
 
         message = "\n".join(lines)
 
-        render_status(app_ctx, "Bluetooth Status", message)
+        render_status_screen("Bluetooth Status", message)
 
     except Exception as e:
         logger.error(f"Error getting Bluetooth status: {e}")
@@ -184,8 +183,7 @@ def bluetooth_discoverable():
     try:
         if make_discoverable(timeout):
             device_name = get_setting("bluetooth_device_name", default="RPi USB Cloner")
-            render_status(
-                app_ctx,
+            render_status_screen(
                 "Discoverable",
                 f"Device: {device_name}\n\nVisible for {timeout//60} min\n\nPair from:\niPhone Settings >\nBluetooth",
             )
@@ -222,8 +220,7 @@ def bluetooth_connection_info():
         status = get_bluetooth_status()
 
         if not status.pan_active:
-            render_status(
-                app_ctx,
+            render_status_screen(
                 "Connection Info",
                 "Bluetooth not active\n\nEnable tethering first",
             )
@@ -232,8 +229,7 @@ def bluetooth_connection_info():
         ip = status.ip_address or "192.168.55.1"
         url = f"http://{ip}:8000"
 
-        render_status(
-            app_ctx,
+        render_status_screen(
             "Web UI Access",
             f"1. Pair iPhone to Pi\n2. Connect Bluetooth\n3. Open Safari:\n\n{url}",
         )
@@ -265,8 +261,7 @@ def bluetooth_paired_devices():
         devices = get_paired_devices()
 
         if not devices:
-            render_status(
-                app_ctx,
+            render_status_screen(
                 "Paired Devices",
                 "No paired devices\n\nMake discoverable to pair",
             )
@@ -281,7 +276,7 @@ def bluetooth_paired_devices():
             lines.append(f"{status_icon} {name}")
 
         message = "\n".join(lines)
-        render_status(app_ctx, "Paired Devices", message)
+        render_status_screen("Paired Devices", message)
 
     except Exception as e:
         logger.error(f"Error listing paired devices: {e}")
