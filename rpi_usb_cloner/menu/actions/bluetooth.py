@@ -16,7 +16,7 @@ from rpi_usb_cloner.services.bluetooth import (
 )
 from rpi_usb_cloner.ui.screens.confirmation import render_confirmation
 from rpi_usb_cloner.ui.screens.error import render_error_screen
-from rpi_usb_cloner.ui.screens.status import render_status_screen
+from rpi_usb_cloner.ui.screens.status import render_status_screen, wait_for_ack
 
 from . import get_action_context
 
@@ -144,6 +144,7 @@ def bluetooth_status():
         message = "\n".join(lines)
 
         render_status_screen("Bluetooth Status", message)
+        wait_for_ack()
 
     except Exception as e:
         logger.error(f"Error getting Bluetooth status: {e}")
@@ -224,6 +225,7 @@ def bluetooth_connection_info():
                 "Connection Info",
                 "Bluetooth not active\n\nEnable tethering first",
             )
+            wait_for_ack()
             return
 
         ip = status.ip_address or "192.168.55.1"
@@ -233,6 +235,7 @@ def bluetooth_connection_info():
             "Web UI Access",
             f"1. Pair iPhone to Pi\n2. Connect Bluetooth\n3. Open Safari:\n\n{url}",
         )
+        wait_for_ack()
 
     except Exception as e:
         logger.error(f"Error getting connection info: {e}")
@@ -265,6 +268,7 @@ def bluetooth_paired_devices():
                 "Paired Devices",
                 "No paired devices\n\nMake discoverable to pair",
             )
+            wait_for_ack()
             return
 
         # Show device list
@@ -277,6 +281,7 @@ def bluetooth_paired_devices():
 
         message = "\n".join(lines)
         render_status_screen("Paired Devices", message)
+        wait_for_ack()
 
     except Exception as e:
         logger.error(f"Error listing paired devices: {e}")
