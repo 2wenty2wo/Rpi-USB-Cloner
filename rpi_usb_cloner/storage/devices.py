@@ -62,12 +62,13 @@ Implementation Notes:
     - Global _log_debug and _error_handler for debugging and error reporting
     - Must be configured with configure_device_helpers() before use
 """
+
 import json
 import os
 import re
 import subprocess
 import time
-from typing import Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Union
 
 ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 LSBLK_CACHE_TTL_SECONDS = 1.0
@@ -96,7 +97,12 @@ def configure_device_helpers(
     _error_handler = error_handler
 
 
-def run_command(command, check=True, log_output=True, log_command=True):
+def run_command(
+    command: list[str],
+    check: bool = True,
+    log_output: bool = True,
+    log_command: bool = True,
+) -> subprocess.CompletedProcess[str]:
     if log_command:
         _log_debug(f"Running command: {' '.join(command)}")
     try:
@@ -117,7 +123,7 @@ def run_command(command, check=True, log_output=True, log_command=True):
     return result
 
 
-def human_size(size_bytes):
+def human_size(size_bytes: Optional[Union[int, float, str]]) -> str:
     if size_bytes is None:
         return "0B"
     size = float(size_bytes)
@@ -128,7 +134,7 @@ def human_size(size_bytes):
     return f"{size:.1f}PB"
 
 
-def format_device_label(device):
+def format_device_label(device: Union[dict[str, Any], str]) -> str:
     if isinstance(device, dict):
         name = device.get("name") or ""
         size_label = human_size(device.get("size"))
@@ -141,7 +147,7 @@ def format_device_label(device):
     return name
 
 
-def get_block_devices(force_refresh: bool = False):
+def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
     """Return block device data from lsblk with a short-lived cache.
 
     When lsblk fails or returns invalid JSON, the previous cache remains intact
@@ -172,7 +178,9 @@ def get_block_devices(force_refresh: bool = False):
         )
         data = json.loads(result.stdout)
         devices = data.get("blockdevices", [])
-        device_names = tuple(device.get("name") for device in devices if device.get("name"))
+        device_names = tuple(
+            device.get("name") for device in devices if device.get("name")
+        )
         if device_names != _last_lsblk_names:
             if device_names:
                 _log_debug(
@@ -193,11 +201,12 @@ def get_block_devices(force_refresh: bool = False):
         return []
 
 
-def get_children(device):
-    return device.get("children", []) or []
+def get_children(device: dict[str, Any]) -> list[dict[str, Any]]:
+    children = device.get("children", []) or []
+    return children if isinstance(children, list) else []
 
 
-def get_device_by_name(name):
+def get_device_by_name(name: Optional[str]) -> Optional[dict[str, Any]]:
     if not name:
         return None
     for device in get_block_devices():
@@ -206,7 +215,7 @@ def get_device_by_name(name):
     return None
 
 
-def has_root_mountpoint(device):
+def has_root_mountpoint(device: dict[str, Any]) -> bool:
     mountpoint = device.get("mountpoint")
     if mountpoint in ROOT_MOUNTPOINTS:
         return True
@@ -216,14 +225,14 @@ def has_root_mountpoint(device):
     return False
 
 
-def is_root_device(device):
+def is_root_device(device: dict[str, Any]) -> bool:
     if device.get("type") != "disk":
         return False
     return has_root_mountpoint(device)
 
 
-def list_usb_disks():
-    devices = []
+def list_usb_disks() -> list[dict[str, Any]]:
+    devices: list[dict[str, Any]] = []
     for device in get_block_devices():
         if device.get("type") != "disk":
             continue
@@ -260,7 +269,7 @@ def _collect_device_mountpoints(device: dict) -> list[str]:
     return mountpoints
 
 
-def unmount_device(device, raise_on_failure: bool = False) -> bool:
+def unmount_device(device: dict[str, Any], raise_on_failure: bool = False) -> bool:
     """Unmount a device and all its partitions.
 
     Args:
@@ -295,7 +304,10 @@ def unmount_device(device, raise_on_failure: bool = False) -> bool:
         if raise_on_failure:
             # Import here to avoid circular dependency
             from rpi_usb_cloner.storage.exceptions import UnmountFailedError
-            device_name = device.get("name") if isinstance(device, dict) else str(device)
+
+            device_name = (
+                device.get("name") if isinstance(device, dict) else str(device)
+            )
             raise UnmountFailedError(device_name, failed_mounts)
 
         return False

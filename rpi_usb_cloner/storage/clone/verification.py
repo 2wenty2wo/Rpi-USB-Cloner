@@ -1,9 +1,11 @@
 """Device verification using SHA256 checksums."""
+
 import os
 import re
 import shutil
 import subprocess
 import time
+from typing import Any, Optional, Union
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage.devices import get_children, get_device_by_name, human_size
@@ -14,7 +16,11 @@ from .models import get_partition_number, resolve_device_node
 log = get_logger(source=__name__, tags=["verify"])
 
 
-def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
+def compute_sha256(
+    device_node: str,
+    total_bytes: Optional[Union[int, float, str]] = None,
+    title: str = "VERIFY",
+) -> str:
     """Compute SHA256 checksum of a device or partition."""
     dd_path = shutil.which("dd")
     sha_path = shutil.which("sha256sum")
@@ -74,7 +80,9 @@ def compute_sha256(device_node, total_bytes=None, title="VERIFY"):
     return checksum
 
 
-def verify_clone(source, target):
+def verify_clone(
+    source: Union[str, dict[str, Any]], target: Union[str, dict[str, Any]]
+) -> bool:
     """Verify that target matches source using SHA256 checksums.
 
     Verifies each partition individually for partition-based clones,
@@ -91,14 +99,26 @@ def verify_clone(source, target):
     target_node = resolve_device_node(target)
     source_name = os.path.basename(source_node)
     target_name = os.path.basename(target_node)
-    source_device = get_device_by_name(source_name) or (source if isinstance(source, dict) else None)
-    target_device = get_device_by_name(target_name) or (target if isinstance(target, dict) else None)
+    source_device = get_device_by_name(source_name) or (
+        source if isinstance(source, dict) else None
+    )
+    target_device = get_device_by_name(target_name) or (
+        target if isinstance(target, dict) else None
+    )
     if not source_device or not target_device:
-        return verify_clone_device(source_node, target_node, source.get("size") if isinstance(source, dict) else None)
-    source_parts = [child for child in get_children(source_device) if child.get("type") == "part"]
+        return verify_clone_device(
+            source_node,
+            target_node,
+            source.get("size") if isinstance(source, dict) else None,
+        )
+    source_parts = [
+        child for child in get_children(source_device) if child.get("type") == "part"
+    ]
     if not source_parts:
         return verify_clone_device(source_node, target_node, source_device.get("size"))
-    target_parts = [child for child in get_children(target_device) if child.get("type") == "part"]
+    target_parts = [
+        child for child in get_children(target_device) if child.get("type") == "part"
+    ]
     target_parts_by_number = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
@@ -122,8 +142,16 @@ def verify_clone(source, target):
             return False
         log.info(f"Verifying {src_part} -> {dst_part}")
         try:
-            src_hash = compute_sha256(src_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} SRC")
-            dst_hash = compute_sha256(dst_part, total_bytes=part.get("size"), title=f"V {index}/{total_parts} DST")
+            src_hash = compute_sha256(
+                src_part,
+                total_bytes=part.get("size"),
+                title=f"V {index}/{total_parts} SRC",
+            )
+            dst_hash = compute_sha256(
+                dst_part,
+                total_bytes=part.get("size"),
+                title=f"V {index}/{total_parts} DST",
+            )
         except RuntimeError as error:
             display_lines(["VERIFY", "Error"])
             log.error(f"Verify failed ({src_part} -> {dst_part}): {error}")
@@ -138,7 +166,11 @@ def verify_clone(source, target):
     return True
 
 
-def verify_clone_device(source_node, target_node, total_bytes=None):
+def verify_clone_device(
+    source_node: str,
+    target_node: str,
+    total_bytes: Optional[Union[int, float, str]] = None,
+) -> bool:
     """Verify entire device using SHA256 checksums.
 
     Args:
@@ -151,8 +183,12 @@ def verify_clone_device(source_node, target_node, total_bytes=None):
     """
     log.info(f"Verifying {source_node} -> {target_node}")
     try:
-        src_hash = compute_sha256(source_node, total_bytes=total_bytes, title="VERIFY SRC")
-        dst_hash = compute_sha256(target_node, total_bytes=total_bytes, title="VERIFY DST")
+        src_hash = compute_sha256(
+            source_node, total_bytes=total_bytes, title="VERIFY SRC"
+        )
+        dst_hash = compute_sha256(
+            target_node, total_bytes=total_bytes, title="VERIFY DST"
+        )
     except RuntimeError as error:
         display_lines(["VERIFY", "Error"])
         log.error(f"Verify failed: {error}")

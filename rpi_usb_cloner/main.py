@@ -93,11 +93,13 @@ See Also:
     - rpi_usb_cloner.menu.definitions: Menu structure
     - rpi_usb_cloner.hardware.gpio: Button input handling
 """
+
 import argparse
 import os
 import time
 from datetime import datetime
 from functools import partial
+from typing import Any, Optional
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
@@ -145,9 +147,11 @@ def get_model_from_dict(device: dict) -> str:
     return device.get("model", "")
 
 
-def main(argv=None):
+def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="Raspberry Pi USB Cloner")
-    parser.add_argument("-d", "--debug", action="store_true", help="Enable verbose debug output")
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable verbose debug output"
+    )
     parser.add_argument(
         "-t",
         "--trace",
@@ -191,7 +195,9 @@ def main(argv=None):
     debug_enabled = args.debug
     trace_enabled = args.trace
     if args.restore_partition_mode:
-        settings_store.set_setting("restore_partition_mode", args.restore_partition_mode)
+        settings_store.set_setting(
+            "restore_partition_mode", args.restore_partition_mode
+        )
     clone_mode = os.environ.get("CLONE_MODE", "smart").lower()
 
     app_context = AppContext()
@@ -208,10 +214,19 @@ def main(argv=None):
         debug=debug_enabled,
         trace=trace_enabled,
         clone_mode=clone_mode,
-        restore_partition_mode=settings_store.get_setting("restore_partition_mode", "k0"),
+        restore_partition_mode=settings_store.get_setting(
+            "restore_partition_mode", "k0"
+        ),
     )
 
-    def log_debug(message, *, level="debug", tags=None, timestamp=None, source=None):
+    def log_debug(
+        message: Any,
+        *,
+        level: str = "debug",
+        tags: Optional[list[str]] = None,
+        timestamp: Optional[float] = None,
+        source: Optional[str] = None,
+    ) -> None:
         message_text = message.message if hasattr(message, "message") else message
         logger = get_logger(tags=tags, source=source or "APP")
         logger.log(str(level).upper(), message_text)
@@ -224,16 +239,22 @@ def main(argv=None):
 
     # Check web server enabled setting (default: False for new installations)
     # Environment variable WEB_SERVER_ENABLED can override the setting
-    web_server_enabled_setting = settings_store.get_bool("web_server_enabled", default=False)
+    web_server_enabled_setting = settings_store.get_bool(
+        "web_server_enabled", default=False
+    )
     web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
 
     web_log_debug = get_logger(tags=["web", "ws"], source="web").debug
     if web_server_env_override is not None:
         web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
         if web_server_enabled:
-            web_log_debug("Web server enabled via WEB_SERVER_ENABLED environment variable")
+            web_log_debug(
+                "Web server enabled via WEB_SERVER_ENABLED environment variable"
+            )
         else:
-            web_log_debug("Web server disabled via WEB_SERVER_ENABLED environment variable")
+            web_log_debug(
+                "Web server disabled via WEB_SERVER_ENABLED environment variable"
+            )
     else:
         web_server_enabled = web_server_enabled_setting
 
@@ -246,13 +267,20 @@ def main(argv=None):
         web_log_debug("Web server disabled in settings")
 
     # Bluetooth tethering initialization
-    bluetooth_enabled_setting = settings_store.get_bool("bluetooth_enabled", default=False)
-    bluetooth_auto_start = settings_store.get_bool("bluetooth_auto_start", default=False)
+    bluetooth_enabled_setting = settings_store.get_bool(
+        "bluetooth_enabled", default=False
+    )
+    bluetooth_auto_start = settings_store.get_bool(
+        "bluetooth_auto_start", default=False
+    )
     bluetooth_log_debug = get_logger(tags=["bluetooth"], source="bluetooth").debug
 
     if bluetooth_auto_start or bluetooth_enabled_setting:
         try:
-            from rpi_usb_cloner.services.bluetooth import enable_bluetooth_tethering, is_bluetooth_available
+            from rpi_usb_cloner.services.bluetooth import (
+                enable_bluetooth_tethering,
+                is_bluetooth_available,
+            )
 
             if is_bluetooth_available():
                 bluetooth_log_debug("Starting Bluetooth tethering...")
@@ -268,10 +296,16 @@ def main(argv=None):
         bluetooth_log_debug("Bluetooth tethering disabled in settings")
 
     usb_log_debug = partial(log_debug, tags=["usb"])
-    devices.configure_device_helpers(log_debug=usb_log_debug, error_handler=display.display_lines)
+    devices.configure_device_helpers(
+        log_debug=usb_log_debug, error_handler=display.display_lines
+    )
     configure_clone_helpers(log_debug=get_logger(source="clone").debug)
-    configure_format_helpers(log_debug=get_logger(tags=["format"], source="format").debug)
-    wifi.configure_wifi_helpers(log_debug=get_logger(source="wifi").debug, error_handler=display.display_lines)
+    configure_format_helpers(
+        log_debug=get_logger(tags=["format"], source="format").debug
+    )
+    wifi.configure_wifi_helpers(
+        log_debug=get_logger(source="wifi").debug, error_handler=display.display_lines
+    )
 
     state = app_state.AppState()
     app_state.ENABLE_SLEEP = settings_store.get_bool(
@@ -282,7 +316,7 @@ def main(argv=None):
     last_raw_usb_snapshot = None
     last_mount_snapshot = None
 
-    def get_usb_snapshot():
+    def get_usb_snapshot() -> list[str]:
         nonlocal last_usb_snapshot
         try:
             devices_list = drives.list_media_drive_names()
@@ -295,7 +329,7 @@ def main(argv=None):
             last_usb_snapshot = snapshot
         return snapshot
 
-    def get_raw_usb_snapshot():
+    def get_raw_usb_snapshot() -> list[str]:
         nonlocal last_raw_usb_snapshot
         try:
             devices_list = drives.list_raw_usb_disk_names()
@@ -308,10 +342,12 @@ def main(argv=None):
             last_raw_usb_snapshot = snapshot
         return snapshot
 
-    def get_usb_mount_snapshot():
+    def get_usb_mount_snapshot() -> list[tuple[str, str]]:
         nonlocal last_mount_snapshot
 
-        def collect_mountpoints(device, mountpoints):
+        def collect_mountpoints(
+            device: dict[str, Any], mountpoints: list[tuple[str, str]]
+        ) -> None:
             mountpoint = device.get("mountpoint")
             name = device.get("name") or ""
             if mountpoint:
@@ -370,7 +406,9 @@ def main(argv=None):
             screens,
             page_index,
         )
-        menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+        menus.wait_for_buttons_release(
+            [gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
+        )
         last_selected_name = app_context.active_drive
         prev_states = {
             "A": gpio.is_pressed(gpio.PIN_A),
@@ -472,7 +510,7 @@ def main(argv=None):
         },
     )
 
-    def get_screen_status_line(screen):
+    def get_screen_status_line(screen: Any) -> Optional[str]:
         status_line = screen.status_line
         active_drive_label = drives.get_active_drive_label(app_context.active_drive)
         if screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
@@ -489,7 +527,9 @@ def main(argv=None):
             return active_drive_label or "NO DRIVE SELECTED"
         return status_line
 
-    def get_visible_rows_for_screen(screen, status_line=None):
+    def get_visible_rows_for_screen(
+        screen: Any, status_line: Optional[str] = None
+    ) -> int:
         if status_line is None:
             status_line = get_screen_status_line(screen)
         return renderer.calculate_visible_rows(
@@ -501,10 +541,12 @@ def main(argv=None):
     last_render_state = {"key": None}
     last_screen_id = {"value": None}
 
-    def render_current_screen(force=False):
+    def render_current_screen(force: bool = False) -> None:
         current_screen = menu_navigator.current_screen()
         if current_screen.screen_id != last_screen_id["value"]:
-            log_debug(f"Screen changed: {last_screen_id['value']} -> {current_screen.screen_id}")
+            log_debug(
+                f"Screen changed: {last_screen_id['value']} -> {current_screen.screen_id}"
+            )
             last_screen_id["value"] = current_screen.screen_id
         if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
@@ -543,7 +585,7 @@ def main(argv=None):
         # Silently ignore if already at root
         menu_navigator.back()
 
-    def cleanup_display(clear_display=True):
+    def cleanup_display(clear_display: bool = True) -> None:
         if clear_display:
             context.disp.clear()
         gpio.cleanup()
@@ -609,15 +651,18 @@ def main(argv=None):
                     # Invalidate repo cache when USB devices change to avoid stale data
                     drives.invalidate_repo_cache()
                     selected_name = None
-                    if (
+                    if app_context.discovered_drives and state.usb_list_index < len(
                         app_context.discovered_drives
-                        and state.usb_list_index < len(app_context.discovered_drives)
                     ):
-                        selected_name = app_context.discovered_drives[state.usb_list_index]
+                        selected_name = app_context.discovered_drives[
+                            state.usb_list_index
+                        ]
                     if selected_name and selected_name in current_devices:
                         state.usb_list_index = current_devices.index(selected_name)
                     else:
-                        state.usb_list_index = min(state.usb_list_index, max(len(current_devices) - 1, 0))
+                        state.usb_list_index = min(
+                            state.usb_list_index, max(len(current_devices) - 1, 0)
+                        )
                     main_screen = definitions.SCREENS[definitions.MAIN_MENU.screen_id]
                     main_visible_rows = get_visible_rows_for_screen(main_screen)
                     menu_navigator.set_selection(
@@ -637,7 +682,9 @@ def main(argv=None):
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SLEEP_TIMEOUT:
                     screensaver_active = True
-                    screensaver_mode = settings_store.get_setting("screensaver_mode", "random")
+                    screensaver_mode = settings_store.get_setting(
+                        "screensaver_mode", "random"
+                    )
                     screensaver_gif = settings_store.get_setting("screensaver_gif")
                     screensaver_ran = screensaver.play_screensaver(
                         context,
@@ -677,9 +724,11 @@ def main(argv=None):
             button_pressed = False
             current_screen = menu_navigator.current_screen()
             status_line = get_screen_status_line(current_screen)
-            dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
+            dynamic_visible_rows = get_visible_rows_for_screen(
+                current_screen, status_line
+            )
 
-            def handle_repeat_button(key, direction):
+            def handle_repeat_button(key: str, direction: int) -> None:
                 nonlocal button_pressed, render_requested
                 is_pressed = current_states[key]
                 was_pressed = prev_states[key]
@@ -780,7 +829,9 @@ def main(argv=None):
         error_displayed = True
         context.disp.clear()
         context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        context.draw.text((context.x, context.top + 30), "ERROR", font=context.fontinsert, fill=255)
+        context.draw.text(
+            (context.x, context.top + 30), "ERROR", font=context.fontinsert, fill=255
+        )
         context.disp.display(context.image)
     finally:
         cleanup_display(clear_display=not error_displayed)
