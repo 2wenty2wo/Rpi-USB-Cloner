@@ -244,6 +244,29 @@ def main(argv=None):
             web_log_debug(f"Web server failed to start: {error}")
     else:
         web_log_debug("Web server disabled in settings")
+
+    # Bluetooth tethering initialization
+    bluetooth_enabled_setting = settings_store.get_bool("bluetooth_enabled", default=False)
+    bluetooth_auto_start = settings_store.get_bool("bluetooth_auto_start", default=False)
+    bluetooth_log_debug = get_logger(tags=["bluetooth"], source="bluetooth").debug
+
+    if bluetooth_auto_start or bluetooth_enabled_setting:
+        try:
+            from rpi_usb_cloner.services.bluetooth import enable_bluetooth_tethering, is_bluetooth_available
+
+            if is_bluetooth_available():
+                bluetooth_log_debug("Starting Bluetooth tethering...")
+                if enable_bluetooth_tethering():
+                    bluetooth_log_debug("Bluetooth tethering started successfully")
+                else:
+                    bluetooth_log_debug("Failed to start Bluetooth tethering")
+            else:
+                bluetooth_log_debug("Bluetooth adapter not available")
+        except Exception as error:
+            bluetooth_log_debug(f"Bluetooth initialization error: {error}")
+    else:
+        bluetooth_log_debug("Bluetooth tethering disabled in settings")
+
     usb_log_debug = partial(log_debug, tags=["usb"])
     devices.configure_device_helpers(log_debug=usb_log_debug, error_handler=display.display_lines)
     configure_clone_helpers(log_debug=get_logger(source="clone").debug)

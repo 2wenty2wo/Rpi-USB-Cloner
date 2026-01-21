@@ -266,6 +266,114 @@ sudo pip install --break-system-packages -r requirements.txt
 ```
 
 
+## 📱 Bluetooth Tethering
+
+Access the web UI from your iPhone or other Bluetooth-enabled device without WiFi.
+
+### Setup Bluetooth Tethering
+
+#### 1) Install Bluetooth dependencies
+
+Run the installation script to install required system packages:
+
+```sh
+# Navigate to repository directory
+cd Rpi-USB-Cloner
+
+# Run installation script (requires root)
+sudo ./scripts/install-bluetooth.sh
+```
+
+This installs:
+- `bluez` - Bluetooth stack
+- `bluez-tools` - Bluetooth utilities (bt-agent, bt-network)
+- `bridge-utils` - Network bridging support
+- `dnsmasq` - DHCP server for assigning IPs to connected devices
+
+#### 2) Enable Bluetooth tethering
+
+**Option A: Via OLED menu (recommended)**
+1. Navigate to: *Main Menu → Tools → Bluetooth*
+2. Select *Enable/Disable* to start Bluetooth tethering
+3. The Pi will create a network bridge at `192.168.55.1`
+
+**Option B: Via settings file**
+Edit `~/.config/rpi-usb-cloner/settings.json`:
+```json
+{
+  "bluetooth_enabled": true,
+  "bluetooth_auto_start": true
+}
+```
+
+#### 3) Pair your iPhone
+
+1. On the OLED menu, select *Bluetooth → Make Discoverable*
+2. On your iPhone:
+   - Open *Settings → Bluetooth*
+   - Look for *RPi USB Cloner* in available devices
+   - Tap to pair
+3. Once paired, your iPhone will automatically connect to the Pi's Bluetooth network
+
+#### 4) Access the web UI
+
+Open Safari on your iPhone and navigate to:
+```
+http://192.168.55.1:8000
+```
+
+You can now:
+- View the live OLED display stream
+- Monitor device operations
+- Check system health (CPU, memory, disk, temperature)
+- View Bluetooth connection status
+
+### Bluetooth Menu Options
+
+- **Enable/Disable** - Toggle Bluetooth tethering on/off
+- **Status** - View Bluetooth adapter status and connection info
+- **Make Discoverable** - Allow pairing for 5 minutes (default)
+- **Connection Info** - Display web UI URL and connection instructions
+- **Paired Devices** - List paired devices and their connection status
+
+### Bluetooth Settings
+
+Configure Bluetooth behavior in the menu:
+
+- **Auto-start** - Enable Bluetooth tethering on boot
+- **Device Name** - Set the Bluetooth device name (default: "RPi USB Cloner")
+
+### Troubleshooting Bluetooth
+
+**Bluetooth adapter not detected:**
+```sh
+# Check if Bluetooth is available
+hciconfig -a
+
+# Restart Bluetooth service
+sudo systemctl restart bluetooth.service
+```
+
+**Connection issues:**
+```sh
+# View Bluetooth status
+bluetoothctl show
+
+# Check if PAN network is active
+ip addr show pan0
+
+# View DHCP leases
+sudo cat /var/lib/misc/dnsmasq.leases
+```
+
+**Remove paired device:**
+1. Navigate to: *Bluetooth → Paired Devices*
+2. Note the device name
+3. Via SSH:
+   ```sh
+   bluetoothctl remove <MAC_ADDRESS>
+   ```
+
 ## 🎨 Assets & Customization
 
 ### 🖼️ Screensaver GIFs

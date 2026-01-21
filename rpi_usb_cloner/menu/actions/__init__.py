@@ -37,6 +37,13 @@ def get_action_context() -> ActionContext:
 from .drives import copy_drive, drive_info, format_drive, unmount_drive, erase_drive
 from .images import backup_image, write_image, images_coming_soon
 from .tools import view_logs, tools_coming_soon, file_browser
+from .bluetooth import (
+    bluetooth_toggle,
+    bluetooth_status,
+    bluetooth_discoverable,
+    bluetooth_connection_info,
+    bluetooth_paired_devices,
+)
 from .settings import (
     settings_coming_soon,
     wifi_settings,
@@ -85,6 +92,12 @@ __all__ = [
     "view_logs",
     "tools_coming_soon",
     "file_browser",
+    # Bluetooth actions
+    "bluetooth_toggle",
+    "bluetooth_status",
+    "bluetooth_discoverable",
+    "bluetooth_connection_info",
+    "bluetooth_paired_devices",
     # Settings actions
     "settings_coming_soon",
     "wifi_settings",
