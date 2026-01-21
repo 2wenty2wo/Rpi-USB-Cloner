@@ -304,6 +304,12 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
                     "status": get_usage_status(health.disk_percent),
                 },
                 "temperature": None,
+                "bluetooth": {
+                    "enabled": health.bluetooth_enabled,
+                    "active": health.bluetooth_active,
+                    "ip": health.bluetooth_ip,
+                    "paired_count": health.bluetooth_paired_count,
+                },
             }
 
             # Add temperature if available
