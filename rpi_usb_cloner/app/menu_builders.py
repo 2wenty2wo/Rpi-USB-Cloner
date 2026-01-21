@@ -1,6 +1,7 @@
 import os
 
 from rpi_usb_cloner.menu import MenuItem, definitions
+from rpi_usb_cloner.services.bluetooth import is_bluetooth_available
 
 
 def build_device_items(drives_service, drive_menu, menu_actions):
@@ -32,11 +33,25 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         web_server_state = "ON" if web_server_enabled else "OFF"
         web_server_label = f"WEB SERVER: {web_server_state}"
 
+    bluetooth_available = is_bluetooth_available()
+    bluetooth_item = (
+        MenuItem(
+            label="BLUETOOTH",
+            submenu=definitions.BLUETOOTH_MENU,
+        )
+        if bluetooth_available
+        else MenuItem(
+            label="BLUETOOTH (UNAVAILABLE)",
+            action=menu_actions.noop,
+        )
+    )
+
     return [
         MenuItem(
             label="WIFI",
             action=menu_actions.wifi_settings,
         ),
+        bluetooth_item,
         MenuItem(
             label=web_server_label,
             action=menu_actions.toggle_web_server,

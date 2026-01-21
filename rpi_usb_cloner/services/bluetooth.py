@@ -640,6 +640,8 @@ class BluetoothService:
 
 # Global service instance
 _bluetooth_service: Optional[BluetoothService] = None
+_availability_cache: Optional[Dict[str, float]] = None
+_availability_cache_ttl_seconds = 30.0
 
 
 def get_bluetooth_service() -> BluetoothService:
@@ -658,7 +660,17 @@ def get_bluetooth_service() -> BluetoothService:
 # Convenience functions for common operations
 def is_bluetooth_available() -> bool:
     """Check if Bluetooth is available."""
-    return get_bluetooth_service().is_available()
+    global _availability_cache
+    now = time.time()
+    if _availability_cache:
+        cached_at = _availability_cache.get("checked_at", 0.0)
+        cached_value = _availability_cache.get("available")
+        if cached_value is not None and now - cached_at < _availability_cache_ttl_seconds:
+            return bool(cached_value)
+
+    available = get_bluetooth_service().is_available()
+    _availability_cache = {"checked_at": now, "available": available}
+    return available
 
 
 def get_bluetooth_status() -> BluetoothStatus:
