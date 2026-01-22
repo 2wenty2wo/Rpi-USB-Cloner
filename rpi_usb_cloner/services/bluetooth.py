@@ -456,18 +456,22 @@ class BluetoothService:
 
             # 2. Create bridge interface
             if not self._create_bridge():
+                self.teardown_pan()
                 return False
 
             # 3. Configure IP address
             if not self._configure_bridge_ip():
+                self.teardown_pan()
                 return False
 
             # 4. Start DHCP server
             if not self._start_dhcp_server():
+                self.teardown_pan()
                 return False
 
             # 5. Enable NAP (Network Access Point) profile
             if not self._enable_nap():
+                self.teardown_pan()
                 return False
 
             logger.info("Bluetooth PAN setup complete")
