@@ -748,32 +748,60 @@ def main(argv: Optional[list[str]] = None) -> None:
                 if not is_pressed:
                     repeat_state[key]["next_repeat"] = None
 
-            handle_repeat_button("U", -1)
-            handle_repeat_button("D", 1)
-            if not prev_states["L"] and current_states["L"]:
-                handle_back()
-                button_pressed = True
-                render_requested = True
+            # Check if we're in icon view mode on main menu
+            view_mode = settings_store.get_setting("menu_view_mode", default="list")
+            use_icon_view = view_mode == "icon" and current_screen.screen_id == "main"
+
+            if use_icon_view:
+                # In icon view: UP/DOWN and LEFT/RIGHT navigate horizontally
+                handle_repeat_button("U", -1)
+                handle_repeat_button("D", 1)
+
+                # LEFT button scrolls left (instead of going back)
+                if not prev_states["L"] and current_states["L"]:
+                    menu_navigator.move_selection(-1, dynamic_visible_rows)
+                    button_pressed = True
+                    render_requested = True
+
+                # RIGHT button scrolls right (instead of activating)
+                if not prev_states["R"] and current_states["R"]:
+                    menu_navigator.move_selection(1, dynamic_visible_rows)
+                    button_pressed = True
+                    render_requested = True
+            else:
+                # List view: normal navigation
+                handle_repeat_button("U", -1)
+                handle_repeat_button("D", 1)
+
+                # LEFT button goes back
+                if not prev_states["L"] and current_states["L"]:
+                    handle_back()
+                    button_pressed = True
+                    render_requested = True
+
+                # RIGHT button activates
+                if not prev_states["R"] and current_states["R"]:
+                    action = menu_navigator.activate(dynamic_visible_rows)
+                    if action:
+                        action()
+                        force_render = True
+                        # Update button states after action to prevent double-handling of button presses
+                        current_states = {
+                            "U": gpio.is_pressed(gpio.PIN_U),
+                            "D": gpio.is_pressed(gpio.PIN_D),
+                            "L": gpio.is_pressed(gpio.PIN_L),
+                            "R": gpio.is_pressed(gpio.PIN_R),
+                            "A": gpio.is_pressed(gpio.PIN_A),
+                            "B": gpio.is_pressed(gpio.PIN_B),
+                            "C": gpio.is_pressed(gpio.PIN_C),
+                        }
+                        prev_states = current_states.copy()
+                    button_pressed = True
+                    render_requested = True
+
+            # A button always goes back
             if not prev_states["A"] and current_states["A"]:
                 handle_back()
-                button_pressed = True
-                render_requested = True
-            if not prev_states["R"] and current_states["R"]:
-                action = menu_navigator.activate(dynamic_visible_rows)
-                if action:
-                    action()
-                    force_render = True
-                    # Update button states after action to prevent double-handling of button presses
-                    current_states = {
-                        "U": gpio.is_pressed(gpio.PIN_U),
-                        "D": gpio.is_pressed(gpio.PIN_D),
-                        "L": gpio.is_pressed(gpio.PIN_L),
-                        "R": gpio.is_pressed(gpio.PIN_R),
-                        "A": gpio.is_pressed(gpio.PIN_A),
-                        "B": gpio.is_pressed(gpio.PIN_B),
-                        "C": gpio.is_pressed(gpio.PIN_C),
-                    }
-                    prev_states = current_states.copy()
                 button_pressed = True
                 render_requested = True
             if not prev_states["B"] and current_states["B"]:
