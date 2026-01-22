@@ -6,6 +6,7 @@ from typing import Iterable, Optional
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 from rpi_usb_cloner.storage import clonezilla, devices, mount
 
+
 REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
 
 
@@ -30,7 +31,7 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
     # Attempt to mount the partition, handle new exceptions
     try:
         mount.mount_partition(partition_node, name=name)
-    except (ValueError, RuntimeError) as e:
+    except (ValueError, RuntimeError):
         # Mount failed - log but continue (partition may already be mounted or inaccessible)
         # Returning None will cause this partition to be skipped
         return None

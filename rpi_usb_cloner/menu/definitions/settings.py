@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rpi_usb_cloner.menu.model import MenuScreen
+
 from .. import actions as menu_actions
 from . import menu_entry
 
@@ -55,12 +56,21 @@ SCREENSAVER_MENU = MenuScreen(
     title="SCREENSAVER",
 )
 
+VIEW_MENU = MenuScreen(
+    screen_id="view",
+    title="VIEW",
+    items=[
+        menu_entry("MENU VIEW MODE", action=menu_actions.toggle_menu_view_mode),
+    ],
+)
+
 SETTINGS_MENU = MenuScreen(
     screen_id="settings",
     title="SETTINGS",
     items=[
         menu_entry("WIFI", action=menu_actions.wifi_settings),
         menu_entry("WEB SERVER", action=menu_actions.toggle_web_server),
+        menu_entry("VIEW", submenu=VIEW_MENU),
         menu_entry("SCREENSAVER", submenu=SCREENSAVER_MENU),
         menu_entry("DEVELOP", submenu=DEVELOP_MENU),
         menu_entry("POWER", submenu=POWER_MENU),

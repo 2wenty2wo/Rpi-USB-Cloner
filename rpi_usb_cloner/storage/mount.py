@@ -68,7 +68,7 @@ def list_media_devices() -> list[str]:
     # The maximum number of partitions is 15.
     #
     # Use `$ sudo fdisk -l` and `$ sudo sfdisk -l /dev/sda` for more information.
-    with open("/proc/partitions", "r") as f:
+    with open("/proc/partitions") as f:
         devices = []
 
         for line in f.readlines()[2:]:  # skip header lines
@@ -258,7 +258,7 @@ def is_removable(device: str) -> Optional[bool]:
     path = get_device_block_path(device) + "/removable"
 
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             return f.read().strip() == "1"
 
     return None
@@ -268,7 +268,7 @@ def get_size(device: str) -> int:
     path = get_device_block_path(device) + "/size"
 
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             # Multiply by 512, as Linux sectors are always considered to be 512 bytes long
             # Resource: https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/include/linux/types.h?id=v4.4-rc6#n121
             return int(f.read().strip()) * 512
@@ -280,7 +280,7 @@ def get_model(device: str) -> Optional[str]:
     path = get_device_block_path(device) + "/device/model"
 
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             return f.read().strip()
     return None
 
@@ -289,7 +289,7 @@ def get_vendor(device: str) -> Optional[str]:
     path = get_device_block_path(device) + "/device/vendor"
 
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             return f.read().strip()
     return None
 

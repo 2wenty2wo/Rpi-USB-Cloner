@@ -8,13 +8,13 @@ from typing import Callable, Iterable, Optional, Set
 from uuid import uuid4
 
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.clone import clone_device, clone_device_v2, erase_device
+from rpi_usb_cloner.storage.clone import clone_device_v2, erase_device
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_children,
@@ -23,7 +23,6 @@ from rpi_usb_cloner.storage.devices import (
 )
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
-from PIL import ImageDraw
 
 
 def copy_drive(
@@ -54,7 +53,9 @@ def copy_drive(
         [prompt],
         selected_index=confirm_selection,
     )
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
     prev_states = {
         "L": gpio.is_pressed(gpio.PIN_L),
         "R": gpio.is_pressed(gpio.PIN_R),
@@ -90,14 +91,20 @@ def copy_drive(
             if prev_states["B"] and not current_B:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
-                    screens.render_status_template("COPY", "Running...", progress_line="Starting...")
+                    screens.render_status_template(
+                        "COPY", "Running...", progress_line="Starting..."
+                    )
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
                         return
                     job_id = f"clone-{uuid4().hex}"
                     op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
-                    op_log.info(f"Starting clone: {source_name} -> {target_name} (mode {mode})")
-                    screens.render_status_template("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
+                    op_log.info(
+                        f"Starting clone: {source_name} -> {target_name} (mode {mode})"
+                    )
+                    screens.render_status_template(
+                        "COPY", "Running...", progress_line=f"Mode {mode.upper()}"
+                    )
 
                     # Use type-safe CloneJob API (Step 4 refactoring)
                     try:
@@ -109,14 +116,20 @@ def copy_drive(
                         # CloneJob.validate() is called inside clone_device_v2
                         # This automatically prevents source==destination bug!
                         if clone_device_v2(job):
-                            screens.render_status_template("COPY", "Done", progress_line="Complete.")
+                            screens.render_status_template(
+                                "COPY", "Done", progress_line="Complete."
+                            )
                         else:
                             _log_debug(log_debug, "Copy failed")
-                            screens.render_status_template("COPY", "Failed", progress_line="Check logs.")
+                            screens.render_status_template(
+                                "COPY", "Failed", progress_line="Check logs."
+                            )
                     except (KeyError, ValueError) as error:
                         # Handle Drive conversion or CloneMode errors
                         _log_debug(log_debug, f"Copy failed: {error}")
-                        screens.render_status_template("COPY", "Failed", progress_line="Invalid params")
+                        screens.render_status_template(
+                            "COPY", "Failed", progress_line="Invalid params"
+                        )
 
                     time.sleep(1)
                     return
@@ -378,7 +391,9 @@ def _pick_source_target(
                 selected = device
                 break
     if selected:
-        remaining = [device for device in devices_list if device.get("name") != selected_name]
+        remaining = [
+            device for device in devices_list if device.get("name") != selected_name
+        ]
         if not remaining:
             return None, None
         source = selected
@@ -416,7 +431,9 @@ def _confirm_destructive_action(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -559,7 +576,10 @@ def _render_disk_usage_page(
         indicator_width = indicator_bbox[2] - indicator_bbox[0]
         indicator_height = indicator_bbox[3] - indicator_bbox[1]
         draw.text(
-            (context.width - indicator_width - 2, context.height - indicator_height - 2),
+            (
+                context.width - indicator_width - 2,
+                context.height - indicator_height - 2,
+            ),
             indicator,
             font=items_font,
             fill=255,
@@ -597,7 +617,12 @@ def _render_device_identity_page(
     device_name = device.get("name") or ""
     size_bytes = device.get("size") or 0
     size_gb = size_bytes / (1024**3)
-    draw.text((left_margin, current_y), f"{device_name.upper()} {size_gb:.1f}GB", font=items_font, fill=255)
+    draw.text(
+        (left_margin, current_y),
+        f"{device_name.upper()} {size_gb:.1f}GB",
+        font=items_font,
+        fill=255,
+    )
     current_y += display._get_line_height(items_font) + 2
 
     # Vendor/model
@@ -606,7 +631,9 @@ def _render_device_identity_page(
     vendor_model = " ".join(part for part in [vendor, model] if part)
     if vendor_model:
         available_width = context.width - left_margin
-        wrapped = display._wrap_lines_to_width([vendor_model], items_font, available_width)
+        wrapped = display._wrap_lines_to_width(
+            [vendor_model], items_font, available_width
+        )
         for line in wrapped:
             draw.text((left_margin, current_y), line, font=items_font, fill=255)
             current_y += display._get_line_height(items_font) + 2
@@ -615,7 +642,9 @@ def _render_device_identity_page(
     serial = (device.get("serial") or "").strip()
     if serial:
         available_width = context.width - left_margin
-        wrapped = display._wrap_lines_to_width([f"SERIAL:{serial}"], items_font, available_width)
+        wrapped = display._wrap_lines_to_width(
+            [f"SERIAL:{serial}"], items_font, available_width
+        )
         for line in wrapped:
             draw.text((left_margin, current_y), line.upper(), font=items_font, fill=255)
             current_y += display._get_line_height(items_font) + 2
@@ -654,19 +683,31 @@ def _render_drive_metadata_page(
     rota = device.get("rota")
     if rota is not None:
         device_type = "HDD" if rota == "1" or rota == 1 else "SSD"
-        draw.text((left_margin, current_y), f"TYPE: {device_type}", font=items_font, fill=255)
+        draw.text(
+            (left_margin, current_y), f"TYPE: {device_type}", font=items_font, fill=255
+        )
         current_y += display._get_line_height(items_font) + 2
 
     # Table type
     pttype = (device.get("pttype") or "").strip()
     if pttype:
-        draw.text((left_margin, current_y), f"TABLE: {pttype.upper()}", font=items_font, fill=255)
+        draw.text(
+            (left_margin, current_y),
+            f"TABLE: {pttype.upper()}",
+            font=items_font,
+            fill=255,
+        )
         current_y += display._get_line_height(items_font) + 2
 
     # UUID
     ptuuid = (device.get("ptuuid") or "").strip()
     if ptuuid:
-        draw.text((left_margin, current_y), f"UUID: {ptuuid.upper()}", font=items_font, fill=255)
+        draw.text(
+            (left_margin, current_y),
+            f"UUID: {ptuuid.upper()}",
+            font=items_font,
+            fill=255,
+        )
         current_y += display._get_line_height(items_font) + 2
 
     # Page indicator
@@ -750,7 +791,10 @@ def _draw_page_indicator(context, page_index: int, total_pages: int, font) -> No
         indicator_width = indicator_bbox[2] - indicator_bbox[0]
         indicator_height = indicator_bbox[3] - indicator_bbox[1]
         context.draw.text(
-            (context.width - indicator_width - 2, context.height - indicator_height - 2),
+            (
+                context.width - indicator_width - 2,
+                context.height - indicator_height - 2,
+            ),
             indicator,
             font=font,
             fill=255,
@@ -767,7 +811,9 @@ def _view_devices(
     if not selected_name:
         display.display_lines(["NO SELECTED USB"])
         return 1, 0
-    devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
+    devices_list = [
+        device for device in list_usb_disks() if device.get("name") == selected_name
+    ]
     if not devices_list:
         display.display_lines(["NO SELECTED USB"])
         return 1, 0
@@ -800,9 +846,15 @@ def _view_devices(
     # Count partition lines (3 lines per partition: name+fs, mount, blank)
     children = get_children(device)
     partition_line_count = len(children) * 3 if children else 0
-    partition_pages = max(1, (partition_line_count + lines_per_page - 1) // lines_per_page) if children else 1
+    partition_pages = (
+        max(1, (partition_line_count + lines_per_page - 1) // lines_per_page)
+        if children
+        else 1
+    )
 
-    total_pages = 3 + partition_pages  # disk usage + device info + drive info + partition pages
+    total_pages = (
+        3 + partition_pages
+    )  # disk usage + device info + drive info + partition pages
 
     # Route to appropriate renderer based on page index
     if page_index == 0:
@@ -910,7 +962,9 @@ def format_drive(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -987,7 +1041,11 @@ def format_drive(
     def worker() -> None:
         try:
             success = format_device(
-                target, filesystem, format_type, label=label, progress_callback=update_progress
+                target,
+                filesystem,
+                format_type,
+                label=label,
+                progress_callback=update_progress,
             )
             result_holder["result"] = success
         except Exception as exc:
@@ -1040,7 +1098,10 @@ def unmount_drive(
     get_selected_usb_name: Callable[[], Optional[str]],
 ) -> None:
     """Unmount a USB drive and optionally power it off."""
-    from rpi_usb_cloner.storage.devices import unmount_device_with_retry, power_off_device
+    from rpi_usb_cloner.storage.devices import (
+        power_off_device,
+        unmount_device_with_retry,
+    )
 
     # Get target device
     selected_name = get_selected_usb_name()
@@ -1049,7 +1110,9 @@ def unmount_drive(
         time.sleep(1)
         return
 
-    devices_list = [device for device in list_usb_disks() if device.get("name") == selected_name]
+    devices_list = [
+        device for device in list_usb_disks() if device.get("name") == selected_name
+    ]
     if not devices_list:
         display.display_lines(["DRIVE", "NOT FOUND"])
         time.sleep(1)
@@ -1094,7 +1157,9 @@ def unmount_drive(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
 
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
@@ -1151,7 +1216,9 @@ def unmount_drive(
         )
 
     render_poweroff()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
 
     power_off_confirmed = gpio.poll_button_events(
         {

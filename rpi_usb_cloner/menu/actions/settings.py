@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rpi_usb_cloner.actions import settings_actions
+
 from . import get_action_context
 
 
@@ -81,6 +82,10 @@ def toggle_screenshots() -> None:
     settings_actions.toggle_screenshots()
 
 
+def toggle_menu_view_mode() -> None:
+    settings_actions.toggle_menu_view_mode()
+
+
 def toggle_web_server() -> None:
     context = get_action_context()
     settings_actions.toggle_web_server(
@@ -96,7 +101,9 @@ def update_version() -> None:
 
 def restart_service() -> None:
     context = get_action_context()
-    _run_operation(lambda: settings_actions.restart_service(log_debug=context.log_debug))
+    _run_operation(
+        lambda: settings_actions.restart_service(log_debug=context.log_debug)
+    )
 
 
 def stop_service() -> None:
@@ -111,7 +118,9 @@ def restart_system() -> None:
 
 def shutdown_system() -> None:
     context = get_action_context()
-    _run_operation(lambda: settings_actions.shutdown_system(log_debug=context.log_debug))
+    _run_operation(
+        lambda: settings_actions.shutdown_system(log_debug=context.log_debug)
+    )
 
 
 def show_about_credits() -> None:
