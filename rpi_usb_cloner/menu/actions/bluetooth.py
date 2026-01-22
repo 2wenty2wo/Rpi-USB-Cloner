@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import logging
-
 from rpi_usb_cloner.config.settings import get_bool, get_setting, set_bool, set_setting
+from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.services.bluetooth import (
     disable_bluetooth_tethering,
     enable_bluetooth_tethering,
@@ -21,7 +20,7 @@ from rpi_usb_cloner.ui.screens.status import render_status_screen, wait_for_ack
 
 from . import get_action_context
 
-logger = logging.getLogger(__name__)
+logger = get_logger(source="bluetooth", tags=["bluetooth", "menu"])
 
 
 def _append_bluetooth_error(message: str) -> str:
@@ -68,7 +67,7 @@ def bluetooth_toggle():
                     message=_append_bluetooth_error("Failed to disable Bluetooth"),
                 )
         except Exception as e:
-            logger.error(f"Error disabling Bluetooth: {e}")
+            logger.error("Error disabling Bluetooth: {}", e)
             screens.render_error_screen(
                 title="Error",
                 message=f"Failed to disable:\n{str(e)}",
@@ -108,7 +107,7 @@ def bluetooth_toggle():
                     ),
                 )
         except Exception as e:
-            logger.error(f"Error enabling Bluetooth: {e}")
+            logger.error("Error enabling Bluetooth: {}", e)
             screens.render_error_screen(
                 title="Error",
                 message=f"Failed to enable:\n{str(e)}",
@@ -152,7 +151,7 @@ def bluetooth_status():
         wait_for_ack()
 
     except Exception as e:
-        logger.error(f"Error getting Bluetooth status: {e}")
+        logger.error("Error getting Bluetooth status: {}", e)
         screens.render_error_screen(
             title="Error",
             message=str(e),
@@ -197,7 +196,7 @@ def bluetooth_discoverable():
                 message=_append_bluetooth_error("Failed to enable\ndiscoverable mode"),
             )
     except Exception as e:
-        logger.error(f"Error making discoverable: {e}")
+        logger.error("Error making discoverable: {}", e)
         screens.render_error_screen(
             title="Error",
             message=f"Failed:\n{str(e)}",
@@ -238,7 +237,7 @@ def bluetooth_connection_info():
         wait_for_ack()
 
     except Exception as e:
-        logger.error(f"Error getting connection info: {e}")
+        logger.error("Error getting connection info: {}", e)
         screens.render_error_screen(
             title="Error",
             message=str(e),
@@ -282,7 +281,7 @@ def bluetooth_paired_devices():
         wait_for_ack()
 
     except Exception as e:
-        logger.error(f"Error listing paired devices: {e}")
+        logger.error("Error listing paired devices: {}", e)
         screens.render_error_screen(
             title="Error",
             message=str(e),
