@@ -12,14 +12,15 @@ Requires system packages:
     - dnsmasq (DHCP server)
 """
 
-import json
-import logging
 import subprocess
 import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from rpi_usb_cloner.logging import get_logger
+
+
+logger = get_logger(source="bluetooth", tags=["bluetooth"])
 
 
 @dataclass
@@ -238,7 +239,7 @@ class BluetoothService:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             self._last_error = self._extract_process_reason(e)
             logger.error(
-                "Failed to power on Bluetooth: %s", self._format_process_error(e)
+                f"Failed to power on Bluetooth: {self._format_process_error(e)}"
             )
             return False
 
@@ -263,7 +264,7 @@ class BluetoothService:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             self._last_error = self._extract_process_reason(e)
             logger.error(
-                "Failed to power off Bluetooth: %s", self._format_process_error(e)
+                f"Failed to power off Bluetooth: {self._format_process_error(e)}"
             )
             return False
 
@@ -313,7 +314,7 @@ class BluetoothService:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             self._last_error = self._extract_process_reason(e)
             logger.error(
-                "Failed to set discoverable mode: %s", self._format_process_error(e)
+                f"Failed to set discoverable mode: {self._format_process_error(e)}"
             )
             return False
 
