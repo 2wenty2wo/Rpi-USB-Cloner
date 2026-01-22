@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Optional
 
+from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 from rpi_usb_cloner.storage import clonezilla, devices, mount
 
 REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
@@ -50,10 +51,21 @@ def _resolve_mountpoint(partition: dict) -> Optional[Path]:
     return Path(mountpoint)
 
 
-def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[Path]:
-    repos: list[Path] = []
+def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[ImageRepo]:
+    """Find all USB partitions containing image repositories.
+
+    An image repository is identified by a flag file (default: .rpi-usb-cloner-image-repo).
+
+    Args:
+        flag_filename: Name of the flag file to search for
+
+    Returns:
+        List of ImageRepo objects representing discovered repositories
+    """
+    repos: list[ImageRepo] = []
     seen: set[Path] = set()
     for device in devices.list_usb_disks():
+        device_name = device.get("name")
         for partition in _iter_partitions(device):
             mountpoint = _resolve_mountpoint(partition)
             if not mountpoint:
@@ -62,26 +74,63 @@ def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[Path]:
                 continue
             if mountpoint in seen:
                 continue
-            repos.append(mountpoint)
+            # Create ImageRepo domain object
+            repo = ImageRepo(path=mountpoint, drive_name=device_name)
+            repos.append(repo)
             seen.add(mountpoint)
     return repos
 
 
-def list_clonezilla_images(repo_root: Path) -> list[Path]:
+def list_clonezilla_images(repo_root: Path) -> list[DiskImage]:
+    """List all Clonezilla images and ISO files in a repository.
+
+    Searches for Clonezilla image directories in common locations:
+    - {repo_root}/clonezilla/
+    - {repo_root}/images/
+    - {repo_root}/
+
+    Also includes ISO files found in the repository root.
+
+    Args:
+        repo_root: Root path of the image repository
+
+    Returns:
+        List of DiskImage objects sorted by name
+    """
     candidates = [repo_root / "clonezilla", repo_root / "images", repo_root]
-    image_dirs: list[Path] = []
+    images: list[DiskImage] = []
     seen: set[Path] = set()
+
+    # Search for Clonezilla image directories
     for candidate in candidates:
         for image_dir in clonezilla.list_clonezilla_image_dirs(candidate):
             if image_dir in seen:
                 continue
-            image_dirs.append(image_dir)
+            # Create DiskImage domain object for Clonezilla directory
+            image = DiskImage(
+                name=image_dir.name,
+                path=image_dir,
+                image_type=ImageType.CLONEZILLA_DIR,
+            )
+            images.append(image)
             seen.add(image_dir)
 
     # Also include ISO files from the repo root
     for iso_file in repo_root.glob("*.iso"):
         if iso_file.is_file() and iso_file not in seen:
-            image_dirs.append(iso_file)
+            # Create DiskImage domain object for ISO file
+            try:
+                size_bytes = iso_file.stat().st_size
+            except OSError:
+                size_bytes = None
+
+            image = DiskImage(
+                name=iso_file.name,
+                path=iso_file,
+                image_type=ImageType.ISO,
+                size_bytes=size_bytes,
+            )
+            images.append(image)
             seen.add(iso_file)
 
-    return sorted(image_dirs, key=lambda path: path.name)
+    return sorted(images, key=lambda img: img.name)

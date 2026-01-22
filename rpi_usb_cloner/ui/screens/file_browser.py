@@ -76,8 +76,11 @@ def _get_available_locations() -> List[FileItem]:
     # Add image repo locations
     repos = find_image_repos()
     for repo in repos:
-        repo_name = repo.name or str(repo)
-        locations.append(FileItem(repo, is_dir=True, display_name=f"REPO: {repo_name}"))
+        repo_path = repo.path
+        repo_name = repo_path.name or str(repo_path)
+        locations.append(
+            FileItem(repo_path, is_dir=True, display_name=f"REPO: {repo_name}")
+        )
 
     return locations
 

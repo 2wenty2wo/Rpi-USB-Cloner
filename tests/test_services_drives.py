@@ -122,8 +122,12 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_repo_on_device(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test identifying device containing repo."""
+        from rpi_usb_cloner.domain import ImageRepo
+
         invalidate_repo_cache()  # Clear cache before test
-        mock_find_repos.return_value = [Path("/mnt/usb/clonezilla")]
+        mock_find_repos.return_value = [
+            ImageRepo(path=Path("/mnt/usb/clonezilla"), drive_name="sda")
+        ]
         mock_list_usb.return_value = [
             {"name": "sda", "size": 8000000000},
             {"name": "sdb", "size": 16000000000},
@@ -142,10 +146,12 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_multiple_repo_devices(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test multiple devices containing repos."""
+        from rpi_usb_cloner.domain import ImageRepo
+
         invalidate_repo_cache()  # Clear cache before test
         mock_find_repos.return_value = [
-            Path("/mnt/usb1/repo1"),
-            Path("/mnt/usb2/repo2"),
+            ImageRepo(path=Path("/mnt/usb1/repo1"), drive_name="sda"),
+            ImageRepo(path=Path("/mnt/usb2/repo2"), drive_name="sdb"),
         ]
         mock_list_usb.return_value = [
             {"name": "sda"},
@@ -167,8 +173,12 @@ class TestGetRepoDeviceNames:
     @patch("rpi_usb_cloner.services.drives._collect_mountpoints")
     def test_device_without_name(self, mock_collect, mock_list_usb, mock_find_repos):
         """Test device without name is skipped."""
+        from rpi_usb_cloner.domain import ImageRepo
+
         invalidate_repo_cache()  # Clear cache before test
-        mock_find_repos.return_value = [Path("/mnt/usb/repo")]
+        mock_find_repos.return_value = [
+            ImageRepo(path=Path("/mnt/usb/repo"), drive_name=None)
+        ]
         mock_list_usb.return_value = [
             {"size": 8000000000},  # No name
             {"name": "sdb"},

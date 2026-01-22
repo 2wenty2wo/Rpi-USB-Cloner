@@ -169,7 +169,7 @@ def _get_repo_device_names() -> Set[str]:
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
-    repo_paths = [Path(repo).resolve(strict=False) for repo in repos]
+    repo_paths = [repo.path.resolve(strict=False) for repo in repos]
     log.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
 
     for device in usb_devices:
