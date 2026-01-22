@@ -579,20 +579,23 @@ class BluetoothService:
                 ["which", "bt-network"], capture_output=True, timeout=5
             )
 
-            if result.returncode == 0:
-                # Start bt-network server
-                self._pan_process = subprocess.Popen(
-                    ["bt-network", "-s", "nap", self.BRIDGE_INTERFACE],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                logger.info("Started Bluetooth NAP server (bt-network)")
-            else:
-                logger.warning("bt-network not found, NAP may not work properly")
+            if result.returncode != 0:
+                self._last_error = "bt-network not installed (bluez-tools required)"
+                logger.error(self._last_error)
+                return False
 
+            # Start bt-network server
+            self._pan_process = subprocess.Popen(
+                ["bt-network", "-s", "nap", self.BRIDGE_INTERFACE],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self._clear_last_error()
+            logger.info("Started Bluetooth NAP server (bt-network)")
             return True
 
         except Exception as e:
+            self._last_error = str(e)
             logger.error(f"Failed to enable NAP: {e}")
             return False
 
