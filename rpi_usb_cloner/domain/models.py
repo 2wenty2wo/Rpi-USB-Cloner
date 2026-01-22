@@ -3,6 +3,7 @@
 This module introduces type-safe domain objects to replace dict[str, Any]
 scattered throughout the codebase, focusing on high-value areas first.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -57,8 +58,7 @@ class Drive:
         if parts:
             vendor_model = " ".join(parts)
             return f"{self.name} {vendor_model} ({size_str})"
-        else:
-            return f"{self.name} {size_str}"
+        return f"{self.name} {size_str}"
 
     @classmethod
     def from_lsblk_dict(cls, device: dict[str, Any]) -> Drive:

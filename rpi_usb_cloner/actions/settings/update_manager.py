@@ -1,6 +1,7 @@
 """Software update management."""
-import sys
+
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -19,9 +20,11 @@ from .system_utils import (
     is_git_repo,
     is_running_under_systemd,
     log_debug_msg,
-    restart_service as restart_systemd_service,
     run_command,
     run_git_pull,
+)
+from .system_utils import (
+    restart_service as restart_systemd_service,
 )
 
 
@@ -34,7 +37,9 @@ def get_update_status(
         return "Repo not found", None
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
     if fetch.returncode != 0:
-        log_debug_msg(log_debug, f"Update status check: fetch failed {fetch.returncode}")
+        log_debug_msg(
+            log_debug, f"Update status check: fetch failed {fetch.returncode}"
+        )
         return "Unable to check", None
     upstream = run_command(
         ["git", "rev-parse", "--abbrev-ref", "@{u}"],
@@ -68,7 +73,9 @@ def check_update_status(
     """Check update status and return with timestamp."""
     status, behind_count = get_update_status(repo_root, log_debug=log_debug)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
-    log_debug_msg(log_debug, f"Update status check complete at {last_checked}: {status}")
+    log_debug_msg(
+        log_debug, f"Update status check complete at {last_checked}: {status}"
+    )
     return status, behind_count, last_checked
 
 
@@ -147,7 +154,9 @@ def run_update_flow(
                 if running_ratio is not None:
                     update_progress(running_ratio)
                 result_holder["result"] = action(update_progress)
-            except Exception as exc:  # pragma: no cover - defensive for subprocess errors
+            except (
+                Exception
+            ) as exc:  # pragma: no cover - defensive for subprocess errors
                 error_holder["error"] = exc
             finally:
                 update_progress(1.0)
@@ -207,16 +216,15 @@ def run_update_flow(
         )
     output_lines = format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
-        output_lines = (
-            [
-                "Dubious ownership detected.",
-                "Service User= should own repo.",
-                f"Or run: git config --global --add safe.directory {repo_root}",
-            ]
-            + output_lines
-        )
+        output_lines = [
+            "Dubious ownership detected.",
+            "Service User= should own repo.",
+            f"Or run: git config --global --add safe.directory {repo_root}",
+        ] + output_lines
     if pull_result.returncode != 0:
-        log_debug_msg(log_debug, f"Git pull failed with return code {pull_result.returncode}")
+        log_debug_msg(
+            log_debug, f"Git pull failed with return code {pull_result.returncode}"
+        )
         if dubious_ownership:
             output_lines = ["Git safety check failed."] + output_lines
         display.render_paginated_lines(
@@ -248,7 +256,10 @@ def run_update_flow(
             lambda update_progress: restart_systemd_service(log_debug=log_debug),
         )
         if restart_result.returncode != 0:
-            log_debug_msg(log_debug, f"Service restart failed with return code {restart_result.returncode}")
+            log_debug_msg(
+                log_debug,
+                f"Service restart failed with return code {restart_result.returncode}",
+            )
             display.render_paginated_lines(
                 title,
                 ["Restart failed"]
@@ -310,7 +321,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
         results_applied = True
 
     def update_header_lines() -> None:
-        header_lines[:] = build_update_info_lines(version, status, behind_count, last_checked)
+        header_lines[:] = build_update_info_lines(
+            version, status, behind_count, last_checked
+        )
 
     def refresh_update_menu() -> bool:
         if check_done.is_set() and not results_applied:
@@ -322,7 +335,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     def run_check_in_background() -> None:
         try:
             with git_lock:
-                result_holder["result"] = check_update_status(repo_root, log_debug=log_debug)
+                result_holder["result"] = check_update_status(
+                    repo_root, log_debug=log_debug
+                )
         except Exception as exc:  # pragma: no cover - defensive for subprocess errors
             error_holder["error"] = exc
         finally:
@@ -330,7 +345,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
 
     thread = threading.Thread(target=run_check_in_background, daemon=True)
     thread.start()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D, gpio.PIN_A, gpio.PIN_B]
+    )
     prev_states = {
         "L": gpio.is_pressed(gpio.PIN_L),
         "R": gpio.is_pressed(gpio.PIN_R),

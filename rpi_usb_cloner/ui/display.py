@@ -80,18 +80,19 @@ See Also:
     - rpi_usb_cloner.ui.menus: Menu rendering utilities
     - luma.oled documentation: https://luma-oled.readthedocs.io/
 """
+
 import os
-import time
 import threading
-from io import BytesIO
+import time
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Dict, Optional
 
-from PIL import Image, ImageDraw, ImageFont
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
@@ -130,6 +131,8 @@ def _device_menu_lines(device: dict) -> list[str]:
         f"{name} {size_gb:.2f}GB",
         f"{vendor} {model}".strip(),
     ]
+
+
 _display_dirty = threading.Event()
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 TITLE_PADDING = 0
@@ -442,7 +445,7 @@ def draw_title_with_icon(
 
     if icon:
         # Check if icon is a file path to a PNG image
-        if icon.endswith('.png'):
+        if icon.endswith(".png"):
             is_image_icon = True
             try:
                 icon_path = Path(icon) if os.path.isabs(icon) else ASSETS_DIR / icon
@@ -571,12 +574,17 @@ def render_paginated_lines(
         if total_pages > 1:
             left_indicator = "<" if page_index > 0 else ""
             right_indicator = ">" if page_index < total_pages - 1 else ""
-            indicator = f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+            indicator = (
+                f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+            )
             indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
             indicator_width = indicator_bbox[2] - indicator_bbox[0]
             indicator_height = indicator_bbox[3] - indicator_bbox[1]
             draw.text(
-                (context.width - indicator_width - 2, context.height - indicator_height - 2),
+                (
+                    context.width - indicator_width - 2,
+                    context.height - indicator_height - 2,
+                ),
                 indicator,
                 font=items_font,
                 fill=255,
@@ -587,15 +595,17 @@ def render_paginated_lines(
 
 
 def basemenu(state: app_state.AppState) -> None:
-    from rpi_usb_cloner.ui.menus import Menu, MenuItem, render_menu
     from rpi_usb_cloner.services.drives import list_usb_disks_filtered
+    from rpi_usb_cloner.ui.menus import Menu, MenuItem, render_menu
 
     context = get_display_context()
     devices = list_usb_disks_filtered()
     devices_present = bool(devices)
     with _display_lock:
         if not devices:
-            context.draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+            context.draw.rectangle(
+                (0, 0, context.width, context.height), outline=0, fill=0
+            )
             text = "INSERT USB"
             text_bbox = context.draw.textbbox((0, 0), text, font=context.fontinsert)
             text_width = text_bbox[2] - text_bbox[0]
@@ -609,21 +619,27 @@ def basemenu(state: app_state.AppState) -> None:
                 state.usb_list_index = max(len(devices) - 1, 0)
             menu_items = []
             for device in devices:
-                menu_items.append(
-                    MenuItem(
-                        _device_menu_lines(device)
-                    )
-                )
+                menu_items.append(MenuItem(_device_menu_lines(device)))
             start_index = max(0, state.usb_list_index - 1)
             max_start = max(len(menu_items) - app_state.VISIBLE_ROWS, 0)
             if start_index > max_start:
                 start_index = max_start
-            visible_items = menu_items[start_index : start_index + app_state.VISIBLE_ROWS]
+            visible_items = menu_items[
+                start_index : start_index + app_state.VISIBLE_ROWS
+            ]
             visible_selected_index = state.usb_list_index - start_index
-            if state.index not in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+            if state.index not in (
+                app_state.MENU_COPY,
+                app_state.MENU_VIEW,
+                app_state.MENU_ERASE,
+            ):
                 state.index = app_state.MENU_COPY
             footer_selected = None
-            if state.index in (app_state.MENU_COPY, app_state.MENU_VIEW, app_state.MENU_ERASE):
+            if state.index in (
+                app_state.MENU_COPY,
+                app_state.MENU_VIEW,
+                app_state.MENU_ERASE,
+            ):
                 footer_selected = state.index
             menu = Menu(
                 items=visible_items,
@@ -632,7 +648,9 @@ def basemenu(state: app_state.AppState) -> None:
                 footer_selected_index=footer_selected,
                 footer_positions=[context.x - 11, context.x + 32, context.x + 71],
             )
-            render_menu(menu, context.draw, context.width, context.height, context.fonts)
+            render_menu(
+                menu, context.draw, context.width, context.height, context.fonts
+            )
         context.disp.display(context.image)
         mark_display_dirty()
     state.lcdstart = datetime.now()

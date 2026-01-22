@@ -1,9 +1,10 @@
 import time
-from typing import Callable, Dict, Optional, Any, Iterable
+from typing import Any, Callable, Dict, Iterable, Optional
 
 import RPi.GPIO as GPIO
 
 from rpi_usb_cloner.hardware import virtual_gpio
+
 
 PIN_A = 5
 PIN_B = 6
@@ -91,8 +92,8 @@ def poll_button_events(
     """
     # Initialize previous button states (HIGH = not pressed, LOW = pressed)
     # Track both physical and virtual button states
-    prev_physical_states = {pin: read_button(pin) for pin in button_handlers.keys()}
-    prev_virtual_states = {pin: False for pin in button_handlers.keys()}
+    prev_physical_states = {pin: read_button(pin) for pin in button_handlers}
+    prev_virtual_states = dict.fromkeys(button_handlers.keys(), False)
 
     while True:
         # Check each button for falling edge (press event) from physical OR virtual sources

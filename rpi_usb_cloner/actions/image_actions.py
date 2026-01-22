@@ -32,7 +32,9 @@ def coming_soon() -> None:
     screens.show_coming_soon(title="IMAGES")
 
 
-def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
+def backup_image(
+    *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
+) -> None:
     """Create a Clonezilla-compatible backup of a USB drive."""
     from rpi_usb_cloner.ui import keyboard
 
@@ -70,10 +72,14 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     repo_devices = set()
     for device in usb_devices:
         mountpoints = _collect_mountpoints(device)
-        if any(str(repo.path).startswith(mount) for mount in mountpoints for repo in repos):
+        if any(
+            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
+        ):
             repo_devices.add(device.get("name"))
 
-    source_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
+    source_candidates = [
+        device for device in usb_devices if device.get("name") not in repo_devices
+    ]
     if not source_candidates:
         display.display_lines(["NO SOURCE", "AVAILABLE"])
         time.sleep(1)
@@ -127,7 +133,11 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
             time.sleep(1)
             return
 
-        selected_partition_names = [partitions[i].name for i, selected in enumerate(selected_partitions) if selected]
+        selected_partition_names = [
+            partitions[i].name
+            for i, selected in enumerate(selected_partitions)
+            if selected
+        ]
         _log_debug(log_debug, f"Selected partitions: {selected_partition_names}")
 
     # Step 4: Select image repository
@@ -171,7 +181,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     _log_debug(log_debug, f"Image name entered: {image_name}")
 
     # Validate image name (alphanumeric, dash, underscore only)
-    if not re.match(r'^[a-zA-Z0-9_-]+$', image_name):
+    if not re.match(r"^[a-zA-Z0-9_-]+$", image_name):
         display.display_lines(["INVALID NAME", "Use A-Z 0-9 - _"])
         time.sleep(1)
         return
@@ -197,6 +207,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
 
     # Get last used compression from settings
     from rpi_usb_cloner.config import settings as config_settings
+
     last_compression = str(config_settings.get_setting("backup_compression", "gzip"))
 
     compression_labels = [label for _, label in compression_options]
@@ -216,13 +227,17 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     if selected_compression_index is None:
         return
 
-    compression_type, compression_label = compression_options[selected_compression_index]
+    compression_type, compression_label = compression_options[
+        selected_compression_index
+    ]
     config_settings.set_setting("backup_compression", compression_type)
     _log_debug(log_debug, f"Compression selected: {compression_type}")
 
     # Step 7: Estimate size and show confirmation
     try:
-        estimated_size = clonezilla.estimate_backup_size(source_name, selected_partition_names)
+        estimated_size = clonezilla.estimate_backup_size(
+            source_name, selected_partition_names
+        )
     except Exception as e:
         _log_debug(log_debug, f"Failed to estimate size: {e}")
         estimated_size = 0
@@ -254,12 +269,14 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
 
     if available_space > 0 and estimated_size > 0:
         if estimated_size > available_space:
-            display.display_lines([
-                "NOT ENOUGH",
-                "SPACE",
-                f"Need: {devices.human_size(estimated_size)}",
-                f"Avail: {devices.human_size(available_space)}",
-            ])
+            display.display_lines(
+                [
+                    "NOT ENOUGH",
+                    "SPACE",
+                    f"Need: {devices.human_size(estimated_size)}",
+                    f"Avail: {devices.human_size(available_space)}",
+                ]
+            )
             time.sleep(2)
             return
 
@@ -425,7 +442,9 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     )
 
 
-def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None) -> None:
+def write_image(
+    *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
+) -> None:
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     if not repos:
         display.display_lines(["IMAGE REPO", "NOT FOUND"])
@@ -478,9 +497,13 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     repo_devices = set()
     for device in usb_devices:
         mountpoints = _collect_mountpoints(device)
-        if any(str(repo.path).startswith(mount) for mount in mountpoints for repo in repos):
+        if any(
+            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
+        ):
             repo_devices.add(device.get("name"))
-    target_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
+    target_candidates = [
+        device for device in usb_devices if device.get("name") not in repo_devices
+    ]
     if not target_candidates:
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
@@ -563,7 +586,9 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
             if clamped is not None:
                 progress_ratio = clamped
                 progress_ratio_snapshot = clamped
-            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            wrote_line = next(
+                (line for line in lines if line.startswith("Wrote ")), None
+            )
             if wrote_line:
                 match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
                 if match:
@@ -646,12 +671,12 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     def on_left():
         if selection[0] == 1:
             selection[0] = 0
-            _log_debug(log_debug, f"Selection changed: VERIFY")
+            _log_debug(log_debug, "Selection changed: VERIFY")
 
     def on_right():
         if selection[0] == 0:
             selection[0] = 1
-            _log_debug(log_debug, f"Selection changed: FINISH")
+            _log_debug(log_debug, "Selection changed: FINISH")
 
     def on_button_a():
         # A button = cancel/back, treat as Finish
@@ -701,7 +726,9 @@ def _select_partitions_checklist(partition_labels: list[str]) -> Optional[list[b
         display.display_lines(["SELECT PARTS", "L/R=Toggle B=OK", *lines[:4]])
 
     render_screen()
-    menus.wait_for_buttons_release([gpio.PIN_U, gpio.PIN_D, gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_U, gpio.PIN_D, gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B]
+    )
 
     while True:
         render_screen()
@@ -790,14 +817,22 @@ def _verify_backup(
         screens.render_status_template(
             "VERIFY",
             "SUCCESS",
-            extra_lines=["Backup verification", "completed successfully.", "Press A/B to continue."],
+            extra_lines=[
+                "Backup verification",
+                "completed successfully.",
+                "Press A/B to continue.",
+            ],
         )
     else:
         _log_debug(log_debug, "Backup verification failed")
         screens.render_status_template(
             "VERIFY",
             "FAILED",
-            extra_lines=["Verification failed.", "Backup may be corrupt.", "Press A/B to continue."],
+            extra_lines=[
+                "Verification failed.",
+                "Backup may be corrupt.",
+                "Press A/B to continue.",
+            ],
         )
 
     screens.wait_for_ack()
@@ -867,14 +902,23 @@ def _verify_restore(
         screens.render_status_template(
             "VERIFY",
             "SUCCESS",
-            extra_lines=["Image verification", "completed successfully.", "Press A/B to continue."],
+            extra_lines=[
+                "Image verification",
+                "completed successfully.",
+                "Press A/B to continue.",
+            ],
         )
     else:
         _log_debug(log_debug, "Verification failed")
         screens.render_status_template(
             "VERIFY",
             "FAILED",
-            extra_lines=["Verification failed.", "Data may not match", "source image.", "Press A/B to continue."],
+            extra_lines=[
+                "Verification failed.",
+                "Data may not match",
+                "source image.",
+                "Press A/B to continue.",
+            ],
         )
 
     screens.wait_for_ack()
@@ -1062,8 +1106,12 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
 
 def _short_restore_reason(message: str) -> str:
     lower = message.lower()
-    if "partclone tool not found" in lower or ("partclone." in lower and "not found" in lower):
-        fstype_match = re.search(r"filesystem ['\"]?([^'\"]+)['\"]?", message, re.IGNORECASE)
+    if "partclone tool not found" in lower or (
+        "partclone." in lower and "not found" in lower
+    ):
+        fstype_match = re.search(
+            r"filesystem ['\"]?([^'\"]+)['\"]?", message, re.IGNORECASE
+        )
         if fstype_match:
             return f"Missing partclone.{fstype_match.group(1).lower()}"
         return "Missing partclone tool"
@@ -1079,7 +1127,9 @@ def _short_restore_reason(message: str) -> str:
 
 
 def _extract_stderr_message(message: str) -> Optional[str]:
-    match = re.search(r"stderr:\s*(.*?)(?:\s*(?:stdout:|$))", message, re.IGNORECASE | re.DOTALL)
+    match = re.search(
+        r"stderr:\s*(.*?)(?:\s*(?:stdout:|$))", message, re.IGNORECASE | re.DOTALL
+    )
     if not match:
         return None
     stderr = " ".join(match.group(1).strip().split())
@@ -1156,7 +1206,9 @@ def _write_iso_image(
             if clamped is not None:
                 progress_ratio = clamped
                 progress_ratio_snapshot = clamped
-            wrote_line = next((line for line in lines if line.startswith("Wrote ")), None)
+            wrote_line = next(
+                (line for line in lines if line.startswith("Wrote ")), None
+            )
             if wrote_line:
                 match = re.match(r"^Wrote\s+(\S+)(?:\s+(\S+%))?", wrote_line)
                 if match:
@@ -1218,7 +1270,9 @@ def _write_iso_image(
         f"Elapsed {_format_elapsed_duration(elapsed_seconds)}",
     ]
     if progress_written_bytes and progress_written_percent:
-        summary_lines.append(f"Wrote {progress_written_bytes} {progress_written_percent}")
+        summary_lines.append(
+            f"Wrote {progress_written_bytes} {progress_written_percent}"
+        )
     elif progress_written_bytes:
         summary_lines.append(f"Wrote {progress_written_bytes}")
     elif progress_ratio_snapshot is not None:

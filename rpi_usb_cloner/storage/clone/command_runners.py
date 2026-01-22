@@ -1,9 +1,9 @@
 """Command execution utilities with progress tracking."""
+
 import re
 import select
 import subprocess
 import time
-from typing import Callable, Optional
 
 from rpi_usb_cloner.ui.display import display_lines
 
@@ -44,11 +44,20 @@ def run_progress_command(
     """Run a command with real-time progress monitoring (legacy API)."""
     display_lines(
         format_progress_display(
-            title, device_label, mode_label, 0 if total_bytes else None, total_bytes, None, None, None
+            title,
+            device_label,
+            mode_label,
+            0 if total_bytes else None,
+            total_bytes,
+            None,
+            None,
+            None,
         )
     )
     _log_debug(f"Starting command: {' '.join(command)}")
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     last_update = time.time()
     last_bytes = None
     last_time = None
@@ -85,7 +94,9 @@ def run_progress_command(
                         if delta_bytes >= 0 and delta_time > 0:
                             rate = delta_bytes / delta_time
                 if rate and total_bytes and bytes_copied <= total_bytes:
-                    eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    eta_seconds = (
+                        (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    )
                     eta = format_eta(eta_seconds)
                 last_bytes = bytes_copied
                 last_time = now
@@ -177,6 +188,7 @@ def run_checked_with_streaming_progress(
     subtitle=None,
 ):
     """Run a command with streaming progress monitoring and callback support."""
+
     def emit_progress(lines, ratio=None):
         if progress_callback:
             progress_callback(lines, ratio)
@@ -257,7 +269,9 @@ def run_checked_with_streaming_progress(
                         if delta_bytes >= 0 and delta_time > 0:
                             rate = delta_bytes / delta_time
                 if rate and total_bytes and bytes_copied <= total_bytes:
-                    eta_seconds = (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    eta_seconds = (
+                        (total_bytes - bytes_copied) / rate if rate > 0 else None
+                    )
                     eta = format_eta(eta_seconds)
                 last_bytes = bytes_copied
                 last_time = now
@@ -317,7 +331,9 @@ def run_checked_with_streaming_progress(
         message = stderr or stdout or "Command failed"
         raise RuntimeError(f"Command failed ({' '.join(command)}): {message}")
     emit_progress([title, "Complete"], ratio=1.0)
-    return subprocess.CompletedProcess(command, process.returncode, stdout=stdout_data, stderr=stderr_output)
+    return subprocess.CompletedProcess(
+        command, process.returncode, stdout=stdout_data, stderr=stderr_output
+    )
 
 
 # Export configure function

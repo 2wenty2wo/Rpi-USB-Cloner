@@ -1,4 +1,5 @@
 """Settings storage for application configuration."""
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "screenshots_enabled": False,
     "screenshots_dir": "/home/pi/oled_screenshots",
     "web_server_enabled": False,
+    "menu_view_mode": "list",
 }
 
 

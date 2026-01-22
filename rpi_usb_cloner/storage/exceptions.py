@@ -31,12 +31,12 @@ Usage:
 
 class StorageError(Exception):
     """Base exception for all storage operations."""
-    pass
+
 
 
 class DeviceError(StorageError):
     """Base exception for device-related errors."""
-    pass
+
 
 
 class DeviceNotFoundError(DeviceError):
@@ -70,7 +70,7 @@ class DeviceValidationError(DeviceError):
 
 class MountError(StorageError):
     """Base exception for mount-related errors."""
-    pass
+
 
 
 class UnmountFailedError(MountError):
@@ -81,8 +81,7 @@ class UnmountFailedError(MountError):
         self.mountpoints = mountpoints
         mounts_str = ", ".join(mountpoints)
         super().__init__(
-            f"Failed to unmount {device_name}. "
-            f"Active mountpoints: {mounts_str}"
+            f"Failed to unmount {device_name}. " f"Active mountpoints: {mounts_str}"
         )
 
 
@@ -100,7 +99,7 @@ class MountVerificationError(MountError):
 
 class CloneError(StorageError):
     """Base exception for clone operations."""
-    pass
+
 
 
 class SourceDestinationSameError(CloneError):
@@ -118,8 +117,13 @@ class SourceDestinationSameError(CloneError):
 class InsufficientSpaceError(CloneError):
     """Destination device is too small for source data."""
 
-    def __init__(self, source_name: str, source_size: int,
-                 destination_name: str, destination_size: int):
+    def __init__(
+        self,
+        source_name: str,
+        source_size: int,
+        destination_name: str,
+        destination_size: int,
+    ):
         self.source_name = source_name
         self.source_size = source_size
         self.destination_name = destination_name
@@ -141,7 +145,7 @@ class CloneOperationError(CloneError):
 
 class FormatError(StorageError):
     """Base exception for format operations."""
-    pass
+
 
 
 class FormatOperationError(FormatError):
@@ -154,7 +158,7 @@ class FormatOperationError(FormatError):
 
 class EraseError(StorageError):
     """Base exception for erase operations."""
-    pass
+
 
 
 class EraseOperationError(EraseError):

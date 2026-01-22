@@ -1,4 +1,5 @@
 """Compression detection utilities for Clonezilla images."""
+
 from __future__ import annotations
 
 from pathlib import Path

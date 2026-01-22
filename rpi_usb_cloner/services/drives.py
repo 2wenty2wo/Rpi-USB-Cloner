@@ -64,6 +64,7 @@ See Also:
     - rpi_usb_cloner.storage.devices: Low-level device detection
     - rpi_usb_cloner.storage.mount: Device mounting utilities
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -75,7 +76,7 @@ from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
-from rpi_usb_cloner.storage.mount import get_device_name, get_size, list_media_devices
+
 
 log = get_logger(source=__name__)
 
@@ -137,6 +138,7 @@ def _get_repo_device_names() -> Set[str]:
     # Initialize startup time on first call
     if _startup_time is None:
         import time
+
         _startup_time = time.time()
         log.debug("Initialized repo cache startup time")
 
@@ -151,6 +153,7 @@ def _get_repo_device_names() -> Set[str]:
 
     if not repos:
         import time
+
         elapsed = time.time() - _startup_time
         in_grace_period = elapsed < _STARTUP_GRACE_PERIOD
 
@@ -162,11 +165,10 @@ def _get_repo_device_names() -> Set[str]:
                 "not caching empty result"
             )
             return set()
-        else:
-            # After grace period, cache the empty result
-            _repo_device_cache = set()
-            log.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
-            return _repo_device_cache
+        # After grace period, cache the empty result
+        _repo_device_cache = set()
+        log.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
+        return _repo_device_cache
 
     repo_devices: Set[str] = set()
     usb_devices = list_usb_disks()
@@ -269,9 +271,7 @@ def list_usb_disks_filtered() -> List[dict]:
     """
     repo_devices = _get_repo_device_names()
     return [
-        device
-        for device in list_usb_disks()
-        if device.get("name") not in repo_devices
+        device for device in list_usb_disks() if device.get("name") not in repo_devices
     ]
 
 

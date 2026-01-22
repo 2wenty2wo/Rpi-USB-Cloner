@@ -2,6 +2,7 @@
 
 This module provides support for writing ISO files directly to USB devices.
 """
+
 from __future__ import annotations
 
 import os
@@ -54,7 +55,14 @@ def restore_iso_image(
     if not dd_path:
         raise RuntimeError("dd not found")
 
-    command = [dd_path, f"if={iso_path}", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"]
+    command = [
+        dd_path,
+        f"if={iso_path}",
+        f"of={target_node}",
+        "bs=4M",
+        "status=progress",
+        "conv=fsync",
+    ]
 
     clone.run_checked_with_streaming_progress(
         command,
@@ -70,6 +78,7 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
     if not blockdev:
         return None
     import subprocess
+
     result = subprocess.run(
         [blockdev, "--getsize64", device_node],
         stdout=subprocess.PIPE,
@@ -84,7 +93,9 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
         return None
 
 
-def _get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
+def _get_device_size_bytes(
+    target_info: Optional[dict], target_node: str
+) -> Optional[int]:
     """Get device size from device info or blockdev."""
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))

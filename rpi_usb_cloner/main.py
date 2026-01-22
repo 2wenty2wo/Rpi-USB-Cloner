@@ -111,10 +111,10 @@ from rpi_usb_cloner.app.menu_builders import (
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.logging import get_logger, setup_logging
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu.model import get_screen_icon
-from rpi_usb_cloner.logging import get_logger, setup_logging
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
@@ -122,6 +122,7 @@ from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
+from rpi_usb_cloner.ui.icons import SCREEN_ICONS
 from rpi_usb_cloner.web import server as web_server
 
 
@@ -538,15 +539,40 @@ def main(argv: Optional[list[str]] = None) -> None:
             dynamic_visible_rows,
         )
         if force or render_key != last_render_state["key"]:
-            renderer.render_menu_screen(
-                title=current_screen.title,
-                items=items,
-                selected_index=menu_navigator.current_state().selected_index,
-                scroll_offset=menu_navigator.current_state().scroll_offset,
-                status_line=status_line,
-                visible_rows=dynamic_visible_rows,
-                title_icon=get_screen_icon(current_screen.screen_id),
-            )
+            # Check if we should use icon view (only for main menu currently)
+            view_mode = settings_store.get_setting("menu_view_mode", default="list")
+            use_icon_view = view_mode == "icon" and current_screen.screen_id == "main"
+
+            if use_icon_view:
+                # Get icons for each menu item based on their submenu screen_id
+                menu_items = menu_navigator.current_items()
+                item_icons = []
+                for menu_item in menu_items:
+                    if menu_item.submenu:
+                        icon = SCREEN_ICONS.get(menu_item.submenu.screen_id, "")
+                    else:
+                        icon = ""
+                    item_icons.append(icon)
+
+                renderer.render_icon_menu_screen(
+                    title=current_screen.title,
+                    items=items,
+                    selected_index=menu_navigator.current_state().selected_index,
+                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    status_line=status_line,
+                    title_icon=get_screen_icon(current_screen.screen_id),
+                    item_icons=item_icons,
+                )
+            else:
+                renderer.render_menu_screen(
+                    title=current_screen.title,
+                    items=items,
+                    selected_index=menu_navigator.current_state().selected_index,
+                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    status_line=status_line,
+                    visible_rows=dynamic_visible_rows,
+                    title_icon=get_screen_icon(current_screen.screen_id),
+                )
             last_render_state["key"] = render_key
 
     def handle_back() -> None:
