@@ -414,17 +414,14 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
 
             repos = image_repo.find_image_repos()
             image_list = []
-            for repo_path in repos:
-                for image_path in image_repo.list_clonezilla_images(repo_path):
-                    image_type = "clonezilla"
-                    if image_path.is_file() and image_path.suffix.lower() == ".iso":
-                        image_type = "iso"
+            for repo in repos:
+                for image in image_repo.list_clonezilla_images(repo.path):
                     image_list.append(
                         {
-                            "name": image_path.name,
-                            "path": str(image_path),
-                            "type": image_type,
-                            "repo_label": str(repo_path),
+                            "name": image.name,
+                            "path": str(image.path),
+                            "type": image.image_type.value,
+                            "repo_label": str(repo.path),
                         }
                     )
 

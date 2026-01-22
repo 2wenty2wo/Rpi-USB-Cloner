@@ -70,7 +70,7 @@ def backup_image(*, app_context: AppContext, log_debug: Optional[Callable[[str],
     repo_devices = set()
     for device in usb_devices:
         mountpoints = _collect_mountpoints(device)
-        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
+        if any(str(repo.path).startswith(mount) for mount in mountpoints for repo in repos):
             repo_devices.add(device.get("name"))
 
     source_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
@@ -434,31 +434,31 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if len(repos) > 1:
         selected_repo = menus.select_list(
             "IMG REPO",
-            [repo.name for repo in repos],
+            [repo.path.name for repo in repos],
         )
         if selected_repo is None:
             return
-        repo_path = repos[selected_repo]
+        repo_path = repos[selected_repo].path
     else:
-        repo_path = repos[0]
-    image_dirs = image_repo.list_clonezilla_images(repo_path)
-    if not image_dirs:
+        repo_path = repos[0].path
+    images = image_repo.list_clonezilla_images(repo_path)
+    if not images:
         display.display_lines(["NO IMAGES", "FOUND"])
         time.sleep(1)
         return
     selected_index = menus.select_list(
         "CHOOSE IMAGE",
-        [path.name for path in image_dirs],
+        [img.name for img in images],
         screen_id="images",
         enable_horizontal_scroll=True,
         scroll_start_delay=1.5,
     )
     if selected_index is None:
         return
-    selected_dir = image_dirs[selected_index]
+    selected_image = images[selected_index]
 
     # Check if the selected image is an ISO file
-    is_iso = selected_dir.is_file() and selected_dir.suffix.lower() == ".iso"
+    is_iso = selected_image.is_iso
 
     # For Clonezilla images, prompt for partition mode
     if not is_iso:
@@ -478,7 +478,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     repo_devices = set()
     for device in usb_devices:
         mountpoints = _collect_mountpoints(device)
-        if any(str(repo).startswith(mount) for mount in mountpoints for repo in repos):
+        if any(str(repo.path).startswith(mount) for mount in mountpoints for repo in repos):
             repo_devices.add(device.get("name"))
     target_candidates = [device for device in usb_devices if device.get("name") not in repo_devices]
     if not target_candidates:
@@ -512,12 +512,12 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     if is_iso:
         if not _confirm_destructive_action(log_debug=log_debug):
             return
-        _write_iso_image(selected_dir, target, log_debug=log_debug)
+        _write_iso_image(selected_image.path, target, log_debug=log_debug)
         return
 
     # Continue with Clonezilla image flow
     try:
-        plan = clonezilla.parse_clonezilla_image(selected_dir)
+        plan = clonezilla.parse_clonezilla_image(selected_image.path)
     except RuntimeError as error:
         _log_debug(log_debug, f"Restore load failed: {error}")
         display.display_lines(["IMAGE", "INVALID"])
@@ -545,7 +545,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
     op_log = get_logger(job_id=job_id, tags=["restore"], source="restore")
     op_log.info(
         "Starting restore: %s -> %s (mode %s)",
-        selected_dir.name,
+        selected_image.name,
         target.get("name"),
         partition_mode or "iso",
     )
@@ -620,7 +620,7 @@ def write_image(*, app_context: AppContext, log_debug: Optional[Callable[[str], 
         return
     elapsed_seconds = time.monotonic() - start_time
     summary_lines = _build_restore_summary_lines(
-        image_name=selected_dir.name,
+        image_name=selected_image.name,
         target=target,
         partition_label=partition_label,
         elapsed_seconds=elapsed_seconds,
