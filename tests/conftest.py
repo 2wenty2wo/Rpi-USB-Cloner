@@ -455,13 +455,19 @@ def mock_subprocess_run(mocker):
 
 
 @pytest.fixture(autouse=True)
-def mock_display_context(mocker):
+def mock_display_context(request, mocker):
     """
     Auto-use fixture that mocks display context initialization.
 
     This prevents tests from failing when display_lines is called
     without proper display context setup.
+
+    Skipped for pure domain model tests that don't need UI/hardware mocking.
     """
+    # Skip for domain model tests (no UI/hardware dependencies)
+    if "test_domain_models" in request.node.nodeid:
+        return None
+
     mock_context = Mock()
     mock_context.device = Mock()
     mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_context)

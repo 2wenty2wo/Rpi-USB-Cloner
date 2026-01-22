@@ -51,7 +51,7 @@ markers = [
     "unit: marks tests as unit tests",
     "hardware: marks tests that require actual hardware",
 ]
-timeout = 30
+# timeout = 30  # Temporarily disabled - pytest-timeout not installed
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
