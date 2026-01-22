@@ -90,6 +90,10 @@ def toggle_web_server() -> None:
     )
 
 
+def toggle_menu_view_mode() -> None:
+    settings_actions.toggle_menu_view_mode()
+
+
 def update_version() -> None:
     context = get_action_context()
     _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))

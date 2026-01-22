@@ -54,6 +54,7 @@ from .settings import (
     show_about_credits,
     shutdown_system,
     stop_service,
+    toggle_menu_view_mode,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
@@ -62,7 +63,6 @@ from .settings import (
     wifi_settings,
 )
 from .tools import file_browser, tools_coming_soon, view_logs
-
 
 # Common utility (used by all action modules)
 noop = lambda: None
@@ -102,6 +102,7 @@ __all__ = [
     "lucide_demo",
     "heroicons_demo",
     "preview_title_font",
+    "toggle_menu_view_mode",
     "toggle_screenshots",
     "toggle_web_server",
     "update_version",
