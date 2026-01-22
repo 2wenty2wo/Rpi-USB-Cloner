@@ -64,7 +64,6 @@ from .settings import (
 )
 from .tools import file_browser, tools_coming_soon, view_logs
 
-
 # Common utility (used by all action modules)
 noop = lambda: None
 
