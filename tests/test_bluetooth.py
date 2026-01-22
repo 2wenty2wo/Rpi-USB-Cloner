@@ -75,6 +75,10 @@ class TestBluetoothService:
         """Test powering on Bluetooth adapter."""
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = Mock(returncode=0)
+        mocker.patch(
+            "rpi_usb_cloner.services.bluetooth.shutil.which",
+            side_effect=lambda cmd: None if cmd in {"rfkill", "systemctl"} else "/usr/bin",
+        )
 
         result = bluetooth_service.power_on()
 
