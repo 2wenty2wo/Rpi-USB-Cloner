@@ -4,6 +4,7 @@ import os
 import shutil
 from typing import Any, Optional, Union
 
+from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_children,
@@ -338,3 +339,64 @@ def clone_device_smart(
     display_lines(["CLONING", "Complete"])
     _log_debug(f"Smart clone completed from {source_node} to {target_node}")
     return True
+
+
+def clone_device_v2(job: CloneJob) -> bool:
+    """Clone a device using type-safe CloneJob (RECOMMENDED for new code).
+
+    This function provides a type-safe API for cloning operations with
+    built-in validation. It wraps the existing clone_device() implementation
+    while adding CloneJob validation.
+
+    Args:
+        job: CloneJob containing source, destination, mode, and job_id
+
+    Returns:
+        True if successful, False otherwise
+
+    Raises:
+        ValueError: If CloneJob.validate() fails (e.g., source==destination,
+                    destination too small, destination not removable)
+
+    Example:
+        >>> from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+        >>> source = Drive.from_lsblk_dict(source_dict)
+        >>> destination = Drive.from_lsblk_dict(dest_dict)
+        >>> job = CloneJob(source, destination, CloneMode.SMART, "clone-123")
+        >>> job.validate()  # Raises ValueError if invalid
+        >>> success = clone_device_v2(job)
+    """
+    # CRITICAL: Validate job constraints (source != destination, size, etc.)
+    try:
+        job.validate()
+    except ValueError as error:
+        # Map domain validation error to storage layer display
+        error_msg = str(error)
+        if "same device" in error_msg.lower():
+            display_lines(["FAILED", "Same device!"])
+        elif "smaller than source" in error_msg.lower():
+            display_lines(["FAILED", "No space"])
+        elif "not removable" in error_msg.lower():
+            display_lines(["FAILED", "Not removable"])
+        else:
+            display_lines(["FAILED", "Validation"])
+        _log_debug(f"Clone aborted: {error}")
+        return False
+
+    # Convert Drive objects to device paths (for backward compat with old API)
+    # Note: clone_device still uses dicts, but we pass device paths which it accepts
+    source_path = job.source.device_path
+    destination_path = job.destination.device_path
+    mode = job.mode.value
+
+    # Get device dicts for the existing API (it expects dicts)
+    source_dict = get_device_by_name(job.source.name)
+    dest_dict = get_device_by_name(job.destination.name)
+
+    if not source_dict or not dest_dict:
+        display_lines(["FAILED", "Device lookup"])
+        _log_debug(f"Clone aborted: Could not find source or destination device")
+        return False
+
+    # Call existing implementation
+    return clone_device(source_dict, dest_dict, mode=mode)
