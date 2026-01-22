@@ -132,8 +132,15 @@ class BluetoothService:
                 text=True,
                 timeout=5,
             )
-        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            logger.warning("Failed to check bluetooth service state: %s", e)
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+        ) as e:
+            logger.warning(
+                "Failed to check bluetooth service state: %s",
+                self._format_process_error(e),
+            )
             return None
         state = result.stdout.strip() or result.stderr.strip()
         return state or "unknown"
