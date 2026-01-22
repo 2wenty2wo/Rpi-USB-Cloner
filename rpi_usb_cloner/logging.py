@@ -85,6 +85,7 @@ def setup_logging(
     debug: bool = False,
     trace: bool = False,
     log_dir: Path | None = None,
+    web_ui_min_level: str | None = None,
 ) -> Logger:
     """
     Setup multi-tier logging with separate sinks for different log levels.
@@ -106,6 +107,7 @@ def setup_logging(
         debug: Enable DEBUG level logging
         trace: Enable TRACE level logging (very verbose)
         log_dir: Custom log directory (defaults to ~/.local/state/rpi-usb-cloner/logs)
+        web_ui_min_level: Minimum log level for web UI log buffer sink
     """
     logger.remove()
     logger.configure(extra={"job_id": "-", "tags": [], "source": "APP"})
@@ -217,11 +219,15 @@ def setup_logging(
 
     # SINK 6: App Context Buffer - For Web UI
     if app_context is not None:
+        if web_ui_min_level is None:
+            resolved_web_ui_level = "TRACE" if trace else "DEBUG" if debug else "INFO"
+        else:
+            resolved_web_ui_level = web_ui_min_level.upper()
 
         def _app_context_sink(message) -> None:
             record = message.record
-            # Only send INFO+ to web UI to avoid overwhelming it
-            if record["level"].no >= logger.level("INFO").no:
+            # Apply level threshold before sending to the web UI.
+            if record["level"].no >= logger.level(resolved_web_ui_level).no:
                 app_context.add_log(
                     record["message"],
                     level=record["level"].name.lower(),
@@ -230,6 +236,8 @@ def setup_logging(
                     source=record["extra"].get("source"),
                 )
 
+        # Keep the combined filter so button/websocket/cache noise stays hidden
+        # from the web UI log stream unless explicitly logged at higher levels.
         logger.add(_app_context_sink, enqueue=True, filter=_combined_filter)
 
     return logger

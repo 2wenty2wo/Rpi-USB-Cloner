@@ -28,7 +28,8 @@ This document summarizes the comprehensive logging system improvements implement
 # SINK 3: debug.log - DEBUG+ when --debug enabled (3 day retention, 10MB rotation)
 # SINK 4: trace.log - TRACE+ when --trace enabled (1 day retention, 50MB rotation)
 # SINK 5: structured.jsonl - JSON logs for analysis tools (7 day retention, 10MB rotation)
-# SINK 6: App Context Buffer - For Web UI display (INFO+ with filtering)
+# SINK 6: App Context Buffer - For Web UI display (INFO+ by default, DEBUG/TRACE
+#         when --debug/--trace enabled, with noise filters for buttons/ws/cache)
 ```
 
 ---
