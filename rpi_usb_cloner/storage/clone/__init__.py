@@ -36,7 +36,14 @@ from .models import (
     normalize_clone_mode,
     resolve_device_node,
 )
-from .operations import clone_dd, clone_device, clone_device_smart, clone_partclone, copy_partition_table
+from .operations import (
+    clone_dd,
+    clone_device,
+    clone_device_smart,
+    clone_device_v2,
+    clone_partclone,
+    copy_partition_table,
+)
 from .progress import (
     configure_progress_logger as configure_clone_helpers,
     format_eta,
@@ -67,6 +74,7 @@ __all__ = [
     # Main operations
     "clone_device",
     "clone_device_smart",
+    "clone_device_v2",  # Type-safe API (RECOMMENDED for new code)
     "clone_dd",
     "clone_partclone",
     "copy_partition_table",

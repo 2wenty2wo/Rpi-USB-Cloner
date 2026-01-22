@@ -10,10 +10,11 @@ from uuid import uuid4
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.config import settings
+from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.clone import clone_device, erase_device
+from rpi_usb_cloner.storage.clone import clone_device, clone_device_v2, erase_device
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_children,
@@ -97,11 +98,26 @@ def copy_drive(
                     op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
                     op_log.info(f"Starting clone: {source_name} -> {target_name} (mode {mode})")
                     screens.render_status_template("COPY", "Running...", progress_line=f"Mode {mode.upper()}")
-                    if clone_device(source, target, mode=mode):
-                        screens.render_status_template("COPY", "Done", progress_line="Complete.")
-                    else:
-                        _log_debug(log_debug, "Copy failed")
-                        screens.render_status_template("COPY", "Failed", progress_line="Check logs.")
+
+                    # Use type-safe CloneJob API (Step 4 refactoring)
+                    try:
+                        source_drive = Drive.from_lsblk_dict(source)
+                        target_drive = Drive.from_lsblk_dict(target)
+                        clone_mode = CloneMode(mode)
+                        job = CloneJob(source_drive, target_drive, clone_mode, job_id)
+
+                        # CloneJob.validate() is called inside clone_device_v2
+                        # This automatically prevents source==destination bug!
+                        if clone_device_v2(job):
+                            screens.render_status_template("COPY", "Done", progress_line="Complete.")
+                        else:
+                            _log_debug(log_debug, "Copy failed")
+                            screens.render_status_template("COPY", "Failed", progress_line="Check logs.")
+                    except (KeyError, ValueError) as error:
+                        # Handle Drive conversion or CloneMode errors
+                        _log_debug(log_debug, f"Copy failed: {error}")
+                        screens.render_status_template("COPY", "Failed", progress_line="Invalid params")
+
                     time.sleep(1)
                     return
                 if confirm_selection == app_state.CONFIRM_NO:

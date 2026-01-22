@@ -514,3 +514,107 @@ class TestCloneDevice:
         result = clone_device({"name": "sda"}, {"name": "sdb"}, mode="smart")
 
         assert result is False
+
+
+class TestCloneDeviceV2:
+    """Test clone_device_v2 with CloneJob validation."""
+
+    def test_clone_with_valid_job(self, mocker):
+        """Test clone_device_v2 with valid CloneJob."""
+        from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+        from rpi_usb_cloner.storage.clone import clone_device_v2
+
+        # Create test drives
+        source = Drive(name="sda", size_bytes=8_000_000_000)
+        destination = Drive(name="sdb", size_bytes=16_000_000_000)
+        job = CloneJob(source, destination, CloneMode.SMART, "test-job-123")
+
+        # Mock dependencies
+        mocker.patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
+        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+        mock_clone.return_value = True
+
+        # Mock get_device_by_name to return device dicts
+        def get_device_side_effect(name):
+            if name == "sda":
+                return {"name": "sda", "size": 8_000_000_000}
+            elif name == "sdb":
+                return {"name": "sdb", "size": 16_000_000_000}
+            return None
+
+        mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.get_device_by_name",
+            side_effect=get_device_side_effect,
+        )
+
+        # Execute
+        result = clone_device_v2(job)
+
+        # Verify
+        assert result is True
+        mock_clone.assert_called_once()
+
+    def test_clone_with_same_device_fails(self, mocker):
+        """Test clone_device_v2 rejects source==destination (CRITICAL BUG FIX)."""
+        from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+        from rpi_usb_cloner.storage.clone import clone_device_v2
+
+        # Create job with same source and destination
+        source = Drive(name="sda", size_bytes=8_000_000_000)
+        destination = Drive(name="sda", size_bytes=8_000_000_000)  # Same!
+        job = CloneJob(source, destination, CloneMode.SMART, "test-job-456")
+
+        # Mock display_lines
+        mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
+        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+
+        # Execute
+        result = clone_device_v2(job)
+
+        # Verify: Should fail without calling clone_device
+        assert result is False
+        mock_clone.assert_not_called()
+
+    def test_clone_with_destination_too_small_fails(self, mocker):
+        """Test clone_device_v2 rejects destination smaller than source."""
+        from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+        from rpi_usb_cloner.storage.clone import clone_device_v2
+
+        # Create job with destination too small
+        source = Drive(name="sda", size_bytes=16_000_000_000)  # 16GB
+        destination = Drive(name="sdb", size_bytes=8_000_000_000)  # 8GB
+        job = CloneJob(source, destination, CloneMode.SMART, "test-job-789")
+
+        # Mock display_lines
+        mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
+        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+
+        # Execute
+        result = clone_device_v2(job)
+
+        # Verify: Should fail without calling clone_device
+        assert result is False
+        mock_clone.assert_not_called()
+
+    def test_clone_with_non_removable_destination_fails(self, mocker):
+        """Test clone_device_v2 rejects non-removable destination."""
+        from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
+        from rpi_usb_cloner.storage.clone import clone_device_v2
+
+        # Create job with non-removable destination
+        source = Drive(name="sda", size_bytes=8_000_000_000, is_removable=True)
+        destination = Drive(
+            name="mmcblk0", size_bytes=16_000_000_000, is_removable=False
+        )
+        job = CloneJob(source, destination, CloneMode.SMART, "test-job-abc")
+
+        # Mock display_lines
+        mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
+        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+
+        # Execute
+        result = clone_device_v2(job)
+
+        # Verify: Should fail without calling clone_device
+        assert result is False
+        mock_clone.assert_not_called()
