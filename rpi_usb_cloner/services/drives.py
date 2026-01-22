@@ -70,6 +70,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set
 
+from rpi_usb_cloner.domain import Drive
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
@@ -193,27 +194,46 @@ def _get_repo_device_names() -> Set[str]:
     return repo_devices
 
 
-def list_media_drive_names() -> List[str]:
-    """List media drive names, excluding repo drives."""
-    repo_devices = _get_repo_device_names()
-    return [
-        device.get("name")
-        for device in list_usb_disks()
-        if device.get("name") and device.get("name") not in repo_devices
-    ]
+def list_media_drives() -> List[Drive]:
+    """List media drives as domain objects, excluding repo drives.
 
+    Returns type-safe Drive objects instead of raw dicts. This is the
+    preferred function for new code.
 
-def list_media_drive_labels() -> List[str]:
-    """List media drive labels, excluding repo drives."""
+    Returns:
+        List of Drive domain objects representing non-repo USB drives
+    """
     repo_devices = _get_repo_device_names()
-    labels = []
+    drives = []
     for device in list_usb_disks():
         device_name = device.get("name")
         if device_name and device_name not in repo_devices:
-            size_bytes = device.get("size", 0)
-            label = f"{device_name} {size_bytes / 1024 ** 3:.2f}GB"
-            labels.append(label)
-    return labels
+            try:
+                drive = Drive.from_lsblk_dict(device)
+                drives.append(drive)
+            except (KeyError, ValueError) as error:
+                # Skip devices that can't be converted (malformed lsblk data)
+                log.debug(f"Skipping device {device_name}: {error}")
+                continue
+    return drives
+
+
+def list_media_drive_names() -> List[str]:
+    """List media drive names, excluding repo drives.
+
+    Note: For new code, prefer list_media_drives() which returns
+    type-safe Drive objects.
+    """
+    return [drive.name for drive in list_media_drives()]
+
+
+def list_media_drive_labels() -> List[str]:
+    """List media drive labels, excluding repo drives.
+
+    Note: For new code, prefer list_media_drives() which returns
+    Drive objects with a format_label() method.
+    """
+    return [drive.format_label() for drive in list_media_drives()]
 
 
 def list_usb_disk_names() -> List[str]:

@@ -240,8 +240,8 @@ class TestListMediaDriveLabels:
 
         result = list_media_drive_labels()
 
-        assert "sda 7.45GB" in result
-        assert "sdb 14.90GB" in result
+        assert "sda 7.5GB" in result
+        assert "sdb 14.9GB" in result
 
     @patch("rpi_usb_cloner.services.drives._get_repo_device_names")
     @patch("rpi_usb_cloner.services.drives.list_usb_disks")
