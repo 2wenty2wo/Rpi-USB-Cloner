@@ -24,10 +24,6 @@ class SystemHealth:
     disk_used_gb: float
     disk_total_gb: float
     temperature_celsius: Optional[float]
-    bluetooth_enabled: bool = False
-    bluetooth_active: bool = False
-    bluetooth_ip: Optional[str] = None
-    bluetooth_paired_count: int = 0
 
 
 def get_cpu_temperature() -> Optional[float]:
@@ -94,27 +90,6 @@ def get_system_health() -> SystemHealth:
     # Temperature
     temperature = get_cpu_temperature()
 
-    # Bluetooth status
-    bluetooth_enabled = False
-    bluetooth_active = False
-    bluetooth_ip = None
-    bluetooth_paired_count = 0
-
-    try:
-        from rpi_usb_cloner.config.settings import get_bool
-        from rpi_usb_cloner.services.bluetooth import get_bluetooth_status, is_bluetooth_available
-
-        bluetooth_enabled = get_bool("bluetooth_enabled", default=False)
-
-        if is_bluetooth_available():
-            status = get_bluetooth_status()
-            bluetooth_active = status.pan_active
-            bluetooth_ip = status.ip_address
-            bluetooth_paired_count = len(status.connected_devices)
-    except Exception:
-        # Bluetooth module may not be available or may fail
-        pass
-
     return SystemHealth(
         cpu_percent=cpu_percent,
         memory_percent=memory_percent,
@@ -124,10 +99,6 @@ def get_system_health() -> SystemHealth:
         disk_used_gb=disk_used_gb,
         disk_total_gb=disk_total_gb,
         temperature_celsius=temperature,
-        bluetooth_enabled=bluetooth_enabled,
-        bluetooth_active=bluetooth_active,
-        bluetooth_ip=bluetooth_ip,
-        bluetooth_paired_count=bluetooth_paired_count,
     )
 
 
