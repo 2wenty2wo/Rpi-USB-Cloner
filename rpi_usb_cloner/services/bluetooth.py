@@ -12,10 +12,11 @@ Requires system packages:
     - dnsmasq (DHCP server)
 """
 
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from rpi_usb_cloner.logging import get_logger
 
@@ -97,6 +98,74 @@ class BluetoothService:
         if details:
             return f"{error} ({'; '.join(details)})"
         return str(error)
+
+    def _unblock_bluetooth_rfkill(self) -> Optional[bool]:
+        """Attempt to unblock Bluetooth via rfkill if available."""
+        if not shutil.which("rfkill"):
+            logger.info("rfkill not available; skipping bluetooth unblock")
+            return None
+        try:
+            subprocess.run(
+                ["rfkill", "unblock", "bluetooth"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=True,
+            )
+            logger.info("rfkill unblock bluetooth executed")
+            return True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+            logger.warning(
+                "Failed to unblock Bluetooth via rfkill: %s",
+                self._format_process_error(e),
+            )
+            return False
+
+    def _get_bluetooth_service_state(self) -> Optional[str]:
+        """Return the Bluetooth systemd service state when available."""
+        if not shutil.which("systemctl"):
+            return None
+        try:
+            result = subprocess.run(
+                ["systemctl", "is-active", "bluetooth"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            logger.warning("Failed to check bluetooth service state: %s", e)
+            return None
+        state = result.stdout.strip() or result.stderr.strip()
+        return state or "unknown"
+
+    def _start_bluetooth_service(self) -> bool:
+        """Attempt to start the Bluetooth systemd service."""
+        if not shutil.which("systemctl"):
+            return False
+        try:
+            subprocess.run(
+                ["systemctl", "start", "bluetooth"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
+            )
+            logger.info("Bluetooth service started")
+            return True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+            logger.warning(
+                "Failed to start bluetooth service: %s",
+                self._format_process_error(e),
+            )
+            return False
+
+    def _ensure_bluetooth_service_active(self) -> Tuple[Optional[str], Optional[bool]]:
+        """Ensure the Bluetooth service is active when systemctl is available."""
+        state = self._get_bluetooth_service_state()
+        if state and state != "active":
+            started = self._start_bluetooth_service()
+            return state, started
+        return state, None
 
     def get_adapter_name(self) -> Optional[str]:
         """
@@ -225,6 +294,8 @@ class BluetoothService:
         Returns:
             True if successful
         """
+        self._unblock_bluetooth_rfkill()
+        self._ensure_bluetooth_service_active()
         try:
             subprocess.run(
                 ["bluetoothctl", "power", "on"],
@@ -237,7 +308,34 @@ class BluetoothService:
             logger.info("Bluetooth adapter powered on")
             return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            self._last_error = self._extract_process_reason(e)
+            rfkill_result = self._unblock_bluetooth_rfkill()
+            service_state, service_started = self._ensure_bluetooth_service_active()
+            remediation_steps = []
+            details = []
+            if shutil.which("rfkill"):
+                remediation_steps.append("rfkill unblock bluetooth")
+                if rfkill_result is True:
+                    details.append("rfkill unblock attempted")
+                elif rfkill_result is False:
+                    details.append("rfkill unblock failed")
+            if shutil.which("systemctl"):
+                remediation_steps.append("systemctl start bluetooth")
+                if service_state:
+                    details.append(f"bluetooth service state: {service_state}")
+                if service_state and service_state != "active" and service_started is not None:
+                    if service_started:
+                        details.append("systemctl start attempted")
+                    else:
+                        details.append("systemctl start failed")
+            detail_text = " ".join(details).strip()
+            remediation_text = ""
+            if remediation_steps:
+                remediation_text = f" Next steps: {', '.join(remediation_steps)}."
+            base_reason = self._extract_process_reason(e)
+            if detail_text:
+                self._last_error = f"{base_reason}. {detail_text}.{remediation_text}".strip()
+            else:
+                self._last_error = f"{base_reason}.{remediation_text}".strip()
             logger.error(
                 f"Failed to power on Bluetooth: {self._format_process_error(e)}"
             )
