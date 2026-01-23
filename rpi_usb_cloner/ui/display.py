@@ -285,14 +285,10 @@ def init_display() -> DisplayContext:
     fontcopy = ImageFont.truetype(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 16)
     fontinsert = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 16)
     fontdisks = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 8)
-    font_icon_labels = ImageFont.truetype(
-        ASSETS_DIR / "fonts" / "6px-Normal.ttf", 6
-    )
     fontmain = font
     fonts = {
         "title": fontcopy,
         "items": fontdisks,
-        "icon_labels": font_icon_labels,
         "footer": fontcopy,
     }
 
