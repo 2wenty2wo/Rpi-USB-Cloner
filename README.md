@@ -10,9 +10,10 @@
 </p>
 Don't expect this to work yet...
 
-USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
+USB Cloner using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531) and [Zero4U USB Hub](https://www.adafruit.com/product/3298).
 
 Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
+
 
 
 A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
