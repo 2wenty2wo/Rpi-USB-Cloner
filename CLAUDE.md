@@ -2,7 +2,7 @@
 
 > **Purpose**: This document provides comprehensive guidance for AI assistants (like Claude) working on the Raspberry Pi USB Cloner codebase. It covers architecture, conventions, workflows, and common tasks.
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-23
 **Project**: Raspberry Pi USB Cloner
 **Language**: Python 3.8+
 **License**: MIT
@@ -60,7 +60,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 # Main entry point
 /home/user/Rpi-USB-Cloner/rpi-usb-cloner.py
     ↓
-rpi_usb_cloner/main.py (728 lines)
+rpi_usb_cloner/main.py (812 lines)
     ↓
 Main event loop with GPIO polling, USB detection, display rendering
 ```
@@ -172,8 +172,8 @@ def run_with_progress(
 ```
 Rpi-USB-Cloner/
 ├── rpi-usb-cloner.py              # Entry point script
-├── rpi_usb_cloner/                # Main package (107 files, ~8,958 LOC)
-│   ├── main.py                    # Main event loop (728 lines) ⭐
+├── rpi_usb_cloner/                # Main package (88 files, ~18,926 LOC)
+│   ├── main.py                    # Main event loop (812 lines) ⭐
 │   │
 │   ├── app/                        # Application state
 │   │   ├── context.py             # AppContext (runtime state) ⭐
@@ -269,11 +269,11 @@ Rpi-USB-Cloner/
 │   │
 │   └── __init__.py
 │
-├── tests/                          # Test suite (20+ files, 608 tests)
+├── tests/                          # Test suite (26 test files)
 │   ├── conftest.py                # Shared fixtures ⭐
 │   ├── test_devices.py            # Device detection tests
 │   ├── test_clone*.py             # Cloning tests (5 files)
-│   ├── test_clonezilla*.py        # Clonezilla tests (5 files)
+│   ├── test_clonezilla*.py        # Clonezilla tests (6 files)
 │   ├── test_settings.py           # Settings tests
 │   ├── test_mount_security.py     # Security tests
 │   └── test_*.py                  # Other test modules
@@ -286,7 +286,14 @@ Rpi-USB-Cloner/
 ├── TESTING.md                     # Testing guide
 ├── CONTRIBUTING.md                # Contribution guidelines
 ├── TODO.md                        # Feature roadmap & known issues
-└── LICENSE                        # MIT License
+├── CLAUDE.md                      # AI assistant guide (this file)
+├── AGENTS.md                      # Agent-specific documentation
+├── LOGGING_IMPROVEMENTS.md        # Logging architecture guide
+├── LICENSE                        # MIT License
+└── .github/
+    ├── workflows/tests.yml        # CI/CD workflow
+    ├── COVERAGE-GUIDE.md          # Coverage reporting guide
+    └── CI-CD-GUIDE.md             # CI/CD documentation
 ```
 
 **⭐ = Critical files to understand first**
@@ -597,7 +604,7 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Count**: 608 passing tests (as of 2026-01-11)
+**Test Files**: 26 test modules (as of 2026-01-23)
 
 ### Running Tests
 
@@ -1158,38 +1165,56 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ## 8. Known Issues & Gotchas
 
-### Critical Issues (from TODO.md)
+### Recent Improvements (2026-01-23)
 
-#### 1. Silent Unmount Failures (HIGH RISK)
-**Location**: `storage/devices.py:133-142`
+#### Fixed: Unmount Error Handling ✅
+**Previous Issue**: `unmount_device()` silently swallowed exceptions, which could lead to data corruption.
 
-**Problem**: `unmount_device()` silently swallows exceptions, which can lead to data corruption if operations proceed on mounted devices.
+**Resolution**: The function has been significantly improved with:
+- `raise_on_failure` parameter for explicit error handling
+- Returns `bool` to indicate success/failure
+- Raises `UnmountFailedError` when `raise_on_failure=True`
+- New `unmount_device_with_retry()` function with retry logic and lazy unmount support
+- Proper logging of failed mountpoints
+- Error handler integration for UI notifications
 
+**New Signature**:
 ```python
-# CURRENT (DANGEROUS):
-def unmount_device(device_name: str) -> None:
-    try:
-        subprocess.run(["umount", f"/dev/{device_name}"], check=True)
-    except subprocess.CalledProcessError:
-        pass  # ❌ Silent failure!
+def unmount_device(device: dict, raise_on_failure: bool = False) -> bool:
+    """Returns True if successful, False otherwise. Raises UnmountFailedError if raise_on_failure=True."""
 
-# SHOULD BE:
-def unmount_device(device_name: str) -> None:
-    try:
-        subprocess.run(["umount", f"/dev/{device_name}"], check=True)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to unmount {device_name}: {e.stderr}")
+def unmount_device_with_retry(device: dict, log_debug: Optional[Callable] = None) -> tuple[bool, bool]:
+    """Returns (success, used_lazy_unmount) with automatic retry logic."""
 ```
 
-**Workaround**: Always verify device is unmounted before operations:
-```python
-# Check if still mounted
-result = subprocess.run(["mount"], capture_output=True, text=True)
-if device_name in result.stdout:
-    raise RuntimeError(f"Device {device_name} is still mounted!")
-```
+### Current Issues (from TODO.md)
 
-#### 2. No Source != Destination Validation
+#### 1. UI/UX Issues
+
+**Keyboard Character Selection** (Medium Priority)
+- Location: `ui/keyboard.py`
+- Issue: Keyboard character selection doesn't show on web UI (only visible on OLED display)
+- Impact: Web UI users can't see keyboard input state
+
+**Keyboard Footer Display** (Medium Priority)
+- Issue: Keyboard mode bottom footer missing from web UI
+- Impact: Missing navigation hints for web UI users
+
+**Text Scrolling Speed** (Low Priority)
+- Location: Various menu screens (e.g., 'choose image' screen)
+- Issue: Text scrolling speed varies based on text length
+- Expected: All items should scroll at consistent speed
+
+**Screensaver Menu Logic** (Low Priority)
+- Location: `menu/definitions/settings.py`
+- Issue: "Select GIF" option shows even when mode is set to "Random"
+- Expected: Only show "Select GIF" when mode is "Selected"
+
+**Web UI OLED Preview** (Low Priority)
+- Issue: No fullscreen mode for OLED preview in web UI
+- Expected: Hover to show fullscreen icon, click to expand
+
+#### 2. Source != Destination Validation
 **Problem**: User can accidentally clone a drive to itself, resulting in data corruption.
 
 **Workaround**: Add validation in clone operations:
@@ -1316,16 +1341,19 @@ def clone_device(source: str, destination: str) -> None:
        raise ValueError("Device is not removable")
    ```
 
-3. **Never assume unmount succeeded** (see Gotcha #1)
+3. **Never assume unmount succeeded without checking return value**
    ```python
    # ❌ NEVER:
    unmount_device(device)
    # Proceed assuming unmounted
 
-   # ✅ ALWAYS verify:
-   unmount_device(device)
-   if is_device_mounted(device):
+   # ✅ ALWAYS check return value or use raise_on_failure:
+   success = unmount_device(device, raise_on_failure=False)
+   if not success:
        raise RuntimeError("Unmount failed")
+
+   # OR use raise_on_failure=True to automatically raise exception:
+   unmount_device(device, raise_on_failure=True)  # Raises UnmountFailedError on failure
    ```
 
 4. **Never perform destructive operations without confirmation**
@@ -1364,7 +1392,7 @@ def clone_device(source: str, destination: str) -> None:
 
 | File | LOC | Description |
 |------|-----|-------------|
-| `rpi_usb_cloner/main.py` | 728 | Main event loop, entry point ⭐ |
+| `rpi_usb_cloner/main.py` | 812 | Main event loop, entry point ⭐ |
 | `rpi_usb_cloner/app/context.py` | ~100 | AppContext (runtime state) ⭐ |
 | `rpi_usb_cloner/menu/navigator.py` | ~200 | Menu navigation logic ⭐ |
 | `rpi_usb_cloner/storage/devices.py` | ~250 | USB device detection ⭐ |
@@ -1392,6 +1420,10 @@ def clone_device(source: str, destination: str) -> None:
 | `CONTRIBUTING.md` | Contribution guidelines |
 | `TODO.md` | Feature roadmap, known issues |
 | `CLAUDE.md` | This file (AI assistant guide) |
+| `AGENTS.md` | Agent-specific documentation |
+| `LOGGING_IMPROVEMENTS.md` | Logging architecture and improvements |
+| `.github/COVERAGE-GUIDE.md` | Code coverage reporting guide |
+| `.github/CI-CD-GUIDE.md` | Continuous integration documentation |
 
 ### Quick Reference: Key Functions
 
@@ -1401,7 +1433,8 @@ def clone_device(source: str, destination: str) -> None:
 list_usb_disks() -> List[Dict]          # Get all USB devices (lsblk)
 list_media_drive_names() -> List[str]   # Get safe, removable device names
 get_device_by_name(name: str) -> Dict   # Get device info by name
-unmount_device(device: str) -> None     # Unmount device (⚠️ silent failures!)
+unmount_device(device: dict, raise_on_failure: bool = False) -> bool  # Unmount device with error handling
+unmount_device_with_retry(device: dict, log_debug: Optional[Callable] = None) -> tuple[bool, bool]  # Retry logic
 format_device_label(device: Dict) -> str # Human-readable label
 
 # services/drives.py (preferred)
