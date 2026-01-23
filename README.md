@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/status-WIP-red" />
 </p>
 
-# Raspberry Pi USB Cloner
+# Rpi USB Cloner
 
 A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero 2, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531), and [Zero4U USB Hub](https://www.adafruit.com/product/3298). Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
