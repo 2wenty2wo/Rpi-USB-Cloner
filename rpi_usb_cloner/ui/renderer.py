@@ -483,14 +483,11 @@ def render_icon_menu_screen(
 
             # Draw label below icon
             label = items_seq[item_index]
-            label_max_width = icon_width
-            label_width = _measure_text_width(list_font, label)
-            if label_width > label_max_width:
-                truncated_label = _truncate_text(label, list_font, label_max_width)
-                label_width = _measure_text_width(list_font, truncated_label)
-            else:
-                truncated_label = label
+            # Allow wider labels to show full words (reduce padding)
+            label_max_width = icon_width - 1
+            truncated_label = _truncate_text(label, list_font, label_max_width)
 
+            label_width = _measure_text_width(list_font, truncated_label)
             label_x = x_pos + (icon_width - label_width) // 2
             label_y = icon_start_y + icon_size + 2
 
