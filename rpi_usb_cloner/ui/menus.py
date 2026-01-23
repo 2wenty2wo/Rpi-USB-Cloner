@@ -156,18 +156,16 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
                 if line_width is None:
                     line_width = display._measure_text_width(draw, line, items_font)
                 if line_width > max_width:
-                    elapsed = max(0.0, now - menu.scroll_start_time)
-                    pause_duration = max(0.0, menu.scroll_start_delay)
-                    cycle_width = line_width + menu.scroll_gap
-                    target_cycle_seconds = max(0.0, menu.target_cycle_seconds)
-                    travel_duration = max(0.0, target_cycle_seconds - pause_duration)
-                    cycle_duration = pause_duration + travel_duration
-                    if cycle_width > 0 and travel_duration > 0 and cycle_duration > 0:
-                        scroll_speed = cycle_width / travel_duration
-                        phase = elapsed % cycle_duration
-                        if phase >= pause_duration:
-                            travel_phase = phase - pause_duration
-                            x_offset = -int((travel_phase * scroll_speed) % cycle_width)
+                    x_offset = renderer.calculate_horizontal_scroll_offset(
+                        now=now,
+                        scroll_start_time=menu.scroll_start_time,
+                        text_width=line_width,
+                        max_width=max_width,
+                        scroll_gap=menu.scroll_gap,
+                        scroll_speed=menu.scroll_speed,
+                        target_cycle_seconds=menu.target_cycle_seconds,
+                        scroll_start_delay=menu.scroll_start_delay,
+                    )
             # Draw text with offset for alignment
             draw.text(
                 (left_margin + selector_width + x_offset, row_top + 1 + line_index * row_height_per_line),
@@ -308,6 +306,7 @@ def select_list(
             enable_horizontal_scroll=enable_scroll,
             scroll_start_time=scroll_start_time,
             scroll_start_delay=scroll_start_delay,
+            scroll_speed=scroll_speed,
             target_cycle_seconds=target_cycle_seconds,
             scroll_gap=scroll_gap,
             screen_id=screen_id,

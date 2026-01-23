@@ -47,6 +47,7 @@ def calculate_horizontal_scroll_offset(
     text_width: float,
     max_width: int,
     scroll_gap: int = 20,
+    scroll_speed: Optional[float] = None,
     target_cycle_seconds: float = 6.0,
     scroll_start_delay: float = 0.0,
 ) -> int:
@@ -55,8 +56,12 @@ def calculate_horizontal_scroll_offset(
     elapsed = max(0.0, now - scroll_start_time)
     pause_duration = max(0.0, scroll_start_delay)
     cycle_width = text_width + scroll_gap
-    target_cycle_seconds = max(0.0, target_cycle_seconds)
-    travel_duration = max(0.0, target_cycle_seconds - pause_duration)
+    if scroll_speed is not None:
+        scroll_speed = max(0.0, scroll_speed)
+        travel_duration = cycle_width / scroll_speed if scroll_speed > 0 else 0.0
+    else:
+        target_cycle_seconds = max(0.0, target_cycle_seconds)
+        travel_duration = max(0.0, target_cycle_seconds - pause_duration)
     cycle_duration = pause_duration + travel_duration
     if cycle_width > 0 and travel_duration > 0 and cycle_duration > 0:
         scroll_speed = cycle_width / travel_duration
@@ -87,6 +92,7 @@ def render_menu_screen(
     enable_horizontal_scroll: bool = False,
     scroll_start_time: Optional[float] = None,
     scroll_start_delay: float = 0.0,
+    scroll_speed: Optional[float] = None,
     target_cycle_seconds: float = 6.0,
     scroll_gap: int = 20,
     screen_id: Optional[str] = None,
@@ -169,6 +175,7 @@ def render_menu_screen(
                     text_width=item_widths[item_index],
                     max_width=max_item_width,
                     scroll_gap=scroll_gap,
+                    scroll_speed=scroll_speed,
                     target_cycle_seconds=target_cycle_seconds,
                     scroll_start_delay=scroll_start_delay,
                 )
