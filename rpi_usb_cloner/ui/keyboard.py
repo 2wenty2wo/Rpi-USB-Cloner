@@ -15,6 +15,11 @@ from rpi_usb_cloner.hardware.gpio import (
     is_pressed,
 )
 from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui.constants import (
+    BUTTON_POLL_DELAY,
+    INITIAL_REPEAT_DELAY,
+    REPEAT_INTERVAL,
+)
 from rpi_usb_cloner.ui.icons import LOWERCASE_ICON, SYMBOLS_ICON, UPPERCASE_ICON
 
 KEY_SPACE = "SPACE"
@@ -341,8 +346,8 @@ def prompt_text(
                 selected_band = "chars"
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif current_u and now - last_press_time["U"] >= menus.INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["U"] >= menus.REPEAT_INTERVAL:
+        elif current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
                 if selected_band == "modes":
                     selected_band = "chars"
                     last_repeat_time["U"] = now
@@ -353,8 +358,8 @@ def prompt_text(
                 mode_index = mode_items.index(layout_mode)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif current_d and now - last_press_time["D"] >= menus.INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["D"] >= menus.REPEAT_INTERVAL:
+        elif current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
                 if selected_band == "chars":
                     selected_band = "modes"
                     mode_index = mode_items.index(layout_mode)
@@ -367,8 +372,8 @@ def prompt_text(
                 selected_col = max(0, selected_col - 1)
             last_press_time["L"] = now
             last_repeat_time["L"] = now
-        elif current_l and now - last_press_time["L"] >= menus.INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["L"] >= menus.REPEAT_INTERVAL:
+        elif current_l and now - last_press_time["L"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["L"] >= REPEAT_INTERVAL:
                 if selected_band == "modes":
                     mode_index = max(0, mode_index - 1)
                 else:
@@ -382,8 +387,8 @@ def prompt_text(
                 selected_col = min(len(keys) - 1, selected_col + 1)
             last_press_time["R"] = now
             last_repeat_time["R"] = now
-        elif current_r and now - last_press_time["R"] >= menus.INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["R"] >= menus.REPEAT_INTERVAL:
+        elif current_r and now - last_press_time["R"] >= INITIAL_REPEAT_DELAY:
+            if now - last_repeat_time["R"] >= REPEAT_INTERVAL:
                 if selected_band == "modes":
                     mode_index = min(len(mode_items) - 1, mode_index + 1)
                 else:
@@ -430,4 +435,4 @@ def prompt_text(
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["C"] = current_c
-        time.sleep(menus.BUTTON_POLL_DELAY)
+        time.sleep(BUTTON_POLL_DELAY)
