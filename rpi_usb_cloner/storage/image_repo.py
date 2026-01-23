@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
-from rpi_usb_cloner.storage import clonezilla, devices, mount
+from rpi_usb_cloner.storage import clonezilla, devices, imageusb, mount
 
 REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
 
@@ -82,14 +82,14 @@ def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[ImageRepo]
 
 
 def list_clonezilla_images(repo_root: Path) -> list[DiskImage]:
-    """List all Clonezilla images and ISO files in a repository.
+    """List all Clonezilla images, ISO files, and ImageUSB .BIN files in a repository.
 
     Searches for Clonezilla image directories in common locations:
     - {repo_root}/clonezilla/
     - {repo_root}/images/
     - {repo_root}/
 
-    Also includes ISO files found in the repository root.
+    Also includes ISO files and ImageUSB .BIN files found in the repository root.
 
     Args:
         repo_root: Root path of the image repository
@@ -132,5 +132,25 @@ def list_clonezilla_images(repo_root: Path) -> list[DiskImage]:
             )
             images.append(image)
             seen.add(iso_file)
+
+    # Also include ImageUSB .BIN files from the repo root
+    for bin_file in repo_root.glob("*.bin"):
+        if bin_file.is_file() and bin_file not in seen:
+            # Check if it's a valid ImageUSB file
+            if imageusb.is_imageusb_file(bin_file):
+                # Create DiskImage domain object for ImageUSB .BIN file
+                try:
+                    size_bytes = bin_file.stat().st_size
+                except OSError:
+                    size_bytes = None
+
+                image = DiskImage(
+                    name=bin_file.name,
+                    path=bin_file,
+                    image_type=ImageType.IMAGEUSB_BIN,
+                    size_bytes=size_bytes,
+                )
+                images.append(image)
+                seen.add(bin_file)
 
     return sorted(images, key=lambda img: img.name)
