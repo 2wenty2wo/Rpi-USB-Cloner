@@ -6,16 +6,13 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
-
+from typing import TYPE_CHECKING, Callable, Iterable
 
 if TYPE_CHECKING:
     from loguru import Logger
-
     from rpi_usb_cloner.app.context import AppContext
 
 from loguru import logger
-
 
 DEFAULT_LOG_DIR = Path(
     os.environ.get(
@@ -326,8 +323,7 @@ def operation_context(operation: str, **details):
             yield log
             duration = time.time() - start_time
             log.success(
-                f"{operation.capitalize()} completed",
-                duration_seconds=round(duration, 2),
+                f"{operation.capitalize()} completed", duration_seconds=round(duration, 2)
             )
         except Exception as e:
             duration = time.time() - start_time
@@ -492,12 +488,7 @@ class EventLogger:
 
     @staticmethod
     def log_operation_metric(
-        log: Logger,
-        operation: str,
-        metric_name: str,
-        value: float,
-        unit: str = "",
-        **extra,
+        log: Logger, operation: str, metric_name: str, value: float, unit: str = "", **extra
     ) -> None:
         """Log operation performance metric."""
         log.debug(

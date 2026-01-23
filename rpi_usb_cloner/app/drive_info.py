@@ -42,7 +42,7 @@ def render_drive_info(
     if not device:
         display_module.display_lines(["NO DRIVE", "SELECTED"])
         return 1, 0
-    size_gb = get_size(device) / 1024**3
+    size_gb = get_size(device) / 1024 ** 3
     vendor = (get_vendor(device) or "").strip()
     model = (get_model(device) or "").strip()
     info_lines = [f"{active_drive} {size_gb:.2f}GB"]

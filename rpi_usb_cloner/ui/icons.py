@@ -55,7 +55,6 @@ SCREEN_ICONS = {
     "update": UPDATE_ICON,
     "power": POWER_ICON,
     "screensaver": "",  # No icon assigned
-    "view": chr(57445),  # eye icon for view settings
     "wifi": WIFI_ICON,
     "tools": TOOLS_ICON,
     "logs": LOGS_ICON,

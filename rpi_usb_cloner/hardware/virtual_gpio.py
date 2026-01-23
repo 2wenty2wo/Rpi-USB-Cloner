@@ -7,6 +7,7 @@ presses from the web UI into the main GPIO event loop.
 import time
 from collections import deque
 from threading import Lock
+from typing import Optional
 
 
 # Default duration for virtual button presses (seconds)

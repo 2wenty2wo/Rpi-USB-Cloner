@@ -4,12 +4,13 @@ This module creates Clonezilla-format disk images that are compatible with
 the existing restore functionality. It generates the same directory structure,
 file formats, and metadata that Clonezilla produces.
 """
-
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,14 +22,12 @@ from rpi_usb_cloner.storage.clone import resolve_device_node
 
 from .image_discovery import get_partclone_tool
 
-
 log = get_logger(source=__name__)
 
 
 @dataclass
 class BackupResult:
     """Result of a backup operation."""
-
     image_dir: Path
     partitions_backed_up: list[str]
     total_bytes_written: int
@@ -39,7 +38,6 @@ class BackupResult:
 @dataclass
 class PartitionInfo:
     """Information about a partition to backup."""
-
     name: str  # e.g., "sda1"
     node: str  # e.g., "/dev/sda1"
     fstype: Optional[str]  # e.g., "ext4", "vfat", None
@@ -63,14 +61,15 @@ def get_compression_tool(compression: str) -> tuple[Optional[str], Optional[list
         if tool:
             return tool, ["-c"]
         return None, None
-    if compression == "zstd":
+    elif compression == "zstd":
         tool = shutil.which("pzstd") or shutil.which("zstd")
         if tool:
             return tool, ["-c"]
         return None, None
-    if compression == "none":
+    elif compression == "none":
         return None, None
-    raise ValueError(f"Unknown compression type: {compression}")
+    else:
+        raise ValueError(f"Unknown compression type: {compression}")
 
 
 def get_filesystem_type(partition_node: str) -> Optional[str]:
@@ -109,9 +108,7 @@ def get_filesystem_type(partition_node: str) -> Optional[str]:
     return None
 
 
-def get_partition_used_space(
-    partition_node: str, fstype: Optional[str]
-) -> Optional[int]:
+def get_partition_used_space(partition_node: str, fstype: Optional[str]) -> Optional[int]:
     """Get used space on a partition in bytes.
 
     Returns:
@@ -165,15 +162,13 @@ def get_partition_info(device_info: dict) -> list[PartitionInfo]:
         # Try to get used space
         used_bytes = get_partition_used_space(node, fstype)
 
-        partitions.append(
-            PartitionInfo(
-                name=name,
-                node=node,
-                fstype=fstype,
-                size_bytes=int(size_bytes) if size_bytes else 0,
-                used_bytes=used_bytes,
-            )
-        )
+        partitions.append(PartitionInfo(
+            name=name,
+            node=node,
+            fstype=fstype,
+            size_bytes=int(size_bytes) if size_bytes else 0,
+            used_bytes=used_bytes,
+        ))
 
     return partitions
 
@@ -306,24 +301,18 @@ def save_partition_tables(device_node: str, device_name: str, output_dir: Path) 
 
     # Save parted format (required)
     try:
-        save_partition_table_parted(
-            device_node, output_dir / f"{device_name}-pt.parted"
-        )
+        save_partition_table_parted(device_node, output_dir / f"{device_name}-pt.parted")
     except Exception as e:
         log.warning(f"Failed to save parted partition table: {e}")
 
     # Save sgdisk format (optional, only for GPT)
     try:
-        save_partition_table_sgdisk(
-            device_node, output_dir / f"{device_name}-pt.sgdisk"
-        )
+        save_partition_table_sgdisk(device_node, output_dir / f"{device_name}-pt.sgdisk")
     except Exception as e:
         log.debug(f"Failed to save sgdisk partition table: {e}")
 
 
-def create_metadata_files(
-    device_name: str, partitions: list[str], output_dir: Path
-) -> None:
+def create_metadata_files(device_name: str, partitions: list[str], output_dir: Path) -> None:
     """Create Clonezilla metadata files (parts, disk).
 
     Args:
@@ -349,18 +338,18 @@ def parse_partclone_progress(line: str) -> Optional[dict]:
         dict with 'percentage', 'rate_str', 'bytes_str' or None
     """
     # Look for percentage
-    percent_match = re.search(r"(\d+\.?\d*)%", line)
+    percent_match = re.search(r'(\d+\.?\d*)%', line)
     if percent_match:
         percentage = float(percent_match.group(1))
 
         # Look for rate
-        rate_match = re.search(r"Rate:\s*([\d.]+\s*[KMGT]?B/s)", line)
+        rate_match = re.search(r'Rate:\s*([\d.]+\s*[KMGT]?B/s)', line)
         rate_str = rate_match.group(1) if rate_match else None
 
         return {
-            "percentage": percentage,
-            "rate_str": rate_str,
-            "bytes_str": None,
+            'percentage': percentage,
+            'rate_str': rate_str,
+            'bytes_str': None,
         }
 
     return None
@@ -376,19 +365,19 @@ def parse_dd_progress(line: str) -> Optional[dict]:
         dict with 'bytes', 'rate_str' or None
     """
     # Look for "bytes (size) copied"
-    match = re.search(r"(\d+)\s+bytes\s+\(([\d.]+\s+[KMGT]?B)", line)
+    match = re.search(r'(\d+)\s+bytes\s+\(([\d.]+\s+[KMGT]?B)', line)
     if match:
         bytes_written = int(match.group(1))
         size_str = match.group(2)
 
         # Look for rate at the end
-        rate_match = re.search(r"([\d.]+\s+[KMGT]?B/s)\s*$", line)
+        rate_match = re.search(r'([\d.]+\s+[KMGT]?B/s)\s*$', line)
         rate_str = rate_match.group(1) if rate_match else None
 
         return {
-            "bytes": bytes_written,
-            "size_str": size_str,
-            "rate_str": rate_str,
+            'bytes': bytes_written,
+            'size_str': size_str,
+            'rate_str': rate_str,
         }
 
     return None
@@ -511,12 +500,12 @@ def backup_partition(
                 if backup_proc.stderr:
                     line = backup_proc.stderr.readline()
                     if line:
-                        line_str = line.decode("utf-8", errors="ignore").strip()
+                        line_str = line.decode('utf-8', errors='ignore').strip()
                         progress_data = parse_partclone_progress(line_str)
 
                         if progress_data and progress_callback:
-                            percentage = progress_data.get("percentage", 0)
-                            rate_str = progress_data.get("rate_str", "")
+                            percentage = progress_data.get('percentage', 0)
+                            rate_str = progress_data.get('rate_str', '')
 
                             status_lines = [
                                 f"Backing up {partition_name}",
@@ -546,27 +535,15 @@ def backup_partition(
 
         # Check for errors
         if backup_proc.returncode != 0:
-            stderr = (
-                backup_proc.stderr.read().decode("utf-8", errors="ignore")
-                if backup_proc.stderr
-                else ""
-            )
+            stderr = backup_proc.stderr.read().decode('utf-8', errors='ignore') if backup_proc.stderr else ""
             raise RuntimeError(f"Backup failed: {stderr}")
 
         if compress_proc and compress_proc.returncode != 0:
-            stderr = (
-                compress_proc.stderr.read().decode("utf-8", errors="ignore")
-                if compress_proc.stderr
-                else ""
-            )
+            stderr = compress_proc.stderr.read().decode('utf-8', errors='ignore') if compress_proc.stderr else ""
             raise RuntimeError(f"Compression failed: {stderr}")
 
         if split_proc and split_proc.returncode != 0:
-            stderr = (
-                split_proc.stderr.read().decode("utf-8", errors="ignore")
-                if split_proc.stderr
-                else ""
-            )
+            stderr = split_proc.stderr.read().decode('utf-8', errors='ignore') if split_proc.stderr else ""
             raise RuntimeError(f"Split failed: {stderr}")
 
         # Find created files if we used split
@@ -672,9 +649,7 @@ def create_clonezilla_backup(
             base_progress = idx / num_partitions
             partition_weight = 1.0 / num_partitions
 
-            def partition_progress_callback(
-                lines: list[str], ratio: Optional[float]
-            ) -> None:
+            def partition_progress_callback(lines: list[str], ratio: Optional[float]) -> None:
                 if progress_callback:
                     overall_ratio = base_progress
                     if ratio is not None:
@@ -746,8 +721,8 @@ def verify_backup_image(
         True if verification succeeded, False otherwise
     """
     # Import here to avoid circular dependency
-    from .image_discovery import load_image
     from .verification import verify_restored_image
+    from .image_discovery import load_image
 
     try:
         # Load the backup image

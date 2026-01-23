@@ -6,7 +6,6 @@ from the refactored clonezilla package.
 For new code, prefer importing directly from:
     rpi_usb_cloner.storage.clonezilla.*
 """
-
 # Re-export all public APIs from the clonezilla package
 from rpi_usb_cloner.storage.clonezilla import (
     ClonezillaImage,
@@ -24,7 +23,6 @@ from rpi_usb_cloner.storage.clonezilla import (
     restore_image,
     verify_restored_image,
 )
-
 
 __all__ = [
     "ClonezillaImage",

@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Tuple
 
-
 MENU_COPY = 0
 MENU_VIEW = 1
 MENU_ERASE = 2

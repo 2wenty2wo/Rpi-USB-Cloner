@@ -7,7 +7,8 @@ from PIL import ImageFont
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui import menus
 
 
 def render_confirmation_screen(

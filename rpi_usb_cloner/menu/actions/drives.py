@@ -7,7 +7,6 @@ import time
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.ui import screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
-
 from . import get_action_context
 
 

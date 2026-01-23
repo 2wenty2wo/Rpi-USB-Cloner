@@ -21,7 +21,6 @@ Command Execution:
     - run_checked_command(): Run command and check result
     - run_checked_with_streaming_progress(): Run with progress tracking
 """
-
 from .command_runners import (
     configure_progress_logger,
     run_checked_command,
@@ -45,19 +44,16 @@ from .operations import (
     clone_partclone,
     copy_partition_table,
 )
-
-# Import internal functions for test compatibility
-from .progress import _log_debug as _progress_log_debug
 from .progress import (
     configure_progress_logger as configure_clone_helpers,
-)
-from .progress import (
     format_eta,
     format_progress_display,
     format_progress_lines,
 )
 from .verification import compute_sha256, verify_clone, verify_clone_device
 
+# Import internal functions for test compatibility
+from .progress import _log_debug as _progress_log_debug
 
 # Unified log_debug function for backwards compatibility
 def log_debug(message: str) -> None:
@@ -71,10 +67,8 @@ def __getattr__(name):
     if name == "_log_debug":
         # Return the actual configured logger from progress module
         from .progress import _log_debug_func
-
         return _log_debug_func
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
 
 __all__ = [
     # Main operations

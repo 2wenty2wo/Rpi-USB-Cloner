@@ -3,7 +3,6 @@
 This package contains type-safe domain objects to replace dict[str, Any]
 scattered throughout the codebase, focusing on high-value areas first.
 """
-
 from __future__ import annotations
 
 from .models import (
@@ -15,7 +14,6 @@ from .models import (
     ImageType,
     JobState,
 )
-
 
 __all__ = [
     "CloneJob",

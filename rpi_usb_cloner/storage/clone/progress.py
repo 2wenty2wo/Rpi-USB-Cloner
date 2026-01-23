@@ -1,5 +1,4 @@
 """Progress monitoring and formatting for clone operations."""
-
 import re
 
 from rpi_usb_cloner.logging import get_logger

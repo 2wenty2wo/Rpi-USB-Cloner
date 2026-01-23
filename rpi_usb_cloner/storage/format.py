@@ -57,13 +57,13 @@ from rpi_usb_cloner.storage.devices import (
 )
 from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
+    FormatOperationError,
     MountVerificationError,
 )
 from rpi_usb_cloner.storage.validation import (
     validate_device_unmounted,
     validate_format_operation,
 )
-
 
 _log_debug = get_logger(tags=["format"], source=__name__).debug
 
@@ -115,7 +115,10 @@ def _create_partition(device_path: str) -> bool:
     try:
         log_debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
-        run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
+        run_command([
+            "parted", "-s", device_path,
+            "mkpart", "primary", "1MiB", "100%"
+        ])
         # Wait for partition device node to appear
         time.sleep(1)
         return True
@@ -214,7 +217,7 @@ def _format_filesystem(
                             percent = int(match.group(1))
                             progress_callback(
                                 [f"Formatting {filesystem}...", f"{percent}%"],
-                                percent / 100.0,
+                                percent / 100.0
                             )
                 time.sleep(0.1)
 
@@ -230,7 +233,7 @@ def _format_filesystem(
 
         # Update progress to complete
         if progress_callback:
-            progress_callback(["Format complete"], 1.0)
+            progress_callback([f"Format complete"], 1.0)
 
         return True
 
@@ -337,9 +340,7 @@ def format_device(
         return False
 
     # Format filesystem
-    if not _format_filesystem(
-        partition_path, filesystem, mode, label, progress_callback
-    ):
+    if not _format_filesystem(partition_path, filesystem, mode, label, progress_callback):
         return False
 
     log_debug(f"Format completed successfully: {device_label}")

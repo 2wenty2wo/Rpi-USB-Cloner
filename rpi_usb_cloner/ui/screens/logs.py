@@ -6,7 +6,6 @@ from rpi_usb_cloner.app.context import LogEntry
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import menus
-
 from .info import render_info_screen
 
 
@@ -24,9 +23,7 @@ def show_logs(app_context, *, title: str = "LOGS", max_lines: int = 40) -> None:
         return render_info_screen(title, lines, page_index=page, title_icon=title_icon)
 
     total_pages, page_index = render(page_index)
-    menus.wait_for_buttons_release(
-        [gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
-    )
+    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
     prev_states = {
         "A": gpio.is_pressed(gpio.PIN_A),
         "L": gpio.is_pressed(gpio.PIN_L),

@@ -1,5 +1,4 @@
 """Clonezilla image restoration operations."""
-
 from __future__ import annotations
 
 import os
@@ -29,7 +28,6 @@ from .partition_table import (
     normalize_partition_mode,
 )
 
-
 log = get_logger(source=__name__)
 
 
@@ -52,9 +50,7 @@ def get_blockdev_size_bytes(device_node: str) -> Optional[int]:
         return None
 
 
-def get_device_size_bytes(
-    target_info: Optional[dict], target_node: str
-) -> Optional[int]:
+def get_device_size_bytes(target_info: Optional[dict], target_node: str) -> Optional[int]:
     """Get device size from device info or blockdev."""
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))
@@ -99,9 +95,7 @@ def wait_for_partition_count(
                 return last_info, last_count
         time.sleep(poll_interval)
     if not last_info:
-        raise RuntimeError(
-            "Unable to refresh target device after partition table update."
-        )
+        raise RuntimeError("Unable to refresh target device after partition table update.")
     if allow_short:
         return last_info, last_count
     raise RuntimeError(
@@ -130,9 +124,7 @@ def wait_for_target_partitions(
                 return last_info, last_mapping
         time.sleep(poll_interval)
     if not last_info:
-        raise RuntimeError(
-            "Unable to refresh target device after partition table update."
-        )
+        raise RuntimeError("Unable to refresh target device after partition table update.")
     missing = [part for part in parts if not last_mapping.get(part)]
     missing_label = ", ".join(missing) if missing else "unknown"
     raise RuntimeError(f"Timed out waiting for partitions to appear: {missing_label}")
@@ -143,11 +135,7 @@ def map_target_partitions(
     target_device: dict,
 ) -> dict[str, Optional[dict[str, Optional[int]]]]:
     """Map source partition names to target partition info."""
-    target_children = [
-        child
-        for child in devices.get_children(target_device)
-        if child.get("type") == "part"
-    ]
+    target_children = [child for child in devices.get_children(target_device) if child.get("type") == "part"]
     target_by_number: dict[int, dict[str, Optional[int]]] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
@@ -171,11 +159,7 @@ def map_target_partitions(
 
 def count_target_partitions(target_device: dict) -> int:
     """Count the number of partitions on a device."""
-    return sum(
-        1
-        for child in devices.get_children(target_device)
-        if child.get("type") == "part"
-    )
+    return sum(1 for child in devices.get_children(target_device) if child.get("type") == "part")
 
 
 def write_partition_table(table_path: Path, target_node: str) -> None:
@@ -218,9 +202,7 @@ def write_partition_table(table_path: Path, target_node: str) -> None:
     raise RuntimeError("Unsupported partition table")
 
 
-def build_restore_command_from_plan(
-    op: PartitionRestoreOp, target_part: str
-) -> list[str]:
+def build_restore_command_from_plan(op: PartitionRestoreOp, target_part: str) -> list[str]:
     """Build the restoration command for a partition from a restore plan."""
     if op.tool == "partclone":
         fstype = (op.fstype or "").lower()
@@ -247,9 +229,7 @@ def run_restore_pipeline(
     if not image_files:
         raise RuntimeError("No image files")
     image_files = sorted_clonezilla_volumes(image_files)
-    cat_proc = subprocess.Popen(
-        ["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE
-    )
+    cat_proc = subprocess.Popen(["cat", *[str(path) for path in image_files]], stdout=subprocess.PIPE)
     upstream = cat_proc.stdout
     decompress_proc = None
     compression_type = get_compression_type(image_files)
@@ -349,8 +329,8 @@ def restore_image(
             raise RuntimeError(f"Missing target partition for {part_name}")
         if progress_callback:
             progress_callback(f"Restoring {part_name} {index}/{total_parts}")
-        from .compression import is_compressed
         from .file_utils import find_image_files, has_partition_image_files
+        from .compression import is_compressed
 
         partclone_files = find_image_files(image.path, part_name, "ptcl-img")
         dd_files = find_image_files(image.path, part_name, "img")
@@ -381,21 +361,13 @@ def restore_image(
             fstype = descriptor.get("fstype", "").lower()
             tool = get_partclone_tool(fstype)
             if not tool:
-                raise RuntimeError(
-                    f"partclone tool not found for filesystem '{fstype}'"
-                )
+                raise RuntimeError(f"partclone tool not found for filesystem '{fstype}'")
             command = [tool, "-r", "-s", "-", "-o", target_part["node"]]
         else:
             dd_path = shutil.which("dd")
             if not dd_path:
                 raise RuntimeError("dd not found")
-            command = [
-                dd_path,
-                f"of={target_part['node']}",
-                "bs=4M",
-                "status=progress",
-                "conv=fsync",
-            ]
+            command = [dd_path, f"of={target_part['node']}", "bs=4M", "status=progress", "conv=fsync"]
         run_restore_pipeline(
             image_files,
             command,
@@ -421,7 +393,6 @@ def restore_clonezilla_image(
         partition_mode: Partition table mode ("k0", "k", "k1", "k2")
         progress_callback: Optional callback for progress updates
     """
-
     def emit_prewrite_progress(step: str) -> None:
         if progress_callback:
             progress_callback(["Preparing media...", step], None)
@@ -455,9 +426,7 @@ def restore_clonezilla_image(
         partition_mode=partition_mode,
         target_size=target_size,
     )
-    post_layout_ops = [
-        op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"
-    ]
+    post_layout_ops = [op for op in disk_layout_ops if op.kind == "hidden-data-after-mbr"]
     layout_ops = [op for op in disk_layout_ops if op.kind != "hidden-data-after-mbr"]
 
     if partition_mode == "k":
@@ -470,9 +439,7 @@ def restore_clonezilla_image(
             allow_short=True,
         )
         if observed_count < required_partitions:
-            raise RuntimeError(
-                "target partition table missing required partitions for restore in -k mode"
-            )
+            raise RuntimeError("target partition table missing required partitions for restore in -k mode")
         target_parts = map_target_partitions(plan.parts, refreshed)
     else:
         applied_layout = False
@@ -482,9 +449,7 @@ def restore_clonezilla_image(
             try:
                 applied_layout = apply_disk_layout_op(op, target_node)
             except Exception as exc:
-                raise RuntimeError(
-                    f"Partition table apply failed ({op.kind}): {exc}"
-                ) from exc
+                raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
             if not applied_layout:
                 continue
             reread_partition_table(target_node)
@@ -506,16 +471,10 @@ def restore_clonezilla_image(
                     required_partitions,
                     observed_count,
                 )
-                attempt_results.append(
-                    f"{op.kind}: expected {required_partitions}, saw {observed_count}"
-                )
+                attempt_results.append(f"{op.kind}: expected {required_partitions}, saw {observed_count}")
                 applied_layout = False
         if layout_ops and not applied_layout:
-            attempts = (
-                "; ".join(attempt_results)
-                if attempt_results
-                else "no successful layout ops"
-            )
+            attempts = "; ".join(attempt_results) if attempt_results else "no successful layout ops"
             raise RuntimeError(
                 "Partition table apply failed to produce expected partition count "
                 f"(expected {required_partitions}). Attempts: {attempts}."
@@ -532,9 +491,7 @@ def restore_clonezilla_image(
         try:
             apply_disk_layout_op(op, target_node)
         except Exception as exc:
-            raise RuntimeError(
-                f"Partition table apply failed ({op.kind}): {exc}"
-            ) from exc
+            raise RuntimeError(f"Partition table apply failed ({op.kind}): {exc}") from exc
 
     total_parts = len(plan.partition_ops)
     for index, op in enumerate(plan.partition_ops, start=1):

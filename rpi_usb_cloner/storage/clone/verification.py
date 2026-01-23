@@ -13,7 +13,6 @@ from rpi_usb_cloner.ui.display import display_lines
 
 from .models import get_partition_number, resolve_device_node
 
-
 log = get_logger(source=__name__, tags=["verify"])
 
 

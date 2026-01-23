@@ -4,14 +4,16 @@ import os
 import shutil
 from typing import Any, Optional, Union
 
-from rpi_usb_cloner.domain import CloneJob
+from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.storage.devices import (
+    format_device_label,
     get_children,
     get_device_by_name,
     human_size,
     unmount_device,
 )
 from rpi_usb_cloner.storage.exceptions import (
+    CloneOperationError,
     DeviceBusyError,
     InsufficientSpaceError,
     MountVerificationError,
@@ -393,7 +395,7 @@ def clone_device_v2(job: CloneJob) -> bool:
 
     if not source_dict or not dest_dict:
         display_lines(["FAILED", "Device lookup"])
-        _log_debug("Clone aborted: Could not find source or destination device")
+        _log_debug(f"Clone aborted: Could not find source or destination device")
         return False
 
     # Call existing implementation

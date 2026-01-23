@@ -1,5 +1,4 @@
 """SHA256 verification for Clonezilla image restoration."""
-
 from __future__ import annotations
 
 import shutil
@@ -154,9 +153,7 @@ def compute_partition_sha256(partition_path: str) -> str:
         dd_proc.kill()
         sha_proc.wait()
         dd_proc.wait()
-        raise RuntimeError(
-            f"Partition hash computation timed out after {timeout} seconds"
-        )
+        raise RuntimeError(f"Partition hash computation timed out after {timeout} seconds")
 
     dd_proc.wait()
 
@@ -208,8 +205,7 @@ def verify_restored_image(
         return False
 
     target_parts = [
-        child
-        for child in devices.get_children(target_dev)
+        child for child in devices.get_children(target_dev)
         if child.get("type") == "part"
     ]
 
@@ -218,9 +214,7 @@ def verify_restored_image(
         part_num = get_partition_number(op.partition)
         if part_num is None:
             if progress_callback:
-                progress_callback(
-                    [f"V {index}/{total_parts}", "Invalid partition"], None
-                )
+                progress_callback([f"V {index}/{total_parts}", "Invalid partition"], None)
             return False
 
         target_part = None
@@ -232,48 +226,36 @@ def verify_restored_image(
 
         if not target_part:
             if progress_callback:
-                progress_callback(
-                    [f"V {index}/{total_parts}", "Partition missing"], None
-                )
+                progress_callback([f"V {index}/{total_parts}", "Partition missing"], None)
             return False
 
         if progress_callback:
-            progress_callback(
-                [f"V {index}/{total_parts} IMG", op.partition],
-                (index - 0.5) / total_parts,
-            )
+            progress_callback([f"V {index}/{total_parts} IMG", op.partition],
+                            (index - 0.5) / total_parts)
 
         # Compute SHA256 of the image file(s)
         try:
             image_hash = compute_image_sha256(op.image_files, op.compressed)
-        except Exception:
+        except Exception as e:
             if progress_callback:
-                progress_callback(
-                    [f"V {index}/{total_parts}", "Image hash error"], None
-                )
+                progress_callback([f"V {index}/{total_parts}", "Image hash error"], None)
             return False
 
         if progress_callback:
-            progress_callback(
-                [f"V {index}/{total_parts} DST", op.partition],
-                (index - 0.25) / total_parts,
-            )
+            progress_callback([f"V {index}/{total_parts} DST", op.partition],
+                            (index - 0.25) / total_parts)
 
         # Compute SHA256 of the target partition
         try:
             target_hash = compute_partition_sha256(target_part)
-        except Exception:
+        except Exception as e:
             if progress_callback:
-                progress_callback(
-                    [f"V {index}/{total_parts}", "Target hash error"], None
-                )
+                progress_callback([f"V {index}/{total_parts}", "Target hash error"], None)
             return False
 
         if image_hash != target_hash:
             if progress_callback:
-                progress_callback(
-                    [f"V {index}/{total_parts}", f"Mismatch {op.partition}"], None
-                )
+                progress_callback([f"V {index}/{total_parts}", f"Mismatch {op.partition}"], None)
             return False
 
     if progress_callback:

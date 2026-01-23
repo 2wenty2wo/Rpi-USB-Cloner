@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import re
-import subprocess
 import threading
 import time
+import subprocess
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Sequence
 
 from rpi_usb_cloner.logging import get_logger
 
-
 _log_debug: Callable[[str], None]
 _error_handler: Optional[Callable[[Iterable[str]], None]]
-_command_runner: Optional[
-    Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]]
-]
+_command_runner: Optional[Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]]]
 
 
 def _noop_logger(message: str) -> None:
@@ -42,21 +39,16 @@ def configure_wifi_helpers(
     _command_runner = command_runner
 
 
-def _default_runner(
-    command: Sequence[str], check: bool
-) -> subprocess.CompletedProcess[str]:
+def _default_runner(command: Sequence[str], check: bool) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=check, text=True, capture_output=True)
 
 
-def _format_command(
-    command: Sequence[str], redactions: Optional[Iterable[int]] = None
-) -> str:
+def _format_command(command: Sequence[str], redactions: Optional[Iterable[int]] = None) -> str:
     if not redactions:
         return " ".join(command)
     redacted_indexes = set(redactions)
     redacted_parts = [
-        "******" if index in redacted_indexes else part
-        for index, part in enumerate(command)
+        "******" if index in redacted_indexes else part for index, part in enumerate(command)
     ]
     return " ".join(redacted_parts)
 
@@ -170,9 +162,7 @@ def _select_active_interface() -> Optional[str]:
     if not interfaces:
         return None
     try:
-        result = _run_command(
-            ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"]
-        )
+        result = _run_command(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"])
         for line in result.stdout.splitlines():
             if not line:
                 continue
@@ -443,9 +433,7 @@ def get_active_ssid(interface: Optional[str] = None) -> Optional[str]:
     if not interface:
         return None
     try:
-        result = _run_command(
-            ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"]
-        )
+        result = _run_command(["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE", "dev", "wifi"])
         for line in result.stdout.splitlines():
             if not line:
                 continue
@@ -620,9 +608,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
             device = parts[0]
             device_type = parts[1]
             state = parts[2]
-            if device_type != "wifi" or not state.strip().lower().startswith(
-                "connected"
-            ):
+            if device_type != "wifi" or not state.strip().lower().startswith("connected"):
                 continue
             connection = _nmcli_unescape(parts[3]) if len(parts) > 3 else ""
             ip_value = None

@@ -3,6 +3,7 @@
 Collects CPU, memory, disk, and temperature metrics for display in web UI.
 """
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,7 +49,6 @@ def get_cpu_temperature() -> Optional[float]:
     # Try vcgencmd for Raspberry Pi
     try:
         import subprocess
-
         result = subprocess.run(
             ["vcgencmd", "measure_temp"],
             capture_output=True,
@@ -84,8 +84,8 @@ def get_system_health() -> SystemHealth:
     # Disk usage (root filesystem)
     disk = psutil.disk_usage("/")
     disk_percent = disk.percent
-    disk_used_gb = disk.used / (1024**3)
-    disk_total_gb = disk.total / (1024**3)
+    disk_used_gb = disk.used / (1024 ** 3)
+    disk_total_gb = disk.total / (1024 ** 3)
 
     # Temperature
     temperature = get_cpu_temperature()
@@ -117,9 +117,10 @@ def get_temperature_status(temp: Optional[float]) -> str:
     # Raspberry Pi temperature thresholds
     if temp < 60:
         return "success"
-    if temp < 75:
+    elif temp < 75:
         return "warning"
-    return "danger"
+    else:
+        return "danger"
 
 
 def get_usage_status(percent: float) -> str:
@@ -133,6 +134,7 @@ def get_usage_status(percent: float) -> str:
     """
     if percent < 70:
         return "success"
-    if percent < 85:
+    elif percent < 85:
         return "warning"
-    return "danger"
+    else:
+        return "danger"

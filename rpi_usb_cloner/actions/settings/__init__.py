@@ -6,14 +6,7 @@ This package provides settings-related functionality including:
 - System power operations (restart, shutdown)
 - System utilities and service management
 """
-
-from .system_power import (
-    confirm_action,
-    restart_service,
-    restart_system,
-    shutdown_system,
-    stop_service,
-)
+from .system_power import confirm_action, restart_service, restart_system, shutdown_system, stop_service
 from .system_utils import (
     format_command_output,
     get_app_version,
@@ -42,7 +35,6 @@ from .ui_actions import (
     select_restore_partition_mode,
     select_screensaver_gif,
     show_about_credits,
-    toggle_menu_view_mode,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
@@ -56,7 +48,6 @@ from .update_manager import (
     run_update_flow,
     update_version,
 )
-
 
 __all__ = [
     # UI actions
@@ -75,7 +66,6 @@ __all__ = [
     "lucide_demo",
     "heroicons_demo",
     "preview_title_font",
-    "toggle_menu_view_mode",
     "toggle_screenshots",
     "toggle_web_server",
     "show_about_credits",

@@ -1,5 +1,4 @@
 """Display helper functions for clone operations."""
-
 import re
 
 
