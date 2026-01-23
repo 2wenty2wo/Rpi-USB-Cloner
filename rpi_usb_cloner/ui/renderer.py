@@ -447,13 +447,16 @@ def render_icon_menu_screen(
         # Determine item width based on total items to maximize space usage
         # For main menu (4 items), allocate width to fit all on screen
         if total_items <= 4:
-            # Fit all items on screen with equal spacing
-            icon_width = available_width // total_items
+            # Fit all items on screen with equal spacing and a small gap
+            item_gap = 2
+            available_width = available_width - (item_gap * (total_items - 1))
+            icon_width = max(1, available_width // total_items)
             visible_icons = total_items
         else:
             # Default behavior for more items
             icon_width = 32
             visible_icons = max(1, available_width // icon_width)
+            item_gap = 0
 
         # Prepare icons
         icons_seq = list(item_icons) if item_icons else [None] * len(items_seq)
@@ -474,7 +477,7 @@ def render_icon_menu_screen(
         end_index = min(start_index + visible_icons, len(items_seq))
 
         for display_index, item_index in enumerate(range(start_index, end_index)):
-            x_pos = left_margin + display_index * icon_width
+            x_pos = left_margin + display_index * (icon_width + item_gap)
             is_selected = item_index == selected_index
 
             # Calculate positions
@@ -497,13 +500,13 @@ def render_icon_menu_screen(
             # Highlight selected item with white background and inverted colors
             if is_selected:
                 # Draw filled white background box
-                box_padding = 1
+                box_padding_top = 1
                 draw.rectangle(
                     (
-                        x_pos - box_padding,
-                        icon_start_y - box_padding,
-                        x_pos + icon_width - 1 + box_padding,
-                        label_y + label_height + box_padding,
+                        x_pos,
+                        icon_start_y - box_padding_top,
+                        x_pos + icon_width - 1,
+                        label_y + label_height - 1,
                     ),
                     outline=255,
                     fill=255,  # White fill for selected item
