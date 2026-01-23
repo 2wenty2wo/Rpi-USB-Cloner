@@ -58,7 +58,12 @@ def restore_imageusb_file(
         raise RuntimeError(f"Target device not found: {target_name}")
 
     # Safety check: must be removable
-    if target_info.get("rm") != "1":
+    rm_value = target_info.get("rm")
+    try:
+        rm_flag = int(rm_value)
+    except (TypeError, ValueError):
+        rm_flag = 0
+    if rm_flag != 1:
         raise RuntimeError(
             f"Target device {target_name} is not removable - refusing to restore"
         )
