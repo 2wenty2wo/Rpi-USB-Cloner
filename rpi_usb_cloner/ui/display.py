@@ -141,7 +141,7 @@ TITLE_TEXT_Y_OFFSET = -2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
 ICON_BASELINE_ADJUST = -1
-_lucide_fonts: Dict[int, ImageFont.ImageFont] = {}
+_lucide_font: Optional[ImageFont.ImageFont] = None
 
 
 @dataclass(frozen=True)
@@ -406,17 +406,15 @@ def _wrap_lines_to_width(lines, font, available_width):
     return wrapped_lines
 
 
-def _get_lucide_font(size: int | None = None) -> ImageFont.ImageFont:
-    size = LUCIDE_FONT_SIZE if size is None else size
-    cached_font = _lucide_fonts.get(size)
-    if cached_font is not None:
-        return cached_font
+def _get_lucide_font() -> ImageFont.ImageFont:
+    global _lucide_font
+    if _lucide_font is not None:
+        return _lucide_font
     try:
-        cached_font = ImageFont.truetype(LUCIDE_FONT_PATH, size)
+        _lucide_font = ImageFont.truetype(LUCIDE_FONT_PATH, LUCIDE_FONT_SIZE)
     except OSError:
-        cached_font = get_display_context().fontdisks
-    _lucide_fonts[size] = cached_font
-    return cached_font
+        _lucide_font = get_display_context().fontdisks
+    return _lucide_font
 
 
 def draw_title_with_icon(
