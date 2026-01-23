@@ -143,12 +143,12 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             text_color = 255
             x_offset = 0
             display_line = line
-
-            if menu.enable_horizontal_scroll and not is_selected:
+            if menu.screen_id == "images" and not is_selected:
                 display_line = display._truncate_text(draw, line, items_font, max_width)
             if (
                 is_selected
                 and menu.enable_horizontal_scroll
+                and menu.screen_id == "images"
                 and menu.scroll_start_time is not None
             ):
                 line_widths = item.line_widths or []
@@ -175,7 +175,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
             )
             # Draw selector for selected item (only on first line)
             if is_selected and line_index == 0:
-                if menu.enable_horizontal_scroll:
+                if menu.screen_id == "images":
                     # Mask entire selector column from left edge to prevent scrolling text from showing through
                     draw.rectangle(
                         (
@@ -342,7 +342,7 @@ def select_list(
         now = time.monotonic()
         action_taken = False
         refresh_needed = False
-        if enable_scroll:
+        if enable_scroll and screen_id == "images":
             if now - last_scroll_render >= scroll_refresh_interval:
                 refresh_needed = True
                 last_scroll_render = now
@@ -680,8 +680,6 @@ def select_usb_drive(
         footer=footer,
         selected_index=selected_index,
         header_lines=header_lines,
-        enable_horizontal_scroll=True,
-        scroll_start_delay=1.5,
     )
 
 
