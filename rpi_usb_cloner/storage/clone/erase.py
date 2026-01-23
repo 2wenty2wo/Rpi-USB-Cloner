@@ -1,8 +1,6 @@
 """Device erasure operations."""
-
 import shutil
 
-import rpi_usb_cloner.ui.display as display
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
@@ -11,17 +9,18 @@ from rpi_usb_cloner.storage.devices import (
 )
 from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
+    EraseOperationError,
     MountVerificationError,
 )
 from rpi_usb_cloner.storage.validation import (
     validate_device_unmounted,
     validate_erase_operation,
 )
+import rpi_usb_cloner.ui.display as display
 
 
 def display_lines(lines):
     return display.display_lines(lines)
-
 
 from .command_runners import run_checked_with_streaming_progress
 from .progress import _log_debug
@@ -145,14 +144,7 @@ def erase_device(target, mode, progress_callback=None):
             _log_debug("Erase failed: dd not available")
             return False
         return run_erase_command(
-            [
-                dd_path,
-                "if=/dev/zero",
-                f"of={target_node}",
-                "bs=4M",
-                "status=progress",
-                "conv=fsync",
-            ],
+            [dd_path, "if=/dev/zero", f"of={target_node}", "bs=4M", "status=progress", "conv=fsync"],
             total_bytes=target.get("size"),
         )
 
@@ -195,15 +187,7 @@ def erase_device(target, mode, progress_callback=None):
     wipe_bytes = wipe_mib * bytes_per_mib
 
     if not run_erase_command(
-        [
-            dd_path,
-            "if=/dev/zero",
-            f"of={target_node}",
-            "bs=1M",
-            f"count={wipe_mib}",
-            "status=progress",
-            "conv=fsync",
-        ],
+        [dd_path, "if=/dev/zero", f"of={target_node}", "bs=1M", f"count={wipe_mib}", "status=progress", "conv=fsync"],
         total_bytes=wipe_bytes,
     ):
         return False

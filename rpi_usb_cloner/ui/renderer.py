@@ -150,11 +150,7 @@ def render_menu_screen(
         for item_index, item in enumerate(items_seq):
             item_width = _measure_text_width(list_font, item)
             item_widths.append(item_width)
-            if (
-                enable_horizontal_scroll
-                and item_index == selected_index
-                and screen_id == "images"
-            ):
+            if enable_horizontal_scroll and item_index == selected_index and screen_id == "images":
                 items_list.append(item)
             else:
                 items_list.append(_truncate_text(item, list_font, max_item_width))
@@ -196,9 +192,7 @@ def render_menu_screen(
                 )
             # Draw selector for selected item
             if is_selected:
-                draw.text(
-                    (left_margin, text_y), selector, font=list_font, fill=text_color
-                )
+                draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
 
         footer_font = None
         footer_height = 0
@@ -261,7 +255,7 @@ def render_menu_screen(
             draw.rectangle(
                 (0, footer_y - footer_padding + 1, context.width, context.height),
                 outline=255,
-                fill=255,
+                fill=255
             )
             max_status_width = context.width - left_margin - 1
             footer_text = _truncate_text(status_line, footer_font, max_status_width)
@@ -269,9 +263,7 @@ def render_menu_screen(
             draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)
         elif footer:
             footer_items = list(footer)
-            footer_positions_list = (
-                list(footer_positions) if footer_positions is not None else []
-            )
+            footer_positions_list = list(footer_positions) if footer_positions is not None else []
             if not footer_positions_list:
                 spacing = context.width // (len(footer_items) + 1)
                 footer_positions_list = [
@@ -280,17 +272,9 @@ def render_menu_screen(
             for footer_index, label in enumerate(footer_items):
                 x_pos = footer_positions_list[footer_index]
                 text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
-                if (
-                    footer_selected_index is not None
-                    and footer_index == footer_selected_index
-                ):
+                if footer_selected_index is not None and footer_index == footer_selected_index:
                     draw.rectangle(
-                        (
-                            text_bbox[0] - 3,
-                            text_bbox[1] - 1,
-                            text_bbox[2] + 3,
-                            text_bbox[3] + 2,
-                        ),
+                        (text_bbox[0] - 3, text_bbox[1] - 1, text_bbox[2] + 3, text_bbox[3] + 2),
                         outline=0,
                         fill=1,
                     )
@@ -344,246 +328,3 @@ def calculate_visible_rows(
 
     available_height = context.height - current_y - footer_height - footer_gap - padding
     return max(1, available_height // row_height)
-
-
-def render_icon_menu_screen(
-    title: str,
-    items: Iterable[str],
-    selected_index: int,
-    scroll_offset: int,
-    status_line: Optional[str] = None,
-    title_font=None,
-    title_icon: Optional[str] = None,
-    title_icon_font=None,
-    items_font=None,
-    icon_font=None,
-    status_font=None,
-    footer: Optional[Iterable[str]] = None,
-    footer_positions: Optional[Iterable[int]] = None,
-    footer_selected_index: Optional[int] = None,
-    footer_font=None,
-    item_icons: Optional[Iterable[Optional[str]]] = None,
-    clear: bool = True,
-) -> None:
-    """
-    Render a menu screen with icons in horizontal layout.
-
-    Args:
-        title: Screen title
-        items: Menu item labels
-        selected_index: Currently selected item index
-        scroll_offset: Horizontal scroll offset (in items)
-        status_line: Optional status line at bottom
-        title_font: Font for title
-        title_icon: Icon for title
-        title_icon_font: Font for title icon
-        items_font: Font for item labels
-        icon_font: Font for item icons (24px Lucide)
-        status_font: Font for status line
-        footer: Footer items
-        footer_positions: Footer item positions
-        footer_selected_index: Selected footer item
-        footer_font: Font for footer
-        item_icons: Icons for each menu item
-        clear: Whether to clear screen before rendering
-    """
-    context = display.get_display_context()
-    draw = context.draw
-
-    # Acquire lock to ensure atomic rendering
-    with display._display_lock:
-        if clear:
-            draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-
-        # Draw title
-        current_y = context.top
-        extra_gap = 1
-        header_font = title_font or context.fonts.get("title", context.fontdisks)
-        if title:
-            layout = display.draw_title_with_icon(
-                title,
-                title_font=header_font,
-                icon=title_icon,
-                icon_font=title_icon_font,
-                extra_gap=extra_gap,
-                left_margin=context.x - 11,
-            )
-            current_y = layout.content_top
-
-        # Calculate available space
-        list_font = items_font or context.fonts.get("items", context.fontdisks)
-        icon_display_font = icon_font or display._get_lucide_font(size=24)
-
-        # Footer setup
-        footer_height = 0
-        footer_padding = 1
-        footer_y = 0
-        if status_line:
-            footer_font = status_font or list_font
-            footer_height = _get_line_height(footer_font)
-            footer_y = context.height - footer_height - footer_padding
-        elif footer:
-            footer_font = footer_font or context.fonts.get("footer", context.fontdisks)
-            footer_height = _get_line_height(footer_font)
-            footer_y = context.height - footer_height - footer_padding
-
-        content_bottom = (
-            footer_y - footer_padding if footer or status_line else context.height - 1
-        )
-
-        # Icon layout parameters
-        icon_size = 24
-        label_height = _get_line_height(list_font)
-        item_spacing = 8
-        icon_width = 32  # Width per icon including spacing
-
-        # Calculate how many icons can fit on screen
-        available_width = context.width - 4  # Leave 2px margin on each side
-        visible_icons = max(1, available_width // icon_width)
-
-        # Prepare items
-        items_seq = list(items)
-        icons_seq = list(item_icons) if item_icons else [None] * len(items_seq)
-
-        # Calculate scroll position to keep selected item visible
-        if selected_index < scroll_offset:
-            scroll_offset = selected_index
-        elif selected_index >= scroll_offset + visible_icons:
-            scroll_offset = selected_index - visible_icons + 1
-
-        # Calculate content area
-        content_height = content_bottom - current_y
-        icon_area_height = icon_size + label_height + 4
-        icon_start_y = current_y + (content_height - icon_area_height) // 2
-
-        # Draw icons
-        start_index = max(0, scroll_offset)
-        end_index = min(start_index + visible_icons, len(items_seq))
-
-        for display_index, item_index in enumerate(range(start_index, end_index)):
-            x_pos = 2 + display_index * icon_width
-            is_selected = item_index == selected_index
-
-            # Draw icon (24px)
-            icon_char = icons_seq[item_index]
-            if icon_char:
-                icon_x = x_pos + (icon_width - icon_size) // 2
-                icon_y = icon_start_y
-                draw.text((icon_x, icon_y), icon_char, font=icon_display_font, fill=255)
-
-            # Draw label below icon
-            label = items_seq[item_index]
-            label_max_width = icon_width - 2
-            truncated_label = _truncate_text(label, list_font, label_max_width)
-
-            label_width = _measure_text_width(list_font, truncated_label)
-            label_x = x_pos + (icon_width - label_width) // 2
-            label_y = icon_start_y + icon_size + 2
-
-            # Highlight selected item
-            if is_selected:
-                # Draw selection box around icon and label
-                box_padding = 2
-                draw.rectangle(
-                    (
-                        x_pos - box_padding,
-                        icon_start_y - box_padding,
-                        x_pos + icon_width - 1 + box_padding,
-                        label_y + label_height + box_padding,
-                    ),
-                    outline=255,
-                    fill=0,
-                )
-                # Redraw icon and text on top of box
-                if icon_char:
-                    draw.text(
-                        (icon_x, icon_y), icon_char, font=icon_display_font, fill=255
-                    )
-
-            draw.text((label_x, label_y), truncated_label, font=list_font, fill=255)
-
-        # Draw horizontal scrollbar if needed
-        needs_scrollbar = len(items_seq) > visible_icons
-        if needs_scrollbar:
-            scrollbar_height = 2
-            scrollbar_y = content_bottom - scrollbar_height - 1
-            track_left = 2
-            track_right = context.width - 3
-
-            # Draw track (dotted line)
-            for track_x in range(track_left, track_right + 1, 3):
-                draw.point((track_x, scrollbar_y + 1), fill=255)
-
-            # Draw thumb
-            track_width = track_right - track_left + 1
-            min_thumb_width = 4
-            thumb_width = max(
-                min_thumb_width, int(track_width * visible_icons / len(items_seq))
-            )
-            max_scroll = max(len(items_seq) - visible_icons, 0)
-            thumb_range = max(track_width - thumb_width, 0)
-
-            if max_scroll > 0:
-                thumb_offset = int(round((scroll_offset / max_scroll) * thumb_range))
-            else:
-                thumb_offset = 0
-
-            thumb_left = track_left + thumb_offset
-            thumb_right = thumb_left + thumb_width
-
-            draw.rectangle(
-                (
-                    thumb_left,
-                    scrollbar_y,
-                    thumb_right,
-                    scrollbar_y + scrollbar_height - 1,
-                ),
-                outline=255,
-                fill=255,
-            )
-
-        # Draw footer/status line
-        if status_line:
-            # Draw white background bar for footer
-            draw.rectangle(
-                (0, footer_y - footer_padding + 1, context.width, context.height),
-                outline=255,
-                fill=255,
-            )
-            left_margin = context.x - 11
-            max_status_width = context.width - left_margin - 1
-            footer_text = _truncate_text(status_line, footer_font, max_status_width)
-            draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)
-        elif footer:
-            footer_items = list(footer)
-            footer_positions_list = (
-                list(footer_positions) if footer_positions is not None else []
-            )
-            if not footer_positions_list:
-                spacing = context.width // (len(footer_items) + 1)
-                footer_positions_list = [
-                    (spacing * (index + 1)) - 10 for index in range(len(footer_items))
-                ]
-            for footer_index, label in enumerate(footer_items):
-                x_pos = footer_positions_list[footer_index]
-                text_bbox = draw.textbbox((x_pos, footer_y), label, font=footer_font)
-                if (
-                    footer_selected_index is not None
-                    and footer_index == footer_selected_index
-                ):
-                    draw.rectangle(
-                        (
-                            text_bbox[0] - 3,
-                            text_bbox[1] - 1,
-                            text_bbox[2] + 3,
-                            text_bbox[3] + 2,
-                        ),
-                        outline=0,
-                        fill=1,
-                    )
-                    draw.text((x_pos, footer_y), label, font=footer_font, fill=0)
-                else:
-                    draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
-
-        context.disp.display(context.image)
-        display.mark_display_dirty()

@@ -5,7 +5,6 @@ This module handles partition table manipulation including:
 - Scaling partition tables for different disk sizes
 - Applying partition tables to target devices
 """
-
 from __future__ import annotations
 
 import re
@@ -20,13 +19,10 @@ from rpi_usb_cloner.storage import devices
 
 from .models import DiskLayoutOp
 
-
 log = get_logger(source=__name__)
 
 
-def collect_disk_layout_ops(
-    image_dir: Path, *, select: bool = True
-) -> list[DiskLayoutOp]:
+def collect_disk_layout_ops(image_dir: Path, *, select: bool = True) -> list[DiskLayoutOp]:
     """Collect all disk layout operations from a Clonezilla image directory."""
     disk_layout_ops: list[DiskLayoutOp] = []
 
@@ -150,11 +146,7 @@ def estimate_required_size_bytes(
                         max_sector = end_sector
             if line[0].isdigit() and ":" in line:
                 fields = [field.strip() for field in line.split(":")]
-                if (
-                    len(fields) > 2
-                    and fields[1].endswith("s")
-                    and fields[2].endswith("s")
-                ):
+                if len(fields) > 2 and fields[1].endswith("s") and fields[2].endswith("s"):
                     end_sector = int(fields[2][:-1])
                     if max_sector is None or end_sector > max_sector:
                         max_sector = end_sector
@@ -248,9 +240,7 @@ def get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> Optional[in
     return None
 
 
-def set_sfdisk_field(
-    fields: list[tuple[str, str]], key: str, value: str
-) -> list[tuple[str, str]]:
+def set_sfdisk_field(fields: list[tuple[str, str]], key: str, value: str) -> list[tuple[str, str]]:
     """Update or add a field in sfdisk field list."""
     updated = []
     found = False
@@ -332,18 +322,14 @@ def scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayo
         return None
 
     for part in scaled:
-        part["fields"] = set_sfdisk_field(
-            part["fields"], "start", str(part["new_start"])
-        )
+        part["fields"] = set_sfdisk_field(part["fields"], "start", str(part["new_start"]))
         part["fields"] = set_sfdisk_field(part["fields"], "size", str(part["new_size"]))
         lines[part["index"]] = format_sfdisk_line(part["prefix"], part["fields"])
 
     if last_lba_index is not None:
         lines[last_lba_index] = f"last-lba: {target_sectors - 1}"
 
-    return DiskLayoutOp(
-        kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes
-    )
+    return DiskLayoutOp(kind="sfdisk", path=op.path, contents="\n".join(lines), size_bytes=op.size_bytes)
 
 
 def parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
@@ -356,9 +342,7 @@ def parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
     return None
 
 
-def parse_parted_layout(
-    contents: str,
-) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
+def parse_parted_layout(contents: str) -> Optional[tuple[int, Optional[str], list[dict[str, int | str | list[str]]]]]:
     """Parse a parted partition table layout."""
     sector_size = 512
     label: Optional[str] = None
@@ -469,9 +453,7 @@ def build_sfdisk_script_from_parted(
     if sector_size:
         lines.append(f"sector-size: {sector_size}")
 
-    for index, part in enumerate(
-        sorted(partitions, key=lambda item: int(item["start"]))
-    ):
+    for index, part in enumerate(sorted(partitions, key=lambda item: int(item["start"]))):
         start = int(part["new_start"])
         size = int(part["new_size"])
         fields: list[tuple[str, str]] = [
@@ -480,9 +462,7 @@ def build_sfdisk_script_from_parted(
         ]
         flags = [flag.lower() for flag in part.get("flags") or []]
         fstype = str(part.get("fstype") or "").lower()
-        if normalized_label == "gpt" and (
-            "esp" in flags or (fstype == "fat32" and "boot" in flags)
-        ):
+        if normalized_label == "gpt" and ("esp" in flags or (fstype == "fat32" and "boot" in flags)):
             fields.append(("type", "EF00"))
         if normalized_label == "dos" and "boot" in flags:
             fields.append(("bootable", ""))
@@ -517,9 +497,7 @@ def scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayo
     )
     if not sfdisk_contents:
         return None
-    return DiskLayoutOp(
-        kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes
-    )
+    return DiskLayoutOp(kind="sfdisk", path=op.path, contents=sfdisk_contents, size_bytes=op.size_bytes)
 
 
 def scale_partition_geometry(
@@ -583,9 +561,7 @@ def scale_partition_geometry(
     return ordered
 
 
-def format_command_failure(
-    summary: str, command: list[str], result: subprocess.CompletedProcess
-) -> str:
+def format_command_failure(summary: str, command: list[str], result: subprocess.CompletedProcess) -> str:
     """Format a command failure message."""
     stderr = " ".join(result.stderr.strip().split())
     stdout = " ".join(result.stdout.strip().split())
@@ -633,17 +609,7 @@ def looks_like_sfdisk_script(contents: str) -> bool:
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith(
-            (
-                "/dev/",
-                "label:",
-                "label-id:",
-                "unit:",
-                "sector-size:",
-                "first-lba:",
-                "last-lba:",
-            )
-        ):
+        if stripped.startswith(("/dev/", "label:", "label-id:", "unit:", "sector-size:", "first-lba:", "last-lba:")):
             return True
     return False
 
@@ -668,9 +634,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = format_command_failure(
-                "sfdisk failed", [sfdisk, "--force", target_node], result
-            )
+            message = format_command_failure("sfdisk failed", [sfdisk, "--force", target_node], result)
             raise RuntimeError(message)
         return True
 
@@ -678,10 +642,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
         if not op.contents:
             raise RuntimeError("chs.sf data missing or unreadable")
         if not looks_like_sfdisk_script(op.contents):
-            log.warning(
-                "Skipping chs.sf layout op %s: does not look like sfdisk input.",
-                op.path,
-            )
+            log.warning("Skipping chs.sf layout op %s: does not look like sfdisk input.", op.path)
             return False
         sfdisk = shutil.which("sfdisk")
         if not sfdisk:
@@ -694,9 +655,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = format_command_failure(
-                "sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result
-            )
+            message = format_command_failure("sfdisk failed for chs.sf", [sfdisk, "--force", target_node], result)
             raise RuntimeError(message)
         return True
 
@@ -720,9 +679,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = format_command_failure(
-                "parted failed", [parted, "--script", target_node], result
-            )
+            message = format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
         return True
 
@@ -747,9 +704,7 @@ def apply_disk_layout_op(op: DiskLayoutOp, target_node: str) -> bool:
             stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
-            message = format_command_failure(
-                "parted failed", [parted, "--script", target_node], result
-            )
+            message = format_command_failure("parted failed", [parted, "--script", target_node], result)
             raise RuntimeError(message)
         return True
 

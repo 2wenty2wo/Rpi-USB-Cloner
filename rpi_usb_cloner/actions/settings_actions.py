@@ -6,7 +6,6 @@ from the refactored settings package.
 For new code, prefer importing directly from:
     rpi_usb_cloner.actions.settings.*
 """
-
 # Re-export all public APIs from the settings package
 from rpi_usb_cloner.actions.settings import (
     build_update_info_lines,
@@ -43,7 +42,6 @@ from rpi_usb_cloner.actions.settings import (
     show_about_credits,  # Display credits screen from assets/credits.png
     shutdown_system,
     stop_service,
-    toggle_menu_view_mode,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
@@ -51,7 +49,6 @@ from rpi_usb_cloner.actions.settings import (
     update_version,
     wifi_settings,
 )
-
 
 # Backwards compatibility aliases
 _log_debug = log_debug_msg
@@ -101,7 +98,6 @@ __all__ = [
     "lucide_demo",
     "heroicons_demo",
     "preview_title_font",
-    "toggle_menu_view_mode",
     "toggle_screenshots",
     "toggle_web_server",
     "show_about_credits",  # ABOUT menu: Display credits screen

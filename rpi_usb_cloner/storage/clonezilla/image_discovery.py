@@ -1,5 +1,4 @@
 """Image discovery and parsing for Clonezilla images."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,12 +7,8 @@ from typing import Optional
 from rpi_usb_cloner.storage import devices
 
 from .compression import is_compressed
-from .file_utils import (
-    extract_partclone_fstype,
-    find_image_files,
-    has_partition_image_files,
-)
-from .models import ClonezillaImage, PartitionRestoreOp, RestorePlan
+from .file_utils import extract_partclone_fstype, find_image_files, has_partition_image_files
+from .models import ClonezillaImage, DiskLayoutOp, PartitionRestoreOp, RestorePlan
 
 
 def get_mountpoint(device: dict) -> Optional[str]:
@@ -130,9 +125,7 @@ def get_partclone_tool(fstype: str) -> Optional[str]:
     return None
 
 
-def build_partition_restore_op(
-    image_dir: Path, part_name: str
-) -> Optional[PartitionRestoreOp]:
+def build_partition_restore_op(image_dir: Path, part_name: str) -> Optional[PartitionRestoreOp]:
     """Build a partition restore operation from image files.
 
     Args:
@@ -175,9 +168,7 @@ def build_partition_restore_op(
         )
 
     if has_partition_image_files(image_dir, part_name):
-        raise RuntimeError(
-            f"Image set does not match partclone/dd naming convention for partition {part_name}"
-        )
+        raise RuntimeError(f"Image set does not match partclone/dd naming convention for partition {part_name}")
 
     return None
 

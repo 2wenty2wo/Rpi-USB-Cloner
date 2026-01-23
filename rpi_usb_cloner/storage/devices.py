@@ -70,7 +70,6 @@ import subprocess
 import time
 from typing import Any, Callable, Iterable, Optional, Union
 
-
 ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 LSBLK_CACHE_TTL_SECONDS = 1.0
 
@@ -248,7 +247,7 @@ def list_usb_disks() -> list[dict[str, Any]]:
 
 def _is_mountpoint_active(mountpoint: str) -> bool:
     try:
-        with open("/proc/mounts", encoding="utf-8") as mounts_file:
+        with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
             for line in mounts_file:
                 parts = line.split()
                 if len(parts) > 1 and parts[1] == mountpoint:

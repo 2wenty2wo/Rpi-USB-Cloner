@@ -1,5 +1,4 @@
 """Data models for Clonezilla image operations."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
