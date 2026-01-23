@@ -140,11 +140,7 @@ cd Rpi-USB-Cloner
    sudo pip install --break-system-packages -r requirements.txt
    ```
 
-#### 3. Hardware setup
 
-1. Attach the **Adafruit OLED Bonnet** (OLED + buttons) to the Pi Zero GPIO header.
-2. Attach the **Zero4U USB Hub** to the Pi Zero (follow the Zero4U instructions).
-3. Connect power and boot the Pi.
 
 ### Usage
 
