@@ -561,9 +561,6 @@ def main(argv: Optional[list[str]] = None) -> None:
                     scroll_offset=menu_navigator.current_state().scroll_offset,
                     status_line=status_line,
                     title_icon=get_screen_icon(current_screen.screen_id),
-                    items_font=app_context.display.fonts.get(
-                        "icon_labels", app_context.display.fontdisks
-                    ),
                     item_icons=item_icons,
                 )
             else:
