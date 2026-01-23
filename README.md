@@ -158,10 +158,6 @@ sudo -E python3 rpi-usb-cloner.py --debug
 
 > **Note:** The `-E` flag preserves environment variables. Root permissions are required for disk operations.
 
-**Web UI debug logging:**
-- Add `?debug=1` to the web UI URL: `http://<pi-ip>:8000/?debug=1`
-- Persist in browser: `localStorage.setItem("rpiUsbClonerDebug", "1")`
-- Disable: `localStorage.removeItem("rpiUsbClonerDebug")`
 
 **Stop/Restart:**
 - Press **Ctrl+C** to stop the running process
