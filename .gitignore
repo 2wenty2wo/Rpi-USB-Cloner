@@ -7,6 +7,7 @@ __pycache__/
 htmlcov/
 .coverage
 coverage.xml
+coverage.json
 *.cover
 .hypothesis/
 
