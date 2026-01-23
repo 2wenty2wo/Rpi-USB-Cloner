@@ -434,28 +434,15 @@ def render_icon_menu_screen(
         # Icon layout parameters
         icon_size = 24
         label_height = _get_line_height(list_font)
-
-        # Calculate layout to fit maximum icons on screen
-        # Total width: 128px, leave 2px margins on each side = 124px available
-        left_margin = 2
-        available_width = context.width - (left_margin * 2)
+        item_spacing = 8
+        icon_width = 32  # Width per icon including spacing
 
         # Calculate how many icons can fit on screen
+        available_width = context.width - 4  # Leave 2px margin on each side
+        visible_icons = max(1, available_width // icon_width)
+
+        # Prepare items
         items_seq = list(items)
-        total_items = len(items_seq)
-
-        # Determine item width based on total items to maximize space usage
-        # For main menu (4 items), allocate width to fit all on screen
-        if total_items <= 4:
-            # Fit all items on screen with equal spacing
-            icon_width = available_width // total_items
-            visible_icons = total_items
-        else:
-            # Default behavior for more items
-            icon_width = 32
-            visible_icons = max(1, available_width // icon_width)
-
-        # Prepare icons
         icons_seq = list(item_icons) if item_icons else [None] * len(items_seq)
 
         # Calculate scroll position to keep selected item visible
@@ -474,27 +461,29 @@ def render_icon_menu_screen(
         end_index = min(start_index + visible_icons, len(items_seq))
 
         for display_index, item_index in enumerate(range(start_index, end_index)):
-            x_pos = left_margin + display_index * icon_width
+            x_pos = 2 + display_index * icon_width
             is_selected = item_index == selected_index
 
-            # Calculate positions
-            icon_x = x_pos + (icon_width - icon_size) // 2
-            icon_y = icon_start_y
+            # Draw icon (24px)
+            icon_char = icons_seq[item_index]
+            if icon_char:
+                icon_x = x_pos + (icon_width - icon_size) // 2
+                icon_y = icon_start_y
+                draw.text((icon_x, icon_y), icon_char, font=icon_display_font, fill=255)
 
             # Draw label below icon
             label = items_seq[item_index]
-            # Allow wider labels to show full words (reduce padding)
-            label_max_width = icon_width - 1
+            label_max_width = icon_width - 2
             truncated_label = _truncate_text(label, list_font, label_max_width)
 
             label_width = _measure_text_width(list_font, truncated_label)
             label_x = x_pos + (icon_width - label_width) // 2
             label_y = icon_start_y + icon_size + 2
 
-            # Highlight selected item with white background and inverted colors
+            # Highlight selected item
             if is_selected:
-                # Draw filled white background box
-                box_padding = 1
+                # Draw selection box around icon and label
+                box_padding = 2
                 draw.rectangle(
                     (
                         x_pos - box_padding,
@@ -503,27 +492,19 @@ def render_icon_menu_screen(
                         label_y + label_height + box_padding,
                     ),
                     outline=255,
-                    fill=255,  # White fill for selected item
+                    fill=0,
                 )
-                # Draw icon and text in black (inverted)
-                icon_char = icons_seq[item_index]
-                if icon_char:
-                    draw.text(
-                        (icon_x, icon_y), icon_char, font=icon_display_font, fill=0
-                    )
-                draw.text((label_x, label_y), truncated_label, font=list_font, fill=0)
-            else:
-                # Draw normal (white on black)
-                icon_char = icons_seq[item_index]
+                # Redraw icon and text on top of box
                 if icon_char:
                     draw.text(
                         (icon_x, icon_y), icon_char, font=icon_display_font, fill=255
                     )
-                draw.text((label_x, label_y), truncated_label, font=list_font, fill=255)
 
-        # Draw horizontal scrollbar only if needed (more items than can fit on screen)
+            draw.text((label_x, label_y), truncated_label, font=list_font, fill=255)
+
+        # Draw horizontal scrollbar if needed
         needs_scrollbar = len(items_seq) > visible_icons
-        if needs_scrollbar and visible_icons < len(items_seq):
+        if needs_scrollbar:
             scrollbar_height = 2
             scrollbar_y = content_bottom - scrollbar_height - 1
             track_left = 2
