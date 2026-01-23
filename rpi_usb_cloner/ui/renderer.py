@@ -412,7 +412,6 @@ def render_icon_menu_screen(
 
         # Calculate available space
         list_font = items_font or context.fonts.get("items", context.fontdisks)
-        small_list_font = context.fonts.get("items_small", list_font)
         icon_display_font = icon_font or display._get_lucide_font(size=24)
 
         # Footer setup
@@ -434,6 +433,7 @@ def render_icon_menu_screen(
 
         # Icon layout parameters
         icon_size = 24
+        label_height = _get_line_height(list_font)
 
         # Calculate layout to fit maximum icons on screen
         # Total width: 128px, leave 2px margins on each side = 124px available
@@ -458,11 +458,6 @@ def render_icon_menu_screen(
         # Prepare icons
         icons_seq = list(item_icons) if item_icons else [None] * len(items_seq)
 
-        use_small_font = any(
-            _measure_text_width(list_font, label) > icon_width for label in items_seq
-        )
-        label_font = small_list_font if use_small_font else list_font
-
         # Calculate scroll position to keep selected item visible
         if selected_index < scroll_offset:
             scroll_offset = selected_index
@@ -471,7 +466,6 @@ def render_icon_menu_screen(
 
         # Calculate content area
         content_height = content_bottom - current_y
-        label_height = _get_line_height(label_font)
         icon_area_height = icon_size + label_height + 4
         icon_start_y = current_y + (content_height - icon_area_height) // 2
 
@@ -491,10 +485,9 @@ def render_icon_menu_screen(
             label = items_seq[item_index]
             # Allow wider labels to show full words (reduce padding)
             label_max_width = icon_width - 1
-            label_width = _measure_text_width(label_font, label)
-            if label_font == small_list_font and label_width > label_max_width:
-                label = _truncate_text(label, label_font, label_max_width)
-                label_width = _measure_text_width(label_font, label)
+            truncated_label = _truncate_text(label, list_font, label_max_width)
+
+            label_width = _measure_text_width(list_font, truncated_label)
             label_x = x_pos + (icon_width - label_width) // 2
             label_y = icon_start_y + icon_size + 2
 
@@ -518,7 +511,7 @@ def render_icon_menu_screen(
                     draw.text(
                         (icon_x, icon_y), icon_char, font=icon_display_font, fill=0
                     )
-                draw.text((label_x, label_y), label, font=label_font, fill=0)
+                draw.text((label_x, label_y), truncated_label, font=list_font, fill=0)
             else:
                 # Draw normal (white on black)
                 icon_char = icons_seq[item_index]
@@ -526,7 +519,7 @@ def render_icon_menu_screen(
                     draw.text(
                         (icon_x, icon_y), icon_char, font=icon_display_font, fill=255
                     )
-                draw.text((label_x, label_y), label, font=label_font, fill=255)
+                draw.text((label_x, label_y), truncated_label, font=list_font, fill=255)
 
         # Draw horizontal scrollbar only if needed (more items than can fit on screen)
         needs_scrollbar = len(items_seq) > visible_icons
