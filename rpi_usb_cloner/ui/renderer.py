@@ -156,7 +156,7 @@ def render_menu_screen(
         for item_index, item in enumerate(items_seq):
             item_width = _measure_text_width(list_font, item)
             item_widths.append(item_width)
-            if enable_horizontal_scroll and item_index == selected_index and screen_id == "images":
+            if enable_horizontal_scroll and item_index == selected_index:
                 items_list.append(item)
             else:
                 items_list.append(_truncate_text(item, list_font, max_item_width))
@@ -168,7 +168,7 @@ def render_menu_screen(
             is_selected = item_index == selected_index
             text_color = 255
             x_offset = 0
-            if enable_horizontal_scroll and is_selected and screen_id == "images":
+            if enable_horizontal_scroll and is_selected:
                 x_offset = calculate_horizontal_scroll_offset(
                     now=time.monotonic(),
                     scroll_start_time=scroll_start_time,
@@ -186,7 +186,7 @@ def render_menu_screen(
                 font=list_font,
                 fill=text_color,
             )
-            if enable_horizontal_scroll and is_selected and screen_id == "images":
+            if enable_horizontal_scroll and is_selected:
                 draw.rectangle(
                     (
                         0,
