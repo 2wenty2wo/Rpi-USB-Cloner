@@ -144,12 +144,18 @@ class DiskImage:
         """Check if this is an ISO image."""
         return self.image_type == ImageType.ISO
 
+    @property
+    def is_imageusb(self) -> bool:
+        """Check if this is an ImageUSB .BIN file."""
+        return self.image_type == ImageType.IMAGEUSB_BIN
+
 
 class ImageType(Enum):
     """Type of disk image."""
 
     CLONEZILLA_DIR = "clonezilla"  # Directory with Clonezilla image files
     ISO = "iso"  # ISO file
+    IMAGEUSB_BIN = "imageusb"  # ImageUSB .BIN file
 
 
 # ==============================================================================
