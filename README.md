@@ -11,7 +11,7 @@
 
 # Rpi USB Cloner
 
-A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero 2, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531), and [Zero4U USB Hub](https://www.adafruit.com/product/3298). Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
+A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero 2, [Adafruit 128x64 1.3" OLED Bonnet](https://www.adafruit.com/product/3531), and [Zero4U USB Hub](https://www.adafruit.com/product/3298) or [Mcuzone Gigabit Ethernet Expansion Board](https://www.aliexpress.com/item/1005003722191832.html). Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
 ## ✨ Features
 
