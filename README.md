@@ -14,15 +14,16 @@ USB Cloner/Duplicator using a Raspberry Pi Zero, [Adafruit 128x64 1.3" OLED Bonn
 
 Inspired by [lukehutch/usb-copier](https://github.com/lukehutch/usb-copier).
 
-## ✅ Prerequisites
+## Project Overview
 
-**Hardware**
-- Raspberry Pi Zero / Zero 2
-- Adafruit 128x64 1.3" OLED Bonnet
-- Zero4U USB Hub
+### What It Does
+A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
+- **OLED Display UI**: 128x64 pixel display with 7-button navigation
+- **Web UI**: Real-time display streaming via WebSocket (port 8000)
+- **Cloning Modes**: Smart (partclone), Exact (dd), Verify (with SHA256)
+- **Clonezilla Integration**: Create and restore Clonezilla-compatible images
+- **Device Management**: Auto-detection, mounting, formatting, erasure
 
-**OS**
-- Raspberry Pi OS (Tested with Raspberry Pi OS Lite Trixie)
 
 ## 🚀 Quickstart
 
