@@ -7,7 +7,6 @@ from rpi_usb_cloner.menu.model import MenuScreen
 from .. import actions as menu_actions
 from . import menu_entry
 
-
 DRIVE_LIST_MENU: MenuScreen = MenuScreen(
     screen_id="drive_list",
     title="SELECT DRIVE",
@@ -22,5 +21,6 @@ DRIVES_MENU: MenuScreen = MenuScreen(
         menu_entry("UNMOUNT DRIVE", action=menu_actions.unmount_drive),
         menu_entry("FORMAT DRIVE", action=menu_actions.format_drive),
         menu_entry("ERASE DRIVE", action=menu_actions.erase_drive),
+        menu_entry("CREATE REPO DRIVE", action=menu_actions.create_repo_drive),
     ],
 )

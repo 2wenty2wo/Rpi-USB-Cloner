@@ -37,12 +37,18 @@ def get_action_context() -> ActionContext:
 # Import all action modules after context setup to avoid circular dependencies.
 from .drives import (  # noqa: E402
     copy_drive,
+    create_repo_drive,
     drive_info,
     erase_drive,
     format_drive,
     unmount_drive,
 )
-from .images import backup_image, images_coming_soon, verify_clone, write_image  # noqa: E402
+from .images import (  # noqa: E402
+    backup_image,
+    images_coming_soon,
+    verify_clone,
+    write_image,
+)
 from .settings import (  # noqa: E402
     demo_confirmation_screen,
     demo_info_screen,
@@ -76,6 +82,7 @@ from .tools import file_browser, system_info, tools_coming_soon, view_logs  # no
 def noop():
     return None
 
+
 # Export all public items
 __all__ = [
     "ActionContext",
@@ -83,6 +90,7 @@ __all__ = [
     "get_action_context",
     # Drive actions
     "copy_drive",
+    "create_repo_drive",
     "drive_info",
     "format_drive",
     "unmount_drive",
