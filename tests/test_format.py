@@ -61,17 +61,17 @@ class TestCreatePartitionTable:
 
         assert result is False
 
-    @patch("rpi_usb_cloner.storage.format.log_debug")
+    @patch("rpi_usb_cloner.storage.format.log.debug")
     @patch("rpi_usb_cloner.storage.format.run_command")
     def test_create_partition_table_logs_error(self, mock_run, mock_log):
-        """Test that partition table errors are logged."""
+        """Test that partition table errors are logged via LoggerFactory."""
         mock_run.side_effect = subprocess.CalledProcessError(
             1, "parted", stderr="Device busy"
         )
 
         format_module._create_partition_table("/dev/sda")
 
-        # Verify error was logged
+        # Verify error was logged via LoggerFactory
         assert any(
             "Failed to create partition table" in str(call)
             for call in mock_log.call_args_list
@@ -620,19 +620,13 @@ class TestConfigureFormatHelpers:
     """Tests for configure_format_helpers() function."""
 
     def test_configure_log_debug(self):
-        """Test configuring debug logging."""
+        """Test configuring debug logging (backwards compatibility)."""
         mock_logger = Mock()
 
+        # Should not crash - log_debug parameter is ignored after LoggerFactory migration
         format_module.configure_format_helpers(log_debug=mock_logger)
 
-        # Test that log_debug now uses the configured logger
-        format_module.log_debug("test message")
-
-        mock_logger.assert_called_once_with("test message")
-
     def test_log_debug_without_configuration(self):
-        """Test that log_debug works without configuration."""
-        format_module.configure_format_helpers(log_debug=None)
-
+        """Test that configure works without configuration."""
         # Should not raise exception
-        format_module.log_debug("test message")
+        format_module.configure_format_helpers(log_debug=None)

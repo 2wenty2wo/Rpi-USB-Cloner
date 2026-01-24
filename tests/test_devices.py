@@ -573,14 +573,10 @@ class TestConfigureDeviceHelpers:
     """Tests for configure_device_helpers() function."""
 
     def test_configure_log_debug(self):
-        """Test configuring debug logger."""
+        """Test configuring debug logger (backwards compatibility)."""
         mock_logger = Mock()
+        # Should not crash - log_debug parameter is ignored after LoggerFactory migration
         devices.configure_device_helpers(log_debug=mock_logger)
-
-        # Trigger a log by calling a function
-        devices.human_size(1024)  # This doesn't log, so let's use run_command
-        # Actually, let's just verify the global was set
-        assert devices._log_debug is not None
 
     def test_configure_error_handler(self):
         """Test configuring error handler."""
@@ -598,15 +594,14 @@ class TestConfigureDeviceHelpers:
             log_debug=mock_logger, error_handler=mock_handler
         )
 
-        assert devices._log_debug == mock_logger
+        # Only error_handler is still used; log_debug is ignored (LoggerFactory migration)
         assert devices._error_handler == mock_handler
 
     def test_configure_with_none(self):
-        """Test configuring with None uses default noop logger."""
+        """Test configuring with None."""
         devices.configure_device_helpers(log_debug=None, error_handler=None)
 
-        # Should not raise, uses noop logger
-        assert devices._log_debug is not None
+        # error_handler should be None
         assert devices._error_handler is None
 
 
