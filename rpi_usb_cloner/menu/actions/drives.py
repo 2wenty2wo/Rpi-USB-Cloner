@@ -6,7 +6,13 @@ import time
 
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.ui import screens
-from rpi_usb_cloner.ui.icons import ALERT_ICON, DRIVES_ICON, EJECT_ICON, SPARKLES_ICON
+from rpi_usb_cloner.ui.icons import (
+    ALERT_ICON,
+    DRIVES_ICON,
+    EJECT_ICON,
+    FOLDER_ICON,
+    SPARKLES_ICON,
+)
 
 from . import get_action_context
 
@@ -96,4 +102,15 @@ def erase_drive() -> None:
             log_debug=context.log_debug,
             get_selected_usb_name=context.get_selected_usb_name,
         )
+    )
+
+
+def create_repo_drive() -> None:
+    context = get_action_context()
+    if not _ensure_drive_selected("CREATE REPO", FOLDER_ICON):
+        return
+    drive_actions.create_repo_drive(
+        state=context.state,
+        log_debug=context.log_debug,
+        get_selected_usb_name=context.get_selected_usb_name,
     )

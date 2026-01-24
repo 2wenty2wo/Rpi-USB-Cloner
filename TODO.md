@@ -16,7 +16,7 @@
 ## 🚀 Features
 
 ### Core Functionality
-- [ ] Allow users to create a new Repo Drive using the menu system (creates flag file on drive)
+- [x] Allow users to create a new Repo Drive using the menu system (creates flag file on drive)
 - [ ] Implement checkbox UI for partition selection during backup/restore (image_actions.py:676)
 
 ### User Experience
