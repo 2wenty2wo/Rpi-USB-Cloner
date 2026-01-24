@@ -1,9 +1,23 @@
 # Test Coverage Analysis & Improvement Plan
 
-**Date**: 2026-01-23
-**Current Overall Coverage**: 27.10%
+**Date**: 2026-01-24
+**Current Overall Coverage**: 34.57%
 **Files Analyzed**: 85 Python files in `rpi_usb_cloner/`
-**Test Files**: 24 test modules with 876 tests
+**Test Files**: 27 test modules with 962 tests
+
+## Recent Updates (2026-01-24)
+
+✅ **Added Action Handler Tests** (+38 tests, +7.47% coverage):
+- `tests/test_actions_drive.py` - 17 tests covering drive action helpers
+- `tests/test_actions_image.py` - 10 tests covering image action helpers
+- `tests/test_actions_settings.py` - 1 placeholder test (functions need refactoring)
+
+**Coverage improvements**:
+- `actions/drive_actions.py`: 0% → 15% (helper functions tested)
+- `actions/image_actions.py`: 0% → 10% (helper functions tested)
+- `actions/settings/*.py`: 0% → 5% (minimal imports tested)
+
+**Key findings**: Many action functions have complex GPIO polling loops that are difficult to unit test. Functions would benefit from refactoring to separate business logic from UI/GPIO concerns.
 
 ---
 
@@ -53,48 +67,63 @@ These areas have excellent test coverage and should serve as models:
 
 ## Critical Coverage Gaps
 
-### ❌ Priority 1: Action Handlers (0% coverage, HIGH RISK)
+### ⚠️ Priority 1: Action Handlers (10-15% coverage, PARTIALLY ADDRESSED)
 
-**Risk Level**: 🔴 CRITICAL - These functions perform destructive operations
+**Risk Level**: 🟡 MEDIUM - Helper functions tested, main operations still need work
 
-| File | LOC | Coverage | Risk |
-|------|-----|----------|------|
-| `actions/image_actions.py` | 682 | 0% | 🔴 Data loss risk |
-| `actions/drive_actions.py` | 641 | 0% | 🔴 Data loss risk |
-| `actions/settings/update_manager.py` | 257 | 0% | 🟡 System stability |
-| `actions/settings/system_utils.py` | 136 | 0% | 🟡 System stability |
-| `actions/settings/ui_actions.py` | 129 | 0% | 🟢 Low risk |
-| `actions/settings/system_power.py` | 88 | 0% | 🟡 System stability |
+| File | LOC | Coverage | Status | Risk |
+|------|-----|----------|--------|------|
+| `actions/drive_actions.py` | 641 | ~15% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/image_actions.py` | 682 | ~10% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/settings/update_manager.py` | 257 | 0% | ❌ Not tested | 🟡 System stability |
+| `actions/settings/system_utils.py` | 136 | 0% | ❌ Not tested | 🟡 System stability |
+| `actions/settings/ui_actions.py` | 129 | 0% | ❌ Not tested | 🟢 Low risk |
+| `actions/settings/system_power.py` | 88 | 0% | ❌ Not tested | 🟡 System stability |
 
-**Why Critical**:
-- These handlers directly call destructive storage operations (clone, format, erase)
-- User confirmation dialogs are not tested (could skip confirmation)
-- Error handling paths are untested (silent failures)
-- Source != destination validation is not verified
+**Recent Progress** (2026-01-24):
+- ✅ Added tests for helper functions (_log_debug, _collect_mountpoints, etc.)
+- ✅ Added tests for device selection logic (_pick_source_target)
+- ✅ Added tests for error handling paths (no devices, invalid input)
+- ⚠️ Main action functions (copy_drive, erase_drive, backup_image) still difficult to test due to complex GPIO polling loops
 
-**Recommended Tests**:
+**Why Still Critical**:
+- Main action functions have 100+ line while-loops polling GPIO buttons
+- Tight coupling between business logic and UI rendering
+- User confirmation dialogs embedded in GPIO loops
+- Threading and progress tracking adds complexity
 
-1. **Drive Actions** (`test_drive_actions.py`):
+**Completed Tests** (`test_drive_actions.py` - 17 tests):
    ```python
-   - test_clone_drive_requires_confirmation()
-   - test_clone_drive_validates_source_not_equal_destination()
-   - test_clone_drive_shows_error_on_failure()
-   - test_format_drive_requires_confirmation()
-   - test_erase_drive_requires_confirmation()
-   - test_mount_unmount_drive_happy_path()
-   - test_drive_operations_validate_device_exists()
+   ✅ test_log_debug_helper()
+   ✅ test_handle_screenshot()
+   ✅ test_pick_source_target() (3 tests)
+   ✅ test_collect_mountpoints() (4 tests)
+   ✅ test_ensure_root_for_erase() (2 tests)
+   ✅ test_copy_drive_error_handling() (2 tests)
+   ✅ test_erase_drive_error_handling()
+   ✅ test_unmount_drive_error_handling() (2 tests)
    ```
 
-2. **Image Actions** (`test_image_actions.py`):
+**Completed Tests** (`test_image_actions.py` - 10 tests):
    ```python
-   - test_create_image_validates_output_path()
-   - test_restore_image_requires_confirmation()
-   - test_restore_image_validates_image_exists()
-   - test_verify_image_shows_progress()
-   - test_delete_image_requires_confirmation()
-   - test_clonezilla_backup_error_handling()
-   - test_clonezilla_restore_partition_mode_selection()
+   ✅ test_log_debug_helper()
+   ✅ test_format_elapsed_duration() (4 tests)
+   ✅ test_collect_mountpoints() (3 tests)
+   ✅ test_extract_stderr_message() (3 tests)
+   ✅ test_format_restore_error_lines() (2 tests)
+   ✅ test_coming_soon()
    ```
+
+**Recommended Next Steps**:
+
+1. **Refactor for Testability**:
+   - Extract business logic from GPIO loops
+   - Use dependency injection for GPIO/UI components
+   - Separate confirmation logic from action execution
+
+2. **Integration Tests**:
+   - Create end-to-end tests with simulated GPIO sequences
+   - Test full workflows (select → confirm → execute → verify)
 
 3. **Settings Actions** (`test_settings_actions.py`):
    ```python

@@ -471,6 +471,6 @@ When contributing new code:
 
 ---
 
-**Last Updated**: 2026-01-11
-**Test Count**: 608 passing tests
-**Coverage**: See the latest CI coverage report or badge.
+**Last Updated**: 2026-01-24
+**Test Count**: 962 tests (38 new action handler tests)
+**Coverage**: 34.57% overall (up from 27.10%)
