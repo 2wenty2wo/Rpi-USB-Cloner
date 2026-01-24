@@ -35,6 +35,13 @@ from .models import (
 from .progress import _log_debug
 
 
+def _get_device_dict(device: Union[str, dict[str, Any]]) -> Optional[dict[str, Any]]:
+    if isinstance(device, dict):
+        return device
+    device_node = resolve_device_node(device)
+    return get_device_by_name(Path(device_node).name)
+
+
 def copy_partition_table(
     src: Union[str, dict[str, Any]], dst: Union[str, dict[str, Any]]
 ) -> None:
@@ -138,7 +145,7 @@ def clone_partclone(
     target_parts = [
         child for child in get_children(target_device) if child.get("type") == "part"
     ]
-    target_parts_by_number = {}
+    target_parts_by_number: dict[int, dict[str, Any]] = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
         if part_number is None:
@@ -254,18 +261,24 @@ def clone_device(
 
             return verify_clone(source, target)
         return True
-    if not unmount_device(target):
+    target_device = _get_device_dict(target)
+    if not target_device:
+        display_lines(["FAILED", "Target missing"])
+        _log_debug("Clone aborted: target device not found")
+        return False
+    if not unmount_device(target_device):
         display_lines(["FAILED", "Unmount target"])
         _log_debug("Clone aborted: target unmount failed")
         return False
     try:
-        validate_device_unmounted(target)
+        validate_device_unmounted(target_device)
     except (DeviceBusyError, MountVerificationError) as error:
         display_lines(["FAILED", "Device busy"])
         _log_debug(f"Clone aborted: target still mounted: {error}")
         return False
     try:
-        clone_dd(source, target, total_bytes=source.get("size"), title="CLONING")
+        total_bytes = source.get("size") if isinstance(source, dict) else None
+        clone_dd(source, target, total_bytes=total_bytes, title="CLONING")
     except RuntimeError as error:
         display_lines(["FAILED", str(error)[:20]])
         _log_debug(f"Clone failed: {error}")
@@ -310,14 +323,20 @@ def clone_device_smart(
         _log_debug(f"Smart clone aborted: validation failed: {error}")
         return False
 
-    source_node = f"/dev/{source.get('name')}"
-    target_node = f"/dev/{target.get('name')}"
-    if not unmount_device(target):
+    source_device = _get_device_dict(source)
+    target_device = _get_device_dict(target)
+    if not source_device or not target_device:
+        display_lines(["FAILED", "Device missing"])
+        _log_debug("Smart clone aborted: source or target missing")
+        return False
+    source_node = f"/dev/{source_device.get('name')}"
+    target_node = f"/dev/{target_device.get('name')}"
+    if not unmount_device(target_device):
         display_lines(["FAILED", "Unmount target"])
         _log_debug("Smart clone aborted: target unmount failed")
         return False
     try:
-        validate_device_unmounted(target)
+        validate_device_unmounted(target_device)
     except (DeviceBusyError, MountVerificationError) as error:
         display_lines(["FAILED", "Device busy"])
         _log_debug(f"Smart clone aborted: target still mounted: {error}")

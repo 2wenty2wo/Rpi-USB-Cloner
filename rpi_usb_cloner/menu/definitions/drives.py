@@ -8,12 +8,12 @@ from .. import actions as menu_actions
 from . import menu_entry
 
 
-DRIVE_LIST_MENU = MenuScreen(
+DRIVE_LIST_MENU: MenuScreen = MenuScreen(
     screen_id="drive_list",
     title="SELECT DRIVE",
 )
 
-DRIVES_MENU = MenuScreen(
+DRIVES_MENU: MenuScreen = MenuScreen(
     screen_id="drives",
     title="DRIVES",
     items=[

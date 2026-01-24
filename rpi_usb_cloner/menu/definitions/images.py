@@ -8,7 +8,7 @@ from .. import actions as menu_actions
 from . import menu_entry
 
 
-IMAGES_MENU = MenuScreen(
+IMAGES_MENU: MenuScreen = MenuScreen(
     screen_id="images",
     title="IMAGES",
     items=[

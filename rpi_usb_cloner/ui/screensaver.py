@@ -1,7 +1,7 @@
 import random
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional, Union
 
 from PIL import Image, ImageOps, ImageSequence
 
@@ -76,13 +76,13 @@ def play_screensaver(
     context: display.DisplayContext,
     *,
     gif_directory: Path = SCREENSAVER_DIR,
-    selected_gif: Path | str | None = None,
+    selected_gif: Optional[Union[Path, str]] = None,
     screensaver_mode: str = "random",
     input_checker: Callable[[], bool] = _default_input_checker,
-    rng: random.Random | None = None,
+    rng: Optional[random.Random] = None,
 ) -> bool:
     gif_paths = _list_gif_paths(gif_directory)
-    chosen_path: Path | None = None
+    chosen_path: Optional[Path] = None
     if screensaver_mode == "selected" and selected_gif:
         candidate = Path(selected_gif)
         if not candidate.is_absolute():

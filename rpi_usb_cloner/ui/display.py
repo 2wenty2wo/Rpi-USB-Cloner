@@ -88,7 +88,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
@@ -99,25 +99,30 @@ from rpi_usb_cloner.config.settings import get_setting
 from rpi_usb_cloner.logging import get_logger
 
 
+Font = Union[ImageFont.ImageFont, ImageFont.FreeTypeFont]
+
+
 @dataclass
 class DisplayContext:
     disp: ssd1306
     draw: ImageDraw.ImageDraw
     image: Image.Image
-    fonts: Dict[str, ImageFont.ImageFont]
+    fonts: Dict[str, Font]
     width: int
     height: int
     x: int
     top: int
     bottom: int
-    fontcopy: ImageFont.ImageFont
-    fontinsert: ImageFont.ImageFont
-    fontdisks: ImageFont.ImageFont
-    fontmain: ImageFont.ImageFont
+    fontcopy: Font
+    fontinsert: Font
+    fontdisks: Font
+    fontmain: Font
 
 
 _context: Optional[DisplayContext] = None
-_log_debug = get_logger(tags=["display"], source=__name__).debug
+_log_debug: Optional[Callable[[str], None]] = get_logger(
+    tags=["display"], source=__name__
+).debug
 _display_lock = threading.RLock()
 
 
@@ -141,7 +146,7 @@ TITLE_TEXT_Y_OFFSET = -2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
 ICON_BASELINE_ADJUST = -1
-_lucide_font: Optional[ImageFont.ImageFont] = None
+_lucide_font: Optional[Font] = None
 
 
 @dataclass(frozen=True)
@@ -153,7 +158,9 @@ class TitleLayout:
     icon_height: int
 
 
-def configure_display_helpers(log_debug=None):
+def configure_display_helpers(
+    log_debug: Optional[Callable[[str], None]] = None
+) -> None:
     global _log_debug
     _log_debug = log_debug
 
@@ -282,11 +289,11 @@ def init_display() -> DisplayContext:
     bottom = height - padding
 
     font = ImageFont.load_default()
-    fontcopy = ImageFont.truetype(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf", 16)
-    fontinsert = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 16)
-    fontdisks = ImageFont.truetype(ASSETS_DIR / "fonts" / "slkscr.ttf", 8)
+    fontcopy = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"), 16)
+    fontinsert = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "slkscr.ttf"), 16)
+    fontdisks = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "slkscr.ttf"), 8)
     fontmain = font
-    fonts = {
+    fonts: Dict[str, Font] = {
         "title": fontcopy,
         "items": fontdisks,
         "footer": fontcopy,
@@ -405,12 +412,12 @@ def _wrap_lines_to_width(lines, font, available_width):
     return wrapped_lines
 
 
-def _get_lucide_font() -> ImageFont.ImageFont:
+def _get_lucide_font() -> Font:
     global _lucide_font
     if _lucide_font is not None:
         return _lucide_font
     try:
-        _lucide_font = ImageFont.truetype(LUCIDE_FONT_PATH, LUCIDE_FONT_SIZE)
+        _lucide_font = ImageFont.truetype(str(LUCIDE_FONT_PATH), LUCIDE_FONT_SIZE)
     except OSError:
         _lucide_font = get_display_context().fontdisks
     return _lucide_font
@@ -419,9 +426,9 @@ def _get_lucide_font() -> ImageFont.ImageFont:
 def draw_title_with_icon(
     title: str,
     *,
-    title_font: Optional[ImageFont.ImageFont] = None,
+    title_font: Optional[Font] = None,
     icon: Optional[str] = None,
-    icon_font: Optional[ImageFont.ImageFont] = None,
+    icon_font: Optional[Font] = None,
     extra_gap: int = 2,
     left_margin: Optional[int] = None,
     max_width: Optional[int] = None,
@@ -465,9 +472,10 @@ def draw_title_with_icon(
             icon_font = icon_font or _get_lucide_font()
             icon_width = _measure_text_width(draw, icon, icon_font)
             icon_bbox = icon_font.getbbox(icon)
-            try:
-                icon_ascent, icon_descent = icon_font.getmetrics()
-            except AttributeError:
+            getmetrics = getattr(icon_font, "getmetrics", None)
+            if callable(getmetrics):
+                icon_ascent, icon_descent = getmetrics()
+            else:
                 icon_ascent = max(0, icon_bbox[3] - icon_bbox[1])
                 icon_descent = 0
 
@@ -479,9 +487,10 @@ def draw_title_with_icon(
         title_text = _truncate_text(draw, title, header_font, available_width)
         if title_text:
             title_bbox = draw.textbbox((0, 0), title_text, font=header_font)
-            try:
-                title_ascent, title_descent = header_font.getmetrics()
-            except AttributeError:
+            getmetrics = getattr(header_font, "getmetrics", None)
+            if callable(getmetrics):
+                title_ascent, title_descent = getmetrics()
+            else:
                 title_ascent = max(0, title_bbox[3] - title_bbox[1])
                 title_descent = 0
     else:
@@ -532,10 +541,10 @@ def render_paginated_lines(
     title,
     lines,
     page_index=0,
-    items_font=None,
-    title_font=None,
+    items_font: Optional[Font] = None,
+    title_font: Optional[Font] = None,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[Font] = None,
     content_top: Optional[int] = None,
 ):
     context = get_display_context()

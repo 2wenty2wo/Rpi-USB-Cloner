@@ -466,8 +466,9 @@ def backup_partition(
             if not comp_tool:
                 raise RuntimeError(f"Compression tool not available: {compression}")
 
+            compress_args = comp_args or []
             compress_proc = subprocess.Popen(
-                [comp_tool] + comp_args,
+                [comp_tool] + compress_args,
                 stdin=upstream,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -748,16 +749,16 @@ def verify_backup_image(
         True if verification succeeded, False otherwise
     """
     # Import here to avoid circular dependency
-    from .image_discovery import load_image
+    from .image_discovery import parse_clonezilla_image
     from .verification import verify_restored_image
 
     try:
         # Load the backup image
-        image = load_image(image_dir)
+        plan = parse_clonezilla_image(image_dir)
 
         # Verify (source device acts as the "target" in verification)
         return verify_restored_image(
-            image,
+            plan,
             source_device,
             progress_callback=progress_callback,
         )

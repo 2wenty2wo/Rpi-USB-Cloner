@@ -2,8 +2,6 @@
 
 from typing import Optional
 
-from PIL import ImageFont
-
 from rpi_usb_cloner.ui import display
 
 
@@ -14,7 +12,7 @@ def render_error_screen(
     title_icon: Optional[str] = None,
     message_icon: Optional[str] = None,
     message_icon_size: int = 24,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> None:
     """Render an error screen with title icon and message with optional icon.
 
@@ -52,7 +50,7 @@ def render_error_screen(
         content_top = context.top
 
     # Calculate vertical centering for message content
-    message_icon_font = None
+    message_icon_font: Optional[display.Font] = None
     icon_width = 0
     icon_height = 0
 
@@ -60,12 +58,14 @@ def render_error_screen(
         # Load icon font at specified size
         try:
             message_icon_font = display.ImageFont.truetype(
-                display.LUCIDE_FONT_PATH, message_icon_size
+                str(display.LUCIDE_FONT_PATH), message_icon_size
             )
         except OSError:
             message_icon_font = body_font
 
         # Measure icon dimensions
+        if message_icon_font is None:
+            message_icon_font = body_font
         icon_bbox = message_icon_font.getbbox(message_icon)
         icon_width = icon_bbox[2] - icon_bbox[0]
         icon_height = icon_bbox[3] - icon_bbox[1]

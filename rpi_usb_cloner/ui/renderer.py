@@ -20,9 +20,9 @@ def _get_line_height(font, min_height=8):
     return line_height
 
 
-def _measure_text_width(font, text: str) -> float:
+def _measure_text_width(font, text: str) -> int:
     try:
-        return font.getlength(text)
+        return int(font.getlength(text))
     except AttributeError:
         bbox = font.getbbox(text)
         return bbox[2] - bbox[0]
@@ -150,7 +150,7 @@ def _render_menu(
         max_item_width -= scrollbar_width + scrollbar_padding
     max_item_width = max(0, max_item_width)
     items_list: list[str] = []
-    item_widths: list[float] = []
+    item_widths: list[int] = []
     for item_index, item in enumerate(items_seq):
         item_width = _measure_text_width(list_font, item)
         item_widths.append(item_width)

@@ -2,8 +2,6 @@ import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
-from PIL import ImageFont
-
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware.gpio import (
     PIN_A,
@@ -41,12 +39,12 @@ class Menu:
     title: Optional[str] = None
     title_icon: Optional[str] = None
     screen_id: Optional[str] = None
-    title_font: Optional[ImageFont.ImageFont] = None
+    title_font: Optional[display.Font] = None
     footer: Optional[List[str]] = None
     footer_selected_index: Optional[int] = None
     footer_positions: Optional[List[int]] = None
     content_top: Optional[int] = None
-    items_font: Optional[ImageFont.ImageFont] = None
+    items_font: Optional[display.Font] = None
     enable_horizontal_scroll: bool = False
     scroll_speed: float = 30.0
     target_cycle_seconds: float = DEFAULT_SCROLL_CYCLE_SECONDS
@@ -76,9 +74,9 @@ def _get_line_height(font, min_height=8):
 def get_standard_content_top(
     title: str,
     *,
-    title_font: Optional[ImageFont.ImageFont] = None,
+    title_font: Optional[display.Font] = None,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
     extra_gap: int = 2,
 ) -> int:
     # Use this helper for new pages to avoid title overlap.
@@ -240,10 +238,10 @@ def select_list(
     *,
     screen_id: Optional[str] = None,
     title_icon: Optional[str] = None,
-    title_font: Optional[ImageFont.ImageFont] = None,
+    title_font: Optional[display.Font] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
-    items_font: Optional[ImageFont.ImageFont] = None,
+    items_font: Optional[display.Font] = None,
     content_top: Optional[int] = None,
     selected_index: int = 0,
     header_lines: Optional[List[str]] = None,
@@ -310,7 +308,7 @@ def select_list(
                 title_icon=title_icon,
             )
         renderer.render_menu_screen(
-            title=None if header_lines else title,
+            title="" if header_lines else title,
             items=items,
             selected_index=selected,
             scroll_offset=offset,
@@ -482,10 +480,10 @@ def render_menu_list(
     *,
     screen_id: Optional[str] = None,
     title_icon: Optional[str] = None,
-    title_font: Optional[ImageFont.ImageFont] = None,
+    title_font: Optional[display.Font] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
-    items_font: Optional[ImageFont.ImageFont] = None,
+    items_font: Optional[display.Font] = None,
     content_top: Optional[int] = None,
     selected_index: int = 0,
     header_lines: Optional[List[str]] = None,
@@ -526,8 +524,8 @@ def select_menu_screen_list(
     screen_id: Optional[str] = None,
     status_line: Optional[str] = None,
     title_icon: Optional[str] = None,
-    title_font: Optional[ImageFont.ImageFont] = None,
-    items_font: Optional[ImageFont.ImageFont] = None,
+    title_font: Optional[display.Font] = None,
+    items_font: Optional[display.Font] = None,
     selected_index: int = 0,
 ) -> Optional[int]:
     context = display.get_display_context()

@@ -17,17 +17,17 @@ def render_confirmation_screen(
     *,
     selected_index: int = 0,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
     prompt_font = context.fontdisks
-    button_font = context.fontcopy
+    button_font: display.Font = context.fontcopy
     confirmation_font_path = display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"
     try:
-        button_font = ImageFont.truetype(confirmation_font_path, 14)
+        button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
     layout = display.draw_title_with_icon(
@@ -191,17 +191,17 @@ def render_update_buttons_screen(
     *,
     selected_index: int = 0,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> int:
     context = display.get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
     prompt_font = context.fontdisks
-    button_font = context.fontcopy
+    button_font: display.Font = context.fontcopy
     confirmation_font_path = display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"
     try:
-        button_font = ImageFont.truetype(confirmation_font_path, 14)
+        button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
     layout = display.draw_title_with_icon(
@@ -308,17 +308,17 @@ def render_verify_finish_buttons_screen(
     *,
     selected_index: int = 0,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> int:
     context = display.get_display_context()
     draw = context.draw
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
     title_font = context.fonts.get("title", context.fontdisks)
     prompt_font = context.fontdisks
-    button_font = context.fontcopy
+    button_font: display.Font = context.fontcopy
     confirmation_font_path = display.ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"
     try:
-        button_font = ImageFont.truetype(confirmation_font_path, 14)
+        button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
     layout = display.draw_title_with_icon(

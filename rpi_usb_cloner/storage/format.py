@@ -43,6 +43,7 @@ Example:
 """
 
 import re
+from typing import Callable, Optional
 import select
 import subprocess
 import time
@@ -65,10 +66,12 @@ from rpi_usb_cloner.storage.validation import (
 )
 
 
-_log_debug = get_logger(tags=["format"], source=__name__).debug
+_log_debug: Optional[Callable[[str], None]] = get_logger(
+    tags=["format"], source=__name__
+).debug
 
 
-def configure_format_helpers(log_debug=None) -> None:
+def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
     """Configure logging for format operations."""
     global _log_debug
     _log_debug = log_debug
@@ -204,9 +207,12 @@ def _format_filesystem(
                     break
 
                 # Check for output
-                readable, _, _ = select.select([process.stderr], [], [], 0.1)
+                stderr_stream = process.stderr
+                if stderr_stream is None:
+                    break
+                readable, _, _ = select.select([stderr_stream], [], [], 0.1)
                 if readable:
-                    line = process.stderr.readline()
+                    line = stderr_stream.readline()
                     if line:
                         log_debug(f"mkfs output: {line.strip()}")
                         match = pattern.search(line)
@@ -222,8 +228,8 @@ def _format_filesystem(
         returncode = process.wait()
 
         if returncode != 0:
-            stderr = process.stderr.read() if process.stderr else ""
-            log_debug(f"Format failed: {stderr}")
+            stderr_output = process.stderr.read() if process.stderr else ""
+            log_debug(f"Format failed: {stderr_output}")
             return False
 
         log_debug(f"Successfully formatted {partition_path} as {filesystem}")

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Virtual GPIO button press injection for web UI control.
 
 This module provides a thread-safe queue-based system for injecting virtual button
@@ -7,13 +9,14 @@ presses from the web UI into the main GPIO event loop.
 import time
 from collections import deque
 from threading import Lock
+from typing import Deque
 
 
 # Default duration for virtual button presses (seconds)
 DEFAULT_PRESS_DURATION = 0.15
 
 # Queue of virtual button presses
-_virtual_presses = deque()
+_virtual_presses: Deque["VirtualPress"] = deque()
 _virtual_presses_lock = Lock()
 
 

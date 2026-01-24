@@ -306,6 +306,8 @@ def unmount_device(device: dict[str, Any], raise_on_failure: bool = False) -> bo
             device_name = (
                 device.get("name") if isinstance(device, dict) else str(device)
             )
+            if device_name is None:
+                device_name = "unknown"
             raise UnmountFailedError(device_name, failed_mounts)
 
         return False
@@ -329,7 +331,7 @@ def unmount_device_with_retry(
 
     device_name = device.get("name")
 
-    def log(msg: str):
+    def log(msg: str) -> None:
         if log_debug:
             log_debug(msg)
 
@@ -345,12 +347,16 @@ def unmount_device_with_retry(
         return active
 
     # Collect all mountpoints
-    mountpoints = []
-    if device.get("mountpoint"):
-        mountpoints.append((device.get("name"), device.get("mountpoint")))
+    mountpoints: list[tuple[str, str]] = []
+    device_mountpoint = device.get("mountpoint")
+    device_name = device.get("name")
+    if device_mountpoint and device_name:
+        mountpoints.append((device_name, device_mountpoint))
     for child in get_children(device):
-        if child.get("mountpoint"):
-            mountpoints.append((child.get("name"), child.get("mountpoint")))
+        child_mountpoint = child.get("mountpoint")
+        child_name = child.get("name")
+        if child_mountpoint and child_name:
+            mountpoints.append((child_name, child_mountpoint))
 
     if not mountpoints:
         log(f"No mounted partitions on {device_name}")
