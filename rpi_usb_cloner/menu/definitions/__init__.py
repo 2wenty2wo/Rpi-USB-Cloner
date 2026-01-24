@@ -35,8 +35,8 @@ def _collect_screens(root: MenuScreen) -> dict[str, MenuScreen]:
 
 
 # Import all menu definitions after helper setup to avoid circular dependencies.
+from .clone import CLONE_MENU  # noqa: E402
 from .drives import DRIVE_LIST_MENU, DRIVES_MENU  # noqa: E402
-from .images import IMAGES_MENU  # noqa: E402
 from .main import MAIN_MENU  # noqa: E402
 from .settings import (  # noqa: E402
     DEVELOP_MENU,
@@ -58,7 +58,7 @@ __all__ = [
     "MAIN_MENU",
     "DRIVES_MENU",
     "DRIVE_LIST_MENU",
-    "IMAGES_MENU",
+    "CLONE_MENU",
     "TOOLS_MENU",
     "SETTINGS_MENU",
     "SCREENSAVER_MENU",

@@ -1305,6 +1305,111 @@ def _write_iso_image(
     screens.wait_for_ack()
 
 
+def verify_clone(
+    *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
+) -> None:
+    """Verify a previously created backup image against a device."""
+    # Step 1: Find image repositories
+    repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
+    if not repos:
+        display.display_lines(["IMAGE REPO", "NOT FOUND"])
+        time.sleep(1)
+        return
+
+    # Step 2: Select repository if multiple
+    if len(repos) > 1:
+        selected_repo = menus.select_list(
+            "IMG REPO",
+            [repo.path.name for repo in repos],
+        )
+        if selected_repo is None:
+            return
+        repo_path = repos[selected_repo].path
+    else:
+        repo_path = repos[0].path
+
+    # Step 3: List images in repository
+    images = image_repo.list_clonezilla_images(repo_path)
+    if not images:
+        display.display_lines(["NO IMAGES", "FOUND"])
+        time.sleep(1)
+        return
+
+    # Step 4: Select image to verify
+    selected_index = menus.select_list(
+        "VERIFY IMAGE",
+        [img.name for img in images],
+        screen_id="verify_images",
+        enable_horizontal_scroll=True,
+        scroll_start_delay=1.5,
+    )
+    if selected_index is None:
+        return
+
+    selected_image = images[selected_index]
+
+    # Skip ISOs and ImageUSB - they don't have verification support
+    if selected_image.is_iso or selected_image.is_imageusb:
+        display.display_lines(["VERIFY NOT", "SUPPORTED"])
+        time.sleep(1)
+        return
+
+    # Step 5: Parse the Clonezilla image
+    try:
+        plan = clonezilla.parse_clonezilla_image(selected_image.path)
+    except RuntimeError as error:
+        _log_debug(log_debug, f"Image load failed: {error}")
+        display.display_lines(["IMAGE", "INVALID"])
+        time.sleep(1)
+        return
+
+    # Step 6: Select device to verify against
+    usb_devices = devices.list_usb_disks()
+    if not usb_devices:
+        display.display_lines(["NO USB", "DRIVES"])
+        time.sleep(1)
+        return
+
+    # Filter out repository devices
+    repo_devices = set()
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        if any(
+            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
+        ):
+            repo_devices.add(device.get("name"))
+
+    target_candidates = [
+        device for device in usb_devices if device.get("name") not in repo_devices
+    ]
+    if not target_candidates:
+        display.display_lines(["NO TARGET", "AVAILABLE"])
+        time.sleep(1)
+        return
+
+    selected_target_index = menus.select_usb_drive(
+        "VERIFY DEVICE",
+        target_candidates,
+        title_icon=USB_ICON,
+        selected_name=app_context.active_drive,
+    )
+    if selected_target_index is None:
+        return
+
+    target = target_candidates[selected_target_index]
+    target_name = target.get("name")
+    if not target_name:
+        display.display_lines(["TARGET", "MISSING"])
+        time.sleep(1)
+        return
+
+    app_context.active_drive = target_name
+    _log_debug(log_debug, f"Verifying {selected_image.name} against {target_name}")
+
+    # Step 7: Run verification
+    _verify_restore(plan, target, log_debug)
+
+
 def _write_imageusb_image(
     bin_path,
     target: dict,

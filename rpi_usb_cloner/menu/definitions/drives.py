@@ -18,10 +18,9 @@ DRIVES_MENU: MenuScreen = MenuScreen(
     title="DRIVES",
     items=[
         menu_entry("SELECT DRIVE", submenu=DRIVE_LIST_MENU),
-        menu_entry("COPY DRIVE", action=menu_actions.copy_drive),
         menu_entry("DRIVE INFO", action=menu_actions.drive_info),
-        menu_entry("FORMAT DRIVE", action=menu_actions.format_drive),
         menu_entry("UNMOUNT DRIVE", action=menu_actions.unmount_drive),
+        menu_entry("FORMAT DRIVE", action=menu_actions.format_drive),
         menu_entry("ERASE DRIVE", action=menu_actions.erase_drive),
     ],
 )

@@ -12,7 +12,8 @@ TOOLS_MENU = MenuScreen(
     screen_id="tools",
     title="TOOLS",
     items=[
-        menu_entry("LOGS", action=menu_actions.view_logs),
         menu_entry("FILE BROWSER", action=menu_actions.file_browser),
+        menu_entry("VIEW LOGS", action=menu_actions.view_logs),
+        menu_entry("SYSTEM INFO", action=menu_actions.system_info),
     ],
 )
