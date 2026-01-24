@@ -162,6 +162,7 @@ def show_wifi_settings(*, title: str = "WIFI") -> None:
             content_top=content_top,
             refresh_callback=refresh_menu_if_status_ready,
             title_icon=title_icon,
+            transition_direction="forward",
         )
         menu_lines, status_lines, visible_networks, disconnect_index = menu_state
         search_index = len(status_lines) + (1 if disconnect_index is not None else 0)

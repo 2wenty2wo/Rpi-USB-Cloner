@@ -16,7 +16,7 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
-from rpi_usb_cloner.ui import display, renderer
+from rpi_usb_cloner.ui import display, renderer, transitions
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     DEFAULT_SCROLL_CYCLE_SECONDS,
@@ -96,6 +96,26 @@ def get_standard_content_top(
 def _get_default_footer_positions(width: int, footer: List[str]) -> List[int]:
     spacing = width // (len(footer) + 1)
     return [(spacing * (index + 1)) - 10 for index in range(len(footer))]
+
+
+def _get_transition_frame_count() -> int:
+    context = display.get_display_context()
+    default_frames = max(8, min(24, context.width // 4))
+    setting_value = settings.get_setting("transition_frame_count", 3)
+    try:
+        frames = int(setting_value)
+    except (TypeError, ValueError):
+        return default_frames
+    return max(1, min(24, frames))
+
+
+def _get_transition_frame_delay() -> float:
+    setting_value = settings.get_setting("transition_frame_delay", 0.005)
+    try:
+        delay = float(setting_value)
+    except (TypeError, ValueError):
+        return 0.005
+    return max(0.0, delay)
 
 
 def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
@@ -254,6 +274,7 @@ def select_list(
     scroll_gap: int = 20,
     scroll_refresh_interval: Optional[float] = None,
     scroll_start_delay: float = 0.0,
+    transition_direction: Optional[str] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -337,9 +358,45 @@ def select_list(
     scroll_refresh_interval = max(0.02, float(scroll_refresh_interval))
 
     scroll_start_time = time.monotonic() if enable_scroll else None
-    scroll_offset = render(
-        selected_index, scroll_offset, scroll_start_time=scroll_start_time
-    )
+    if transition_direction:
+        scroll_offset = clamp_scroll_offset(selected_index, scroll_offset)
+        from_image = context.image.copy()
+        to_image = renderer.render_menu_image(
+            title="" if header_lines else title,
+            items=items,
+            selected_index=selected_index,
+            scroll_offset=scroll_offset,
+            visible_rows=visible_rows,
+            title_font=title_font,
+            title_icon=title_icon,
+            items_font=items_font,
+            footer=footer,
+            footer_positions=footer_positions,
+            content_top=content_top,
+            enable_horizontal_scroll=enable_scroll,
+            scroll_start_time=scroll_start_time,
+            scroll_start_delay=scroll_start_delay,
+            target_cycle_seconds=target_cycle_seconds,
+            scroll_gap=scroll_gap,
+            screen_id=screen_id,
+            clear=not header_lines,
+        )
+        transitions.render_slide_transition(
+            from_image=from_image,
+            to_image=to_image,
+            direction=transition_direction,
+            frame_count=_get_transition_frame_count(),
+            frame_delay=_get_transition_frame_delay(),
+        )
+        with display._display_lock:
+            context = display.get_display_context()
+            context.image.paste(to_image)
+            context.disp.display(context.image)
+            display.mark_display_dirty()
+    else:
+        scroll_offset = render(
+            selected_index, scroll_offset, scroll_start_time=scroll_start_time
+        )
     last_rendered_index = selected_index
     last_refresh_time = time.monotonic()
     last_scroll_render = time.monotonic()
@@ -489,6 +546,7 @@ def render_menu_list(
     header_lines: Optional[List[str]] = None,
     refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
     refresh_interval: float = 0.25,
+    transition_direction: Optional[str] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     title_font = title_font or context.fonts.get("title", context.fontdisks)
@@ -514,6 +572,7 @@ def render_menu_list(
         header_lines=header_lines,
         refresh_callback=refresh_callback,
         refresh_interval=refresh_interval,
+        transition_direction=transition_direction,
     )
 
 
