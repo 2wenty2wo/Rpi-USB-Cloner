@@ -1,14 +1,32 @@
 """ImageUSB .BIN file detection and validation."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
 
+
 # ImageUSB signature (first 16 bytes)
 # UTF-16LE encoding of "imageUSB"
 IMAGEUSB_SIGNATURE = bytes(
-    [0x69, 0x00, 0x6D, 0x00, 0x61, 0x00, 0x67, 0x00,
-     0x65, 0x00, 0x55, 0x00, 0x53, 0x00, 0x42, 0x00]
+    [
+        0x69,
+        0x00,
+        0x6D,
+        0x00,
+        0x61,
+        0x00,
+        0x67,
+        0x00,
+        0x65,
+        0x00,
+        0x55,
+        0x00,
+        0x53,
+        0x00,
+        0x42,
+        0x00,
+    ]
 )
 
 # ImageUSB header size (first 512 bytes)
@@ -33,7 +51,7 @@ def is_imageusb_file(file_path: Path) -> bool:
         with file_path.open("rb") as f:
             signature = f.read(16)
             return signature == IMAGEUSB_SIGNATURE
-    except (OSError, IOError):
+    except OSError:
         return False
 
 
@@ -86,12 +104,12 @@ def validate_imageusb_file(file_path: Path) -> Optional[str]:
                 return "File truncated (cannot read MBR sector)"
 
             # Check MBR boot signature (last 2 bytes should be 0x55, 0xAA)
-            if mbr_sector[510:512] != b'\x55\xAA':
+            if mbr_sector[510:512] != b"\x55\xaa":
                 # Not necessarily an error - some images might not have MBR
                 # Just a warning
                 pass
 
-    except (OSError, IOError) as e:
+    except OSError as e:
         return f"Error reading file: {e}"
 
     # All checks passed
@@ -130,7 +148,7 @@ def get_imageusb_metadata(file_path: Path) -> dict[str, any]:
 
     # Validate
     error = validate_imageusb_file(file_path)
-    metadata["valid"] = (error is None)
+    metadata["valid"] = error is None
     metadata["error"] = error
 
     return metadata

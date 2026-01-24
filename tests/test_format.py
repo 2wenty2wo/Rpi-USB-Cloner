@@ -12,16 +12,11 @@ This test suite covers:
 """
 
 import subprocess
-from pathlib import Path
-from unittest.mock import Mock, call, patch
-
-import pytest
+from unittest.mock import Mock, patch
 
 from rpi_usb_cloner.storage import format as format_module
 from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
-    FormatOperationError,
-    MountVerificationError,
 )
 
 
@@ -77,7 +72,10 @@ class TestCreatePartitionTable:
         format_module._create_partition_table("/dev/sda")
 
         # Verify error was logged
-        assert any("Failed to create partition table" in str(call) for call in mock_log.call_args_list)
+        assert any(
+            "Failed to create partition table" in str(call)
+            for call in mock_log.call_args_list
+        )
 
 
 class TestCreatePartition:
@@ -92,10 +90,9 @@ class TestCreatePartition:
         result = format_module._create_partition("/dev/sda")
 
         assert result is True
-        mock_run.assert_called_once_with([
-            "parted", "-s", "/dev/sda",
-            "mkpart", "primary", "1MiB", "100%"
-        ])
+        mock_run.assert_called_once_with(
+            ["parted", "-s", "/dev/sda", "mkpart", "primary", "1MiB", "100%"]
+        )
         # Verify sleep was called to wait for device node
         mock_sleep.assert_called_once_with(1)
 
@@ -255,7 +252,11 @@ class TestFormatFilesystem:
             progress_calls.append((lines, ratio))
 
         result = format_module._format_filesystem(
-            "/dev/sda1", "vfat", "quick", label=None, progress_callback=progress_callback
+            "/dev/sda1",
+            "vfat",
+            "quick",
+            label=None,
+            progress_callback=progress_callback,
         )
 
         assert result is True
@@ -292,7 +293,11 @@ class TestFormatFilesystem:
             progress_calls.append((lines, ratio))
 
         result = format_module._format_filesystem(
-            "/dev/sda1", "ext4", "quick", label=None, progress_callback=progress_callback
+            "/dev/sda1",
+            "ext4",
+            "quick",
+            label=None,
+            progress_callback=progress_callback,
         )
 
         assert result is True
@@ -356,9 +361,7 @@ class TestFormatDevice:
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
 
-        result = format_module.format_device(
-            device, "ext4", "quick", label="TEST"
-        )
+        result = format_module.format_device(device, "ext4", "quick", label="TEST")
 
         assert result is True
 
@@ -405,7 +408,11 @@ class TestFormatDevice:
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_still_mounted_after_unmount(
-        self, mock_validate_format, mock_unmount, mock_get_device, mock_validate_unmounted
+        self,
+        mock_validate_format,
+        mock_unmount,
+        mock_get_device,
+        mock_validate_unmounted,
     ):
         """Test format aborted if device still mounted after unmount."""
         device = {"name": "sda", "size": "16106127360"}
@@ -536,7 +543,9 @@ class TestFormatDevice:
 
         assert result is True
         # Verify progress was reported at multiple stages
-        assert len(progress_calls) >= 3  # Unmount, partition table, partition (format reports 2 calls)
+        assert (
+            len(progress_calls) >= 3
+        )  # Unmount, partition table, partition (format reports 2 calls)
 
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")

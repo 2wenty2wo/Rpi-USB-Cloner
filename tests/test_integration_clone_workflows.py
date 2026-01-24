@@ -1,4 +1,5 @@
 """Integration tests for clone workflows."""
+
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -170,7 +171,9 @@ class TestCloneWorkflow:
     @patch("rpi_usb_cloner.storage.clone.operations.unmount_device")
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     @patch("builtins.open", new_callable=MagicMock)
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     def test_full_smart_clone_with_partitions(
         self,
         mock_run,
@@ -190,7 +193,9 @@ class TestCloneWorkflow:
 
         mock_get_device.side_effect = [source, target]
         mock_get_children.side_effect = [source_parts, target_parts]
-        mock_which.side_effect = lambda x: f"/usr/bin/{x}" if x in ["partclone.fat", "partclone.ext4"] else None
+        mock_which.side_effect = lambda x: (
+            f"/usr/bin/{x}" if x in ["partclone.fat", "partclone.ext4"] else None
+        )
         mock_run.return_value = Mock()
 
         result = clone_device(source, target, mode="smart")

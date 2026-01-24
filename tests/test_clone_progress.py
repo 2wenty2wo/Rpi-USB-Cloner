@@ -1,4 +1,5 @@
 """Tests for progress monitoring and formatting."""
+
 import pytest
 
 from rpi_usb_cloner.storage.clone.progress import (

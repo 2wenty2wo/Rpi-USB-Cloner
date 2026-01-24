@@ -1,7 +1,7 @@
 """Tests for command execution utilities with progress tracking."""
+
 import subprocess
-import time
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -19,7 +19,9 @@ class TestRunCheckedCommand:
 
     def test_successful_command(self, mock_subprocess_run):
         """Test successful command execution."""
-        mock_subprocess_run.return_value = Mock(returncode=0, stdout="output", stderr="")
+        mock_subprocess_run.return_value = Mock(
+            returncode=0, stdout="output", stderr=""
+        )
 
         result = run_checked_command(["echo", "test"])
 
@@ -34,7 +36,9 @@ class TestRunCheckedCommand:
 
     def test_command_with_input(self, mock_subprocess_run):
         """Test command execution with input text."""
-        mock_subprocess_run.return_value = Mock(returncode=0, stdout="output", stderr="")
+        mock_subprocess_run.return_value = Mock(
+            returncode=0, stdout="output", stderr=""
+        )
 
         result = run_checked_command(["cat"], input_text="input data")
 
@@ -49,14 +53,18 @@ class TestRunCheckedCommand:
 
     def test_command_failure_with_stderr(self, mock_subprocess_run):
         """Test command failure with stderr message."""
-        mock_subprocess_run.return_value = Mock(returncode=1, stdout="", stderr="error message")
+        mock_subprocess_run.return_value = Mock(
+            returncode=1, stdout="", stderr="error message"
+        )
 
         with pytest.raises(RuntimeError, match="Command failed.*error message"):
             run_checked_command(["false"])
 
     def test_command_failure_with_stdout(self, mock_subprocess_run):
         """Test command failure with stdout message (no stderr)."""
-        mock_subprocess_run.return_value = Mock(returncode=1, stdout="stdout error", stderr="")
+        mock_subprocess_run.return_value = Mock(
+            returncode=1, stdout="stdout error", stderr=""
+        )
 
         with pytest.raises(RuntimeError, match="Command failed.*stdout error"):
             run_checked_command(["false"])
@@ -76,7 +84,9 @@ class TestRunProgressCommand:
     @patch("rpi_usb_cloner.storage.clone.command_runners.select")
     @patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.command_runners.time.time")
-    def test_successful_command_with_progress(self, mock_time, mock_popen, mock_select, mock_display):
+    def test_successful_command_with_progress(
+        self, mock_time, mock_popen, mock_select, mock_display
+    ):
         """Test successful command with progress monitoring."""
         # Mock process
         process = Mock()
@@ -99,7 +109,9 @@ class TestRunProgressCommand:
         # Mock time
         mock_time.side_effect = [0, 0.5, 1.0, 1.5]
 
-        result = run_progress_command(["dd", "if=/dev/zero", "of=/dev/null"], total_bytes=100000000)
+        result = run_progress_command(
+            ["dd", "if=/dev/zero", "of=/dev/null"], total_bytes=100000000
+        )
 
         assert result is True
         assert mock_display.call_count > 0
@@ -122,14 +134,18 @@ class TestRunProgressCommand:
 
         assert result is False
         # Check that failure message was displayed
-        failure_calls = [call for call in mock_display.call_args_list if "FAILED" in str(call)]
+        failure_calls = [
+            call for call in mock_display.call_args_list if "FAILED" in str(call)
+        ]
         assert len(failure_calls) > 0
 
     @patch("rpi_usb_cloner.storage.clone.command_runners.display_lines")
     @patch("rpi_usb_cloner.storage.clone.command_runners.select")
     @patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.command_runners.time.time")
-    def test_progress_parsing_with_rate(self, mock_time, mock_popen, mock_select, mock_display):
+    def test_progress_parsing_with_rate(
+        self, mock_time, mock_popen, mock_select, mock_display
+    ):
         """Test progress parsing with transfer rate."""
         process = Mock()
         process.returncode = 0
@@ -284,7 +300,9 @@ class TestRunCheckedWithStreamingProgress:
         # Callback should be called with progress updates
         assert callback.call_count > 0
         # Check that ratio is provided
-        calls_with_ratio = [call for call in callback.call_args_list if call[0][1] is not None]
+        calls_with_ratio = [
+            call for call in callback.call_args_list if call[0][1] is not None
+        ]
         assert len(calls_with_ratio) > 0
 
     @patch("rpi_usb_cloner.storage.clone.command_runners.select")
@@ -312,9 +330,13 @@ class TestRunCheckedWithStreamingProgress:
         )
 
         # Find the call with ratio from bytes
-        calls_with_ratio = [call for call in callback.call_args_list if call[0][1] is not None]
+        calls_with_ratio = [
+            call for call in callback.call_args_list if call[0][1] is not None
+        ]
         # Ratio should be 0.5 (50MB / 100MB)
-        assert any(abs(call[0][1] - 0.5) < 0.01 for call in calls_with_ratio if call[0][1])
+        assert any(
+            abs(call[0][1] - 0.5) < 0.01 for call in calls_with_ratio if call[0][1]
+        )
 
     @patch("rpi_usb_cloner.storage.clone.command_runners.select")
     @patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.Popen")
@@ -340,9 +362,13 @@ class TestRunCheckedWithStreamingProgress:
         )
 
         # Find the call with ratio from percentage
-        calls_with_ratio = [call for call in callback.call_args_list if call[0][1] is not None]
+        calls_with_ratio = [
+            call for call in callback.call_args_list if call[0][1] is not None
+        ]
         # Ratio should be 0.755 (75.5%)
-        assert any(abs(call[0][1] - 0.755) < 0.01 for call in calls_with_ratio if call[0][1])
+        assert any(
+            abs(call[0][1] - 0.755) < 0.01 for call in calls_with_ratio if call[0][1]
+        )
 
     @patch("rpi_usb_cloner.storage.clone.command_runners.select")
     @patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.Popen")
@@ -393,7 +419,9 @@ class TestConfigureProgressLogger:
         configure_progress_logger(logger)
 
         # Use run_checked_command which uses _log_debug internally
-        with patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.run") as mock_run:
+        with patch(
+            "rpi_usb_cloner.storage.clone.command_runners.subprocess.run"
+        ) as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
             run_checked_command(["echo", "test"])
 
@@ -405,6 +433,8 @@ class TestConfigureProgressLogger:
         configure_progress_logger(None)
 
         # Should not raise any errors
-        with patch("rpi_usb_cloner.storage.clone.command_runners.subprocess.run") as mock_run:
+        with patch(
+            "rpi_usb_cloner.storage.clone.command_runners.subprocess.run"
+        ) as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
             run_checked_command(["echo", "test"])

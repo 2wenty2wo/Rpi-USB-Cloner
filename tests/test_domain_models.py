@@ -6,10 +6,12 @@ ensuring type safety and validation logic works correctly.
 Note: These tests are for pure domain models with no hardware/UI dependencies.
 The conftest.py autouse fixtures are automatically skipped for these tests.
 """
+
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from rpi_usb_cloner.domain import (
     CloneJob,
@@ -356,7 +358,9 @@ class TestCloneJob:
             job_id="test-job",
         )
 
-        with pytest.raises(ValueError, match="Source and destination cannot be the same"):
+        with pytest.raises(
+            ValueError, match="Source and destination cannot be the same"
+        ):
             job.validate()
 
     def test_validate_destination_not_removable_raises(self):

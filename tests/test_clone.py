@@ -11,8 +11,7 @@ This test suite covers:
 - Partition naming
 """
 
-import subprocess
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -189,7 +188,7 @@ class TestFormatProgressLines:
             bytes_copied=1024**3,  # 1GB
             total_bytes=2 * 1024**3,  # 2GB
             rate=50 * 1024**2,  # 50MB/s
-            eta="00:20"
+            eta="00:20",
         )
 
         assert "CLONING" in lines
@@ -206,7 +205,7 @@ class TestFormatProgressLines:
             bytes_copied=1024**2,
             total_bytes=None,
             rate=10 * 1024**2,
-            eta=None
+            eta=None,
         )
 
         assert "CLONING" in lines
@@ -220,7 +219,7 @@ class TestFormatProgressLines:
             bytes_copied=None,
             total_bytes=None,
             rate=None,
-            eta=None
+            eta=None,
         )
 
         assert "WORKING" in lines
@@ -235,7 +234,7 @@ class TestFormatProgressLines:
             bytes_copied=100,
             total_bytes=1000,
             rate=50,
-            eta="01:00"
+            eta="01:00",
         )
 
         assert len(lines) <= 6
@@ -254,7 +253,7 @@ class TestFormatProgressDisplay:
             percent=None,
             rate=50 * 1024**2,
             eta="00:20",
-            spinner="|"
+            spinner="|",
         )
 
         assert any("|" in line for line in lines)
@@ -269,7 +268,7 @@ class TestFormatProgressDisplay:
             percent=10.0,
             rate=None,
             eta=None,
-            subtitle="Partition 1 of 3"
+            subtitle="Partition 1 of 3",
         )
 
         assert "Partition 1 of 3" in lines
@@ -284,7 +283,7 @@ class TestFormatProgressDisplay:
             total_bytes=None,
             percent=50.0,
             rate=None,
-            eta=None
+            eta=None,
         )
 
         # Should show "Working..." when no bytes copied
@@ -309,7 +308,9 @@ unit: sectors
 /dev/sda2 : start=1050624, size=29360128, type=83
 """
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.run_checked_command"
+        )
         mock_run.side_effect = [sfdisk_output, None]  # dump, then write
 
         src = {"name": "sda"}
@@ -331,7 +332,7 @@ unit: sectors
         def which_side_effect(cmd):
             if cmd == "sfdisk":
                 return "/usr/sbin/sfdisk"
-            elif cmd == "sgdisk":
+            if cmd == "sgdisk":
                 return "/usr/sbin/sgdisk"
             return None
 
@@ -343,7 +344,9 @@ device: /dev/sda
 unit: sectors
 """
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.run_checked_command"
+        )
         mock_run.side_effect = [sfdisk_output, None]  # dump, then sgdisk
 
         src = {"name": "sda"}
@@ -381,7 +384,9 @@ unit: sectors
 
         sfdisk_output = "label: gpt\n"
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.run_checked_command"
+        )
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}
@@ -398,13 +403,17 @@ unit: sectors
 
         sfdisk_output = "device: /dev/sda\nunit: sectors\n"  # No label line
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.run_checked_command"
+        )
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}
         dst = {"name": "sdb"}
 
-        with pytest.raises(RuntimeError, match="Unable to detect partition table label"):
+        with pytest.raises(
+            RuntimeError, match="Unable to detect partition table label"
+        ):
             clone.copy_partition_table(src, dst)
 
     @pytest.mark.unit
@@ -415,7 +424,9 @@ unit: sectors
 
         sfdisk_output = "label: aix\n"  # Unsupported
 
-        mock_run = mocker.patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.run_checked_command"
+        )
         mock_run.return_value = sfdisk_output
 
         src = {"name": "sda"}

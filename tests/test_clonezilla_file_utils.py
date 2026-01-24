@@ -1,4 +1,5 @@
 """Tests for Clonezilla file utilities."""
+
 from pathlib import Path
 
 import pytest
@@ -233,7 +234,9 @@ class TestExtractPartcloneFstype:
 
     def test_extract_fstype_with_prefix(self):
         """Test extracting fstype from prefixed filename."""
-        fstype = extract_partclone_fstype("sda1", "2024-01-01-img-sda1.ext4-ptcl-img.aa")
+        fstype = extract_partclone_fstype(
+            "sda1", "2024-01-01-img-sda1.ext4-ptcl-img.aa"
+        )
         assert fstype == "ext4"
 
     def test_extract_fstype_no_match(self):

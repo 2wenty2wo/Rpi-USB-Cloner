@@ -9,8 +9,10 @@ Format structure:
 
 The first 16 bytes contain the UTF-16LE signature "imageUSB".
 """
+
 from .detection import is_imageusb_file, validate_imageusb_file
 from .restore import restore_imageusb_file
+
 
 __all__ = [
     "is_imageusb_file",

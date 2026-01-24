@@ -1,4 +1,5 @@
 """File utilities for Clonezilla image operations."""
+
 from __future__ import annotations
 
 import re
@@ -30,6 +31,7 @@ def sorted_clonezilla_volumes(paths: Iterable[Path]) -> list[Path]:
 
     Handles multi-volume files with suffixes like .aa, .ab, .ac, etc.
     """
+
     def sort_key(path: Path) -> tuple[str, int, str]:
         suffix = extract_volume_suffix(path)
         base = path.name
@@ -51,7 +53,9 @@ def extract_partclone_fstype(part_name: str, file_name: str) -> Optional[str]:
     return match.group(1)
 
 
-def select_clonezilla_volume_set(primary: list[Path], secondary: list[Path]) -> list[Path]:
+def select_clonezilla_volume_set(
+    primary: list[Path], secondary: list[Path]
+) -> list[Path]:
     """Select the appropriate volume set when multiple patterns match.
 
     Returns the set with more volumes, or primary if equal.
@@ -77,7 +81,7 @@ def find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]
         direct_matches = list(image_dir.glob(f"{part_name}.*-{suffix}*"))
         matches = select_clonezilla_volume_set(direct_matches, prefixed_matches)
         return sorted_clonezilla_volumes(matches)
-    elif suffix == "img":
+    if suffix == "img":
         dd_prefixed = list(image_dir.glob(f"*-{part_name}.*-dd-img*"))
         dd_direct = list(image_dir.glob(f"{part_name}.*-dd-img*"))
         dd_matches = select_clonezilla_volume_set(dd_direct, dd_prefixed)
@@ -87,8 +91,7 @@ def find_image_files(image_dir: Path, part_name: str, suffix: str) -> list[Path]
         img_direct = list(image_dir.glob(f"{part_name}.*.img*"))
         img_matches = select_clonezilla_volume_set(img_direct, img_prefixed)
         return sorted_clonezilla_volumes(img_matches)
-    else:
-        pattern = f"*-{part_name}.*.{suffix}*"
+    pattern = f"*-{part_name}.*.{suffix}*"
     return sorted_clonezilla_volumes(image_dir.glob(pattern))
 
 

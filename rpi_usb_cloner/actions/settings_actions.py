@@ -6,6 +6,7 @@ from the refactored settings package.
 For new code, prefer importing directly from:
     rpi_usb_cloner.actions.settings.*
 """
+
 # Re-export all public APIs from the settings package
 from rpi_usb_cloner.actions.settings import (
     build_update_info_lines,
@@ -49,6 +50,7 @@ from rpi_usb_cloner.actions.settings import (
     update_version,
     wifi_settings,
 )
+
 
 # Backwards compatibility aliases
 _log_debug = log_debug_msg

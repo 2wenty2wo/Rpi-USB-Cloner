@@ -1,5 +1,6 @@
 """Tests for device verification using SHA256 checksums."""
-from unittest.mock import MagicMock, Mock, call, patch
+
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -17,7 +18,9 @@ class TestComputeSha256:
     @patch("rpi_usb_cloner.storage.clone.verification.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.verification.time.time")
-    def test_compute_checksum_success(self, mock_time, mock_popen, mock_which, mock_display):
+    def test_compute_checksum_success(
+        self, mock_time, mock_popen, mock_which, mock_display
+    ):
         """Test successful checksum computation."""
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
         mock_time.side_effect = [0, 1, 2, 3]
@@ -67,7 +70,9 @@ class TestComputeSha256:
         dd_proc.returncode = 1
         dd_proc.poll.return_value = 1
         dd_proc.stderr.readline.return_value = ""
-        dd_proc.stderr.read.return_value = "dd: error reading '/dev/sdb': Input/output error"
+        dd_proc.stderr.read.return_value = (
+            "dd: error reading '/dev/sdb': Input/output error"
+        )
         dd_proc.wait.return_value = None
 
         sha_proc = Mock()
@@ -83,7 +88,9 @@ class TestComputeSha256:
     @patch("rpi_usb_cloner.storage.clone.verification.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.verification.time.time")
-    def test_compute_checksum_sha_failure(self, mock_time, mock_popen, mock_which, mock_display):
+    def test_compute_checksum_sha_failure(
+        self, mock_time, mock_popen, mock_which, mock_display
+    ):
         """Test checksum computation fails when sha256sum fails."""
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
         mock_time.return_value = 0
@@ -108,7 +115,9 @@ class TestComputeSha256:
     @patch("rpi_usb_cloner.storage.clone.verification.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.verification.time.time")
-    def test_compute_checksum_with_size_limit(self, mock_time, mock_popen, mock_which, mock_display):
+    def test_compute_checksum_with_size_limit(
+        self, mock_time, mock_popen, mock_which, mock_display
+    ):
         """Test checksum computation with byte limit."""
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
         mock_time.return_value = 0
@@ -137,7 +146,9 @@ class TestComputeSha256:
     @patch("rpi_usb_cloner.storage.clone.verification.shutil.which")
     @patch("rpi_usb_cloner.storage.clone.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clone.verification.time.time")
-    def test_compute_checksum_progress_display(self, mock_time, mock_popen, mock_which, mock_display):
+    def test_compute_checksum_progress_display(
+        self, mock_time, mock_popen, mock_which, mock_display
+    ):
         """Test progress display during checksum computation."""
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
         mock_time.side_effect = [0, 1, 2, 3, 4, 10]  # Trigger timeout display
@@ -158,7 +169,9 @@ class TestComputeSha256:
 
         # Check that progress was displayed with percentage
         display_calls = mock_display.call_args_list
-        progress_calls = [c for c in display_calls if "10.0%" in str(c) or "Working" in str(c)]
+        progress_calls = [
+            c for c in display_calls if "10.0%" in str(c) or "Working" in str(c)
+        ]
         assert len(progress_calls) > 0
 
 
@@ -240,7 +253,15 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_partition_based_clone(self, mock_display, mock_compute, mock_get_device, mock_get_children, mock_devices, mock_partitions):
+    def test_verify_partition_based_clone(
+        self,
+        mock_display,
+        mock_compute,
+        mock_get_device,
+        mock_get_children,
+        mock_devices,
+        mock_partitions,
+    ):
         """Test verification of partition-based clone."""
         source, target = mock_devices
         source_parts, target_parts = mock_partitions
@@ -260,7 +281,15 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_partition_mismatch(self, mock_display, mock_compute, mock_get_device, mock_get_children, mock_devices, mock_partitions):
+    def test_verify_partition_mismatch(
+        self,
+        mock_display,
+        mock_compute,
+        mock_get_device,
+        mock_get_children,
+        mock_devices,
+        mock_partitions,
+    ):
         """Test verification fails when partition checksums don't match."""
         source, target = mock_devices
         source_parts, target_parts = mock_partitions
@@ -277,7 +306,9 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_children")
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.verify_clone_device")
-    def test_verify_raw_clone_no_partitions(self, mock_verify_device, mock_get_device, mock_get_children, mock_devices):
+    def test_verify_raw_clone_no_partitions(
+        self, mock_verify_device, mock_get_device, mock_get_children, mock_devices
+    ):
         """Test verification of raw clone without partitions."""
         source, target = mock_devices
 
@@ -307,7 +338,14 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_missing_target_partition(self, mock_display, mock_compute, mock_get_device, mock_get_children, mock_devices):
+    def test_verify_missing_target_partition(
+        self,
+        mock_display,
+        mock_compute,
+        mock_get_device,
+        mock_get_children,
+        mock_devices,
+    ):
         """Test verification fails when target partition is missing."""
         source, target = mock_devices
         source_parts = [
@@ -326,14 +364,23 @@ class TestVerifyClone:
 
         assert result is False
         # Check error was displayed
-        error_calls = [c for c in mock_display.call_args_list if "No target part" in str(c)]
+        error_calls = [
+            c for c in mock_display.call_args_list if "No target part" in str(c)
+        ]
         assert len(error_calls) > 0
 
     @patch("rpi_usb_cloner.storage.clone.verification.get_children")
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_partition_number_matching(self, mock_display, mock_compute, mock_get_device, mock_get_children, mock_devices):
+    def test_verify_partition_number_matching(
+        self,
+        mock_display,
+        mock_compute,
+        mock_get_device,
+        mock_get_children,
+        mock_devices,
+    ):
         """Test partition matching by partition number."""
         source, target = mock_devices
         # Non-sequential partition numbers
@@ -363,7 +410,9 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_nvme_partition_names(self, mock_display, mock_compute, mock_get_device, mock_get_children):
+    def test_verify_nvme_partition_names(
+        self, mock_display, mock_compute, mock_get_device, mock_get_children
+    ):
         """Test verification with NVMe partition naming (p1, p2)."""
         source = {"name": "nvme0n1", "size": 32000000000}
         target = {"name": "nvme1n1", "size": 32000000000}
@@ -390,7 +439,15 @@ class TestVerifyClone:
     @patch("rpi_usb_cloner.storage.clone.verification.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.verification.compute_sha256")
     @patch("rpi_usb_cloner.storage.clone.verification.display_lines")
-    def test_verify_computation_error(self, mock_display, mock_compute, mock_get_device, mock_get_children, mock_devices, mock_partitions):
+    def test_verify_computation_error(
+        self,
+        mock_display,
+        mock_compute,
+        mock_get_device,
+        mock_get_children,
+        mock_devices,
+        mock_partitions,
+    ):
         """Test verification handles computation errors gracefully."""
         source, target = mock_devices
         source_parts, target_parts = mock_partitions

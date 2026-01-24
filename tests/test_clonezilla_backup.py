@@ -13,8 +13,7 @@ This test suite covers:
 """
 
 import subprocess
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call, mock_open
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -40,8 +39,8 @@ def mock_device_info():
                 "size": "15032385536",
                 "type": "part",
                 "fstype": "ext4",
-            }
-        ]
+            },
+        ],
     }
 
 
@@ -69,7 +68,7 @@ def mock_partition_info():
 class TestCheckToolAvailable:
     """Tests for check_tool_available() function."""
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_tool_available(self, mock_which):
         """Test detection of available tool."""
         mock_which.return_value = "/usr/bin/gzip"
@@ -77,7 +76,7 @@ class TestCheckToolAvailable:
         assert backup.check_tool_available("gzip") is True
         mock_which.assert_called_once_with("gzip")
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_tool_not_available(self, mock_which):
         """Test detection when tool not available."""
         mock_which.return_value = None
@@ -88,7 +87,7 @@ class TestCheckToolAvailable:
 class TestGetCompressionTool:
     """Tests for get_compression_tool() function."""
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_gzip_compression_pigz_available(self, mock_which):
         """Test gzip compression with pigz available."""
         mock_which.side_effect = lambda x: "/usr/bin/pigz" if x == "pigz" else None
@@ -98,7 +97,7 @@ class TestGetCompressionTool:
         assert tool == "/usr/bin/pigz"
         assert args == ["-c"]
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_gzip_compression_fallback_to_gzip(self, mock_which):
         """Test gzip compression falls back to gzip when pigz unavailable."""
         mock_which.side_effect = lambda x: "/usr/bin/gzip" if x == "gzip" else None
@@ -108,7 +107,7 @@ class TestGetCompressionTool:
         assert tool == "/usr/bin/gzip"
         assert args == ["-c"]
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_zstd_compression_pzstd_available(self, mock_which):
         """Test zstd compression with pzstd available."""
         mock_which.side_effect = lambda x: "/usr/bin/pzstd" if x == "pzstd" else None
@@ -118,7 +117,7 @@ class TestGetCompressionTool:
         assert tool == "/usr/bin/pzstd"
         assert args == ["-c"]
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_zstd_compression_fallback_to_zstd(self, mock_which):
         """Test zstd compression falls back to zstd when pzstd unavailable."""
         mock_which.side_effect = lambda x: "/usr/bin/zstd" if x == "zstd" else None
@@ -140,7 +139,7 @@ class TestGetCompressionTool:
         with pytest.raises(ValueError, match="Unknown compression type"):
             backup.get_compression_tool("invalid")
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_compression_tool_not_available(self, mock_which):
         """Test when compression tool not available."""
         mock_which.return_value = None
@@ -154,13 +153,10 @@ class TestGetCompressionTool:
 class TestGetFilesystemType:
     """Tests for get_filesystem_type() function."""
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_detect_ext4_with_lsblk(self, mock_run):
         """Test filesystem detection using lsblk."""
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout="ext4\n"
-        )
+        mock_run.return_value = Mock(returncode=0, stdout="ext4\n")
 
         fstype = backup.get_filesystem_type("/dev/sda1")
 
@@ -168,15 +164,15 @@ class TestGetFilesystemType:
         mock_run.assert_called_once()
         assert "lsblk" in mock_run.call_args[0][0]
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_detect_vfat_with_blkid_fallback(self, mock_run):
         """Test filesystem detection falls back to blkid."""
+
         # lsblk fails (timeout), blkid succeeds
         def run_side_effect(*args, **kwargs):
             if "lsblk" in args[0]:
                 raise subprocess.TimeoutExpired("lsblk", 5)
-            else:
-                return Mock(returncode=0, stdout="vfat\n")
+            return Mock(returncode=0, stdout="vfat\n")
 
         mock_run.side_effect = run_side_effect
 
@@ -187,7 +183,7 @@ class TestGetFilesystemType:
         assert mock_run.call_count == 2
         assert "blkid" in mock_run.call_args[0][0]
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_detect_empty_filesystem(self, mock_run):
         """Test detection returns None for empty filesystem."""
         mock_run.return_value = Mock(returncode=0, stdout="\n")
@@ -196,7 +192,7 @@ class TestGetFilesystemType:
 
         assert fstype is None
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_detect_filesystem_timeout(self, mock_run):
         """Test detection handles timeout."""
         mock_run.side_effect = subprocess.TimeoutExpired("lsblk", 5)
@@ -209,9 +205,11 @@ class TestGetFilesystemType:
 class TestGetPartitionInfo:
     """Tests for get_partition_info() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_children')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_partition_used_space')
-    def test_get_partition_info(self, mock_get_used, mock_get_children, mock_device_info):
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_children")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_partition_used_space")
+    def test_get_partition_info(
+        self, mock_get_used, mock_get_children, mock_device_info
+    ):
         """Test getting partition information from device."""
         mock_get_children.return_value = mock_device_info["children"]
         mock_get_used.return_value = 500000000
@@ -225,8 +223,10 @@ class TestGetPartitionInfo:
         assert partitions[1].name == "sda2"
         assert partitions[1].fstype == "ext4"
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_children')
-    def test_get_partition_info_skips_non_partitions(self, mock_get_children, mock_device_info):
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_children")
+    def test_get_partition_info_skips_non_partitions(
+        self, mock_get_children, mock_device_info
+    ):
         """Test that non-partition children are skipped."""
         children = mock_device_info["children"] + [
             {"name": "sda", "type": "disk"}  # Not a partition
@@ -243,8 +243,8 @@ class TestGetPartitionInfo:
 class TestSavePartitionTables:
     """Tests for partition table saving functions."""
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_save_partition_table_sfdisk(self, mock_which, mock_run, tmp_path):
         """Test saving partition table with sfdisk."""
         mock_which.return_value = "/usr/sbin/sfdisk"
@@ -263,8 +263,8 @@ class TestSavePartitionTables:
             timeout=30,
         )
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_save_partition_table_sfdisk_failure(self, mock_which, mock_run, tmp_path):
         """Test sfdisk failure raises RuntimeError."""
         mock_which.return_value = "/usr/sbin/sfdisk"
@@ -275,8 +275,8 @@ class TestSavePartitionTables:
         with pytest.raises(RuntimeError, match="sfdisk failed"):
             backup.save_partition_table_sfdisk("/dev/sda", output_path)
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_save_partition_table_parted(self, mock_which, mock_run, tmp_path):
         """Test saving partition table with parted."""
         mock_which.return_value = "/usr/sbin/parted"
@@ -289,8 +289,8 @@ class TestSavePartitionTables:
         assert output_path.exists()
         assert output_path.read_text() == parted_output
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_save_partition_table_sgdisk_gpt(self, mock_which, mock_run, tmp_path):
         """Test saving GPT partition table with sgdisk."""
         mock_which.return_value = "/usr/sbin/sgdisk"
@@ -303,8 +303,8 @@ class TestSavePartitionTables:
         assert output_path.exists()
         assert output_path.read_text() == sgdisk_output
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_save_partition_table_sgdisk_not_gpt(self, mock_which, mock_run, tmp_path):
         """Test sgdisk silently skips non-GPT disks."""
         mock_which.return_value = "/usr/sbin/sgdisk"
@@ -318,10 +318,12 @@ class TestSavePartitionTables:
         # File should not be created
         assert not output_path.exists()
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_sgdisk')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_parted')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_sfdisk')
-    def test_save_partition_tables(self, mock_sfdisk, mock_parted, mock_sgdisk, tmp_path):
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_sgdisk")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_parted")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.save_partition_table_sfdisk")
+    def test_save_partition_tables(
+        self, mock_sfdisk, mock_parted, mock_sgdisk, tmp_path
+    ):
         """Test saving all partition table formats."""
         backup.save_partition_tables("/dev/sda", "sda", tmp_path)
 
@@ -361,8 +363,8 @@ class TestProgressParsing:
         result = backup.parse_partclone_progress(line)
 
         assert result is not None
-        assert result['percentage'] == 45.2
-        assert result['rate_str'] == "45.2MB/s"
+        assert result["percentage"] == 45.2
+        assert result["rate_str"] == "45.2MB/s"
 
     def test_parse_partclone_progress_without_rate(self):
         """Test parsing partclone progress without rate info."""
@@ -371,8 +373,8 @@ class TestProgressParsing:
         result = backup.parse_partclone_progress(line)
 
         assert result is not None
-        assert result['percentage'] == 25.0
-        assert result['rate_str'] is None
+        assert result["percentage"] == 25.0
+        assert result["rate_str"] is None
 
     def test_parse_partclone_progress_no_match(self):
         """Test parsing line without progress info."""
@@ -389,9 +391,9 @@ class TestProgressParsing:
         result = backup.parse_dd_progress(line)
 
         assert result is not None
-        assert result['bytes'] == 2415919104
-        assert result['size_str'] == "2.4 GB"
-        assert result['rate_str'] == "53.7 MB/s"
+        assert result["bytes"] == 2415919104
+        assert result["size_str"] == "2.4 GB"
+        assert result["rate_str"] == "53.7 MB/s"
 
     def test_parse_dd_progress_no_match(self):
         """Test parsing dd line without progress."""
@@ -405,8 +407,8 @@ class TestProgressParsing:
 class TestEstimateBackupSize:
     """Tests for estimate_backup_size() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_partition_info')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_partition_info")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
     def test_estimate_backup_size_all_partitions(
         self, mock_get_device, mock_get_part_info, mock_device_info, mock_partition_info
     ):
@@ -420,8 +422,8 @@ class TestEstimateBackupSize:
         expected_size = int(536870912 * 1.1) + int(7516192768 * 1.1) + 10 * 1024 * 1024
         assert size == expected_size
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_partition_info')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_partition_info")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
     def test_estimate_backup_size_specific_partitions(
         self, mock_get_device, mock_get_part_info, mock_device_info, mock_partition_info
     ):
@@ -435,7 +437,7 @@ class TestEstimateBackupSize:
         expected_size = int(536870912 * 1.1) + 10 * 1024 * 1024
         assert size == expected_size
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
     def test_estimate_backup_size_device_not_found(self, mock_get_device):
         """Test error when device not found."""
         mock_get_device.return_value = None
@@ -451,25 +453,23 @@ class TestBackupPartition:
     @pytest.mark.skip(reason="Complex subprocess pipeline mocking required")
     def test_backup_partition_with_partclone(self):
         """Test backing up partition with partclone."""
-        pass
 
     @pytest.mark.skip(reason="Complex subprocess pipeline mocking required")
     def test_backup_partition_fallback_to_dd(self):
         """Test falling back to dd when partclone unavailable."""
-        pass
 
 
 class TestCreateClonezillaBackup:
     """Tests for create_clonezilla_backup() main function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.backup_partition')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.create_metadata_files')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.save_partition_tables')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_partition_info')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.resolve_device_node')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.backup_partition")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.create_metadata_files")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.save_partition_tables")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_partition_info")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.resolve_device_node")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool")
     def test_create_backup_full_workflow(
         self,
         mock_get_comp,
@@ -493,7 +493,9 @@ class TestCreateClonezillaBackup:
 
         # Mock backup_partition to create files
         def backup_side_effect(partition, output_dir, **kwargs):
-            output_file = output_dir / f"{partition.name}.{partition.fstype}-ptcl-img.gz"
+            output_file = (
+                output_dir / f"{partition.name}.{partition.fstype}-ptcl-img.gz"
+            )
             output_file.write_bytes(b"test backup data")
             return [output_file]
 
@@ -520,16 +522,14 @@ class TestCreateClonezillaBackup:
         mock_create_metadata.assert_called_once()
         assert mock_backup_part.call_count == 2
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool")
     def test_create_backup_invalid_compression(self, mock_get_comp, tmp_path):
         """Test error with invalid compression type."""
         # The function validates compression type directly
         with pytest.raises(ValueError, match="Invalid compression type"):
-            backup.create_clonezilla_backup(
-                "sda", tmp_path, compression="invalid"
-            )
+            backup.create_clonezilla_backup("sda", tmp_path, compression="invalid")
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
     def test_create_backup_device_not_found(self, mock_get_device, tmp_path):
         """Test error when device not found."""
         mock_get_device.return_value = None
@@ -537,9 +537,9 @@ class TestCreateClonezillaBackup:
         with pytest.raises(RuntimeError, match="Device .* not found"):
             backup.create_clonezilla_backup("invalid", tmp_path)
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool")
     def test_create_backup_unmount_failure(
         self, mock_get_comp, mock_get_device, mock_unmount, tmp_path, mock_device_info
     ):
@@ -551,13 +551,13 @@ class TestCreateClonezillaBackup:
         with pytest.raises(RuntimeError, match="Failed to unmount"):
             backup.create_clonezilla_backup("sda", tmp_path)
 
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.cleanup_partial_backup')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.save_partition_tables')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_partition_info')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.resolve_device_node')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.cleanup_partial_backup")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.save_partition_tables")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_partition_info")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.resolve_device_node")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool")
     def test_create_backup_failure_cleanup(
         self,
         mock_get_comp,

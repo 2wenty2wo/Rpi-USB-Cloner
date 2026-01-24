@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from rpi_usb_cloner.menu.model import MenuScreen
+
 from .. import actions as menu_actions
 from . import menu_entry
 

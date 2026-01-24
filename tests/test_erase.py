@@ -1,5 +1,6 @@
 """Tests for device erasure operations."""
-from unittest.mock import MagicMock, Mock, call, patch
+
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -20,12 +21,19 @@ class TestEraseDevice:
     @pytest.fixture
     def setup_mocks(self):
         """Setup common mocks for erase tests."""
-        with patch("rpi_usb_cloner.storage.clone.erase.shutil.which") as mock_which, \
-             patch("rpi_usb_cloner.storage.clone.erase.unmount_device") as mock_unmount, \
-             patch("rpi_usb_cloner.storage.clone.erase.get_device_by_name") as mock_get_device, \
-             patch("rpi_usb_cloner.storage.clone.erase.validate_device_unmounted") as mock_validate_unmounted, \
-             patch("rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress") as mock_run, \
-             patch("rpi_usb_cloner.storage.clone.erase.display_lines") as mock_display:
+        with patch(
+            "rpi_usb_cloner.storage.clone.erase.shutil.which"
+        ) as mock_which, patch(
+            "rpi_usb_cloner.storage.clone.erase.unmount_device"
+        ) as mock_unmount, patch(
+            "rpi_usb_cloner.storage.clone.erase.get_device_by_name"
+        ) as mock_get_device, patch(
+            "rpi_usb_cloner.storage.clone.erase.validate_device_unmounted"
+        ) as mock_validate_unmounted, patch(
+            "rpi_usb_cloner.storage.clone.erase.run_checked_with_streaming_progress"
+        ) as mock_run, patch(
+            "rpi_usb_cloner.storage.clone.erase.display_lines"
+        ) as mock_display:
             yield {
                 "which": mock_which,
                 "unmount": mock_unmount,
@@ -190,7 +198,11 @@ class TestEraseDevice:
 
         assert result is False
         # Should display error
-        error_calls = [c for c in mocks["display"].call_args_list if "ERROR" in str(c) or "unknown" in str(c)]
+        error_calls = [
+            c
+            for c in mocks["display"].call_args_list
+            if "ERROR" in str(c) or "unknown" in str(c)
+        ]
         assert len(error_calls) > 0
 
     def test_erase_none_mode_returns_false(self, mock_target_device, setup_mocks):
@@ -201,7 +213,11 @@ class TestEraseDevice:
 
         assert result is False
         # Should display error for unknown mode
-        error_calls = [c for c in mocks["display"].call_args_list if "unknown mode" in str(c).lower() or "ERROR" in str(c)]
+        error_calls = [
+            c
+            for c in mocks["display"].call_args_list
+            if "unknown mode" in str(c).lower() or "ERROR" in str(c)
+        ]
         assert len(error_calls) > 0
 
     def test_erase_empty_mode_returns_false(self, mock_target_device, setup_mocks):
@@ -212,7 +228,11 @@ class TestEraseDevice:
 
         assert result is False
         # Should display error for unknown mode
-        error_calls = [c for c in mocks["display"].call_args_list if "unknown mode" in str(c).lower() or "ERROR" in str(c)]
+        error_calls = [
+            c
+            for c in mocks["display"].call_args_list
+            if "unknown mode" in str(c).lower() or "ERROR" in str(c)
+        ]
         assert len(error_calls) > 0
 
     def test_erase_with_progress_callback(self, mock_target_device, setup_mocks):
@@ -294,7 +314,9 @@ class TestEraseDevice:
         assert mocks["run"].call_count == 1
 
     @patch("rpi_usb_cloner.storage.clone.erase.app_state")
-    def test_erase_quick_mode_wipe_size(self, mock_state, mock_target_device, setup_mocks):
+    def test_erase_quick_mode_wipe_size(
+        self, mock_state, mock_target_device, setup_mocks
+    ):
         """Test quick mode respects QUICK_WIPE_MIB setting."""
         mock_state.QUICK_WIPE_MIB = 50  # 50MB
         mocks = setup_mocks

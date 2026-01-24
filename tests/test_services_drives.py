@@ -1,8 +1,7 @@
 """Tests for drive listing and selection service."""
-from pathlib import Path
-from unittest.mock import Mock, call, patch
 
-import pytest
+from pathlib import Path
+from unittest.mock import patch
 
 from rpi_usb_cloner.services.drives import (
     DriveSnapshot,
@@ -27,7 +26,9 @@ class TestCollectMountpoints:
         """Test collecting mountpoint from device."""
         device = {"name": "sda", "mountpoint": "/mnt/usb"}
 
-        with patch("rpi_usb_cloner.services.drives.storage_devices.get_children") as mock_children:
+        with patch(
+            "rpi_usb_cloner.services.drives.storage_devices.get_children"
+        ) as mock_children:
             mock_children.return_value = []
             mountpoints = _collect_mountpoints(device)
 
@@ -37,7 +38,9 @@ class TestCollectMountpoints:
         """Test device with no mountpoint."""
         device = {"name": "sda"}
 
-        with patch("rpi_usb_cloner.services.drives.storage_devices.get_children") as mock_children:
+        with patch(
+            "rpi_usb_cloner.services.drives.storage_devices.get_children"
+        ) as mock_children:
             mock_children.return_value = []
             mountpoints = _collect_mountpoints(device)
 
@@ -54,7 +57,9 @@ class TestCollectMountpoints:
             {"name": "sda2", "mountpoint": "/mnt/part2"},
         ]
 
-        with patch("rpi_usb_cloner.services.drives.storage_devices.get_children") as mock_children:
+        with patch(
+            "rpi_usb_cloner.services.drives.storage_devices.get_children"
+        ) as mock_children:
             mock_children.side_effect = [partitions, [], []]
             mountpoints = _collect_mountpoints(device)
 
@@ -67,7 +72,9 @@ class TestCollectMountpoints:
         partition2 = {"name": "sda2", "mountpoint": None}
         subpartition = {"name": "sda2p1", "mountpoint": "/mnt/subpart"}
 
-        with patch("rpi_usb_cloner.services.drives.storage_devices.get_children") as mock_children:
+        with patch(
+            "rpi_usb_cloner.services.drives.storage_devices.get_children"
+        ) as mock_children:
             mock_children.side_effect = [
                 [partition1, partition2],  # children of device
                 [],  # children of partition1

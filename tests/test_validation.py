@@ -1,12 +1,10 @@
 """Tests for storage validation functions."""
 
-import os
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import mock_open, patch
 
 import pytest
 
 from rpi_usb_cloner.storage.exceptions import (
-    DeviceBusyError,
     DeviceNotFoundError,
     DeviceValidationError,
     InsufficientSpaceError,
@@ -180,7 +178,9 @@ class TestValidateDeviceUnmounted:
 
     @patch("rpi_usb_cloner.storage.validation.get_device_by_name")
     @patch("rpi_usb_cloner.storage.validation._is_mountpoint_active")
-    def test_device_with_active_mountpoint_raises(self, mock_is_active, mock_get_device):
+    def test_device_with_active_mountpoint_raises(
+        self, mock_is_active, mock_get_device
+    ):
         """Test validation fails when device has active mountpoint."""
         mock_get_device.return_value = {
             "name": "sda",
@@ -196,7 +196,9 @@ class TestValidateDeviceUnmounted:
 
     @patch("rpi_usb_cloner.storage.validation.get_device_by_name")
     @patch("rpi_usb_cloner.storage.validation._is_mountpoint_active")
-    def test_device_with_inactive_mountpoint_passes(self, mock_is_active, mock_get_device):
+    def test_device_with_inactive_mountpoint_passes(
+        self, mock_is_active, mock_get_device
+    ):
         """Test validation passes when mountpoint is not active."""
         mock_get_device.return_value = {
             "name": "sda",
