@@ -2,7 +2,7 @@
 
 > **Purpose**: This document provides comprehensive guidance for AI assistants (like Claude) working on the Raspberry Pi USB Cloner codebase. It covers architecture, conventions, workflows, and common tasks.
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-01-24
 **Project**: Raspberry Pi USB Cloner
 **Language**: Python 3.8+
 **License**: MIT
@@ -60,7 +60,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 # Main entry point
 /home/user/Rpi-USB-Cloner/rpi-usb-cloner.py
     ↓
-rpi_usb_cloner/main.py (812 lines)
+rpi_usb_cloner/main.py (892 lines)
     ↓
 Main event loop with GPIO polling, USB detection, display rendering
 ```
@@ -172,8 +172,8 @@ def run_with_progress(
 ```
 Rpi-USB-Cloner/
 ├── rpi-usb-cloner.py              # Entry point script
-├── rpi_usb_cloner/                # Main package (88 files, ~18,926 LOC)
-│   ├── main.py                    # Main event loop (812 lines) ⭐
+├── rpi_usb_cloner/                # Main package (93 files, ~20,000 LOC)
+│   ├── main.py                    # Main event loop (892 lines) ⭐
 │   │
 │   ├── app/                        # Application state
 │   │   ├── context.py             # AppContext (runtime state) ⭐
@@ -269,11 +269,12 @@ Rpi-USB-Cloner/
 │   │
 │   └── __init__.py
 │
-├── tests/                          # Test suite (26 test files)
+├── tests/                          # Test suite (30 test files)
 │   ├── conftest.py                # Shared fixtures ⭐
 │   ├── test_devices.py            # Device detection tests
 │   ├── test_clone*.py             # Cloning tests (5 files)
 │   ├── test_clonezilla*.py        # Clonezilla tests (6 files)
+│   ├── test_actions_*.py          # Action handler tests (3 files)
 │   ├── test_settings.py           # Settings tests
 │   ├── test_mount_security.py     # Security tests
 │   └── test_*.py                  # Other test modules
@@ -289,6 +290,7 @@ Rpi-USB-Cloner/
 ├── CLAUDE.md                      # AI assistant guide (this file)
 ├── AGENTS.md                      # Agent-specific documentation
 ├── LOGGING_IMPROVEMENTS.md        # Logging architecture guide
+├── TEST_COVERAGE_ANALYSIS.md      # Test coverage analysis & improvement plan
 ├── LICENSE                        # MIT License
 └── .github/
     ├── workflows/tests.yml        # CI/CD workflow
@@ -604,7 +606,8 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Files**: 26 test modules (as of 2026-01-23)
+**Test Files**: 30 test modules (as of 2026-01-24)
+**Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
 
 ### Running Tests
 
@@ -1165,12 +1168,32 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ## 8. Known Issues & Gotchas
 
-### Recent Improvements (2026-01-23)
+### Recent Improvements
 
-#### Fixed: Unmount Error Handling ✅
+#### 2026-01-24: UI Enhancements & Test Coverage ✅
+**New Features**:
+- **Menu Transitions**: Added slide transitions for menu lists with configurable transition speed settings
+- **CREATE REPO DRIVE**: New menu option to mark drives as image repositories (creates flag file)
+- **Font Optimization**: Removed unused font files to reduce repository size
+- **Menu Reorganization**: Refactored menu structure for better organization (Option A implementation)
+
+**Test Coverage**:
+- Added comprehensive action handler tests (+38 tests)
+- Coverage increased by +7.47% for action modules
+- Total test files: 30 (was 26)
+- See `TEST_COVERAGE_ANALYSIS.md` for detailed coverage report
+
+**Bug Fixes**:
+- Fixed multiple partition mounting for repository detection
+- Corrected CLONE menu label rendering (plain text and Lucide icons)
+- Resolved mypy type checking issues
+- Fixed ruff lint violations
+- Improved menu transition footer display
+
+#### 2026-01-23: Unmount Error Handling ✅
 **Previous Issue**: `unmount_device()` silently swallowed exceptions, which could lead to data corruption.
 
-**Resolution**: The function has been significantly improved with:
+**Resolution** (2026-01-23): The function has been significantly improved with:
 - `raise_on_failure` parameter for explicit error handling
 - Returns `bool` to indicate success/failure
 - Raises `UnmountFailedError` when `raise_on_failure=True`
@@ -1392,7 +1415,7 @@ def clone_device(source: str, destination: str) -> None:
 
 | File | LOC | Description |
 |------|-----|-------------|
-| `rpi_usb_cloner/main.py` | 812 | Main event loop, entry point ⭐ |
+| `rpi_usb_cloner/main.py` | 892 | Main event loop, entry point ⭐ |
 | `rpi_usb_cloner/app/context.py` | ~100 | AppContext (runtime state) ⭐ |
 | `rpi_usb_cloner/menu/navigator.py` | ~200 | Menu navigation logic ⭐ |
 | `rpi_usb_cloner/storage/devices.py` | ~250 | USB device detection ⭐ |
@@ -1422,6 +1445,7 @@ def clone_device(source: str, destination: str) -> None:
 | `CLAUDE.md` | This file (AI assistant guide) |
 | `AGENTS.md` | Agent-specific documentation |
 | `LOGGING_IMPROVEMENTS.md` | Logging architecture and improvements |
+| `TEST_COVERAGE_ANALYSIS.md` | Test coverage analysis & improvement plan |
 | `.github/COVERAGE-GUIDE.md` | Code coverage reporting guide |
 | `.github/CI-CD-GUIDE.md` | Continuous integration documentation |
 
