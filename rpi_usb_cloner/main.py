@@ -581,11 +581,17 @@ def main(argv: Optional[list[str]] = None) -> None:
                     visible_rows=dynamic_visible_rows,
                     title_icon=get_screen_icon(current_screen.screen_id),
                 )
+                context = display.get_display_context()
+                footer_start, _ = renderer.calculate_footer_bounds(
+                    status_line=status_line
+                )
+                dirty_region = (0, 0, context.width, footer_start)
                 transitions.render_slide_transition(
                     from_image=from_image,
                     to_image=to_image,
                     direction=navigation_action,
                     frame_count=calculate_transition_frames(),
+                    dirty_region=dirty_region,
                     frame_delay=get_transition_frame_delay(),
                 )
                 with display._display_lock:

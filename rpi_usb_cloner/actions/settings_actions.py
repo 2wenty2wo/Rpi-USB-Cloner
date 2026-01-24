@@ -38,9 +38,9 @@ from rpi_usb_cloner.actions.settings import (
     run_git_pull,
     run_update_flow,
     screensaver_settings,
-    select_transition_speed,
     select_restore_partition_mode,
     select_screensaver_gif,
+    select_transition_speed,
     show_about_credits,  # Display credits screen from assets/credits.png
     shutdown_system,
     stop_service,

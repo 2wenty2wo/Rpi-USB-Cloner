@@ -5,7 +5,6 @@ This test is critical - it ensures the circular import issue is resolved.
 """
 
 
-
 class TestActionsImport:
     """Test that all actions modules can be imported without circular import errors."""
 
