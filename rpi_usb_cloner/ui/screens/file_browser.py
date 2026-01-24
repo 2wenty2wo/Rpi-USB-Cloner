@@ -1,6 +1,5 @@
 """File browser screen for viewing files on USB drives and image repo."""
 
-import os
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -16,7 +15,9 @@ from rpi_usb_cloner.ui.icons import FILE_ICON, FOLDER_ICON
 class FileItem:
     """Represents a file or directory in the browser."""
 
-    def __init__(self, path: Path, is_dir: bool = False, display_name: Optional[str] = None):
+    def __init__(
+        self, path: Path, is_dir: bool = False, display_name: Optional[str] = None
+    ):
         self.path = path
         self.is_dir = is_dir
         self.display_name = display_name or path.name
@@ -24,8 +25,7 @@ class FileItem:
     def __str__(self) -> str:
         if self.is_dir:
             return f"{FOLDER_ICON} {self.display_name}"
-        else:
-            return f"{FILE_ICON} {self.display_name}"
+        return f"{FILE_ICON} {self.display_name}"
 
 
 def _get_line_height(font, min_height=8):
@@ -71,7 +71,9 @@ def _get_available_locations() -> List[FileItem]:
     for mount in usb_mounts:
         # Get device name from path
         device_name = mount.name or str(mount)
-        locations.append(FileItem(mount, is_dir=True, display_name=f"USB: {device_name}"))
+        locations.append(
+            FileItem(mount, is_dir=True, display_name=f"USB: {device_name}")
+        )
 
     # Add image repo locations
     repos = find_image_repos()
@@ -99,14 +101,14 @@ def _list_directory(path: Path) -> List[FileItem]:
 
         for entry in entries:
             # Skip hidden files
-            if entry.name.startswith('.'):
+            if entry.name.startswith("."):
                 continue
 
             is_dir = entry.is_dir()
             items.append(FileItem(entry, is_dir=is_dir))
 
         return items
-    except (PermissionError, OSError) as e:
+    except (PermissionError, OSError):
         # Return empty list if directory is not accessible
         return []
 
@@ -133,7 +135,7 @@ def _render_browser_screen(
     content_top = layout.content_top
 
     # Calculate available space for items
-    items_font = fonts.get('items')
+    items_font = fonts.get("items")
     line_height = _get_line_height(items_font)
     available_height = height - content_top - 2
     max_visible_items = max(1, available_height // line_height)
@@ -143,8 +145,12 @@ def _render_browser_screen(
         start_index = 0
     else:
         # Keep selected item in middle when possible
-        start_index = max(0, min(selected_index - max_visible_items // 2,
-                                 len(items) - max_visible_items))
+        start_index = max(
+            0,
+            min(
+                selected_index - max_visible_items // 2, len(items) - max_visible_items
+            ),
+        )
 
     # Render visible items
     for i in range(max_visible_items):
@@ -166,7 +172,7 @@ def _render_browser_screen(
         # Truncate if too long (rough estimate for 128px width)
         max_chars = 18
         if len(item_text) > max_chars:
-            item_text = item_text[:max_chars - 1] + "…"
+            item_text = item_text[: max_chars - 1] + "…"
 
         draw.text((12, y_pos), item_text, font=items_font, fill=255)
 
@@ -178,7 +184,7 @@ def _render_browser_screen(
         indicator = f"{current_page}/{total_pages}"
 
         # Draw in bottom right corner
-        indicator_font = fonts.get('footer')
+        indicator_font = fonts.get("footer")
         draw.text((width - 30, height - 12), indicator, font=indicator_font, fill=255)
 
     # Display the rendered screen
@@ -192,7 +198,9 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
     # Navigation state
     current_items: List[FileItem] = []
     selected_index = 0
-    path_stack: List[Tuple[List[FileItem], int]] = []  # Stack of (items, selected_index)
+    path_stack: List[Tuple[List[FileItem], int]] = (
+        []
+    )  # Stack of (items, selected_index)
     current_path: Optional[Path] = None
 
     # Load initial locations
@@ -217,7 +225,9 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
     render()
 
     # Wait for buttons to be released
-    menus.wait_for_buttons_release([gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D])
+    menus.wait_for_buttons_release(
+        [gpio.PIN_A, gpio.PIN_B, gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D]
+    )
 
     prev_states = {
         "A": gpio.is_pressed(gpio.PIN_A),
@@ -316,11 +326,13 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
                             size_str = f"{file_size / (1024 * 1024 * 1024):.1f}GB"
 
                         # Show file info
-                        display.display_lines([
-                            "FILE INFO",
-                            file_name[:20],
-                            size_str,
-                        ])
+                        display.display_lines(
+                            [
+                                "FILE INFO",
+                                file_name[:20],
+                                size_str,
+                            ]
+                        )
                         time.sleep(2)
                         render()
                     except (OSError, PermissionError):

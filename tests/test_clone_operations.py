@@ -1,5 +1,6 @@
 """Tests for core cloning operations."""
-from unittest.mock import MagicMock, Mock, call, patch
+
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -19,6 +20,7 @@ class TestCopyPartitionTable:
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     def test_copy_gpt_partition_table(self, mock_which, mock_run):
         """Test copying GPT partition table."""
+
         def which_side_effect(cmd):
             if cmd == "sfdisk":
                 return "/usr/bin/sfdisk"
@@ -100,6 +102,7 @@ unit: sectors
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     def test_copy_partition_table_no_sgdisk_for_gpt(self, mock_which, mock_run):
         """Test error when sgdisk is not found for GPT."""
+
         def which_side_effect(cmd):
             if cmd == "sfdisk":
                 return "/usr/bin/sfdisk"
@@ -118,7 +121,9 @@ unit: sectors
         mock_which.return_value = "/usr/bin/sfdisk"
         mock_run.return_value = "device: /dev/sda\nunit: sectors\n"  # No label line
 
-        with pytest.raises(RuntimeError, match="Unable to detect partition table label"):
+        with pytest.raises(
+            RuntimeError, match="Unable to detect partition table label"
+        ):
             copy_partition_table({"name": "sda"}, {"name": "sdb"})
 
     @patch("rpi_usb_cloner.storage.clone.operations.run_checked_command")
@@ -148,7 +153,9 @@ unit: sectors
 class TestCloneDd:
     """Tests for clone_dd function."""
 
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     def test_clone_dd_success(self, mock_which, mock_run):
         """Test successful dd cloning."""
@@ -177,7 +184,9 @@ class TestCloneDd:
         with pytest.raises(RuntimeError, match="dd not found"):
             clone_dd({"name": "sda"}, {"name": "sdb"})
 
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     def test_clone_dd_with_title_and_subtitle(self, mock_which, mock_run):
         """Test dd cloning with custom title and subtitle."""
@@ -216,12 +225,23 @@ class TestClonePartclone:
         return source, target, source_parts, target_parts
 
     @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     @patch("builtins.open", new_callable=MagicMock)
-    def test_clone_partclone_ext4(self, mock_open, mock_which, mock_get_device, mock_get_children, mock_run, mock_display, mock_devices_with_partitions):
+    def test_clone_partclone_ext4(
+        self,
+        mock_open,
+        mock_which,
+        mock_get_device,
+        mock_get_children,
+        mock_run,
+        mock_display,
+        mock_devices_with_partitions,
+    ):
         """Test partclone with ext4 filesystem."""
         source, target, source_parts, target_parts = mock_devices_with_partitions
 
@@ -242,12 +262,23 @@ class TestClonePartclone:
         assert "/dev/sda1" in first_call[0][0]
 
     @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
     @patch("builtins.open", new_callable=MagicMock)
-    def test_clone_partclone_vfat(self, mock_open, mock_which, mock_get_device, mock_get_children, mock_run, mock_display, mock_devices_with_partitions):
+    def test_clone_partclone_vfat(
+        self,
+        mock_open,
+        mock_which,
+        mock_get_device,
+        mock_get_children,
+        mock_run,
+        mock_display,
+        mock_devices_with_partitions,
+    ):
         """Test partclone with FAT filesystem."""
         source, target, source_parts, target_parts = mock_devices_with_partitions
 
@@ -275,7 +306,9 @@ class TestClonePartclone:
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clone.operations.shutil.which")
-    def test_clone_partclone_unsupported_fs_falls_back_to_dd(self, mock_which, mock_get_device, mock_get_children, mock_display, mock_dd):
+    def test_clone_partclone_unsupported_fs_falls_back_to_dd(
+        self, mock_which, mock_get_device, mock_get_children, mock_display, mock_dd
+    ):
         """Test partclone falls back to dd for unsupported filesystems."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -298,7 +331,9 @@ class TestClonePartclone:
     @patch("rpi_usb_cloner.storage.clone.operations.clone_dd")
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
-    def test_clone_partclone_no_partitions(self, mock_get_device, mock_get_children, mock_dd):
+    def test_clone_partclone_no_partitions(
+        self, mock_get_device, mock_get_children, mock_dd
+    ):
         """Test partclone falls back to dd when no partitions exist."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -322,11 +357,15 @@ class TestClonePartclone:
         # Should fall back to dd
         mock_dd.assert_called_once()
 
-    @patch("rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress")
+    @patch(
+        "rpi_usb_cloner.storage.clone.operations.run_checked_with_streaming_progress"
+    )
     @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
     @patch("rpi_usb_cloner.storage.clone.operations.get_children")
     @patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
-    def test_clone_partclone_missing_target_partition(self, mock_get_device, mock_get_children, mock_display, mock_run_progress):
+    def test_clone_partclone_missing_target_partition(
+        self, mock_get_device, mock_get_children, mock_display, mock_run_progress
+    ):
         """Test error when target partition is missing."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -354,7 +393,9 @@ class TestCloneDeviceSmart:
     @patch("rpi_usb_cloner.storage.clone.operations.clone_partclone")
     @patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table")
     @patch("rpi_usb_cloner.storage.clone.operations.unmount_device")
-    def test_clone_device_smart_success(self, mock_unmount, mock_copy_table, mock_clone_partclone, mock_display):
+    def test_clone_device_smart_success(
+        self, mock_unmount, mock_copy_table, mock_clone_partclone, mock_display
+    ):
         """Test successful smart clone."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -369,7 +410,9 @@ class TestCloneDeviceSmart:
     @patch("rpi_usb_cloner.storage.clone.operations.display_lines")
     @patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table")
     @patch("rpi_usb_cloner.storage.clone.operations.unmount_device")
-    def test_clone_device_smart_partition_table_failure(self, mock_unmount, mock_copy_table, mock_display):
+    def test_clone_device_smart_partition_table_failure(
+        self, mock_unmount, mock_copy_table, mock_display
+    ):
         """Test smart clone fails when partition table copy fails."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -387,7 +430,9 @@ class TestCloneDeviceSmart:
     @patch("rpi_usb_cloner.storage.clone.operations.clone_partclone")
     @patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table")
     @patch("rpi_usb_cloner.storage.clone.operations.unmount_device")
-    def test_clone_device_smart_partclone_failure(self, mock_unmount, mock_copy_table, mock_clone_partclone, mock_display):
+    def test_clone_device_smart_partclone_failure(
+        self, mock_unmount, mock_copy_table, mock_clone_partclone, mock_display
+    ):
         """Test smart clone fails when partclone fails."""
         source = {"name": "sda", "size": 32000000000}
         target = {"name": "sdb", "size": 32000000000}
@@ -531,14 +576,16 @@ class TestCloneDeviceV2:
 
         # Mock dependencies
         mocker.patch("rpi_usb_cloner.storage.clone.operations.get_device_by_name")
-        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+        mock_clone = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.clone_device"
+        )
         mock_clone.return_value = True
 
         # Mock get_device_by_name to return device dicts
         def get_device_side_effect(name):
             if name == "sda":
                 return {"name": "sda", "size": 8_000_000_000}
-            elif name == "sdb":
+            if name == "sdb":
                 return {"name": "sdb", "size": 16_000_000_000}
             return None
 
@@ -566,7 +613,9 @@ class TestCloneDeviceV2:
 
         # Mock display_lines
         mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
-        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+        mock_clone = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.clone_device"
+        )
 
         # Execute
         result = clone_device_v2(job)
@@ -587,7 +636,9 @@ class TestCloneDeviceV2:
 
         # Mock display_lines
         mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
-        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+        mock_clone = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.clone_device"
+        )
 
         # Execute
         result = clone_device_v2(job)
@@ -610,7 +661,9 @@ class TestCloneDeviceV2:
 
         # Mock display_lines
         mocker.patch("rpi_usb_cloner.storage.clone.operations.display_lines")
-        mock_clone = mocker.patch("rpi_usb_cloner.storage.clone.operations.clone_device")
+        mock_clone = mocker.patch(
+            "rpi_usb_cloner.storage.clone.operations.clone_device"
+        )
 
         # Execute
         result = clone_device_v2(job)

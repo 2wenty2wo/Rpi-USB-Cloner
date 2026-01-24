@@ -7,17 +7,18 @@ This module provides common fixtures and utilities used across all test modules.
 import sys
 from unittest.mock import MagicMock
 
+
 # Mock hardware dependencies before other imports
 # This allows tests to run on non-Raspberry Pi systems
-sys.modules['RPi'] = MagicMock()
-sys.modules['RPi.GPIO'] = MagicMock()
-sys.modules['luma'] = MagicMock()
-sys.modules['luma.core'] = MagicMock()
-sys.modules['luma.core.interface'] = MagicMock()
-sys.modules['luma.core.interface.serial'] = MagicMock()
-sys.modules['luma.core.render'] = MagicMock()
-sys.modules['luma.oled'] = MagicMock()
-sys.modules['luma.oled.device'] = MagicMock()
+sys.modules["RPi"] = MagicMock()
+sys.modules["RPi.GPIO"] = MagicMock()
+sys.modules["luma"] = MagicMock()
+sys.modules["luma.core"] = MagicMock()
+sys.modules["luma.core.interface"] = MagicMock()
+sys.modules["luma.core.interface.serial"] = MagicMock()
+sys.modules["luma.core.render"] = MagicMock()
+sys.modules["luma.oled"] = MagicMock()
+sys.modules["luma.oled.device"] = MagicMock()
 
 import json
 import subprocess
@@ -31,6 +32,7 @@ import pytest
 # ==============================================================================
 # Device Mock Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def mock_usb_device() -> Dict[str, Any]:
@@ -66,7 +68,7 @@ def mock_usb_device() -> Dict[str, Any]:
                 "uuid": "1234-5678",
                 "fstype": "vfat",
             }
-        ]
+        ],
     }
 
 
@@ -122,8 +124,8 @@ def mock_system_disk() -> Dict[str, Any]:
                 "label": "rootfs",
                 "uuid": "deadbeef-1234-5678-90ab-cdef12345678",
                 "fstype": "ext4",
-            }
-        ]
+            },
+        ],
     }
 
 
@@ -154,6 +156,7 @@ def mock_lsblk_empty() -> str:
 # Subprocess Mock Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def mock_subprocess_success(mocker) -> Mock:
     """
@@ -177,6 +180,7 @@ def mock_subprocess_failure(mocker) -> Mock:
     Returns:
         Mock object for subprocess.run that raises CalledProcessError.
     """
+
     def raise_error(*args, **kwargs):
         raise subprocess.CalledProcessError(1, args[0], stderr="Mock error")
 
@@ -197,6 +201,7 @@ def mock_command_runner(mocker) -> Mock:
 # ==============================================================================
 # File System Mock Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def temp_settings_file(tmp_path) -> Path:
@@ -252,6 +257,7 @@ def temp_mount_point(tmp_path) -> Path:
 # Clone Operation Mock Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def mock_clone_progress() -> List[str]:
     """
@@ -295,6 +301,7 @@ def mock_partclone_output() -> List[str]:
 # Display and UI Mock Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def mock_oled_device(mocker) -> Mock:
     """
@@ -323,6 +330,7 @@ def mock_gpio(mocker) -> Mock:
 # ==============================================================================
 # Context and State Mock Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def mock_app_context() -> Mock:
@@ -366,6 +374,7 @@ def mock_log_debug() -> Mock:
 # Clonezilla Mock Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def mock_clonezilla_image_dir(tmp_path) -> Path:
     """
@@ -408,6 +417,7 @@ unit: sectors
 # Utility Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def capture_subprocess_calls(mocker) -> List[List]:
     """
@@ -440,7 +450,6 @@ def reset_global_state():
     # This will run before each test
     yield
     # Cleanup after test (if needed)
-    pass
 
 
 @pytest.fixture
@@ -470,7 +479,9 @@ def mock_display_context(request, mocker):
 
     mock_context = Mock()
     mock_context.device = Mock()
-    mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=mock_context)
+    mocker.patch(
+        "rpi_usb_cloner.ui.display.get_display_context", return_value=mock_context
+    )
     mocker.patch("rpi_usb_cloner.ui.display.display_lines")
     # Also patch display_lines where it's imported in command_runners
     mocker.patch("rpi_usb_cloner.storage.clone.command_runners.display_lines")

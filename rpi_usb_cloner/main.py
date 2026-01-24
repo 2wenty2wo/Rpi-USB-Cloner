@@ -111,17 +111,24 @@ from rpi_usb_cloner.app.menu_builders import (
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.logging import get_logger, setup_logging
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu.model import get_screen_icon
-from rpi_usb_cloner.logging import get_logger, setup_logging
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
-from rpi_usb_cloner.ui import display, menus, renderer, screens, screensaver
+from rpi_usb_cloner.ui import (
+    display,
+    menus,
+    renderer,
+    screens,
+    screensaver,
+    transitions,
+)
 from rpi_usb_cloner.web import server as web_server
 
 
@@ -512,9 +519,15 @@ def main(argv: Optional[list[str]] = None) -> None:
     last_render_state = {"key": None}
     last_screen_id = {"value": None}
 
+    def calculate_transition_frames() -> int:
+        context = display.get_display_context()
+        return max(8, min(24, context.width // 4))
+
     def render_current_screen(force: bool = False) -> None:
         current_screen = menu_navigator.current_screen()
-        if current_screen.screen_id != last_screen_id["value"]:
+        previous_screen_id = last_screen_id["value"]
+        screen_changed = current_screen.screen_id != previous_screen_id
+        if screen_changed:
             log_debug(
                 f"Screen changed: {last_screen_id['value']} -> {current_screen.screen_id}"
             )
@@ -538,15 +551,44 @@ def main(argv: Optional[list[str]] = None) -> None:
             dynamic_visible_rows,
         )
         if force or render_key != last_render_state["key"]:
-            renderer.render_menu_screen(
-                title=current_screen.title,
-                items=items,
-                selected_index=menu_navigator.current_state().selected_index,
-                scroll_offset=menu_navigator.current_state().scroll_offset,
-                status_line=status_line,
-                visible_rows=dynamic_visible_rows,
-                title_icon=get_screen_icon(current_screen.screen_id),
+            navigation_action = (
+                menu_navigator.consume_last_navigation_action()
+                if screen_changed
+                else None
             )
+            if screen_changed and navigation_action in {"forward", "back"}:
+                from_image = display.get_display_context().image.copy()
+                to_image = renderer.render_menu_image(
+                    title=current_screen.title,
+                    items=items,
+                    selected_index=menu_navigator.current_state().selected_index,
+                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    status_line=status_line,
+                    visible_rows=dynamic_visible_rows,
+                    title_icon=get_screen_icon(current_screen.screen_id),
+                )
+                transitions.render_slide_transition(
+                    from_image=from_image,
+                    to_image=to_image,
+                    direction=navigation_action,
+                    frame_count=calculate_transition_frames(),
+                    frame_delay=1 / 25,
+                )
+                with display._display_lock:
+                    context = display.get_display_context()
+                    context.image.paste(to_image)
+                    context.disp.display(context.image)
+                    display.mark_display_dirty()
+            else:
+                renderer.render_menu_screen(
+                    title=current_screen.title,
+                    items=items,
+                    selected_index=menu_navigator.current_state().selected_index,
+                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    status_line=status_line,
+                    visible_rows=dynamic_visible_rows,
+                    title_icon=get_screen_icon(current_screen.screen_id),
+                )
             last_render_state["key"] = render_key
 
     def handle_back() -> None:

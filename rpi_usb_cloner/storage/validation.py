@@ -21,11 +21,9 @@ Example:
 """
 
 import os
-from typing import Optional
 
 from .devices import get_children, get_device_by_name
 from .exceptions import (
-    DeviceBusyError,
     DeviceNotFoundError,
     DeviceValidationError,
     InsufficientSpaceError,
@@ -52,7 +50,7 @@ def _get_device_path(device) -> str:
 def _is_mountpoint_active(mountpoint: str) -> bool:
     """Check if a mountpoint is currently active."""
     try:
-        with open("/proc/mounts", "r", encoding="utf-8") as mounts_file:
+        with open("/proc/mounts", encoding="utf-8") as mounts_file:
             for line in mounts_file:
                 parts = line.split()
                 if len(parts) > 1 and parts[1] == mountpoint:
@@ -117,9 +115,8 @@ def validate_devices_different(source, destination) -> None:
         if "mmcblk" in name:
             if "p" in name:
                 return name.split("p")[0]
-            else:
-                # For mmcblk0, mmcblk1, etc., return as-is
-                return name
+            # For mmcblk0, mmcblk1, etc., return as-is
+            return name
         # Handle regular devices (sda1 -> sda)
         # Strip trailing digits
         base = name.rstrip("0123456789")
@@ -145,7 +142,9 @@ def validate_device_unmounted(device) -> None:
     device_name = _get_device_name(device)
 
     # Get device dict if we only have a name
-    device_dict = device if isinstance(device, dict) else get_device_by_name(device_name)
+    device_dict = (
+        device if isinstance(device, dict) else get_device_by_name(device_name)
+    )
 
     if not device_dict:
         # Can't verify unmount status without device info
@@ -189,22 +188,15 @@ def validate_sufficient_space(source, destination) -> None:
 
     # If we don't have sizes, we can't validate
     if source_size is None:
-        raise DeviceValidationError(
-            source_name,
-            "Cannot determine source device size"
-        )
+        raise DeviceValidationError(source_name, "Cannot determine source device size")
     if dest_size is None:
         raise DeviceValidationError(
-            dest_name,
-            "Cannot determine destination device size"
+            dest_name, "Cannot determine destination device size"
         )
 
     # Check if destination is large enough
     if dest_size < source_size:
-        raise InsufficientSpaceError(
-            source_name, source_size,
-            dest_name, dest_size
-        )
+        raise InsufficientSpaceError(source_name, source_size, dest_name, dest_size)
 
 
 def validate_clone_operation(

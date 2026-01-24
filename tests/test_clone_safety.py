@@ -34,7 +34,9 @@ def mock_unmount():
 @pytest.fixture
 def mock_validation():
     """Mock validation module."""
-    with patch("rpi_usb_cloner.storage.clone.operations.validate_clone_operation") as mock:
+    with patch(
+        "rpi_usb_cloner.storage.clone.operations.validate_clone_operation"
+    ) as mock:
         yield mock
 
 
@@ -125,10 +127,11 @@ class TestCloneDeviceSafety:
 
         mock_validation.return_value = None
 
-        with patch("rpi_usb_cloner.storage.clone.operations.clone_dd"):
-            with patch("rpi_usb_cloner.storage.clone.operations.unmount_device") as mock_umount:
-                mock_umount.return_value = True
-                result = clone_device(source, dest, mode="exact")
+        with patch("rpi_usb_cloner.storage.clone.operations.clone_dd"), patch(
+            "rpi_usb_cloner.storage.clone.operations.unmount_device"
+        ) as mock_umount:
+            mock_umount.return_value = True
+            result = clone_device(source, dest, mode="exact")
 
         # Validation should have been called
         assert mock_validation.called
@@ -176,7 +179,12 @@ class TestCloneDeviceSmartSafety:
     @patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table")
     @patch("rpi_usb_cloner.storage.clone.operations.clone_partclone")
     def test_valid_smart_clone_proceeds(
-        self, mock_partclone, mock_copy_table, mock_unmount, mock_display, mock_validation
+        self,
+        mock_partclone,
+        mock_copy_table,
+        mock_unmount,
+        mock_display,
+        mock_validation,
     ):
         """Test that valid smart clone proceeds."""
         source = {"name": "sda", "size": 8000000000}
@@ -202,7 +210,9 @@ class TestCloneDeviceSmartSafety:
 
         with patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table"):
             with patch("rpi_usb_cloner.storage.clone.operations.clone_partclone"):
-                with patch("rpi_usb_cloner.storage.clone.operations.unmount_device") as mock_umount:
+                with patch(
+                    "rpi_usb_cloner.storage.clone.operations.unmount_device"
+                ) as mock_umount:
                     mock_umount.return_value = True
                     clone_device_smart(source, dest)
 
@@ -404,7 +414,9 @@ class TestPartitionSafety:
 
         assert result is False
 
-    def test_different_partitions_same_disk_rejected(self, mock_display, mock_validation):
+    def test_different_partitions_same_disk_rejected(
+        self, mock_display, mock_validation
+    ):
         """Test that cloning sda1 to sda2 is rejected."""
         source = {"name": "sda1"}
         dest = {"name": "sda2"}

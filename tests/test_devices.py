@@ -11,7 +11,7 @@ This test suite covers:
 
 import json
 import subprocess
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -256,21 +256,14 @@ class TestHasRootMountpoint:
 
     def test_child_mounted_at_root(self):
         """Test child partition mounted at root."""
-        device = {
-            "mountpoint": None,
-            "children": [
-                {"mountpoint": "/", "children": []}
-            ]
-        }
+        device = {"mountpoint": None, "children": [{"mountpoint": "/", "children": []}]}
         assert devices.has_root_mountpoint(device) is True
 
     def test_no_root_mountpoint(self):
         """Test device with no critical mountpoints."""
         device = {
             "mountpoint": "/media/usb",
-            "children": [
-                {"mountpoint": "/mnt/data", "children": []}
-            ]
+            "children": [{"mountpoint": "/mnt/data", "children": []}],
         }
         assert devices.has_root_mountpoint(device) is False
 
@@ -293,11 +286,7 @@ class TestIsRootDevice:
 
     def test_partition_not_root_device(self):
         """Test that partitions are never root devices."""
-        partition = {
-            "type": "part",
-            "mountpoint": "/",
-            "children": []
-        }
+        partition = {"type": "part", "mountpoint": "/", "children": []}
         assert devices.is_root_device(partition) is False
 
 
@@ -327,7 +316,7 @@ class TestListUsbDisks:
                     "rm": 1,  # Removable but not USB transport (integer, not string)
                     "tran": None,
                     "mountpoint": None,
-                    "children": []
+                    "children": [],
                 }
             ]
         }
@@ -410,7 +399,7 @@ class TestUnmountDevice:
                 {"mountpoint": "/media/usb1"},
                 {"mountpoint": "/media/usb2"},
                 {"mountpoint": None},  # Not mounted
-            ]
+            ],
         }
 
         devices.unmount_device(device)
@@ -427,8 +416,7 @@ class TestUnmountDeviceWithRetry:
         mock_log = Mock()
 
         success, used_lazy = devices.unmount_device_with_retry(
-            mock_usb_device,
-            log_debug=mock_log
+            mock_usb_device, log_debug=mock_log
         )
 
         assert success is True
@@ -441,8 +429,7 @@ class TestUnmountDeviceWithRetry:
         mock_log = Mock()
 
         success, used_lazy = devices.unmount_device_with_retry(
-            device,
-            log_debug=mock_log
+            device, log_debug=mock_log
         )
 
         assert success is True
@@ -458,7 +445,7 @@ class TestUnmountDeviceWithRetry:
         device = {
             "name": "sda",
             "mountpoint": None,
-            "children": [{"name": "sda1", "mountpoint": "/media/usb"}]
+            "children": [{"name": "sda1", "mountpoint": "/media/usb"}],
         }
 
         # Mock the check - simulate device becoming unmounted after retries
@@ -467,6 +454,7 @@ class TestUnmountDeviceWithRetry:
         def mock_proc_mounts(*args, **kwargs):
             # Return empty to simulate no mounts
             from io import StringIO
+
             return StringIO("")
 
         mocker.patch("builtins.open", side_effect=mock_proc_mounts)
@@ -487,19 +475,19 @@ class TestUnmountDeviceWithRetry:
         def run_side_effect(cmd, **kwargs):
             call_count[0] += 1
             if cmd[0] == "sync":
-                return None
+                return
             # Normal unmounts fail
             if cmd[0] == "umount" and "-l" not in cmd:
                 raise subprocess.CalledProcessError(1, "umount")
             # Lazy unmount succeeds
-            return None
+            return
 
         mock_run.side_effect = run_side_effect
 
         device = {
             "name": "sda",
             "mountpoint": None,
-            "children": [{"name": "sda1", "mountpoint": "/media/usb"}]
+            "children": [{"name": "sda1", "mountpoint": "/media/usb"}],
         }
 
         with patch("builtins.open", create=True) as mock_open:
@@ -524,7 +512,7 @@ class TestUnmountDeviceWithRetry:
         device = {
             "name": "sda",
             "mountpoint": None,
-            "children": [{"name": "sda1", "mountpoint": "/media/usb"}]
+            "children": [{"name": "sda1", "mountpoint": "/media/usb"}],
         }
 
         with patch("builtins.open", create=True) as mock_open:
@@ -551,8 +539,7 @@ class TestPowerOffDevice:
 
         assert result is True
         mock_run.assert_called_once_with(
-            ["udisksctl", "power-off", "-b", "/dev/sda"],
-            check=True
+            ["udisksctl", "power-off", "-b", "/dev/sda"], check=True
         )
 
     def test_fallback_to_hdparm(self, mocker):
@@ -562,7 +549,7 @@ class TestPowerOffDevice:
         def run_side_effect(cmd, **kwargs):
             if "udisksctl" in cmd:
                 raise subprocess.CalledProcessError(1, cmd)
-            return None  # hdparm succeeds
+            return  # hdparm succeeds
 
         mock_run.side_effect = run_side_effect
         device = {"name": "sda"}
@@ -609,8 +596,7 @@ class TestConfigureDeviceHelpers:
         mock_handler = Mock()
 
         devices.configure_device_helpers(
-            log_debug=mock_logger,
-            error_handler=mock_handler
+            log_debug=mock_logger, error_handler=mock_handler
         )
 
         assert devices._log_debug == mock_logger
@@ -641,10 +627,7 @@ class TestRunCommand:
 
         assert result.returncode == 0
         mock_subprocess.assert_called_once_with(
-            ["echo", "test"],
-            check=True,
-            text=True,
-            capture_output=True
+            ["echo", "test"], check=True, text=True, capture_output=True
         )
 
     def test_failed_command(self, mocker):

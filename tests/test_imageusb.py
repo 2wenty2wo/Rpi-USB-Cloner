@@ -1,14 +1,15 @@
 """Tests for ImageUSB .BIN file detection and restoration."""
+
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
 
 from rpi_usb_cloner.storage.imageusb.detection import (
-    IMAGEUSB_SIGNATURE,
     IMAGEUSB_HEADER_SIZE,
+    IMAGEUSB_SIGNATURE,
+    get_imageusb_metadata,
     is_imageusb_file,
     validate_imageusb_file,
-    get_imageusb_metadata,
 )
 
 
@@ -23,8 +24,8 @@ class TestImageUSBDetection:
         # Write ImageUSB signature + 512 bytes header + some data
         with bin_file.open("wb") as f:
             f.write(IMAGEUSB_SIGNATURE)  # First 16 bytes
-            f.write(b'\x00' * (IMAGEUSB_HEADER_SIZE - 16))  # Rest of header
-            f.write(b'\x55\xAA' * 256)  # Some dummy MBR data
+            f.write(b"\x00" * (IMAGEUSB_HEADER_SIZE - 16))  # Rest of header
+            f.write(b"\x55\xaa" * 256)  # Some dummy MBR data
 
         assert is_imageusb_file(bin_file) is True
 
@@ -34,8 +35,8 @@ class TestImageUSBDetection:
 
         # Write wrong signature
         with bin_file.open("wb") as f:
-            f.write(b'WRONG_SIGNATURE!')
-            f.write(b'\x00' * 496)
+            f.write(b"WRONG_SIGNATURE!")
+            f.write(b"\x00" * 496)
 
         assert is_imageusb_file(bin_file) is False
 
@@ -57,10 +58,10 @@ class TestImageUSBDetection:
             # Write signature
             f.write(IMAGEUSB_SIGNATURE)
             # Write rest of header (496 bytes)
-            f.write(b'\x00' * (IMAGEUSB_HEADER_SIZE - 16))
+            f.write(b"\x00" * (IMAGEUSB_HEADER_SIZE - 16))
             # Write MBR (first 512 bytes after header)
             mbr = bytearray(512)
-            mbr[510:512] = b'\x55\xAA'  # MBR boot signature
+            mbr[510:512] = b"\x55\xaa"  # MBR boot signature
             f.write(bytes(mbr))
 
         error = validate_imageusb_file(bin_file)
@@ -72,7 +73,7 @@ class TestImageUSBDetection:
 
         with bin_file.open("wb") as f:
             f.write(IMAGEUSB_SIGNATURE)
-            f.write(b'\x00' * 100)  # Only 116 bytes total (< 512)
+            f.write(b"\x00" * 100)  # Only 116 bytes total (< 512)
 
         error = validate_imageusb_file(bin_file)
         assert error is not None
@@ -83,9 +84,9 @@ class TestImageUSBDetection:
         bin_file = tmp_path / "test.bin"
 
         with bin_file.open("wb") as f:
-            f.write(b'WRONG!' + b'\x00' * 10)
-            f.write(b'\x00' * (IMAGEUSB_HEADER_SIZE - 16))
-            f.write(b'\x00' * 512)
+            f.write(b"WRONG!" + b"\x00" * 10)
+            f.write(b"\x00" * (IMAGEUSB_HEADER_SIZE - 16))
+            f.write(b"\x00" * 512)
 
         error = validate_imageusb_file(bin_file)
         assert error is not None
@@ -107,7 +108,7 @@ class TestImageUSBDetection:
         total_size = 1024 * 1024  # 1 MB
         with bin_file.open("wb") as f:
             f.write(IMAGEUSB_SIGNATURE)
-            f.write(b'\x00' * (total_size - 16))
+            f.write(b"\x00" * (total_size - 16))
 
         metadata = get_imageusb_metadata(bin_file)
 
@@ -123,8 +124,8 @@ class TestImageUSBDetection:
 
         # Create invalid file (wrong signature)
         with bin_file.open("wb") as f:
-            f.write(b'WRONG!')
-            f.write(b'\x00' * 1000)
+            f.write(b"WRONG!")
+            f.write(b"\x00" * 1000)
 
         metadata = get_imageusb_metadata(bin_file)
 
@@ -158,14 +159,14 @@ class TestImageUSBRestore:
             # Write signature
             f.write(IMAGEUSB_SIGNATURE)
             # Write rest of header
-            f.write(b'\x00' * (IMAGEUSB_HEADER_SIZE - 16))
+            f.write(b"\x00" * (IMAGEUSB_HEADER_SIZE - 16))
             # Write MBR
             mbr = bytearray(512)
-            mbr[510:512] = b'\x55\xAA'
+            mbr[510:512] = b"\x55\xaa"
             f.write(bytes(mbr))
             # Write remaining data
             remaining = total_size - IMAGEUSB_HEADER_SIZE - 512
-            f.write(b'\x00' * remaining)
+            f.write(b"\x00" * remaining)
 
         return bin_file
 
@@ -184,7 +185,7 @@ class TestImageUSBRestore:
         # Create invalid file
         invalid_file = tmp_path / "invalid.bin"
         with invalid_file.open("wb") as f:
-            f.write(b'NOT_IMAGEUSB')
+            f.write(b"NOT_IMAGEUSB")
 
         with patch("os.geteuid", return_value=0):  # Root
             with pytest.raises(RuntimeError, match="Invalid ImageUSB file"):
@@ -201,11 +202,14 @@ class TestImageUSBRestore:
             "rm": "0",  # Not removable
         }
 
-        with patch("os.geteuid", return_value=0):
-            with patch("rpi_usb_cloner.storage.devices.get_device_by_name", return_value=non_removable):
-                with patch("rpi_usb_cloner.storage.clone.models.resolve_device_node", return_value="/dev/sda"):
-                    with pytest.raises(RuntimeError, match="not removable"):
-                        restore_imageusb_file(valid_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.devices.get_device_by_name",
+            return_value=non_removable,
+        ), patch(
+            "rpi_usb_cloner.storage.clone.models.resolve_device_node",
+            return_value="/dev/sda",
+        ), pytest.raises(RuntimeError, match="not removable"):
+            restore_imageusb_file(valid_bin_file, "sda")
 
     def test_restore_success(self, valid_bin_file, mock_device, mocker):
         """Test successful restoration."""
@@ -213,13 +217,21 @@ class TestImageUSBRestore:
 
         # Mock all dependencies
         mocker.patch("os.geteuid", return_value=0)
-        mocker.patch("rpi_usb_cloner.storage.clone.models.resolve_device_node", return_value="/dev/sdb")
-        mocker.patch("rpi_usb_cloner.storage.devices.get_device_by_name", return_value=mock_device)
+        mocker.patch(
+            "rpi_usb_cloner.storage.clone.models.resolve_device_node",
+            return_value="/dev/sdb",
+        )
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.get_device_by_name",
+            return_value=mock_device,
+        )
         mocker.patch("rpi_usb_cloner.storage.devices.unmount_device", return_value=True)
         mocker.patch("shutil.which", return_value="/usr/bin/dd")
 
         # Mock the run_checked_with_streaming_progress function
-        mock_run = mocker.patch("rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress")
+        mock_run = mocker.patch(
+            "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress"
+        )
 
         # Call restore
         restore_imageusb_file(valid_bin_file, "sdb")
@@ -244,9 +256,17 @@ class TestImageUSBRestore:
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         mocker.patch("os.geteuid", return_value=0)
-        mocker.patch("rpi_usb_cloner.storage.clone.models.resolve_device_node", return_value="/dev/sdb")
-        mocker.patch("rpi_usb_cloner.storage.devices.get_device_by_name", return_value=mock_device)
-        mocker.patch("rpi_usb_cloner.storage.devices.unmount_device", return_value=False)
+        mocker.patch(
+            "rpi_usb_cloner.storage.clone.models.resolve_device_node",
+            return_value="/dev/sdb",
+        )
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.get_device_by_name",
+            return_value=mock_device,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.unmount_device", return_value=False
+        )
 
         with pytest.raises(RuntimeError, match="Failed to unmount"):
             restore_imageusb_file(valid_bin_file, "sdb")
@@ -257,11 +277,19 @@ class TestImageUSBRestore:
 
         # Mock dependencies
         mocker.patch("os.geteuid", return_value=0)
-        mocker.patch("rpi_usb_cloner.storage.clone.models.resolve_device_node", return_value="/dev/sdb")
-        mocker.patch("rpi_usb_cloner.storage.devices.get_device_by_name", return_value=mock_device)
+        mocker.patch(
+            "rpi_usb_cloner.storage.clone.models.resolve_device_node",
+            return_value="/dev/sdb",
+        )
+        mocker.patch(
+            "rpi_usb_cloner.storage.devices.get_device_by_name",
+            return_value=mock_device,
+        )
         mocker.patch("rpi_usb_cloner.storage.devices.unmount_device", return_value=True)
         mocker.patch("shutil.which", return_value="/usr/bin/dd")
-        mocker.patch("rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress")
+        mocker.patch(
+            "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress"
+        )
 
         # Create progress callback
         progress_calls = []
@@ -270,7 +298,9 @@ class TestImageUSBRestore:
             progress_calls.append((lines, ratio))
 
         # Call restore with callback
-        restore_imageusb_file(valid_bin_file, "sdb", progress_callback=progress_callback)
+        restore_imageusb_file(
+            valid_bin_file, "sdb", progress_callback=progress_callback
+        )
 
         # Verify progress callback was called
         assert len(progress_calls) > 0

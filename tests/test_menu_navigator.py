@@ -7,6 +7,7 @@ Tests cover:
 - Submenu navigation
 - Action activation
 """
+
 from typing import Callable
 
 import pytest
@@ -18,6 +19,7 @@ from rpi_usb_cloner.menu.navigator import MenuNavigator, ScreenState
 @pytest.fixture
 def sample_menu_screens():
     """Create sample menu screens for testing."""
+
     def dummy_action():
         pass
 
@@ -29,10 +31,10 @@ def sample_menu_screens():
             MenuItem(label="Action 2", action=dummy_action),
             MenuItem(
                 label="Submenu",
-                submenu=MenuScreen(screen_id="submenu", title="Submenu", items=[])
+                submenu=MenuScreen(screen_id="submenu", title="Submenu", items=[]),
             ),
             MenuItem(label="Action 3", action=dummy_action),
-        ]
+        ],
     )
 
     submenu = MenuScreen(
@@ -41,14 +43,10 @@ def sample_menu_screens():
         items=[
             MenuItem(label="Sub Action 1", action=dummy_action),
             MenuItem(label="Sub Action 2", action=dummy_action),
-        ]
+        ],
     )
 
-    empty_menu = MenuScreen(
-        screen_id="empty",
-        title="Empty Menu",
-        items=[]
-    )
+    empty_menu = MenuScreen(screen_id="empty", title="Empty Menu", items=[])
 
     return {
         "main": main_menu,
@@ -79,13 +77,14 @@ class TestMenuNavigatorInitialization:
 
     def test_init_with_items_providers(self, sample_menu_screens):
         """Test initialization with dynamic item providers."""
+
         def provider():
             return [MenuItem(label="Dynamic", action=lambda: None)]
 
         navigator = MenuNavigator(
             screens=sample_menu_screens,
             root_screen_id="main",
-            items_providers={"main": provider}
+            items_providers={"main": provider},
         )
 
         items = navigator.current_items()
@@ -175,7 +174,7 @@ class TestSubmenuNavigation:
         # Create item with invalid submenu reference
         invalid_item = MenuItem(
             label="Invalid",
-            submenu=MenuScreen(screen_id="invalid", title="Invalid", items=[])
+            submenu=MenuScreen(screen_id="invalid", title="Invalid", items=[]),
         )
         sample_menu_screens["main"].items = [invalid_item]
         navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="main")
@@ -234,7 +233,7 @@ class TestScrollOffset:
         many_items = MenuScreen(
             screen_id="many",
             title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)]
+            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
         )
         navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
 
@@ -252,7 +251,7 @@ class TestScrollOffset:
         many_items = MenuScreen(
             screen_id="many",
             title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)]
+            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
         )
         navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
 
@@ -272,7 +271,7 @@ class TestScrollOffset:
         many_items = MenuScreen(
             screen_id="many",
             title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)]
+            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
         )
         navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
 
@@ -334,7 +333,7 @@ class TestDynamicItemProviders:
         navigator = MenuNavigator(
             screens=sample_menu_screens,
             root_screen_id="main",
-            items_providers={"main": provider}
+            items_providers={"main": provider},
         )
 
         # First call
@@ -360,7 +359,7 @@ class TestDynamicItemProviders:
         navigator = MenuNavigator(
             screens=sample_menu_screens,
             root_screen_id="main",
-            items_providers={"main": provider}
+            items_providers={"main": provider},
         )
 
         # First call - 1 item
@@ -374,13 +373,14 @@ class TestDynamicItemProviders:
 
     def test_current_items_for_specific_screen(self, sample_menu_screens):
         """Test current_items_for returns items for specific screen."""
+
         def provider():
             return [MenuItem(label="Dynamic", action=lambda: None)]
 
         navigator = MenuNavigator(
             screens=sample_menu_screens,
             root_screen_id="main",
-            items_providers={"main": provider}
+            items_providers={"main": provider},
         )
 
         # Get items for main screen (has provider)
@@ -406,7 +406,10 @@ class TestEdgeCases:
         action = navigator.activate(visible_rows=4)
 
         # Should clamp to valid index and return action
-        assert navigator.current_state().selected_index == len(navigator.current_items()) - 1
+        assert (
+            navigator.current_state().selected_index
+            == len(navigator.current_items()) - 1
+        )
         assert isinstance(action, Callable)
 
     def test_ensure_scroll_with_empty_items(self, sample_menu_screens):
@@ -424,12 +427,15 @@ class TestEdgeCases:
         state = {"items": 5}
 
         def provider():
-            return [MenuItem(label=f"Item {i}", action=lambda: None) for i in range(state["items"])]
+            return [
+                MenuItem(label=f"Item {i}", action=lambda: None)
+                for i in range(state["items"])
+            ]
 
         navigator = MenuNavigator(
             screens=sample_menu_screens,
             root_screen_id="main",
-            items_providers={"main": provider}
+            items_providers={"main": provider},
         )
 
         # Move to item 3

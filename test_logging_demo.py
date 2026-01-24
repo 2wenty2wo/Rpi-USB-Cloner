@@ -12,6 +12,7 @@ import sys
 import time
 from pathlib import Path
 
+
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -48,18 +49,24 @@ def main():
     system_log.info("System logger initialized", component="test")
 
     usb_log = LoggerFactory.for_usb()
-    usb_log.info("USB device detected", device="sda", vendor="Kingston", size_bytes=8589934592)
+    usb_log.info(
+        "USB device detected", device="sda", vendor="Kingston", size_bytes=8589934592
+    )
     usb_log.debug("USB poll completed", devices_found=3, duration_ms=145)
     usb_log.trace("USB device state unchanged")  # Only visible in trace mode
 
     web_log = LoggerFactory.for_web()
     web_log.info("Web server started", host="0.0.0.0", port=8000)
-    web_log.debug("WebSocket connected from 192.168.1.100", tags=["ws", "websocket", "connection"])
+    web_log.debug(
+        "WebSocket connected from 192.168.1.100", tags=["ws", "websocket", "connection"]
+    )
     web_log.trace("WebSocket frame sent", bytes=4096)  # Only visible in trace mode
 
     gpio_log = LoggerFactory.for_gpio()
     gpio_log.info("GPIO initialized", pins_configured=7)
-    gpio_log.trace("Button pressed: RIGHT", tags=["gpio", "hardware", "button"])  # Only visible in trace mode
+    gpio_log.trace(
+        "Button pressed: RIGHT", tags=["gpio", "hardware", "button"]
+    )  # Only visible in trace mode
 
     print()
 
@@ -68,7 +75,9 @@ def main():
     print("-" * 80)
 
     try:
-        with operation_context("clone", source="/dev/sda", target="/dev/sdb", mode="smart") as log:
+        with operation_context(
+            "clone", source="/dev/sda", target="/dev/sdb", mode="smart"
+        ) as log:
             log.debug("Unmounting source device")
             time.sleep(0.5)  # Simulate work
             log.debug("Partition table replicated", method="sfdisk")
@@ -76,7 +85,7 @@ def main():
             log.info("Cloning partition 1 of 2", progress=50)
             time.sleep(0.5)  # Simulate work
             # Success is logged automatically
-    except Exception as e:
+    except Exception:
         # Failure would be logged automatically
         pass
 
@@ -158,10 +167,21 @@ def main():
     print()
 
     ws_log = LoggerFactory.for_web()
-    ws_log.debug("Screen WebSocket connected from 192.168.1.100", tags=["ws", "websocket", "connection"])
-    ws_log.debug("Control WebSocket connected from 192.168.1.101", tags=["ws", "websocket", "connection"])
-    ws_log.warning("WebSocket error: Connection closed", tags=["ws", "websocket", "error"])
-    ws_log.debug("Screen WebSocket disconnected from 192.168.1.100", tags=["ws", "websocket", "connection"])
+    ws_log.debug(
+        "Screen WebSocket connected from 192.168.1.100",
+        tags=["ws", "websocket", "connection"],
+    )
+    ws_log.debug(
+        "Control WebSocket connected from 192.168.1.101",
+        tags=["ws", "websocket", "connection"],
+    )
+    ws_log.warning(
+        "WebSocket error: Connection closed", tags=["ws", "websocket", "error"]
+    )
+    ws_log.debug(
+        "Screen WebSocket disconnected from 192.168.1.100",
+        tags=["ws", "websocket", "connection"],
+    )
 
     print()
 

@@ -1,7 +1,8 @@
 """Tests for Clonezilla partition table operations."""
+
 import struct
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -35,7 +36,9 @@ class TestCollectDiskLayoutOps:
         """Test collecting disk layout operation from disk file."""
         image_dir = tmp_path / "image"
         image_dir.mkdir()
-        (image_dir / "disk").write_text("label: dos\n/dev/sda1 : start=2048, size=10000")
+        (image_dir / "disk").write_text(
+            "label: dos\n/dev/sda1 : start=2048, size=10000"
+        )
 
         ops = collect_disk_layout_ops(image_dir)
         assert len(ops) >= 1
@@ -95,8 +98,12 @@ class TestSelectDiskLayoutOps:
     def test_select_disk_layout_ops_prioritizes_sgdisk(self):
         """Test that pt.sgdisk has highest priority."""
         ops = [
-            DiskLayoutOp(kind="pt.parted", path=Path("/a"), contents="", size_bytes=100),
-            DiskLayoutOp(kind="pt.sgdisk", path=Path("/b"), contents="", size_bytes=100),
+            DiskLayoutOp(
+                kind="pt.parted", path=Path("/a"), contents="", size_bytes=100
+            ),
+            DiskLayoutOp(
+                kind="pt.sgdisk", path=Path("/b"), contents="", size_bytes=100
+            ),
             DiskLayoutOp(kind="sfdisk", path=Path("/c"), contents="", size_bytes=100),
         ]
 
@@ -113,7 +120,9 @@ class TestSelectDiskLayoutOps:
         ops = [
             DiskLayoutOp(kind="disk", path=Path("/a"), contents="", size_bytes=100),
             DiskLayoutOp(kind="gpt", path=Path("/b"), contents="", size_bytes=100),
-            DiskLayoutOp(kind="pt.sgdisk", path=Path("/c"), contents="", size_bytes=100),
+            DiskLayoutOp(
+                kind="pt.sgdisk", path=Path("/c"), contents="", size_bytes=100
+            ),
         ]
 
         result = select_disk_layout_ops(ops)
@@ -163,7 +172,7 @@ class TestEstimateRequiredSizeBytes:
             kind="pt.sf",
             path=Path("/test"),
             contents="last-lba: 1000000\nsector-size: 512",
-            size_bytes=100
+            size_bytes=100,
         )
 
         size = estimate_required_size_bytes([op])
@@ -175,7 +184,7 @@ class TestEstimateRequiredSizeBytes:
             kind="sfdisk",
             path=Path("/test"),
             contents="/dev/sda1 : start=2048, size=100000",
-            size_bytes=100
+            size_bytes=100,
         )
 
         size = estimate_required_size_bytes([op])
@@ -187,7 +196,7 @@ class TestEstimateRequiredSizeBytes:
             kind="sfdisk",
             path=Path("/test"),
             contents="sector-size: 4096\n/dev/sda1 : start=100, size=1000",
-            size_bytes=100
+            size_bytes=100,
         )
 
         size = estimate_required_size_bytes([op])
@@ -196,10 +205,7 @@ class TestEstimateRequiredSizeBytes:
     def test_estimate_no_data(self):
         """Test when no size information is available."""
         op = DiskLayoutOp(
-            kind="test",
-            path=Path("/test"),
-            contents="no useful data",
-            size_bytes=100
+            kind="test", path=Path("/test"), contents="no useful data", size_bytes=100
         )
 
         size = estimate_required_size_bytes([op])
@@ -360,15 +366,10 @@ class TestFormatSfdiskLine:
 class TestScalePartitionGeometry:
     def test_scale_partition_geometry_simple(self):
         """Test scaling single partition."""
-        partitions = [
-            {"start": 2048, "size": 100000, "number": 1}
-        ]
+        partitions = [{"start": 2048, "size": 100000, "number": 1}]
 
         result = scale_partition_geometry(
-            partitions,
-            target_sectors=200000,
-            sector_size=512,
-            layout_label="test"
+            partitions, target_sectors=200000, sector_size=512, layout_label="test"
         )
 
         assert result is not None
@@ -379,14 +380,11 @@ class TestScalePartitionGeometry:
         """Test scaling multiple partitions."""
         partitions = [
             {"start": 2048, "size": 50000, "number": 1},
-            {"start": 52048, "size": 50000, "number": 2}
+            {"start": 52048, "size": 50000, "number": 2},
         ]
 
         result = scale_partition_geometry(
-            partitions,
-            target_sectors=300000,
-            sector_size=512,
-            layout_label="test"
+            partitions, target_sectors=300000, sector_size=512, layout_label="test"
         )
 
         assert result is not None
@@ -397,25 +395,20 @@ class TestScalePartitionGeometry:
     def test_scale_partition_geometry_no_partitions(self):
         """Test scaling empty partition list."""
         result = scale_partition_geometry(
-            [],
-            target_sectors=100000,
-            sector_size=512,
-            layout_label="test"
+            [], target_sectors=100000, sector_size=512, layout_label="test"
         )
 
         assert result is None
 
     def test_scale_partition_geometry_target_too_small(self):
         """Test when target is smaller than source."""
-        partitions = [
-            {"start": 2048, "size": 100000, "number": 1}
-        ]
+        partitions = [{"start": 2048, "size": 100000, "number": 1}]
 
         result = scale_partition_geometry(
             partitions,
             target_sectors=50000,  # Smaller than partition end
             sector_size=512,
-            layout_label="test"
+            layout_label="test",
         )
 
         assert result is None
@@ -648,7 +641,7 @@ class TestScaleSfdiskLayout:
             kind="sfdisk",
             path=Path("/test"),
             contents="label: gpt\nsector-size: 512\n/dev/sda1 : start=2048, size=100000",
-            size_bytes=100
+            size_bytes=100,
         )
 
         result = scale_sfdisk_layout(op, 500000 * 512)
@@ -660,10 +653,7 @@ class TestScaleSfdiskLayout:
     def test_scale_sfdisk_layout_no_partitions(self):
         """Test scaling layout with no partitions."""
         op = DiskLayoutOp(
-            kind="sfdisk",
-            path=Path("/test"),
-            contents="label: gpt\n",
-            size_bytes=100
+            kind="sfdisk", path=Path("/test"), contents="label: gpt\n", size_bytes=100
         )
 
         result = scale_sfdisk_layout(op, 1000000)
@@ -672,10 +662,7 @@ class TestScaleSfdiskLayout:
     def test_scale_sfdisk_layout_wrong_kind(self):
         """Test scaling non-sfdisk operation."""
         op = DiskLayoutOp(
-            kind="other",
-            path=Path("/test"),
-            contents="data",
-            size_bytes=100
+            kind="other", path=Path("/test"), contents="data", size_bytes=100
         )
 
         result = scale_sfdisk_layout(op, 1000000)
@@ -684,10 +671,7 @@ class TestScaleSfdiskLayout:
     def test_scale_sfdisk_layout_no_contents(self):
         """Test scaling operation without contents."""
         op = DiskLayoutOp(
-            kind="sfdisk",
-            path=Path("/test"),
-            contents=None,
-            size_bytes=100
+            kind="sfdisk", path=Path("/test"), contents=None, size_bytes=100
         )
 
         result = scale_sfdisk_layout(op, 1000000)
@@ -705,14 +689,12 @@ class TestBuildSfdiskScriptFromParted:
                 "new_start": 2048,
                 "new_size": 200000,
                 "flags": [],
-                "fstype": "ext4"
+                "fstype": "ext4",
             }
         ]
 
         script = build_sfdisk_script_from_parted(
-            label="gpt",
-            sector_size=512,
-            partitions=partitions
+            label="gpt", sector_size=512, partitions=partitions
         )
 
         assert script is not None
@@ -732,14 +714,12 @@ class TestBuildSfdiskScriptFromParted:
                 "new_start": 2048,
                 "new_size": 100000,
                 "flags": ["boot"],
-                "fstype": "ext4"
+                "fstype": "ext4",
             }
         ]
 
         script = build_sfdisk_script_from_parted(
-            label="dos",
-            sector_size=512,
-            partitions=partitions
+            label="dos", sector_size=512, partitions=partitions
         )
 
         assert script is not None
@@ -749,9 +729,7 @@ class TestBuildSfdiskScriptFromParted:
     def test_build_sfdisk_script_unsupported_label(self):
         """Test building script with unsupported label."""
         script = build_sfdisk_script_from_parted(
-            label="unsupported",
-            sector_size=512,
-            partitions=[]
+            label="unsupported", sector_size=512, partitions=[]
         )
 
         assert script is None
@@ -766,14 +744,12 @@ class TestBuildSfdiskScriptFromParted:
                 "new_start": 2048,
                 "new_size": 100000,
                 "flags": ["esp"],
-                "fstype": "fat32"
+                "fstype": "fat32",
             }
         ]
 
         script = build_sfdisk_script_from_parted(
-            label="gpt",
-            sector_size=512,
-            partitions=partitions
+            label="gpt", sector_size=512, partitions=partitions
         )
 
         assert script is not None

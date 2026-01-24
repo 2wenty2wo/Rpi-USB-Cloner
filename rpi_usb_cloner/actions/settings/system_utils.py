@@ -1,4 +1,5 @@
 """System utility functions for settings operations."""
+
 import os
 import re
 import shutil
@@ -90,9 +91,13 @@ def is_git_repo(repo_root: Path) -> bool:
     return repo_root.is_dir() and (repo_root / ".git").exists()
 
 
-def has_dirty_working_tree(repo_root: Path, *, log_debug: Optional[Callable[[str], None]]) -> bool:
+def has_dirty_working_tree(
+    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
+) -> bool:
     """Check if git working tree has uncommitted changes."""
-    status = run_command(["git", "status", "--porcelain"], cwd=repo_root, log_debug=log_debug)
+    status = run_command(
+        ["git", "status", "--porcelain"], cwd=repo_root, log_debug=log_debug
+    )
     dirty = bool(status.stdout.strip())
     log_debug_msg(log_debug, f"Dirty working tree: {dirty}")
     return dirty
@@ -108,7 +113,9 @@ def is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> b
     invocation_id = os.environ.get("INVOCATION_ID")
     log_debug_msg(log_debug, f"Systemd detection: INVOCATION_ID={invocation_id!r}")
     if invocation_id:
-        log_debug_msg(log_debug, "Systemd detection: running under systemd via INVOCATION_ID")
+        log_debug_msg(
+            log_debug, "Systemd detection: running under systemd via INVOCATION_ID"
+        )
         return True
     if Path("/proc/1/comm").exists():
         comm = Path("/proc/1/comm").read_text(encoding="utf-8").strip()
@@ -128,9 +135,14 @@ def is_running_under_systemd(*, log_debug: Optional[Callable[[str], None]]) -> b
     if show.returncode == 0 and show.stdout.strip():
         active_state = show.stdout.strip()
         is_active = active_state in {"active", "activating", "reloading"}
-        log_debug_msg(log_debug, f"Systemd detection: ActiveState={active_state!r} active={is_active}")
+        log_debug_msg(
+            log_debug,
+            f"Systemd detection: ActiveState={active_state!r} active={is_active}",
+        )
         return is_active
-    log_debug_msg(log_debug, "Systemd detection: systemctl show returned no active state")
+    log_debug_msg(
+        log_debug, "Systemd detection: systemctl show returned no active state"
+    )
     return False
 
 
@@ -139,29 +151,39 @@ def run_systemctl_command(
 ) -> subprocess.CompletedProcess[str]:
     """Run systemctl command."""
     if not shutil.which("systemctl"):
-        log_debug_msg(log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)")
+        log_debug_msg(
+            log_debug, f"systemctl command failed: {' '.join(args)} (systemctl missing)"
+        )
         return subprocess.CompletedProcess(
             args=["systemctl"], returncode=1, stdout="", stderr="systemctl missing"
         )
     return run_command(["systemctl", *args], log_debug=log_debug)
 
 
-def restart_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+def restart_service(
+    *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
     """Restart the service."""
     return run_systemctl_command(["restart", _SERVICE_NAME], log_debug=log_debug)
 
 
-def stop_service(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+def stop_service(
+    *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
     """Stop the service."""
     return run_systemctl_command(["stop", _SERVICE_NAME], log_debug=log_debug)
 
 
-def reboot_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+def reboot_system(
+    *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
     """Reboot the system."""
     return run_systemctl_command(["reboot"], log_debug=log_debug)
 
 
-def poweroff_system(*, log_debug: Optional[Callable[[str], None]]) -> subprocess.CompletedProcess[str]:
+def poweroff_system(
+    *, log_debug: Optional[Callable[[str], None]]
+) -> subprocess.CompletedProcess[str]:
     """Power off the system."""
     return run_systemctl_command(["poweroff"], log_debug=log_debug)
 

@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.ui import display, menus, renderer
 
+
 _progress_scroll_signature: Optional[tuple[str, ...]] = None
 _progress_scroll_start_time: Optional[float] = None
 
@@ -57,7 +58,8 @@ def render_progress_screen(
     bar_x = int((context.width - bar_width) / 2)
 
     line_widths = [
-        display._measure_text_width(context.draw, line, body_font) for line in display_lines
+        display._measure_text_width(context.draw, line, body_font)
+        for line in display_lines
     ]
     text_area_left = int((context.width - max_text_width) / 2)
     global _progress_scroll_signature
@@ -65,7 +67,10 @@ def render_progress_screen(
     needs_scroll = any(width > max_text_width for width in line_widths)
     if needs_scroll:
         signature = tuple(display_lines)
-        if _progress_scroll_signature != signature or _progress_scroll_start_time is None:
+        if (
+            _progress_scroll_signature != signature
+            or _progress_scroll_start_time is None
+        ):
             _progress_scroll_signature = signature
             _progress_scroll_start_time = time.monotonic()
     else:
@@ -88,7 +93,9 @@ def render_progress_screen(
                     draw=draw,
                 )
             else:
-                draw.text((context.x - 11, context.top), title, font=title_font, fill=255)
+                draw.text(
+                    (context.x - 11, context.top), title, font=title_font, fill=255
+                )
 
         current_y = text_start_y
         now = time.monotonic()
@@ -158,9 +165,11 @@ def render_progress_screen(
             # Part 2: Draw black text on the filled (left) portion
             if fill_right > text_x:
                 # Create a temporary image to draw the black text
-                temp_img = Image.new('1', (context.width, context.height), 0)
+                temp_img = Image.new("1", (context.width, context.height), 0)
                 temp_draw = ImageDraw.Draw(temp_img)
-                temp_draw.text((text_x, text_y), percent_text, font=percent_font, fill=255)
+                temp_draw.text(
+                    (text_x, text_y), percent_text, font=percent_font, fill=255
+                )
 
                 # Copy only the pixels where the filled bar overlaps with text
                 # Use the bar's inner bounds to ensure we cover all text pixels
@@ -168,7 +177,9 @@ def render_progress_screen(
                 temp_pixels = temp_img.load()
                 for y in range(inner_top, inner_bottom):
                     for x in range(inner_left, inner_right):
-                        if temp_pixels[x, y] and x < fill_right:  # Text pixel in filled region
+                        if (
+                            temp_pixels[x, y] and x < fill_right
+                        ):  # Text pixel in filled region
                             pixels[x, y] = 0  # Draw in black
 
         context.disp.display(context.image)

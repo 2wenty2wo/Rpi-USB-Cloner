@@ -11,11 +11,7 @@ This test suite covers:
 """
 
 import json
-import os
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
 
 from rpi_usb_cloner.config import settings
 
@@ -26,7 +22,9 @@ class TestLoadSettings:
     def test_load_defaults_when_no_file(self, tmp_path, monkeypatch):
         """Test that default settings are loaded when file doesn't exist."""
         settings_file = tmp_path / "nonexistent" / "settings.json"
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", settings_file
+        )
 
         # Reset and reload
         settings.settings_store.values = {}
@@ -36,11 +34,15 @@ class TestLoadSettings:
         assert settings.settings_store.values["screensaver_enabled"] is False
         assert "restore_partition_mode" in settings.settings_store.values
 
-    def test_load_from_existing_file(self, temp_settings_file, sample_settings_data, monkeypatch):
+    def test_load_from_existing_file(
+        self, temp_settings_file, sample_settings_data, monkeypatch
+    ):
         """Test loading settings from existing file."""
         # Write sample settings
         temp_settings_file.write_text(json.dumps(sample_settings_data))
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         # Reset and reload
         settings.settings_store.values = {}
@@ -55,7 +57,9 @@ class TestLoadSettings:
         # Write partial settings (missing some defaults)
         partial_settings = {"verify_hash": True}
         temp_settings_file.write_text(json.dumps(partial_settings))
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {}
         settings.load_settings()
@@ -68,7 +72,9 @@ class TestLoadSettings:
         """Test handling of corrupted JSON file."""
         # Write invalid JSON
         temp_settings_file.write_text("{invalid json")
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {}
         settings.load_settings()
@@ -80,7 +86,9 @@ class TestLoadSettings:
         """Test handling of JSON that's not a dict."""
         # Write valid JSON but not a dict
         temp_settings_file.write_text("[]")
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {}
         settings.load_settings()
@@ -92,7 +100,9 @@ class TestLoadSettings:
         """Test handling of file read permission errors."""
         temp_settings_file.write_text("{}")
         temp_settings_file.chmod(0o000)  # No read permission
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {}
         settings.load_settings()
@@ -110,7 +120,9 @@ class TestSaveSettings:
     def test_save_creates_directory(self, tmp_path, monkeypatch):
         """Test that save_settings creates parent directory if needed."""
         settings_file = tmp_path / "new_dir" / "settings.json"
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", settings_file
+        )
 
         settings.settings_store.values = {"test": "value"}
         settings.save_settings()
@@ -120,7 +132,9 @@ class TestSaveSettings:
 
     def test_save_writes_json(self, temp_settings_file, monkeypatch):
         """Test that settings are written as JSON."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {"key1": "value1", "key2": 123}
         settings.save_settings()
@@ -132,7 +146,9 @@ class TestSaveSettings:
 
     def test_save_formats_json_nicely(self, temp_settings_file, monkeypatch):
         """Test that JSON is formatted with indentation and sorted keys."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.settings_store.values = {"zebra": 1, "apple": 2}
         settings.save_settings()
@@ -149,7 +165,9 @@ class TestSaveSettings:
 
     def test_save_overwrites_existing(self, temp_settings_file, monkeypatch):
         """Test that save overwrites existing file."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         # Write initial data
         temp_settings_file.write_text(json.dumps({"old": "data"}))
@@ -213,7 +231,9 @@ class TestSetSetting:
 
     def test_set_new_setting(self, temp_settings_file, monkeypatch):
         """Test setting a new value."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {}
 
         settings.set_setting("new_key", "new_value")
@@ -222,7 +242,9 @@ class TestSetSetting:
 
     def test_set_overwrites_existing(self, temp_settings_file, monkeypatch):
         """Test overwriting an existing value."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {"existing": "old"}
 
         settings.set_setting("existing", "new")
@@ -231,7 +253,9 @@ class TestSetSetting:
 
     def test_set_automatically_saves(self, temp_settings_file, monkeypatch):
         """Test that set_setting automatically saves to disk."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {}
 
         settings.set_setting("auto_save_test", "value")
@@ -242,7 +266,9 @@ class TestSetSetting:
 
     def test_set_accepts_various_types(self, temp_settings_file, monkeypatch):
         """Test that set_setting accepts various data types."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.set_setting("string", "value")
         settings.set_setting("int", 42)
@@ -322,7 +348,9 @@ class TestSetBool:
 
     def test_set_true(self, temp_settings_file, monkeypatch):
         """Test setting a boolean to True."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {}
 
         settings.set_bool("test", True)
@@ -331,7 +359,9 @@ class TestSetBool:
 
     def test_set_false(self, temp_settings_file, monkeypatch):
         """Test setting a boolean to False."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {}
 
         settings.set_bool("test", False)
@@ -340,7 +370,9 @@ class TestSetBool:
 
     def test_converts_truthy_to_true(self, temp_settings_file, monkeypatch):
         """Test that truthy values are converted to True."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.set_bool("test", 1)
         assert settings.settings_store.values["test"] is True
@@ -350,7 +382,9 @@ class TestSetBool:
 
     def test_converts_falsy_to_false(self, temp_settings_file, monkeypatch):
         """Test that falsy values are converted to False."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         settings.set_bool("test", 0)
         assert settings.settings_store.values["test"] is False
@@ -360,7 +394,9 @@ class TestSetBool:
 
     def test_automatically_saves(self, temp_settings_file, monkeypatch):
         """Test that set_bool automatically saves to disk."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
         settings.settings_store.values = {}
 
         settings.set_bool("auto_save", True)
@@ -395,10 +431,11 @@ class TestSettingsPath:
 
         # Reimport to get fresh path
         import importlib
+
         importlib.reload(settings)
 
         expected = Path.home() / ".config" / "rpi-usb-cloner" / "settings.json"
-        assert settings.SETTINGS_PATH == expected
+        assert expected == settings.SETTINGS_PATH
 
     def test_env_var_override(self, monkeypatch, tmp_path):
         """Test that environment variable can override settings path."""
@@ -407,9 +444,10 @@ class TestSettingsPath:
 
         # Reimport to pick up env var
         import importlib
+
         importlib.reload(settings)
 
-        assert settings.SETTINGS_PATH == custom_path
+        assert custom_path == settings.SETTINGS_PATH
 
 
 class TestSettingsStore:
@@ -432,7 +470,9 @@ class TestIntegration:
 
     def test_save_and_load_roundtrip(self, temp_settings_file, monkeypatch):
         """Test that settings can be saved and loaded back correctly."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         # Set some values
         test_data = {
@@ -455,7 +495,9 @@ class TestIntegration:
 
     def test_partial_update_preserves_defaults(self, temp_settings_file, monkeypatch):
         """Test that updating one setting preserves others."""
-        monkeypatch.setattr("rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file)
+        monkeypatch.setattr(
+            "rpi_usb_cloner.config.settings.SETTINGS_PATH", temp_settings_file
+        )
 
         # Load defaults
         settings.load_settings()

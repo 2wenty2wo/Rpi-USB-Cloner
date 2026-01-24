@@ -13,16 +13,16 @@ This test suite covers:
 
 import subprocess
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
 
 import pytest
 
 from rpi_usb_cloner.storage.clonezilla import restore
 from rpi_usb_cloner.storage.clonezilla.models import (
     ClonezillaImage,
+    DiskLayoutOp,
     PartitionRestoreOp,
     RestorePlan,
-    DiskLayoutOp,
 )
 
 
@@ -90,16 +90,12 @@ def mock_restore_plan(mock_clonezilla_image, tmp_path):
 class TestGetBlockdevSizeBytes:
     """Tests for get_blockdev_size_bytes() function."""
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_get_blockdev_size_success(self, mock_which, mock_run):
         """Test getting device size with blockdev."""
         mock_which.return_value = "/usr/sbin/blockdev"
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout="16106127360\n",
-            stderr=""
-        )
+        mock_run.return_value = Mock(returncode=0, stdout="16106127360\n", stderr="")
 
         size = restore.get_blockdev_size_bytes("/dev/sda")
 
@@ -111,7 +107,7 @@ class TestGetBlockdevSizeBytes:
             text=True,
         )
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_get_blockdev_size_tool_not_found(self, mock_which):
         """Test when blockdev tool not available."""
         mock_which.return_value = None
@@ -120,8 +116,8 @@ class TestGetBlockdevSizeBytes:
 
         assert size is None
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_get_blockdev_size_command_failure(self, mock_which, mock_run):
         """Test blockdev command failure."""
         mock_which.return_value = "/usr/sbin/blockdev"
@@ -143,7 +139,7 @@ class TestGetDeviceSizeBytes:
 
         assert size == 16106127360
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_blockdev_size_bytes')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_blockdev_size_bytes")
     def test_get_device_size_fallback_to_blockdev(self, mock_blockdev):
         """Test falling back to blockdev when device info unavailable."""
         mock_blockdev.return_value = 16106127360
@@ -157,8 +153,8 @@ class TestGetDeviceSizeBytes:
 class TestRereadPartitionTable:
     """Tests for reread_partition_table() function."""
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_reread_with_partprobe(self, mock_which, mock_run):
         """Test re-reading partition table with partprobe."""
         mock_which.return_value = "/usr/sbin/partprobe"
@@ -166,18 +162,18 @@ class TestRereadPartitionTable:
         restore.reread_partition_table("/dev/sda")
 
         mock_run.assert_called_once_with(
-            ["/usr/sbin/partprobe", "/dev/sda"],
-            check=False
+            ["/usr/sbin/partprobe", "/dev/sda"], check=False
         )
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_reread_fallback_to_blockdev(self, mock_which, mock_run):
         """Test falling back to blockdev when partprobe unavailable."""
+
         def which_side_effect(cmd):
             if cmd == "partprobe":
                 return None
-            elif cmd == "blockdev":
+            if cmd == "blockdev":
                 return "/usr/sbin/blockdev"
             return None
 
@@ -186,29 +182,25 @@ class TestRereadPartitionTable:
         restore.reread_partition_table("/dev/sda")
 
         mock_run.assert_called_once_with(
-            ["/usr/sbin/blockdev", "--rereadpt", "/dev/sda"],
-            check=False
+            ["/usr/sbin/blockdev", "--rereadpt", "/dev/sda"], check=False
         )
 
 
 class TestSettleUdev:
     """Tests for settle_udev() function."""
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_settle_udev(self, mock_which, mock_run):
         """Test settling udev."""
         mock_which.return_value = "/usr/bin/udevadm"
 
         restore.settle_udev()
 
-        mock_run.assert_called_once_with(
-            ["/usr/bin/udevadm", "settle"],
-            check=False
-        )
+        mock_run.assert_called_once_with(["/usr/bin/udevadm", "settle"], check=False)
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_settle_udev_not_available(self, mock_which, mock_run):
         """Test when udevadm not available."""
         mock_which.return_value = None
@@ -222,7 +214,7 @@ class TestSettleUdev:
 class TestMapTargetPartitions:
     """Tests for map_target_partitions() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_children')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_children")
     def test_map_target_partitions(self, mock_get_children):
         """Test mapping source partitions to target partitions."""
         target_device = {"name": "sdb"}
@@ -238,7 +230,7 @@ class TestMapTargetPartitions:
         assert mapping["sda1"]["node"] == "/dev/sdb1"
         assert mapping["sda2"]["node"] == "/dev/sdb2"
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_children')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_children")
     def test_map_target_partitions_skips_non_partitions(self, mock_get_children):
         """Test that non-partition children are skipped."""
         target_device = {"name": "sdb"}
@@ -256,7 +248,7 @@ class TestMapTargetPartitions:
 class TestCountTargetPartitions:
     """Tests for count_target_partitions() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_children')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_children")
     def test_count_target_partitions(self, mock_get_children):
         """Test counting partitions on device."""
         target_device = {"name": "sdb"}
@@ -274,8 +266,8 @@ class TestCountTargetPartitions:
 class TestWritePartitionTable:
     """Tests for write_partition_table() function."""
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_write_partition_table_sfdisk(self, mock_which, mock_run, tmp_path):
         """Test writing partition table with sfdisk."""
         mock_which.return_value = "/usr/sbin/sfdisk"
@@ -292,8 +284,8 @@ class TestWritePartitionTable:
         assert "/dev/sdb" in call_args[0][0]
         assert call_args[1]["input"] == "label: dos\ndevice: /dev/sda\n"
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_write_partition_table_sgdisk(self, mock_which, mock_run, tmp_path):
         """Test writing GPT partition table with sgdisk."""
         mock_which.return_value = "/usr/sbin/sgdisk"
@@ -317,8 +309,8 @@ class TestWritePartitionTable:
         with pytest.raises(RuntimeError, match="Unsupported partition table"):
             restore.write_partition_table(table_path, "/dev/sdb")
 
-    @patch('subprocess.run')
-    @patch('shutil.which')
+    @patch("subprocess.run")
+    @patch("shutil.which")
     def test_write_partition_table_sfdisk_failure(self, mock_which, mock_run, tmp_path):
         """Test sfdisk failure."""
         mock_which.return_value = "/usr/sbin/sfdisk"
@@ -334,7 +326,7 @@ class TestWritePartitionTable:
 class TestBuildRestoreCommandFromPlan:
     """Tests for build_restore_command_from_plan() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_partclone_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_partclone_tool")
     def test_build_partclone_restore_command(self, mock_get_tool):
         """Test building partclone restore command."""
         mock_get_tool.return_value = "partclone.ext4"
@@ -355,7 +347,7 @@ class TestBuildRestoreCommandFromPlan:
         assert "-o" in command
         assert "/dev/sdb1" in command
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_build_dd_restore_command(self, mock_which):
         """Test building dd restore command."""
         mock_which.return_value = "/usr/bin/dd"
@@ -374,7 +366,7 @@ class TestBuildRestoreCommandFromPlan:
         assert "of=/dev/sdb1" in command
         assert "bs=4M" in command
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_partclone_tool')
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_partclone_tool")
     def test_build_command_partclone_tool_not_found(self, mock_get_tool):
         """Test error when partclone tool not found."""
         mock_get_tool.return_value = None
@@ -394,10 +386,12 @@ class TestBuildRestoreCommandFromPlan:
 class TestRunRestorePipeline:
     """Tests for run_restore_pipeline() function."""
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_compression_type')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen')
-    @patch('shutil.which')
+    @patch(
+        "rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress"
+    )
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_compression_type")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen")
+    @patch("shutil.which")
     def test_run_restore_pipeline_with_gzip(
         self, mock_which, mock_popen, mock_get_comp, mock_run_checked, tmp_path
     ):
@@ -434,9 +428,11 @@ class TestRunRestorePipeline:
         # Verify restore command was executed
         mock_run_checked.assert_called_once()
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_compression_type')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen')
+    @patch(
+        "rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress"
+    )
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_compression_type")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen")
     def test_run_restore_pipeline_uncompressed(
         self, mock_popen, mock_get_comp, mock_run_checked, tmp_path
     ):
@@ -465,9 +461,11 @@ class TestRunRestorePipeline:
         assert mock_popen.call_count == 1
         mock_run_checked.assert_called_once()
 
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_compression_type')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen')
+    @patch(
+        "rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress"
+    )
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_compression_type")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen")
     def test_run_restore_pipeline_with_progress_callback(
         self, mock_popen, mock_get_comp, mock_run_checked, tmp_path
     ):
@@ -504,16 +502,16 @@ class TestRestoreClonezillaImage:
     """Tests for restore_clonezilla_image() main function."""
 
     @pytest.mark.skip(reason="Complex integration test requiring extensive mocking")
-    @patch('os.geteuid')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.restore_partition_op')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.wait_for_target_partitions')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.apply_disk_layout_op')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.build_partition_mode_layout_ops')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node')
+    @patch("os.geteuid")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.restore_partition_op")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.wait_for_target_partitions")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.apply_disk_layout_op")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.build_partition_mode_layout_ops")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node")
     def test_restore_workflow_k0_mode(
         self,
         mock_resolve,
@@ -539,8 +537,10 @@ class TestRestoreClonezillaImage:
         mock_apply_layout.return_value = True
         mock_wait_parts.return_value = (
             {"name": "sdb"},
-            {"sda1": {"node": "/dev/sdb1", "size_bytes": 1073741824},
-             "sda2": {"node": "/dev/sdb2", "size_bytes": 15032385536}}
+            {
+                "sda1": {"node": "/dev/sdb1", "size_bytes": 1073741824},
+                "sda2": {"node": "/dev/sdb2", "size_bytes": 15032385536},
+            },
         )
 
         restore.restore_clonezilla_image(
@@ -557,7 +557,7 @@ class TestRestoreClonezillaImage:
         # Should restore both partitions
         assert mock_restore_op.call_count == 2
 
-    @patch('os.geteuid')
+    @patch("os.geteuid")
     def test_restore_requires_root(self, mock_geteuid, mock_restore_plan):
         """Test that restore requires root privileges."""
         mock_geteuid.return_value = 1000  # Not root
@@ -565,10 +565,10 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Run as root"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
-    @patch('os.geteuid')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node')
+    @patch("os.geteuid")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node")
     def test_restore_unmount_failure(
         self,
         mock_resolve,
@@ -586,12 +586,12 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Failed to unmount"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
-    @patch('os.geteuid')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node')
+    @patch("os.geteuid")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node")
     def test_restore_target_too_small(
         self,
         mock_resolve,
@@ -613,14 +613,14 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Target device too small"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
-    @patch('os.geteuid')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.wait_for_partition_count')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.build_partition_mode_layout_ops')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node')
+    @patch("os.geteuid")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.wait_for_partition_count")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.build_partition_mode_layout_ops")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.resolve_device_node")
     def test_restore_k_mode_missing_partitions(
         self,
         mock_resolve,
@@ -655,10 +655,10 @@ class TestRestoreClonezillaImage:
 class TestWaitForPartitionCount:
     """Tests for wait_for_partition_count() function."""
 
-    @patch('time.monotonic')
-    @patch('time.sleep')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.count_target_partitions')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
+    @patch("time.monotonic")
+    @patch("time.sleep")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.count_target_partitions")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
     def test_wait_for_partition_count_success(
         self, mock_get_device, mock_count, mock_sleep, mock_monotonic
     ):
@@ -676,10 +676,10 @@ class TestWaitForPartitionCount:
         assert count == 2
         assert device["name"] == "sdb"
 
-    @patch('time.monotonic')
-    @patch('time.sleep')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.count_target_partitions')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
+    @patch("time.monotonic")
+    @patch("time.sleep")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.count_target_partitions")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
     def test_wait_for_partition_count_timeout(
         self, mock_get_device, mock_count, mock_sleep, mock_monotonic
     ):
@@ -696,9 +696,9 @@ class TestWaitForPartitionCount:
                 timeout_seconds=10,
             )
 
-    @patch('time.monotonic')
-    @patch('time.sleep')
-    @patch('rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name')
+    @patch("time.monotonic")
+    @patch("time.sleep")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
     def test_wait_for_partition_count_device_not_found(
         self, mock_get_device, mock_sleep, mock_monotonic
     ):

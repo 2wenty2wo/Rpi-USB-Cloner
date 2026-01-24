@@ -1,4 +1,5 @@
 """UI action handlers for settings screens."""
+
 import time
 from pathlib import Path
 
@@ -6,10 +7,9 @@ from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
-from rpi_usb_cloner.menu.model import get_screen_icon
-from rpi_usb_cloner.ui import keyboard, menus, screens, screensaver, display
-from rpi_usb_cloner.web import server as web_server
+from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
+from rpi_usb_cloner.web import server as web_server
 
 
 def coming_soon() -> None:
@@ -104,7 +104,9 @@ def select_screensaver_gif() -> None:
 
 def keyboard_test() -> None:
     """Test keyboard input."""
-    text = keyboard.prompt_text(title="KEYBOARD", masked=False, title_icon=KEYBOARD_ICON)
+    text = keyboard.prompt_text(
+        title="KEYBOARD", masked=False, title_icon=KEYBOARD_ICON
+    )
     if text is None:
         return
     screens.render_status_template("KEYBOARD", "Entry captured")
@@ -119,7 +121,9 @@ def demo_confirmation_screen() -> None:
 
 def demo_status_screen() -> None:
     """Demo status screen."""
-    screens.render_status_template("STATUS", "Running...", progress_line="Demo progress")
+    screens.render_status_template(
+        "STATUS", "Running...", progress_line="Demo progress"
+    )
     screens.wait_for_ack()
 
 

@@ -1,4 +1,5 @@
 """ImageUSB .BIN file restoration operations."""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ from rpi_usb_cloner.storage.clone.command_runners import (
 from rpi_usb_cloner.storage.clone.models import resolve_device_node
 
 from .detection import IMAGEUSB_HEADER_SIZE, validate_imageusb_file
+
 
 log = get_logger(source=__name__)
 
@@ -98,10 +100,10 @@ def restore_imageusb_file(
         dd_path,
         f"if={image_path}",
         f"of={target_node}",
-        "bs=512",          # Block size for skip operation
-        "skip=1",          # Skip first block (512 bytes header)
-        "status=progress", # Show progress
-        "conv=fsync",      # Sync writes to disk
+        "bs=512",  # Block size for skip operation
+        "skip=1",  # Skip first block (512 bytes header)
+        "status=progress",  # Show progress
+        "conv=fsync",  # Sync writes to disk
     ]
 
     log.info("Restoring ImageUSB file: %s -> %s", image_path.name, target_node)
@@ -120,7 +122,7 @@ def restore_imageusb_file(
             command,
             title=title,
             total_bytes=data_size,  # Total bytes to write (excluding header)
-            stdin_source=None,      # dd reads from if= parameter
+            stdin_source=None,  # dd reads from if= parameter
             progress_callback=progress_callback,
             subtitle=subtitle,
         )

@@ -25,6 +25,15 @@ class MenuNavigator:
         if root_screen_id not in screens:
             raise ValueError(f"Unknown root screen: {root_screen_id}")
         self._stack: List[ScreenState] = [ScreenState(screen_id=root_screen_id)]
+        self._last_navigation_action: Optional[str] = None
+
+    def last_navigation_action(self) -> Optional[str]:
+        return self._last_navigation_action
+
+    def consume_last_navigation_action(self) -> Optional[str]:
+        action = self._last_navigation_action
+        self._last_navigation_action = None
+        return action
 
     def current_state(self) -> ScreenState:
         return self._stack[-1]
@@ -79,6 +88,7 @@ class MenuNavigator:
         return list(self._screens[screen_id].items)
 
     def activate(self, visible_rows: int) -> Optional[Callable[[], None]]:
+        self._last_navigation_action = None
         state = self.current_state()
         items = self.current_items()
         if not items:
@@ -92,13 +102,16 @@ class MenuNavigator:
                 raise ValueError(f"Unknown screen: {submenu_id}")
             self._stack.append(ScreenState(screen_id=submenu_id))
             self._ensure_scroll(self.current_state(), visible_rows)
+            self._last_navigation_action = "forward"
             return None
         return selected_item.action
 
     def back(self) -> bool:
+        self._last_navigation_action = None
         if len(self._stack) <= 1:
             return False
         self._stack.pop()
+        self._last_navigation_action = "back"
         return True
 
     def sync_visible_rows(self, visible_rows: int) -> None:

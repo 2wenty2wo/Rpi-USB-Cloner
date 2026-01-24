@@ -1,6 +1,6 @@
 """Tests for Clonezilla image discovery and parsing."""
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+
+from unittest.mock import patch
 
 import pytest
 
@@ -28,9 +28,7 @@ class TestGetMountpoint:
         """Test getting mountpoint from device children."""
         device = {
             "mountpoint": None,
-            "children": [
-                {"name": "sda1", "mountpoint": "/mnt/data"}
-            ]
+            "children": [{"name": "sda1", "mountpoint": "/mnt/data"}],
         }
         with patch("rpi_usb_cloner.storage.devices.get_children") as mock_get_children:
             mock_get_children.return_value = [{"mountpoint": "/mnt/data"}]
@@ -50,7 +48,7 @@ class TestGetMountpoint:
             mock_get_children.return_value = [
                 {"mountpoint": None},
                 {"mountpoint": "/mnt/first"},
-                {"mountpoint": "/mnt/second"}
+                {"mountpoint": "/mnt/second"},
             ]
             assert get_mountpoint(device) == "/mnt/first"
 
@@ -395,7 +393,9 @@ class TestGetPartcloneTool:
     @patch("shutil.which")
     @patch("pathlib.Path.is_file")
     @patch("os.access")
-    def test_get_partclone_tool_fallback_path(self, mock_access, mock_is_file, mock_which):
+    def test_get_partclone_tool_fallback_path(
+        self, mock_access, mock_is_file, mock_which
+    ):
         """Test fallback to standard paths when which fails."""
         mock_which.return_value = None
         mock_is_file.return_value = True
@@ -462,11 +462,15 @@ class TestBuildPartitionRestoreOp:
 
         # This should raise an error since has_partition_image_files detects
         # a file but build_partition_restore_op can't parse it
-        with pytest.raises(RuntimeError, match="does not match partclone/dd naming convention"):
+        with pytest.raises(
+            RuntimeError, match="does not match partclone/dd naming convention"
+        ):
             build_partition_restore_op(image_dir, "sda1")
 
     @patch("rpi_usb_cloner.storage.clonezilla.image_discovery.get_partclone_tool")
-    def test_build_partition_restore_op_prefers_partclone(self, mock_get_tool, tmp_path):
+    def test_build_partition_restore_op_prefers_partclone(
+        self, mock_get_tool, tmp_path
+    ):
         """Test that partclone is preferred over dd when both exist."""
         image_dir = tmp_path / "image"
         image_dir.mkdir()
@@ -490,7 +494,9 @@ class TestParseClonezillaImage:
         (image_dir / "sda-pt.parted").write_text("partition table")
         (image_dir / "sda1.ext4-ptcl-img.aa").touch()
 
-        with patch("rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops") as mock_collect:
+        with patch(
+            "rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops"
+        ) as mock_collect:
             mock_collect.return_value = []
 
             result = parse_clonezilla_image(image_dir)
@@ -532,7 +538,9 @@ class TestParseClonezillaImage:
         (image_dir / "parts").write_text("sda1")
         # No image files created
 
-        with patch("rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops") as mock_collect:
+        with patch(
+            "rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops"
+        ) as mock_collect:
             mock_collect.return_value = []
 
             with pytest.raises(RuntimeError, match="Image data missing for sda1"):
@@ -548,7 +556,9 @@ class TestParseClonezillaImage:
         (image_dir / "sda2.ntfs-ptcl-img.aa").touch()
         (image_dir / "sda3.dd-dd-img.aa").touch()
 
-        with patch("rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops") as mock_collect:
+        with patch(
+            "rpi_usb_cloner.storage.clonezilla.partition_table.collect_disk_layout_ops"
+        ) as mock_collect:
             mock_collect.return_value = []
 
             result = parse_clonezilla_image(image_dir)

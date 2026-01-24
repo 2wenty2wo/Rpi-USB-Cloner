@@ -1,4 +1,5 @@
 """System power management operations."""
+
 import sys
 import time
 from typing import Callable, Optional
@@ -12,7 +13,11 @@ from .system_utils import (
     log_debug_msg,
     poweroff_system,
     reboot_system,
+)
+from .system_utils import (
     restart_service as restart_systemd_service,
+)
+from .system_utils import (
     stop_service as stop_systemd_service,
 )
 
@@ -27,7 +32,10 @@ def restart_service(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     display.clear_display()
     restart_result = restart_systemd_service(log_debug=log_debug)
     if restart_result.returncode != 0:
-        log_debug_msg(log_debug, f"Service restart failed with return code {restart_result.returncode}")
+        log_debug_msg(
+            log_debug,
+            f"Service restart failed with return code {restart_result.returncode}",
+        )
         screens.wait_for_paginated_input(
             title,
             ["Service restart failed"]
@@ -45,10 +53,13 @@ def stop_service(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
     display.clear_display()
     stop_result = stop_systemd_service(log_debug=log_debug)
     if stop_result.returncode != 0:
-        log_debug_msg(log_debug, f"Service stop failed with return code {stop_result.returncode}")
+        log_debug_msg(
+            log_debug, f"Service stop failed with return code {stop_result.returncode}"
+        )
         screens.wait_for_paginated_input(
             title,
-            ["Service stop failed"] + format_command_output(stop_result.stdout, stop_result.stderr),
+            ["Service stop failed"]
+            + format_command_output(stop_result.stdout, stop_result.stderr),
         )
         return
     display.clear_display()
@@ -60,14 +71,20 @@ def restart_system(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     title = "POWER"
     if not confirm_power_action(title, "RESTART SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_template(title, "Restarting...", progress_line="System reboot")
+    screens.render_status_template(
+        title, "Restarting...", progress_line="System reboot"
+    )
     display.clear_display()
     reboot_result = reboot_system(log_debug=log_debug)
     if reboot_result.returncode != 0:
-        log_debug_msg(log_debug, f"System reboot failed with return code {reboot_result.returncode}")
+        log_debug_msg(
+            log_debug,
+            f"System reboot failed with return code {reboot_result.returncode}",
+        )
         screens.wait_for_paginated_input(
             title,
-            ["System reboot failed"] + format_command_output(reboot_result.stdout, reboot_result.stderr),
+            ["System reboot failed"]
+            + format_command_output(reboot_result.stdout, reboot_result.stderr),
         )
 
 
@@ -76,11 +93,16 @@ def shutdown_system(*, log_debug: Optional[Callable[[str], None]] = None) -> Non
     title = "POWER"
     if not confirm_power_action(title, "SHUTDOWN SYSTEM", log_debug=log_debug):
         return
-    screens.render_status_template(title, "Shutting down...", progress_line="System poweroff")
+    screens.render_status_template(
+        title, "Shutting down...", progress_line="System poweroff"
+    )
     display.clear_display()
     shutdown_result = poweroff_system(log_debug=log_debug)
     if shutdown_result.returncode != 0:
-        log_debug_msg(log_debug, f"System poweroff failed with return code {shutdown_result.returncode}")
+        log_debug_msg(
+            log_debug,
+            f"System poweroff failed with return code {shutdown_result.returncode}",
+        )
         screens.wait_for_paginated_input(
             title,
             ["System poweroff failed"]
@@ -102,7 +124,9 @@ def confirm_power_action(
     """Confirm a power action with the user."""
     prompt = f"Are you sure you want to {action_label.lower()}?"
     confirmed = confirm_action(title, prompt, log_debug=log_debug)
-    log_debug_msg(log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}")
+    log_debug_msg(
+        log_debug, f"Power action confirmation {action_label}: confirmed={confirmed}"
+    )
     return confirmed
 
 
