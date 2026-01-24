@@ -521,7 +521,21 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     def calculate_transition_frames() -> int:
         context = display.get_display_context()
-        return max(8, min(24, context.width // 4))
+        default_frames = max(8, min(24, context.width // 4))
+        setting_value = settings_store.get_setting("transition_frame_count", 3)
+        try:
+            frames = int(setting_value)
+        except (TypeError, ValueError):
+            return default_frames
+        return max(1, min(24, frames))
+
+    def get_transition_frame_delay() -> float:
+        setting_value = settings_store.get_setting("transition_frame_delay", 0.005)
+        try:
+            delay = float(setting_value)
+        except (TypeError, ValueError):
+            return 0.005
+        return max(0.0, delay)
 
     def render_current_screen(force: bool = False) -> None:
         current_screen = menu_navigator.current_screen()
@@ -572,7 +586,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     to_image=to_image,
                     direction=navigation_action,
                     frame_count=calculate_transition_frames(),
-                    frame_delay=1 / 25,
+                    frame_delay=get_transition_frame_delay(),
                 )
                 with display._display_lock:
                     context = display.get_display_context()

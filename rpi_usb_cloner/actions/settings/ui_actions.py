@@ -192,6 +192,40 @@ def toggle_web_server(app_context=None, log_debug=None) -> None:
     time.sleep(1.5)
 
 
+def select_transition_speed() -> None:
+    """Select OLED/Web UI transition speed."""
+    options = [
+        ("FAST", 2, 0.0),
+        ("SNAPPY", 3, 0.005),
+        ("SMOOTH", 4, 0.01),
+    ]
+    current_frames = settings.get_setting("transition_frame_count", 3)
+    current_delay = settings.get_setting("transition_frame_delay", 0.005)
+    selected_index = 0
+    for index, (_, frames, delay) in enumerate(options):
+        if frames == current_frames and delay == current_delay:
+            selected_index = index
+            break
+    labels = [
+        f"{label} ({frames} frames, {delay:.3f}s)"
+        for label, frames, delay in options
+    ]
+    selection = menus.render_menu_list(
+        "TRANSITIONS",
+        labels,
+        selected_index=selected_index,
+        header_lines=["Slide transition speed"],
+        title_icon=SETTINGS_ICON,
+    )
+    if selection is None:
+        return
+    label, frames, delay = options[selection]
+    settings.set_setting("transition_frame_count", frames)
+    settings.set_setting("transition_frame_delay", delay)
+    screens.render_status_template("TRANSITIONS", f"Set: {label}")
+    time.sleep(1.5)
+
+
 def show_about_credits() -> None:
     """Display the credits screen from assets/credits.png.
 

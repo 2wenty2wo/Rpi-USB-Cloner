@@ -38,6 +38,7 @@ from rpi_usb_cloner.actions.settings import (
     run_git_pull,
     run_update_flow,
     screensaver_settings,
+    select_transition_speed,
     select_restore_partition_mode,
     select_screensaver_gif,
     show_about_credits,  # Display credits screen from assets/credits.png
@@ -88,6 +89,7 @@ __all__ = [
     "coming_soon",
     "wifi_settings",
     "select_restore_partition_mode",
+    "select_transition_speed",
     "screensaver_settings",
     "toggle_screensaver_enabled",
     "toggle_screensaver_mode",

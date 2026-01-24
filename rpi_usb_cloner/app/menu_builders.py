@@ -32,6 +32,20 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         web_server_state = "ON" if web_server_enabled else "OFF"
         web_server_label = f"WEB SERVER: {web_server_state}"
 
+    transition_frames = settings_store.get_setting("transition_frame_count", 3)
+    transition_delay = settings_store.get_setting("transition_frame_delay", 0.005)
+    try:
+        transition_frames_label = int(transition_frames)
+    except (TypeError, ValueError):
+        transition_frames_label = 3
+    try:
+        transition_delay_label = float(transition_delay)
+    except (TypeError, ValueError):
+        transition_delay_label = 0.005
+    transition_label = (
+        f"TRANSITIONS: {transition_frames_label}F {transition_delay_label:.3f}s"
+    )
+
     return [
         MenuItem(
             label="WIFI",
@@ -40,6 +54,10 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         MenuItem(
             label=web_server_label,
             action=menu_actions.toggle_web_server,
+        ),
+        MenuItem(
+            label=transition_label,
+            action=menu_actions.select_transition_speed,
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
