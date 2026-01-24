@@ -208,7 +208,9 @@ class TestImageUSBRestore:
         ), patch(
             "rpi_usb_cloner.storage.clone.models.resolve_device_node",
             return_value="/dev/sda",
-        ), pytest.raises(RuntimeError, match="not removable"):
+        ), pytest.raises(
+            RuntimeError, match="not removable"
+        ):
             restore_imageusb_file(valid_bin_file, "sda")
 
     def test_restore_success(self, valid_bin_file, mock_device, mocker):

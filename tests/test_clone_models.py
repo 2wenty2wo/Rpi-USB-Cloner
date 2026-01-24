@@ -1,6 +1,5 @@
 """Tests for clone operation display helpers and models."""
 
-
 from rpi_usb_cloner.storage.clone.models import (
     format_filesystem_type,
     get_partition_display_name,

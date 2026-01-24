@@ -301,6 +301,34 @@ def _render_menu(
                 draw.text((x_pos, footer_y), label, font=footer_font, fill=255)
 
 
+def calculate_footer_bounds(
+    *,
+    status_line: Optional[str] = None,
+    status_font=None,
+    footer: Optional[Iterable[str]] = None,
+    footer_font=None,
+    items_font=None,
+    footer_padding: int = 1,
+) -> tuple[int, int]:
+    context = display.get_display_context()
+    list_font = items_font or context.fonts.get("items", context.fontdisks)
+    footer_height = 0
+    footer_y = context.height
+    if status_line:
+        footer_font = status_font or list_font
+        footer_height = _get_line_height(footer_font)
+        footer_y = context.height - footer_height - footer_padding
+    elif footer:
+        footer_font = footer_font or context.fonts.get("footer", context.fontdisks)
+        footer_height = _get_line_height(footer_font)
+        footer_y = context.height - footer_height - footer_padding
+    if footer_height <= 0:
+        return (context.height, context.height)
+    footer_start = footer_y - footer_padding + 1
+    footer_start = max(0, min(footer_start, context.height))
+    return (footer_start, context.height)
+
+
 def render_menu_screen(
     title: str,
     items: Iterable[str],

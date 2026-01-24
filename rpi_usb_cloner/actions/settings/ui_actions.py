@@ -207,8 +207,7 @@ def select_transition_speed() -> None:
             selected_index = index
             break
     labels = [
-        f"{label} ({frames} frames, {delay:.3f}s)"
-        for label, frames, delay in options
+        f"{label} ({frames} frames, {delay:.3f}s)" for label, frames, delay in options
     ]
     selection = menus.render_menu_list(
         "TRANSITIONS",

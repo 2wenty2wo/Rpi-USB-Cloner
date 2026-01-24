@@ -33,10 +33,8 @@ class StorageError(Exception):
     """Base exception for all storage operations."""
 
 
-
 class DeviceError(StorageError):
     """Base exception for device-related errors."""
-
 
 
 class DeviceNotFoundError(DeviceError):
@@ -72,7 +70,6 @@ class MountError(StorageError):
     """Base exception for mount-related errors."""
 
 
-
 class UnmountFailedError(MountError):
     """Failed to unmount device or partition."""
 
@@ -99,7 +96,6 @@ class MountVerificationError(MountError):
 
 class CloneError(StorageError):
     """Base exception for clone operations."""
-
 
 
 class SourceDestinationSameError(CloneError):
@@ -147,7 +143,6 @@ class FormatError(StorageError):
     """Base exception for format operations."""
 
 
-
 class FormatOperationError(FormatError):
     """Generic format operation failure."""
 
@@ -158,7 +153,6 @@ class FormatOperationError(FormatError):
 
 class EraseError(StorageError):
     """Base exception for erase operations."""
-
 
 
 class EraseOperationError(EraseError):
