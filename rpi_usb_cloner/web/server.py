@@ -525,7 +525,6 @@ def stop_server(timeout: float = 5.0, log_debug=None) -> bool:
 def start_server(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-    log_debug=None,
     app_context: AppContext | None = None,
 ):
     global _current_handle
@@ -554,7 +553,6 @@ def start_server(
         stop_event = threading.Event()
         app["display_notifier"] = notifier
         app["display_stop_event"] = stop_event
-        app["log_debug"] = log_debug
         app["app_context"] = app_context
         app.router.add_get("/", handle_root)
         app.router.add_get("/screen.png", handle_screen_png)

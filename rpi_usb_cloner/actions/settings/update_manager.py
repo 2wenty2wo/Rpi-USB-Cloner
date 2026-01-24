@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from rpi_usb_cloner.hardware import gpio
+from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, menus, screens
 
@@ -19,7 +20,6 @@ from .system_utils import (
     is_dubious_ownership_error,
     is_git_repo,
     is_running_under_systemd,
-    log_debug_msg,
     run_command,
     run_git_pull,
 )
@@ -27,39 +27,41 @@ from .system_utils import (
     restart_service as restart_systemd_service,
 )
 
+# Create logger for update operations
+log = LoggerFactory.for_system()
 
-def get_update_status(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, Optional[int]]:
+
+def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
     """Check if updates are available."""
     if not is_git_repo(repo_root):
-        log_debug_msg(log_debug, "Update status check: repo not found")
+        log.debug("Update status check: repo not found", component="update_manager")
         return "Repo not found", None
-    fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root, log_debug=log_debug)
+    fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
-        log_debug_msg(
-            log_debug, f"Update status check: fetch failed {fetch.returncode}"
+        log.debug(
+            f"Update status check: fetch failed {fetch.returncode}",
+            component="update_manager",
         )
         return "Unable to check", None
     upstream = run_command(
         ["git", "rev-parse", "--abbrev-ref", "@{u}"],
         cwd=repo_root,
-        log_debug=log_debug,
     )
     upstream_ref = upstream.stdout.strip()
     if upstream.returncode != 0 or not upstream_ref:
-        log_debug_msg(log_debug, "Update status check: upstream missing")
+        log.debug("Update status check: upstream missing", component="update_manager")
         return "No upstream configured", None
     behind = run_command(
         ["git", "rev-list", "--count", "HEAD..@{u}"],
         cwd=repo_root,
-        log_debug=log_debug,
     )
     if behind.returncode != 0:
-        log_debug_msg(log_debug, "Update status check: rev-list failed")
+        log.debug("Update status check: rev-list failed", component="update_manager")
         return "Unable to check", None
     count = behind.stdout.strip()
-    log_debug_msg(log_debug, f"Update status check: behind count={count!r}")
+    log.debug(
+        f"Update status check: behind count={count!r}", component="update_manager"
+    )
     if count.isdigit():
         behind_count = int(count)
         status = "Update available" if behind_count > 0 else "Up to date"
@@ -67,14 +69,13 @@ def get_update_status(
     return "Up to date", None
 
 
-def check_update_status(
-    repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, Optional[int], str]:
+def check_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
     """Check update status and return with timestamp."""
-    status, behind_count = get_update_status(repo_root, log_debug=log_debug)
+    status, behind_count = get_update_status(repo_root)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
-    log_debug_msg(
-        log_debug, f"Update status check complete at {last_checked}: {status}"
+    log.debug(
+        f"Update status check complete at {last_checked}: {status}",
+        component="update_manager",
     )
     return status, behind_count, last_checked
 
@@ -101,30 +102,29 @@ def build_update_info_lines(
 def run_update_flow(
     title: str,
     *,
-    log_debug: Optional[Callable[[str], None]],
     title_icon: Optional[str] = None,
 ) -> None:
     """Execute the software update process."""
     repo_root = Path(__file__).resolve().parents[3]
-    log_debug_msg(log_debug, f"Repo root detection: {repo_root}")
+    log.debug(f"Repo root detection: {repo_root}", component="update_manager")
     is_repo = is_git_repo(repo_root)
-    log_debug_msg(log_debug, f"Repo root is git repo: {is_repo}")
+    log.debug(f"Repo root is git repo: {is_repo}", component="update_manager")
     if not is_repo:
-        log_debug_msg(log_debug, "Update aborted: repo not found")
+        log.debug("Update aborted: repo not found", component="update_manager")
         screens.wait_for_paginated_input(
             title,
             ["Repo not found"],
             title_icon=title_icon,
         )
         return
-    dirty_tree = has_dirty_working_tree(repo_root, log_debug=log_debug)
+    dirty_tree = has_dirty_working_tree(repo_root)
     if dirty_tree:
-        log_debug_msg(log_debug, "Dirty working tree detected")
+        log.debug("Dirty working tree detected", component="update_manager")
         prompt = "Continue with update?"
     else:
         prompt = "Are you sure you want to update?"
-    if not confirm_action(title, prompt, log_debug=log_debug, title_icon=title_icon):
-        log_debug_msg(log_debug, "Update canceled by confirmation prompt")
+    if not confirm_action(title, prompt, title_icon=title_icon):
+        log.debug("Update canceled by confirmation prompt", component="update_manager")
         return
 
     def run_with_progress(
@@ -190,26 +190,23 @@ def run_update_flow(
         ["Updating...", "Pulling..."],
         lambda update_progress: run_git_pull(
             repo_root,
-            log_debug=log_debug,
             progress_callback=update_progress,
         ),
         running_ratio=None,
     )
     dubious_ownership = is_dubious_ownership_error(pull_result.stderr)
-    if dubious_ownership and is_running_under_systemd(log_debug=log_debug):
-        log_debug_msg(
-            log_debug,
+    if dubious_ownership and is_running_under_systemd():
+        log.debug(
             f"Dubious ownership detected; adding safe.directory for {repo_root}",
+            component="update_manager",
         )
         run_command(
             ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
-            log_debug=log_debug,
         )
         pull_result = run_with_progress(
             ["Updating...", "Pulling again..."],
             lambda update_progress: run_git_pull(
                 repo_root,
-                log_debug=log_debug,
                 progress_callback=update_progress,
             ),
             running_ratio=None,
@@ -222,8 +219,9 @@ def run_update_flow(
             f"Or run: git config --global --add safe.directory {repo_root}",
         ] + output_lines
     if pull_result.returncode != 0:
-        log_debug_msg(
-            log_debug, f"Git pull failed with return code {pull_result.returncode}"
+        log.debug(
+            f"Git pull failed with return code {pull_result.returncode}",
+            component="update_manager",
         )
         if dubious_ownership:
             output_lines = ["Git safety check failed."] + output_lines
@@ -250,15 +248,15 @@ def run_update_flow(
             title_icon=title_icon,
         )
     time.sleep(1)
-    if is_running_under_systemd(log_debug=log_debug):
+    if is_running_under_systemd():
         restart_result = run_with_progress(
             ["Restarting...", "rpi-usb-cloner.service"],
-            lambda update_progress: restart_systemd_service(log_debug=log_debug),
+            lambda update_progress: restart_systemd_service(),
         )
         if restart_result.returncode != 0:
-            log_debug_msg(
-                log_debug,
+            log.debug(
                 f"Service restart failed with return code {restart_result.returncode}",
+                component="update_manager",
             )
             display.render_paginated_lines(
                 title,
@@ -279,7 +277,7 @@ def run_update_flow(
     time.sleep(2)
 
 
-def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None:
+def update_version() -> None:
     """Main update version interface."""
     title = "UPDATE"
     title_icon = get_screen_icon("update")
@@ -287,7 +285,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     status = "Checking..."
     behind_count: Optional[int] = None
     last_checked: Optional[str] = None
-    version = get_app_version(log_debug=log_debug)
+    version = get_app_version()
     check_done = threading.Event()
     git_lock = threading.Lock()
     results_applied = False
@@ -304,9 +302,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                 result_holder["result"][2],
             )
         if "error" in error_holder:
-            log_debug_msg(
-                log_debug,
+            log.debug(
                 f"Update status check failed: {error_holder['error']}",
+                component="update_manager",
             )
             return (
                 "Unable to check",
@@ -335,9 +333,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     def run_check_in_background() -> None:
         try:
             with git_lock:
-                result_holder["result"] = check_update_status(
-                    repo_root, log_debug=log_debug
-                )
+                result_holder["result"] = check_update_status(repo_root)
         except Exception as exc:  # pragma: no cover - defensive for subprocess errors
             error_holder["error"] = exc
         finally:
@@ -417,8 +413,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                     )
                     with git_lock:
                         status, behind_count, last_checked = check_update_status(
-                            repo_root,
-                            log_debug=log_debug,
+                            repo_root
                         )
                     update_header_lines()
                     screens.render_update_buttons_screen(
@@ -427,7 +422,7 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                         selected_index=selection,
                         title_icon=title_icon,
                     )
-                    version = get_app_version(log_debug=log_debug)
+                    version = get_app_version()
                     result_holder["result"] = (status, behind_count, last_checked)
                     check_done.set()
                     results_applied = True
@@ -446,12 +441,9 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
                         time.sleep(menus.BUTTON_POLL_DELAY)
                     apply_check_results_to_state()
                 with git_lock:
-                    run_update_flow(title, log_debug=log_debug, title_icon=title_icon)
-                    status, behind_count, last_checked = check_update_status(
-                        repo_root,
-                        log_debug=log_debug,
-                    )
-                version = get_app_version(log_debug=log_debug)
+                    run_update_flow(title, title_icon=title_icon)
+                    status, behind_count, last_checked = check_update_status(repo_root)
+                version = get_app_version()
                 result_holder["result"] = (status, behind_count, last_checked)
                 check_done.set()
                 results_applied = True
