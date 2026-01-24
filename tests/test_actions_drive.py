@@ -145,11 +145,13 @@ class TestHandleScreenshot:
         )
         mock_screens = mocker.patch("rpi_usb_cloner.actions.drive_actions.screens")
         mock_display = mocker.patch("rpi_usb_cloner.actions.drive_actions.display")
-        mock_display.take_screenshot = Mock(return_value=Path("/tmp/screenshot.png"))
+        # Correct method name: capture_screenshot (not take_screenshot)
+        mock_display.capture_screenshot = Mock(return_value=Path("/tmp/screenshot.png"))
+        mocker.patch("time.sleep")
 
         result = drive_actions._handle_screenshot()
         assert result is True
-        mock_display.take_screenshot.assert_called_once()
+        mock_display.capture_screenshot.assert_called_once()
 
 
 class TestPickSourceTarget:
@@ -160,6 +162,14 @@ class TestPickSourceTarget:
         mocker.patch(
             "rpi_usb_cloner.actions.drive_actions.list_usb_disks",
             return_value=[{"name": "sda"}]
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.devices.is_root_device",
+            return_value=False
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.drives._get_repo_device_names",
+            return_value=[]
         )
 
         get_selected = Mock(return_value=None)
