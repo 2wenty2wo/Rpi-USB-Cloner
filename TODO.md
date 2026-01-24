@@ -34,7 +34,7 @@
 
 - [ ] Mobile-responsive web UI improvements
 - [ ] Improve error recovery flows
-- [ ] Add comprehensive operation logging
+- [x] Add comprehensive operation logging (✅ Complete - all operations now visible in Web UI)
 - [ ] Web UI theme consistency with OLED display
 
 ## 📝 Documentation
