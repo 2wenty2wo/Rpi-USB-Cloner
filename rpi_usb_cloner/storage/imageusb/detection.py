@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 # ImageUSB signature (first 16 bytes)
@@ -55,7 +54,7 @@ def is_imageusb_file(file_path: Path) -> bool:
         return False
 
 
-def validate_imageusb_file(file_path: Path) -> Optional[str]:
+def validate_imageusb_file(file_path: Path) -> str | None:
     """Validate an ImageUSB .BIN file.
 
     Performs basic validation checks:

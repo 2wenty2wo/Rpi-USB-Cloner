@@ -4,6 +4,7 @@ Tests verify that command injection vulnerabilities have been fixed
 and that input validation is working correctly.
 """
 
+import contextlib
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -57,10 +58,8 @@ class TestGetPartitionSecurity:
             stdout="/dev/sda1 boot\n/dev/sda1  *  2048  1000000", returncode=0
         )
 
-        try:
+        with contextlib.suppress(RuntimeError):
             mount.get_partition("/dev/sda")
-        except RuntimeError:
-            pass  # May fail due to parsing, but that's OK for this test
 
         # Verify subprocess.run was called with argument list
         mock_run.assert_called()
@@ -111,19 +110,18 @@ class TestMountPartitionSecurity:
 
     def test_sanitizes_name_parent_directory(self):
         """Ensure mount_partition strips parent directories from name"""
-        with patch("os.path.ismount", return_value=False):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stderr="")
+        with patch("os.path.ismount", return_value=False), patch(
+            "subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
 
-                # This should extract only 'test' from the path
-                mount.mount_partition("/dev/sda1", "/some/path/test")
+            # This should extract only 'test' from the path
+            mount.mount_partition("/dev/sda1", "/some/path/test")
 
-                # Verify mkdir was called with sanitized path
-                calls = [str(call) for call in mock_run.call_args_list]
-                # Check that the path doesn't contain parent directories
-                mkdir_call = mock_run.call_args_list[0][0][0]
-                assert mkdir_call[0] == "mkdir"
-                assert "/media/test" in mkdir_call[2]
+            # Check that the path doesn't contain parent directories
+            mkdir_call = mock_run.call_args_list[0][0][0]
+            assert mkdir_call[0] == "mkdir"
+            assert "/media/test" in mkdir_call[2]
 
     def test_rejects_dot_name(self):
         """Ensure mount_partition rejects '.' as name"""
@@ -220,16 +218,17 @@ class TestUnmountPartitionSecurity:
 
     def test_extracts_final_name_component(self):
         """Ensure unmount_partition strips parent paths"""
-        with patch("os.path.ismount", return_value=True):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0, stderr="")
+        with patch("os.path.ismount", return_value=True), patch(
+            "subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
 
-                # Should extract only 'test' from the path
-                mount.unmount_partition("/some/path/test")
+            # Should extract only 'test' from the path
+            mount.unmount_partition("/some/path/test")
 
-                # Verify umount was called with sanitized path
-                umount_call = mock_run.call_args[0][0]
-                assert umount_call == ["umount", "/media/test"]
+            # Verify umount was called with sanitized path
+            umount_call = mock_run.call_args[0][0]
+            assert umount_call == ["umount", "/media/test"]
 
     @patch("os.path.ismount", return_value=True)
     @patch("subprocess.run")
@@ -315,9 +314,7 @@ class TestSecurityRegression:
                     "os.system(" in source
                     and '"""' not in source.split("os.system(")[0]
                 ):
-                    assert (
-                        False
-                    ), f"os.system() call found in function {name} - regression detected!"
+                    raise AssertionError(f"os.system() call found in function {name} - regression detected!")
 
     def test_no_shell_true_in_subprocess(self):
         """Verify subprocess is never called with shell=True"""
@@ -336,11 +333,10 @@ class TestSecurityRegression:
         mock_run.return_value = MagicMock(returncode=0, stdout="test", stderr="")
 
         # Try various operations
-        with patch("os.path.ismount", return_value=False):
-            try:
-                mount.mount_partition("/dev/sda1", "test")
-            except:
-                pass
+        with patch("os.path.ismount", return_value=False), contextlib.suppress(
+            BaseException
+        ):
+            mount.mount_partition("/dev/sda1", "test")
 
         # Check that all calls used lists, not strings
         for call in mock_run.call_args_list:

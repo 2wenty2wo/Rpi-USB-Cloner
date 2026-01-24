@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from rpi_usb_cloner.storage import devices
 
@@ -16,7 +15,7 @@ from .file_utils import (
 from .models import ClonezillaImage, PartitionRestoreOp, RestorePlan
 
 
-def get_mountpoint(device: dict) -> Optional[str]:
+def get_mountpoint(device: dict) -> str | None:
     """Get the mountpoint of a device or its children."""
     if device.get("mountpoint"):
         return device.get("mountpoint")
@@ -27,7 +26,7 @@ def get_mountpoint(device: dict) -> Optional[str]:
     return None
 
 
-def find_partition_table(image_dir: Path) -> Optional[Path]:
+def find_partition_table(image_dir: Path) -> Path | None:
     """Find the partition table file in a Clonezilla image directory."""
     for suffix in ("-pt.sf", "-pt.sgdisk", "-pt.parted"):
         matches = list(image_dir.glob(f"*{suffix}"))
@@ -46,7 +45,7 @@ def is_clonezilla_image_dir(path: Path) -> bool:
     return has_table or has_images
 
 
-def find_image_repository(device: dict) -> Optional[Path]:
+def find_image_repository(device: dict) -> Path | None:
     """Find Clonezilla image repository on a mounted device.
 
     Searches common locations:
@@ -60,9 +59,8 @@ def find_image_repository(device: dict) -> Optional[Path]:
     mount_path = Path(mountpoint)
     candidates = [mount_path / "clonezilla", mount_path / "images", mount_path]
     for candidate in candidates:
-        if candidate.is_dir():
-            if list_clonezilla_image_dirs(candidate):
-                return candidate
+        if candidate.is_dir() and list_clonezilla_image_dirs(candidate):
+            return candidate
     return None
 
 
@@ -96,7 +94,7 @@ def load_image(image_dir: Path) -> ClonezillaImage:
     )
 
 
-def get_partclone_tool(fstype: str) -> Optional[str]:
+def get_partclone_tool(fstype: str) -> str | None:
     """Find the partclone tool for a filesystem type.
 
     Returns:
@@ -132,7 +130,7 @@ def get_partclone_tool(fstype: str) -> Optional[str]:
 
 def build_partition_restore_op(
     image_dir: Path, part_name: str
-) -> Optional[PartitionRestoreOp]:
+) -> PartitionRestoreOp | None:
     """Build a partition restore operation from image files.
 
     Args:

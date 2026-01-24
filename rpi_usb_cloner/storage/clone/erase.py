@@ -18,13 +18,12 @@ from rpi_usb_cloner.storage.validation import (
     validate_erase_operation,
 )
 
+from .command_runners import run_checked_with_streaming_progress
+from .progress import _log_debug
+
 
 def display_lines(lines):
     return display.display_lines(lines)
-
-
-from .command_runners import run_checked_with_streaming_progress
-from .progress import _log_debug
 
 
 def erase_device(target, mode, progress_callback=None):

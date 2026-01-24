@@ -20,7 +20,7 @@ Example:
         pass
 """
 
-import os
+from pathlib import Path
 
 from .devices import get_children, get_device_by_name
 from .exceptions import (
@@ -56,7 +56,7 @@ def _is_mountpoint_active(mountpoint: str) -> bool:
                 if len(parts) > 1 and parts[1] == mountpoint:
                     return True
     except FileNotFoundError:
-        return os.path.ismount(mountpoint)
+        return Path(mountpoint).is_mount()
     return False
 
 
@@ -81,7 +81,7 @@ def validate_device_exists(device) -> None:
     # If it's a path, check if device node exists
     elif isinstance(device, str):
         device_path = _get_device_path(device)
-        if not os.path.exists(device_path):
+        if not Path(device_path).exists():
             raise DeviceNotFoundError(device_name)
 
 
@@ -157,7 +157,7 @@ def validate_device_unmounted(device) -> None:
 
     # Check all partition mountpoints
     for child in get_children(device_dict):
-        child_name = child.get("name", "")
+        child.get("name", "")
         child_mountpoint = child.get("mountpoint")
         if child_mountpoint and _is_mountpoint_active(child_mountpoint):
             raise MountVerificationError(device_name, child_mountpoint)

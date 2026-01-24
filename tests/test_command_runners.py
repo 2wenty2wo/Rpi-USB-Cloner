@@ -30,8 +30,7 @@ class TestRunCheckedCommand:
             ["echo", "test"],
             input=None,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
 
     def test_command_with_input(self, mock_subprocess_run):
@@ -47,8 +46,7 @@ class TestRunCheckedCommand:
             ["cat"],
             input="input data",
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
 
     def test_command_failure_with_stderr(self, mock_subprocess_run):

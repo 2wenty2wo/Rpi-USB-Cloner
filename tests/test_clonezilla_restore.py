@@ -102,8 +102,7 @@ class TestGetBlockdevSizeBytes:
         assert size == 16106127360
         mock_run.assert_called_once_with(
             ["/usr/sbin/blockdev", "--getsize64", "/dev/sda"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
 

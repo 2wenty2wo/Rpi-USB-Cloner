@@ -8,7 +8,6 @@ import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from aiohttp import web
 
@@ -42,7 +41,7 @@ class ServerHandle:
         self.thread.join(timeout=timeout)
 
 
-_current_handle: Optional[ServerHandle] = None
+_current_handle: ServerHandle | None = None
 
 
 class DisplayUpdateNotifier:
@@ -264,7 +263,7 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
 async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     """WebSocket handler that streams application log buffer updates."""
     log = LoggerFactory.for_web()
-    app_context: Optional[AppContext] = request.app.get("app_context")
+    app_context: AppContext | None = request.app.get("app_context")
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
     if not app_context:
@@ -521,7 +520,7 @@ def start_server(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
     log_debug=None,
-    app_context: Optional[AppContext] = None,
+    app_context: AppContext | None = None,
 ):
     global _current_handle
     if is_running():

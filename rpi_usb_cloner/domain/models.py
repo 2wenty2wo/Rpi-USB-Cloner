@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 # ==============================================================================
@@ -27,8 +27,8 @@ class Drive:
 
     name: str  # e.g., "sda"
     size_bytes: int  # Total size in bytes
-    vendor: Optional[str] = None  # e.g., "Kingston"
-    model: Optional[str] = None  # e.g., "DataTraveler"
+    vendor: str | None = None  # e.g., "Kingston"
+    model: str | None = None  # e.g., "DataTraveler"
     is_removable: bool = True  # Safety check
 
     @property
@@ -111,7 +111,7 @@ class ImageRepo:
     """
 
     path: Path  # Mount point or root directory
-    drive_name: Optional[str]  # Associated drive (e.g., "sdb")
+    drive_name: str | None  # Associated drive (e.g., "sdb")
 
     def contains_flag_file(
         self, flag_filename: str = ".rpi-usb-cloner-image-repo"
@@ -137,7 +137,7 @@ class DiskImage:
     name: str  # Image name (directory or file name)
     path: Path  # Full path to image directory or ISO
     image_type: ImageType  # CLONEZILLA_DIR or ISO
-    size_bytes: Optional[int] = None  # Total size if calculable
+    size_bytes: int | None = None  # Total size if calculable
 
     @property
     def is_iso(self) -> bool:

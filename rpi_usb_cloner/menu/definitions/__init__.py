@@ -5,15 +5,13 @@ Edit files in this directory to adjust menu labels or structure.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
 
 
 def menu_entry(
     label: str,
     *,
-    submenu: Optional[MenuScreen] = None,
+    submenu: MenuScreen | None = None,
     action=None,
 ) -> MenuItem:
     if (submenu is None) == (action is None):
@@ -21,8 +19,8 @@ def menu_entry(
     return MenuItem(label=label, submenu=submenu, action=action)
 
 
-def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
-    screens: Dict[str, MenuScreen] = {}
+def _collect_screens(root: MenuScreen) -> dict[str, MenuScreen]:
+    screens: dict[str, MenuScreen] = {}
 
     def walk(screen: MenuScreen) -> None:
         if screen.screen_id in screens:
@@ -36,11 +34,11 @@ def _collect_screens(root: MenuScreen) -> Dict[str, MenuScreen]:
     return screens
 
 
-# Import all menu definitions
-from .drives import DRIVE_LIST_MENU, DRIVES_MENU
-from .images import IMAGES_MENU
-from .main import MAIN_MENU
-from .settings import (
+# Import all menu definitions after helper setup to avoid circular dependencies.
+from .drives import DRIVE_LIST_MENU, DRIVES_MENU  # noqa: E402
+from .images import IMAGES_MENU  # noqa: E402
+from .main import MAIN_MENU  # noqa: E402
+from .settings import (  # noqa: E402
     DEVELOP_MENU,
     ICONS_MENU,
     POWER_MENU,
@@ -48,7 +46,7 @@ from .settings import (
     SCREENSAVER_MENU,
     SETTINGS_MENU,
 )
-from .tools import TOOLS_MENU
+from .tools import TOOLS_MENU  # noqa: E402
 
 
 # Collect all screens for navigation

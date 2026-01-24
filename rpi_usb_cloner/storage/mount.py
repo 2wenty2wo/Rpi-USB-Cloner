@@ -79,19 +79,19 @@ def list_media_devices() -> list[str]:
             if (minor_number % 16) == 0:
                 path = "/sys/class/block/" + device_name
 
-                if os.path.islink(path):
-                    if os.path.realpath(path).find("/usb") > 0:
-                        devices.append("/dev/" + device_name)
+                sys_path = Path(path)
+                if sys_path.is_symlink() and "/usb" in sys_path.resolve().as_posix():
+                    devices.append("/dev/" + device_name)
 
         return devices
 
 
 def get_device_name(device: str) -> str:
-    return os.path.basename(device)
+    return Path(device).name
 
 
 def get_device_block_path(device: str) -> str:
-    return "/sys/block/%s" % get_device_name(device)
+    return f"/sys/block/{get_device_name(device)}"
 
 
 def get_media_path(device: str) -> str:
@@ -257,7 +257,7 @@ def unmount(device: str, name: Optional[str] = None) -> None:
 def is_removable(device: str) -> Optional[bool]:
     path = get_device_block_path(device) + "/removable"
 
-    if os.path.exists(path):
+    if Path(path).exists():
         with open(path) as f:
             return f.read().strip() == "1"
 
@@ -267,7 +267,7 @@ def is_removable(device: str) -> Optional[bool]:
 def get_size(device: str) -> int:
     path = get_device_block_path(device) + "/size"
 
-    if os.path.exists(path):
+    if Path(path).exists():
         with open(path) as f:
             # Multiply by 512, as Linux sectors are always considered to be 512 bytes long
             # Resource: https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/include/linux/types.h?id=v4.4-rc6#n121
@@ -279,7 +279,7 @@ def get_size(device: str) -> int:
 def get_model(device: str) -> Optional[str]:
     path = get_device_block_path(device) + "/device/model"
 
-    if os.path.exists(path):
+    if Path(path).exists():
         with open(path) as f:
             return f.read().strip()
     return None
@@ -288,7 +288,7 @@ def get_model(device: str) -> Optional[str]:
 def get_vendor(device: str) -> Optional[str]:
     path = get_device_block_path(device) + "/device/vendor"
 
-    if os.path.exists(path):
+    if Path(path).exists():
         with open(path) as f:
             return f.read().strip()
     return None

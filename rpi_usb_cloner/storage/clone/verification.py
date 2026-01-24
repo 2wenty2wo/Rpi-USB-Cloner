@@ -1,10 +1,10 @@
 """Device verification using SHA256 checksums."""
 
-import os
 import re
 import shutil
 import subprocess
 import time
+from pathlib import Path
 from typing import Any, Optional, Union
 
 from rpi_usb_cloner.logging import get_logger
@@ -98,8 +98,8 @@ def verify_clone(
     """
     source_node = resolve_device_node(source)
     target_node = resolve_device_node(target)
-    source_name = os.path.basename(source_node)
-    target_name = os.path.basename(target_node)
+    source_name = Path(source_node).name
+    target_name = Path(target_node).name
     source_device = get_device_by_name(source_name) or (
         source if isinstance(source, dict) else None
     )

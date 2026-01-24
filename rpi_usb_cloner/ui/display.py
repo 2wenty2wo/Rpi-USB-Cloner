@@ -221,7 +221,7 @@ def capture_screenshot() -> Optional[Path]:
             resolved_dir = base_dir / resolved_dir.name
         resolved_dir.mkdir(parents=True, exist_ok=True)
         try:
-            os.chmod(resolved_dir, 0o775)
+            resolved_dir.chmod(0o775)
         except (PermissionError, OSError) as error:
             if _log_debug:
                 _log_debug(f"Screenshot dir permissions unchanged: {error}")
@@ -292,7 +292,7 @@ def init_display() -> DisplayContext:
         "footer": fontcopy,
     }
 
-    context = DisplayContext(
+    return DisplayContext(
         disp=disp,
         draw=draw,
         image=image,
@@ -307,7 +307,6 @@ def init_display() -> DisplayContext:
         fontdisks=fontdisks,
         fontmain=fontmain,
     )
-    return context
 
 
 def display_lines(lines, font=None):
@@ -450,7 +449,7 @@ def draw_title_with_icon(
         if icon.endswith(".png"):
             is_image_icon = True
             try:
-                icon_path = Path(icon) if os.path.isabs(icon) else ASSETS_DIR / icon
+                icon_path = Path(icon) if Path(icon).is_absolute() else ASSETS_DIR / icon
                 icon_image = Image.open(icon_path).convert("1")
                 icon_width = icon_image.width
                 icon_ascent = icon_image.height

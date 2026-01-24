@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from PIL import Image
 
@@ -13,7 +12,7 @@ def render_slide_transition(
     to_image: Image.Image,
     direction: str,
     frame_count: int,
-    dirty_region: Optional[tuple[int, int, int, int]] = None,
+    dirty_region: tuple[int, int, int, int] | None = None,
     frame_delay: float = 0.04,
 ) -> None:
     """Render a horizontal slide transition between two images.

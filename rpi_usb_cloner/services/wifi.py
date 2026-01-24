@@ -5,16 +5,14 @@ import subprocess
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Iterable, List, Optional, Sequence
+from typing import Callable, Iterable, Sequence
 
 from rpi_usb_cloner.logging import get_logger
 
 
 _log_debug: Callable[[str], None]
-_error_handler: Optional[Callable[[Iterable[str]], None]]
-_command_runner: Optional[
-    Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]]
-]
+_error_handler: Callable[[Iterable[str]], None] | None
+_command_runner: Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None
 
 
 def _noop_logger(message: str) -> None:
@@ -26,15 +24,13 @@ _error_handler = None
 _command_runner = None
 _STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
 _STATUS_CACHE_LOCK = threading.Lock()
-_STATUS_CACHE_TIME: Optional[float] = None
+_STATUS_CACHE_TIME: float | None = None
 
 
 def configure_wifi_helpers(
-    log_debug: Optional[Callable[[str], None]] = None,
-    error_handler: Optional[Callable[[Iterable[str]], None]] = None,
-    command_runner: Optional[
-        Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]]
-    ] = None,
+    log_debug: Callable[[str], None] | None = None,
+    error_handler: Callable[[Iterable[str]], None] | None = None,
+    command_runner: Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None = None,
 ) -> None:
     global _log_debug, _error_handler, _command_runner
     _log_debug = log_debug or _noop_logger
@@ -49,7 +45,7 @@ def _default_runner(
 
 
 def _format_command(
-    command: Sequence[str], redactions: Optional[Iterable[int]] = None
+    command: Sequence[str], redactions: Iterable[int] | None = None
 ) -> str:
     if not redactions:
         return " ".join(command)
@@ -79,9 +75,9 @@ def _nmcli_unescape(value: str) -> str:
     return "".join(unescaped)
 
 
-def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> List[str]:
-    parts: List[str] = []
-    current: List[str] = []
+def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
     index = 0
     splits = 0
     while index < len(line):
@@ -106,7 +102,7 @@ def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> Lis
 def _run_command(
     command: Sequence[str],
     check: bool = True,
-    redactions: Optional[Iterable[int]] = None,
+    redactions: Iterable[int] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     runner = _command_runner or _default_runner
     command_display = _format_command(command, redactions)
@@ -134,8 +130,8 @@ def _notify_error(message: str) -> None:
         _error_handler(["WIFI ERROR", message])
 
 
-def list_wifi_interfaces() -> List[str]:
-    interfaces: List[str] = []
+def list_wifi_interfaces() -> list[str]:
+    interfaces: list[str] = []
     try:
         result = _run_command(["iw", "dev"])
         for line in result.stdout.splitlines():
@@ -165,7 +161,7 @@ def list_wifi_interfaces() -> List[str]:
     return interfaces
 
 
-def _select_active_interface() -> Optional[str]:
+def _select_active_interface() -> str | None:
     interfaces = list_wifi_interfaces()
     if not interfaces:
         return None
@@ -190,12 +186,12 @@ def _select_active_interface() -> Optional[str]:
 @dataclass(frozen=True)
 class WifiNetwork:
     ssid: str
-    signal: Optional[int]
+    signal: int | None
     secured: bool
     in_use: bool
 
 
-def list_networks() -> List[WifiNetwork]:
+def list_networks() -> list[WifiNetwork]:
     interface = _select_active_interface()
     if not interface:
         return []
@@ -214,7 +210,7 @@ def list_networks() -> List[WifiNetwork]:
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
             _log_debug(f"ip link set up failed: {error}")
 
-    def _parse_signal_line(value: str) -> Optional[int]:
+    def _parse_signal_line(value: str) -> int | None:
         match = re.search(r"(-?\d+(?:\.\d+)?)", value)
         if not match:
             return None
@@ -227,7 +223,7 @@ def list_networks() -> List[WifiNetwork]:
             return max(0, min(100, normalized))
         return signal_value
 
-    def _parse_quality_value(value: str) -> Optional[int]:
+    def _parse_quality_value(value: str) -> int | None:
         match = re.search(r"(\d+)\s*/\s*(\d+)", value)
         if not match:
             return None
@@ -240,10 +236,10 @@ def list_networks() -> List[WifiNetwork]:
             return None
         return int(round((current / total) * 100))
 
-    def _parse_iw_scan(output: str) -> List[WifiNetwork]:
-        networks: List[WifiNetwork] = []
-        current_ssid: Optional[str] = None
-        current_signal: Optional[int] = None
+    def _parse_iw_scan(output: str) -> list[WifiNetwork]:
+        networks: list[WifiNetwork] = []
+        current_ssid: str | None = None
+        current_signal: int | None = None
         current_secured = False
 
         def _flush_current() -> None:
@@ -272,7 +268,7 @@ def list_networks() -> List[WifiNetwork]:
             if line.startswith("signal:"):
                 current_signal = _parse_signal_line(line)
                 continue
-            if line.startswith("RSN:") or line.startswith("WPA:"):
+            if line.startswith(("RSN:", "WPA:")):
                 current_secured = True
                 continue
             if line.startswith("capability:") and "Privacy" in line:
@@ -282,10 +278,10 @@ def list_networks() -> List[WifiNetwork]:
         _flush_current()
         return networks
 
-    def _parse_iwlist_scan(output: str) -> List[WifiNetwork]:
-        networks: List[WifiNetwork] = []
-        current_ssid: Optional[str] = None
-        current_signal: Optional[int] = None
+    def _parse_iwlist_scan(output: str) -> list[WifiNetwork]:
+        networks: list[WifiNetwork] = []
+        current_ssid: str | None = None
+        current_signal: int | None = None
         current_secured = False
 
         def _flush_current() -> None:
@@ -333,7 +329,7 @@ def list_networks() -> List[WifiNetwork]:
         _flush_current()
         return networks
 
-    def _scan_with_iw() -> List[WifiNetwork]:
+    def _scan_with_iw() -> list[WifiNetwork]:
         iw_command = ["iw", "dev", interface, "scan"]
         iw_command_display = _format_command(iw_command)
         try:
@@ -404,7 +400,7 @@ def list_networks() -> List[WifiNetwork]:
         if not result.stdout.strip():
             _log_debug("nmcli stdout empty or whitespace-only; nmcli returned no APs.")
 
-        networks: List[WifiNetwork] = []
+        networks: list[WifiNetwork] = []
         non_empty_ssid = False
         for line in result.stdout.splitlines():
             if not line:
@@ -437,7 +433,7 @@ def list_networks() -> List[WifiNetwork]:
     return _scan_with_iw()
 
 
-def get_active_ssid(interface: Optional[str] = None) -> Optional[str]:
+def get_active_ssid(interface: str | None = None) -> str | None:
     if interface is None:
         interface = _select_active_interface()
     if not interface:
@@ -480,7 +476,7 @@ def is_connected() -> bool:
     return bool(get_active_ssid())
 
 
-def connect(ssid: str, password: Optional[str] = None) -> bool:
+def connect(ssid: str, password: str | None = None) -> bool:
     interface = _select_active_interface()
     if not interface:
         return False
@@ -575,7 +571,7 @@ def disconnect() -> bool:
     return True
 
 
-def get_ip_address() -> Optional[str]:
+def get_ip_address() -> str | None:
     interface = _select_active_interface()
     if not interface:
         return None

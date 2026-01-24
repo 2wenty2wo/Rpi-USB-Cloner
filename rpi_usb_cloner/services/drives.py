@@ -69,7 +69,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Set
 
 from rpi_usb_cloner.domain import Drive
 from rpi_usb_cloner.logging import get_logger
@@ -82,22 +81,22 @@ log = get_logger(source=__name__)
 
 
 # Cache for repo device names to avoid expensive scanning on every menu render
-_repo_device_cache: Optional[Set[str]] = None
+_repo_device_cache: set[str] | None = None
 
 # Startup time tracking to avoid caching empty results before partitions mount
-_startup_time: Optional[float] = None
+_startup_time: float | None = None
 _STARTUP_GRACE_PERIOD = 3.0  # Don't cache empty results for 3 seconds after startup
 
 
 @dataclass
 class DriveSnapshot:
-    discovered: List[str]
-    active: Optional[str]
+    discovered: list[str]
+    active: str | None
 
 
-def _collect_mountpoints(device: dict) -> Set[str]:
+def _collect_mountpoints(device: dict) -> set[str]:
     """Collect all mountpoints for a device and its partitions."""
-    mountpoints: Set[str] = set()
+    mountpoints: set[str] = set()
     stack = [device]
     while stack:
         current = stack.pop()
@@ -124,7 +123,7 @@ def invalidate_repo_cache() -> None:
     _repo_device_cache = None
 
 
-def _get_repo_device_names() -> Set[str]:
+def _get_repo_device_names() -> set[str]:
     """Get the set of device names that are repo drives.
 
     This function caches results to avoid expensive partition scanning on every
@@ -170,7 +169,7 @@ def _get_repo_device_names() -> Set[str]:
         log.debug(f"No repos found (after {elapsed:.1f}s), caching empty set")
         return _repo_device_cache
 
-    repo_devices: Set[str] = set()
+    repo_devices: set[str] = set()
     usb_devices = list_usb_disks()
     repo_paths = [repo.path.resolve(strict=False) for repo in repos]
     log.debug(f"Checking {len(usb_devices)} USB device(s) against repo paths")
@@ -196,7 +195,7 @@ def _get_repo_device_names() -> Set[str]:
     return repo_devices
 
 
-def list_media_drives() -> List[Drive]:
+def list_media_drives() -> list[Drive]:
     """List media drives as domain objects, excluding repo drives.
 
     Returns type-safe Drive objects instead of raw dicts. This is the
@@ -220,7 +219,7 @@ def list_media_drives() -> List[Drive]:
     return drives
 
 
-def list_media_drive_names() -> List[str]:
+def list_media_drive_names() -> list[str]:
     """List media drive names, excluding repo drives.
 
     Note: For new code, prefer list_media_drives() which returns
@@ -229,7 +228,7 @@ def list_media_drive_names() -> List[str]:
     return [drive.name for drive in list_media_drives()]
 
 
-def list_media_drive_labels() -> List[str]:
+def list_media_drive_labels() -> list[str]:
     """List media drive labels, excluding repo drives.
 
     Note: For new code, prefer list_media_drives() which returns
@@ -238,7 +237,7 @@ def list_media_drive_labels() -> List[str]:
     return [drive.format_label() for drive in list_media_drives()]
 
 
-def list_usb_disk_names() -> List[str]:
+def list_usb_disk_names() -> list[str]:
     """List USB disk names, excluding repo drives."""
     repo_devices = _get_repo_device_names()
     return [
@@ -248,12 +247,12 @@ def list_usb_disk_names() -> List[str]:
     ]
 
 
-def list_raw_usb_disk_names() -> List[str]:
+def list_raw_usb_disk_names() -> list[str]:
     """List USB disk names without filtering repo drives."""
     return [device.get("name") for device in list_usb_disks() if device.get("name")]
 
 
-def list_usb_disk_labels() -> List[str]:
+def list_usb_disk_labels() -> list[str]:
     """List USB disk labels, excluding repo drives."""
     repo_devices = _get_repo_device_names()
     return [
@@ -263,7 +262,7 @@ def list_usb_disk_labels() -> List[str]:
     ]
 
 
-def list_usb_disks_filtered() -> List[dict]:
+def list_usb_disks_filtered() -> list[dict]:
     """List USB disks, excluding repo drives.
 
     Returns the full device dictionaries (like list_usb_disks) but filters
@@ -275,16 +274,16 @@ def list_usb_disks_filtered() -> List[dict]:
     ]
 
 
-def refresh_drives(active_drive: Optional[str]) -> DriveSnapshot:
+def refresh_drives(active_drive: str | None) -> DriveSnapshot:
     discovered = list_media_drive_names()
     active = active_drive if active_drive in discovered else None
     return DriveSnapshot(discovered=discovered, active=active)
 
 
 def select_active_drive(
-    discovered: List[str],
+    discovered: list[str],
     selected_index: int,
-) -> Optional[str]:
+) -> str | None:
     if not discovered:
         return None
     if selected_index < 0:
@@ -294,7 +293,7 @@ def select_active_drive(
     return discovered[selected_index]
 
 
-def get_active_drive_label(active_drive: Optional[str]) -> Optional[str]:
+def get_active_drive_label(active_drive: str | None) -> str | None:
     if not active_drive:
         return None
     # Don't show label for repo drives

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.app.context import AppContext
 
@@ -14,11 +14,11 @@ class ActionContext:
     clone_mode: str
     state: object
     log_debug: Callable[[str], None]
-    get_selected_usb_name: Callable[[], Optional[str]]
+    get_selected_usb_name: Callable[[], str | None]
     show_drive_info: Callable[[], None]
 
 
-_ACTION_CONTEXT: Optional[ActionContext] = None
+_ACTION_CONTEXT: ActionContext | None = None
 
 
 def set_action_context(context: ActionContext) -> None:
@@ -33,10 +33,16 @@ def get_action_context() -> ActionContext:
     return _ACTION_CONTEXT
 
 
-# Import all action modules
-from .drives import copy_drive, drive_info, erase_drive, format_drive, unmount_drive
-from .images import backup_image, images_coming_soon, write_image
-from .settings import (
+# Import all action modules after context setup to avoid circular dependencies.
+from .drives import (  # noqa: E402
+    copy_drive,
+    drive_info,
+    erase_drive,
+    format_drive,
+    unmount_drive,
+)
+from .images import backup_image, images_coming_soon, write_image  # noqa: E402
+from .settings import (  # noqa: E402
     demo_confirmation_screen,
     demo_info_screen,
     demo_progress_screen,
@@ -62,11 +68,12 @@ from .settings import (
     update_version,
     wifi_settings,
 )
-from .tools import file_browser, tools_coming_soon, view_logs
+from .tools import file_browser, tools_coming_soon, view_logs  # noqa: E402
 
 
 # Common utility (used by all action modules)
-noop = lambda: None
+def noop():
+    return None
 
 # Export all public items
 __all__ = [

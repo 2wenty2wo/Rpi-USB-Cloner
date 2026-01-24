@@ -4,8 +4,14 @@ Pytest configuration and shared fixtures for rpi-usb-cloner tests.
 This module provides common fixtures and utilities used across all test modules.
 """
 
+import json
+import subprocess
 import sys
-from unittest.mock import MagicMock
+from pathlib import Path
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 
 # Mock hardware dependencies before other imports
@@ -19,14 +25,6 @@ sys.modules["luma.core.interface.serial"] = MagicMock()
 sys.modules["luma.core.render"] = MagicMock()
 sys.modules["luma.oled"] = MagicMock()
 sys.modules["luma.oled.device"] = MagicMock()
-
-import json
-import subprocess
-from pathlib import Path
-from typing import Any, Dict, List
-from unittest.mock import Mock
-
-import pytest
 
 
 # ==============================================================================

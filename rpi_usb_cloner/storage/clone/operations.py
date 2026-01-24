@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from pathlib import Path
 from typing import Any, Optional, Union
 
 from rpi_usb_cloner.domain import CloneJob
@@ -113,8 +114,8 @@ def clone_partclone(
     }
     source_node = resolve_device_node(source)
     target_node = resolve_device_node(target)
-    source_name = os.path.basename(source_node)
-    target_name = os.path.basename(target_node)
+    source_name = Path(source_node).name
+    target_name = Path(target_node).name
     source_device = get_device_by_name(source_name) or (
         source if isinstance(source, dict) else None
     )
@@ -383,8 +384,6 @@ def clone_device_v2(job: CloneJob) -> bool:
 
     # Convert Drive objects to device paths (for backward compat with old API)
     # Note: clone_device still uses dicts, but we pass device paths which it accepts
-    source_path = job.source.device_path
-    destination_path = job.destination.device_path
     mode = job.mode.value
 
     # Get device dicts for the existing API (it expects dicts)

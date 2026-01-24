@@ -373,8 +373,6 @@ def _render_keyboard(
                 cursor_x += inter_group_gap
         total_mode_width = cursor_x - attempt_gap if mode_positions else 0
         if total_mode_width <= strip_width:
-            mode_padding = attempt_padding
-            mode_gap = attempt_gap
             break
     mode_left = strip_left
     mode_top = current_y
@@ -462,11 +460,14 @@ def prompt_text(
                 selected_band = "chars"
             last_press_time["U"] = now
             last_repeat_time["U"] = now
-        elif current_u and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["U"] >= REPEAT_INTERVAL:
-                if selected_band == "modes":
-                    selected_band = "chars"
-                    last_repeat_time["U"] = now
+        elif (
+            current_u
+            and now - last_press_time["U"] >= INITIAL_REPEAT_DELAY
+            and now - last_repeat_time["U"] >= REPEAT_INTERVAL
+            and selected_band == "modes"
+        ):
+            selected_band = "chars"
+            last_repeat_time["U"] = now
         current_d = is_pressed(PIN_D)
         if not prev_states["D"] and current_d:
             if selected_band == "chars":
@@ -474,12 +475,15 @@ def prompt_text(
                 mode_index = mode_items.index(layout_mode)
             last_press_time["D"] = now
             last_repeat_time["D"] = now
-        elif current_d and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY:
-            if now - last_repeat_time["D"] >= REPEAT_INTERVAL:
-                if selected_band == "chars":
-                    selected_band = "modes"
-                    mode_index = mode_items.index(layout_mode)
-                    last_repeat_time["D"] = now
+        elif (
+            current_d
+            and now - last_press_time["D"] >= INITIAL_REPEAT_DELAY
+            and now - last_repeat_time["D"] >= REPEAT_INTERVAL
+            and selected_band == "chars"
+        ):
+            selected_band = "modes"
+            mode_index = mode_items.index(layout_mode)
+            last_repeat_time["D"] = now
         current_l = is_pressed(PIN_L)
         if not prev_states["L"] and current_l:
             if selected_band == "modes":
