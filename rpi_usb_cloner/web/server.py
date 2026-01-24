@@ -525,6 +525,7 @@ def stop_server(timeout: float = 5.0, log_debug=None) -> bool:
 def start_server(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
+    log_debug=None,
     app_context: AppContext | None = None,
 ):
     global _current_handle
