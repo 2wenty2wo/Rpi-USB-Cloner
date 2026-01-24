@@ -21,6 +21,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "screensaver_gif": None,
     "restore_partition_mode": "k0",
     "scroll_refresh_interval": 0.04,
+    "transition_frame_count": 3,
+    "transition_frame_delay": 0.005,
     "verify_image_hash_timeout_seconds": None,
     "verify_partition_hash_timeout_seconds": None,
     "screenshots_enabled": False,
