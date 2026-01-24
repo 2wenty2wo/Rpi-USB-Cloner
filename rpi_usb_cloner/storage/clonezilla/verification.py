@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.storage import devices
@@ -93,7 +93,7 @@ def compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
     timeout = get_verify_hash_timeout("verify_image_hash_timeout_seconds")
     try:
         sha_out, sha_err = sha_proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as err:
         sha_proc.kill()
         if decompress_proc:
             decompress_proc.kill()
@@ -102,7 +102,9 @@ def compute_image_sha256(image_files: list[Path], compressed: bool) -> str:
         if decompress_proc:
             decompress_proc.wait()
         cat_proc.wait()
-        raise RuntimeError(f"Image hash computation timed out after {timeout} seconds")
+        raise RuntimeError(
+            f"Image hash computation timed out after {timeout} seconds"
+        ) from err
 
     # Wait for all processes
     cat_proc.wait()
@@ -149,14 +151,14 @@ def compute_partition_sha256(partition_path: str) -> str:
     timeout = get_verify_hash_timeout("verify_partition_hash_timeout_seconds")
     try:
         sha_out, sha_err = sha_proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as err:
         sha_proc.kill()
         dd_proc.kill()
         sha_proc.wait()
         dd_proc.wait()
         raise RuntimeError(
             f"Partition hash computation timed out after {timeout} seconds"
-        )
+        ) from err
 
     dd_proc.wait()
 
@@ -176,7 +178,7 @@ def verify_restored_image(
     plan: RestorePlan,
     target_device: str,
     *,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> bool:
     """Verify that restored partitions match the source image using SHA256 checksums.
 

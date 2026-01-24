@@ -4,7 +4,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Callable, Iterable, Optional, Set
+from typing import Callable, Iterable
 from uuid import uuid4
 
 from rpi_usb_cloner.app import state as app_state
@@ -29,8 +29,8 @@ def copy_drive(
     *,
     state: app_state.AppState,
     clone_mode: str,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     source, target = _pick_source_target(get_selected_usb_name)
     if not source or not target:
@@ -65,8 +65,8 @@ def copy_drive(
     }
     try:
         while True:
-            current_R = gpio.is_pressed(gpio.PIN_R)
-            if prev_states["R"] and not current_R:
+            current_r = gpio.is_pressed(gpio.PIN_R)
+            if prev_states["R"] and not current_r:
                 if confirm_selection == app_state.CONFIRM_NO:
                     confirm_selection = app_state.CONFIRM_YES
                     _log_debug(log_debug, "Copy menu selection changed: YES")
@@ -76,19 +76,18 @@ def copy_drive(
                     _log_debug(log_debug, "Copy menu selection changed: YES")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
-            current_L = gpio.is_pressed(gpio.PIN_L)
-            if prev_states["L"] and not current_L:
-                if confirm_selection == app_state.CONFIRM_YES:
-                    confirm_selection = app_state.CONFIRM_NO
-                    _log_debug(log_debug, "Copy menu selection changed: NO")
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-            current_A = gpio.is_pressed(gpio.PIN_A)
-            if prev_states["A"] and not current_A:
+            current_l = gpio.is_pressed(gpio.PIN_L)
+            if prev_states["L"] and not current_l and confirm_selection == app_state.CONFIRM_YES:
+                confirm_selection = app_state.CONFIRM_NO
+                _log_debug(log_debug, "Copy menu selection changed: NO")
+                state.lcdstart = datetime.now()
+                state.run_once = 0
+            current_a = gpio.is_pressed(gpio.PIN_A)
+            if prev_states["A"] and not current_a:
                 _log_debug(log_debug, "Copy menu: Button A pressed")
                 return
-            current_B = gpio.is_pressed(gpio.PIN_B)
-            if prev_states["B"] and not current_B:
+            current_b = gpio.is_pressed(gpio.PIN_B)
+            if prev_states["B"] and not current_b:
                 _log_debug(log_debug, "Copy menu: Button B pressed")
                 if confirm_selection == app_state.CONFIRM_YES:
                     screens.render_status_template(
@@ -135,8 +134,8 @@ def copy_drive(
                     return
                 if confirm_selection == app_state.CONFIRM_NO:
                     return
-            current_C = gpio.is_pressed(gpio.PIN_C)
-            if prev_states["C"] and not current_C:
+            current_c = gpio.is_pressed(gpio.PIN_C)
+            if prev_states["C"] and not current_c:
                 _log_debug(log_debug, "Copy menu: Button C pressed")
                 if _handle_screenshot():
                     screens.render_confirmation_screen(
@@ -144,11 +143,11 @@ def copy_drive(
                         [prompt],
                         selected_index=confirm_selection,
                     )
-            prev_states["R"] = current_R
-            prev_states["L"] = current_L
-            prev_states["B"] = current_B
-            prev_states["A"] = current_A
-            prev_states["C"] = current_C
+            prev_states["R"] = current_r
+            prev_states["L"] = current_l
+            prev_states["B"] = current_b
+            prev_states["A"] = current_a
+            prev_states["C"] = current_c
             screens.render_confirmation_screen(
                 title,
                 [prompt],
@@ -161,8 +160,8 @@ def copy_drive(
 def drive_info(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     page_index = 0
     total_pages, page_index = _view_devices(
@@ -219,13 +218,12 @@ def drive_info(
                 page_index=page_index,
             )
         current_c = gpio.is_pressed(gpio.PIN_C)
-        if prev_states["C"] and not current_c:
-            if _handle_screenshot():
-                total_pages, page_index = _view_devices(
-                    log_debug=log_debug,
-                    get_selected_usb_name=get_selected_usb_name,
-                    page_index=page_index,
-                )
+        if prev_states["C"] and not current_c and _handle_screenshot():
+            total_pages, page_index = _view_devices(
+                log_debug=log_debug,
+                get_selected_usb_name=get_selected_usb_name,
+                page_index=page_index,
+            )
         current_selected_name = get_selected_usb_name()
         if current_selected_name != last_selected_name:
             page_index = 0
@@ -247,8 +245,8 @@ def drive_info(
 def erase_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     repo_devices = drives._get_repo_device_names()
     target_devices = [
@@ -297,9 +295,9 @@ def erase_drive(
     error_holder: dict[str, Exception] = {}
     progress_lock = threading.Lock()
     progress_lines = ["Preparing..."]
-    progress_ratio: Optional[float] = 0.0
+    progress_ratio: float | None = 0.0
 
-    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+    def update_progress(lines: list[str], ratio: float | None) -> None:
         nonlocal progress_lines, progress_ratio
         clamped = None
         if ratio is not None:
@@ -309,7 +307,7 @@ def erase_drive(
             if clamped is not None:
                 progress_ratio = clamped
 
-    def current_progress() -> tuple[list[str], Optional[float]]:
+    def current_progress() -> tuple[list[str], float | None]:
         with progress_lock:
             return list(progress_lines), progress_ratio
 
@@ -358,9 +356,9 @@ def erase_drive(
     time.sleep(1)
 
 
-def _collect_mountpoints(device: dict) -> Set[str]:
+def _collect_mountpoints(device: dict) -> set[str]:
     """Collect all mountpoints for a device and its partitions."""
-    mountpoints: Set[str] = set()
+    mountpoints: set[str] = set()
     stack = [device]
     while stack:
         current = stack.pop()
@@ -372,8 +370,8 @@ def _collect_mountpoints(device: dict) -> Set[str]:
 
 
 def _pick_source_target(
-    get_selected_usb_name: Callable[[], Optional[str]],
-) -> tuple[Optional[dict], Optional[dict]]:
+    get_selected_usb_name: Callable[[], str | None],
+) -> tuple[dict | None, dict | None]:
     repo_devices = drives._get_repo_device_names()
     devices_list = [
         device
@@ -415,7 +413,7 @@ def _ensure_root_for_erase() -> bool:
 def _confirm_destructive_action(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
+    log_debug: Callable[[str], None] | None,
     prompt_lines: Iterable[str],
 ) -> bool:
     title = "DATA LOSS"
@@ -467,7 +465,7 @@ def _confirm_destructive_action(
 def _render_disk_usage_page(
     device: dict,
     *,
-    log_debug: Optional[Callable[[str], None]],
+    log_debug: Callable[[str], None] | None,
     page_index: int,
     total_pages: int,
 ) -> None:
@@ -718,7 +716,7 @@ def _render_drive_metadata_page(
 def _render_partition_info_page(
     device: dict,
     *,
-    log_debug: Optional[Callable[[str], None]],
+    log_debug: Callable[[str], None] | None,
     partition_page_index: int,
     page_index: int,
     total_pages: int,
@@ -803,8 +801,8 @@ def _draw_page_indicator(context, page_index: int, total_pages: int, font) -> No
 
 def _view_devices(
     *,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
     page_index: int,
 ) -> tuple[int, int]:
     selected_name = get_selected_usb_name()
@@ -889,8 +887,8 @@ def _view_devices(
 def format_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Format a USB drive with user-selected filesystem."""
     from rpi_usb_cloner.storage.format import format_device
@@ -1022,9 +1020,9 @@ def format_drive(
     error_holder: dict[str, Exception] = {}
     progress_lock = threading.Lock()
     progress_lines = ["Preparing..."]
-    progress_ratio: Optional[float] = 0.0
+    progress_ratio: float | None = 0.0
 
-    def update_progress(lines: list[str], ratio: Optional[float]) -> None:
+    def update_progress(lines: list[str], ratio: float | None) -> None:
         nonlocal progress_lines, progress_ratio
         clamped = None
         if ratio is not None:
@@ -1034,7 +1032,7 @@ def format_drive(
             if clamped is not None:
                 progress_ratio = clamped
 
-    def current_progress() -> tuple[list[str], Optional[float]]:
+    def current_progress() -> tuple[list[str], float | None]:
         with progress_lock:
             return list(progress_lines), progress_ratio
 
@@ -1094,8 +1092,8 @@ def format_drive(
 def unmount_drive(
     *,
     state: app_state.AppState,
-    log_debug: Optional[Callable[[str], None]],
-    get_selected_usb_name: Callable[[], Optional[str]],
+    log_debug: Callable[[str], None] | None,
+    get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Unmount a USB drive and optionally power it off."""
     from rpi_usb_cloner.storage.devices import (
@@ -1241,7 +1239,7 @@ def unmount_drive(
         time.sleep(1)
 
 
-def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None:
+def _log_debug(log_debug: Callable[[str], None] | None, message: str) -> None:
     if log_debug:
         log_debug(message)
 

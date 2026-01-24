@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import clone, devices
@@ -33,15 +33,14 @@ from .partition_table import (
 log = get_logger(source=__name__)
 
 
-def get_blockdev_size_bytes(device_node: str) -> Optional[int]:
+def get_blockdev_size_bytes(device_node: str) -> int | None:
     """Get device size using blockdev command."""
     blockdev = shutil.which("blockdev")
     if not blockdev:
         return None
     result = subprocess.run(
         [blockdev, "--getsize64", device_node],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if result.returncode != 0:
@@ -53,8 +52,8 @@ def get_blockdev_size_bytes(device_node: str) -> Optional[int]:
 
 
 def get_device_size_bytes(
-    target_info: Optional[dict], target_node: str
-) -> Optional[int]:
+    target_info: dict | None, target_node: str
+) -> int | None:
     """Get device size from device info or blockdev."""
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))
@@ -116,11 +115,11 @@ def wait_for_target_partitions(
     *,
     timeout_seconds: int,
     poll_interval: float = 1.0,
-) -> tuple[dict, dict[str, Optional[dict[str, Optional[int]]]]]:
+) -> tuple[dict, dict[str, dict[str, int | None] | None]]:
     """Wait for specific partitions to appear after partition table update."""
     deadline = time.monotonic() + timeout_seconds
     last_info = None
-    last_mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
+    last_mapping: dict[str, dict[str, int | None] | None] = {}
     while time.monotonic() < deadline:
         last_info = devices.get_device_by_name(target_name)
         if last_info:
@@ -141,14 +140,14 @@ def wait_for_target_partitions(
 def map_target_partitions(
     parts: Iterable[str],
     target_device: dict,
-) -> dict[str, Optional[dict[str, Optional[int]]]]:
+) -> dict[str, dict[str, int | None] | None]:
     """Map source partition names to target partition info."""
     target_children = [
         child
         for child in devices.get_children(target_device)
         if child.get("type") == "part"
     ]
-    target_by_number: dict[int, dict[str, Optional[int]]] = {}
+    target_by_number: dict[int, dict[str, int | None]] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
         if number is None:
@@ -160,7 +159,7 @@ def map_target_partitions(
         else:
             size_bytes = int(size_bytes)
         target_by_number[number] = {"node": node, "size_bytes": size_bytes}
-    mapping: dict[str, Optional[dict[str, Optional[int]]]] = {}
+    mapping: dict[str, dict[str, int | None] | None] = {}
     for part_name in parts:
         number = get_partition_number(part_name)
         if number is None:
@@ -194,8 +193,7 @@ def write_partition_table(table_path: Path, target_node: str) -> None:
             [sfdisk, "--force", target_node],
             input=contents,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         if result.returncode != 0:
             message = result.stderr.strip() or result.stdout.strip() or "sfdisk failed"
@@ -207,8 +205,7 @@ def write_partition_table(table_path: Path, target_node: str) -> None:
             raise RuntimeError("sgdisk not found")
         result = subprocess.run(
             [sgdisk, f"--load-backup={table_path}", target_node],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         if result.returncode != 0:
@@ -239,9 +236,9 @@ def run_restore_pipeline(
     restore_command: list[str],
     *,
     title: str,
-    total_bytes: Optional[int] = None,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
-    subtitle: Optional[str] = None,
+    total_bytes: int | None = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
+    subtitle: str | None = None,
 ) -> None:
     """Execute the restoration pipeline with decompression and progress tracking."""
     if not image_files:
@@ -275,7 +272,7 @@ def run_restore_pipeline(
         upstream = decompress_proc.stdout
     if upstream is None:
         raise RuntimeError("Restore pipeline failed")
-    error: Optional[Exception] = None
+    error: Exception | None = None
     try:
         clone.run_checked_with_streaming_progress(
             restore_command,
@@ -308,9 +305,9 @@ def restore_partition_op(
     target_part: str,
     *,
     title: str,
-    total_bytes: Optional[int] = None,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
-    subtitle: Optional[str] = None,
+    total_bytes: int | None = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
+    subtitle: str | None = None,
 ) -> None:
     """Restore a single partition from a restore operation."""
     restore_command = build_restore_command_from_plan(op, target_part)
@@ -328,7 +325,7 @@ def restore_image(
     image: ClonezillaImage,
     target_device: dict,
     *,
-    progress_callback: Optional[Callable[[str], None]] = None,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> None:
     """Restore a Clonezilla image to a target device (legacy API)."""
     if os.geteuid() != 0:
@@ -411,7 +408,7 @@ def restore_clonezilla_image(
     target_device: str,
     *,
     partition_mode: str = "k0",
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> None:
     """Restore a Clonezilla image to a target device.
 
@@ -432,9 +429,8 @@ def restore_clonezilla_image(
     target_node = resolve_device_node(target_device)
     target_name = Path(target_node).name
     target_info = devices.get_device_by_name(target_name)
-    if target_info:
-        if not devices.unmount_device(target_info):
-            raise RuntimeError("Failed to unmount target device before restore")
+    if target_info and not devices.unmount_device(target_info):
+        raise RuntimeError("Failed to unmount target device before restore")
 
     emit_prewrite_progress("Checking target size")
     required_size = estimate_required_size_bytes(
@@ -544,7 +540,7 @@ def restore_clonezilla_image(
 
         # Get partition device info for better display
         part_node = target_part["node"]
-        part_name = os.path.basename(part_node)
+        part_name = Path(part_node).name
         part_device = devices.get_device_by_name(part_name)
 
         # Build friendly display information

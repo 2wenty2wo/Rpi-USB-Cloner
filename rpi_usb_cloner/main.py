@@ -367,9 +367,9 @@ def main(argv: Optional[list[str]] = None) -> None:
         menu_actions,
     )
 
-    INPUT_POLL_INTERVAL = 0.02  # 20ms for snappier button response (50 checks/sec)
-    INITIAL_REPEAT_DELAY = 0.25
-    REPEAT_INTERVAL = 0.08
+    input_poll_interval = 0.02  # 20ms for snappier button response (50 checks/sec)
+    initial_repeat_delay = 0.25
+    repeat_interval = 0.08
 
     def show_drive_info() -> None:
         page_index = 0
@@ -465,7 +465,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             prev_states["R"] = current_r
             prev_states["U"] = current_u
             prev_states["D"] = current_d
-            time.sleep(INPUT_POLL_INTERVAL)
+            time.sleep(input_poll_interval)
 
     menu_actions.set_action_context(
         menu_actions.ActionContext(
@@ -728,7 +728,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     if not screensaver_ran:
                         display.clear_display()
                         while not any_button_pressed():
-                            time.sleep(INPUT_POLL_INTERVAL)
+                            time.sleep(input_poll_interval)
                     state.lcdstart = datetime.now()
                     state.run_once = 0
                     prev_states = {
@@ -761,7 +761,15 @@ def main(argv: Optional[list[str]] = None) -> None:
                 current_screen, status_line
             )
 
-            def handle_repeat_button(key: str, direction: int) -> None:
+            def handle_repeat_button(
+                key: str,
+                direction: int,
+                *,
+                current_states=current_states,
+                prev_states=prev_states,
+                dynamic_visible_rows=dynamic_visible_rows,
+                now=now,
+            ) -> None:
                 nonlocal button_pressed, render_requested
                 is_pressed = current_states[key]
                 was_pressed = prev_states[key]
@@ -769,7 +777,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     menu_navigator.move_selection(direction, dynamic_visible_rows)
                     button_pressed = True
                     render_requested = True
-                    repeat_state[key]["next_repeat"] = now + INITIAL_REPEAT_DELAY
+                    repeat_state[key]["next_repeat"] = now + initial_repeat_delay
                     return
                 if (
                     is_pressed
@@ -779,7 +787,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     menu_navigator.move_selection(direction, dynamic_visible_rows)
                     button_pressed = True
                     render_requested = True
-                    repeat_state[key]["next_repeat"] = now + REPEAT_INTERVAL
+                    repeat_state[key]["next_repeat"] = now + repeat_interval
                     return
                 if not is_pressed:
                     repeat_state[key]["next_repeat"] = None
@@ -853,7 +861,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                 render_current_screen(force=force_render)
 
             # Sleep at end of loop to minimize latency for next button press
-            time.sleep(INPUT_POLL_INTERVAL)
+            time.sleep(input_poll_interval)
     except KeyboardInterrupt:
         pass
     except Exception as error:

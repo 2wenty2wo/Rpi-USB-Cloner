@@ -361,10 +361,13 @@ def select_list(
         now = time.monotonic()
         action_taken = False
         refresh_needed = False
-        if enable_scroll and screen_id == "images":
-            if now - last_scroll_render >= scroll_refresh_interval:
-                refresh_needed = True
-                last_scroll_render = now
+        if (
+            enable_scroll
+            and screen_id == "images"
+            and now - last_scroll_render >= scroll_refresh_interval
+        ):
+            refresh_needed = True
+            last_scroll_render = now
         if refresh_callback and now - last_refresh_time >= refresh_interval:
             new_items = refresh_callback()
             last_refresh_time = now

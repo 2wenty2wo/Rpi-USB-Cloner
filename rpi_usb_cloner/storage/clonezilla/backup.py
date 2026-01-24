@@ -13,7 +13,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices
@@ -42,9 +42,9 @@ class PartitionInfo:
 
     name: str  # e.g., "sda1"
     node: str  # e.g., "/dev/sda1"
-    fstype: Optional[str]  # e.g., "ext4", "vfat", None
+    fstype: str | None  # e.g., "ext4", "vfat", None
     size_bytes: int
-    used_bytes: Optional[int]  # None if can't determine
+    used_bytes: int | None  # None if can't determine
 
 
 def check_tool_available(tool: str) -> bool:
@@ -52,7 +52,7 @@ def check_tool_available(tool: str) -> bool:
     return shutil.which(tool) is not None
 
 
-def get_compression_tool(compression: str) -> tuple[Optional[str], Optional[list[str]]]:
+def get_compression_tool(compression: str) -> tuple[str | None, list[str] | None]:
     """Get the compression tool and arguments.
 
     Returns:
@@ -73,7 +73,7 @@ def get_compression_tool(compression: str) -> tuple[Optional[str], Optional[list
     raise ValueError(f"Unknown compression type: {compression}")
 
 
-def get_filesystem_type(partition_node: str) -> Optional[str]:
+def get_filesystem_type(partition_node: str) -> str | None:
     """Detect filesystem type of a partition.
 
     Returns:
@@ -110,8 +110,8 @@ def get_filesystem_type(partition_node: str) -> Optional[str]:
 
 
 def get_partition_used_space(
-    partition_node: str, fstype: Optional[str]
-) -> Optional[int]:
+    partition_node: str, fstype: str | None
+) -> int | None:
     """Get used space on a partition in bytes.
 
     Returns:
@@ -180,7 +180,7 @@ def get_partition_info(device_info: dict) -> list[PartitionInfo]:
 
 def estimate_backup_size(
     device_name: str,
-    partition_names: Optional[list[str]] = None,
+    partition_names: list[str] | None = None,
 ) -> int:
     """Estimate total backup size in bytes.
 
@@ -302,7 +302,7 @@ def save_partition_tables(device_node: str, device_name: str, output_dir: Path) 
         save_partition_table_sfdisk(device_node, output_dir / f"{device_name}-pt.sf")
     except Exception as e:
         log.error(f"Failed to save sfdisk partition table: {e}")
-        raise RuntimeError(f"Failed to save partition table: {e}")
+        raise RuntimeError(f"Failed to save partition table: {e}") from e
 
     # Save parted format (required)
     try:
@@ -339,7 +339,7 @@ def create_metadata_files(
     (output_dir / "disk").write_text(device_name + "\n")
 
 
-def parse_partclone_progress(line: str) -> Optional[dict]:
+def parse_partclone_progress(line: str) -> dict | None:
     """Parse partclone progress output.
 
     Partclone outputs progress to stderr in formats like:
@@ -366,7 +366,7 @@ def parse_partclone_progress(line: str) -> Optional[dict]:
     return None
 
 
-def parse_dd_progress(line: str) -> Optional[dict]:
+def parse_dd_progress(line: str) -> dict | None:
     """Parse dd progress output.
 
     DD outputs progress to stderr in format:
@@ -399,7 +399,7 @@ def backup_partition(
     output_dir: Path,
     compression: str = "gzip",
     split_size_mb: int = 4096,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> list[Path]:
     """Backup a single partition.
 
@@ -480,7 +480,6 @@ def backup_partition(
         output_files = []
 
         if split_size_mb > 0:
-            split_suffix = "."
             output_files_pattern = str(output_base) + "."
 
             split_proc = subprocess.Popen(
@@ -502,7 +501,6 @@ def backup_partition(
             output_files = [output_base]
 
         # Monitor progress
-        total_size = partition_info.size_bytes
         last_update = time.time()
 
         if use_partclone:
@@ -589,10 +587,10 @@ def backup_partition(
 def create_clonezilla_backup(
     source_device: str,
     output_dir: Path,
-    partitions: Optional[list[str]] = None,
+    partitions: list[str] | None = None,
     compression: str = "gzip",
     split_size_mb: int = 4096,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> BackupResult:
     """Create a Clonezilla-compatible backup image.
 
@@ -673,7 +671,11 @@ def create_clonezilla_backup(
             partition_weight = 1.0 / num_partitions
 
             def partition_progress_callback(
-                lines: list[str], ratio: Optional[float]
+                lines: list[str],
+                ratio: float | None,
+                *,
+                base_progress=base_progress,
+                partition_weight=partition_weight,
             ) -> None:
                 if progress_callback:
                     overall_ratio = base_progress
@@ -730,7 +732,7 @@ def cleanup_partial_backup(image_dir: Path) -> None:
 def verify_backup_image(
     source_device: str,
     image_dir: Path,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> bool:
     """Verify a backup image by comparing checksums.
 
@@ -754,13 +756,12 @@ def verify_backup_image(
         image = load_image(image_dir)
 
         # Verify (source device acts as the "target" in verification)
-        success = verify_restored_image(
+        return verify_restored_image(
             image,
             source_device,
             progress_callback=progress_callback,
         )
 
-        return success
 
     except Exception as e:
         log.error(f"Verification failed: {e}")

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 
-def extract_volume_suffix(path: Path) -> Optional[str]:
+def extract_volume_suffix(path: Path) -> str | None:
     """Extract the two-letter volume suffix from a file path (e.g., 'aa', 'ab')."""
     match = re.search(r"\.([a-z]{2})$", path.name)
     if not match:
@@ -15,7 +15,7 @@ def extract_volume_suffix(path: Path) -> Optional[str]:
     return match.group(1)
 
 
-def volume_suffix_index(suffix: Optional[str]) -> int:
+def volume_suffix_index(suffix: str | None) -> int:
     """Convert a two-letter suffix to a numeric index for sorting."""
     if not suffix:
         return -1
@@ -39,10 +39,10 @@ def sorted_clonezilla_volumes(paths: Iterable[Path]) -> list[Path]:
             base = base[: -len(suffix) - 1]
         return (base, volume_suffix_index(suffix), path.name)
 
-    return sorted({path for path in paths}, key=sort_key)
+    return sorted(set(paths), key=sort_key)
 
 
-def extract_partclone_fstype(part_name: str, file_name: str) -> Optional[str]:
+def extract_partclone_fstype(part_name: str, file_name: str) -> str | None:
     """Extract filesystem type from partclone image filename.
 
     Example: sda1.ext4-ptcl-img.gz.aa -> "ext4"

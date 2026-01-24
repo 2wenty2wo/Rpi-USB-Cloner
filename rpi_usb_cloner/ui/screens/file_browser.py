@@ -246,99 +246,99 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
 
         # Button B - Go back (same as left)
         current_b = gpio.is_pressed(gpio.PIN_B)
-        if not prev_states["B"] and current_b:
+        if not prev_states["B"] and current_b and path_stack:
+            # Pop from stack and restore previous state
+            current_items, selected_index = path_stack.pop()
             if path_stack:
-                # Pop from stack and restore previous state
-                current_items, selected_index = path_stack.pop()
-                if path_stack:
-                    # Update current_path to parent
-                    prev_item = path_stack[-1][0][0] if path_stack[-1][0] else None
-                    current_path = prev_item.path if prev_item else None
-                else:
-                    current_path = None
-                render()
+                # Update current_path to parent
+                prev_item = path_stack[-1][0][0] if path_stack[-1][0] else None
+                current_path = prev_item.path if prev_item else None
+            else:
+                current_path = None
+            render()
 
         # Button UP - Move selection up
         current_u = gpio.is_pressed(gpio.PIN_U)
-        if not prev_states["U"] and current_u:
-            if current_items:
-                selected_index = (selected_index - 1) % len(current_items)
-                render()
+        if not prev_states["U"] and current_u and current_items:
+            selected_index = (selected_index - 1) % len(current_items)
+            render()
 
         # Button DOWN - Move selection down
         current_d = gpio.is_pressed(gpio.PIN_D)
-        if not prev_states["D"] and current_d:
-            if current_items:
-                selected_index = (selected_index + 1) % len(current_items)
-                render()
+        if not prev_states["D"] and current_d and current_items:
+            selected_index = (selected_index + 1) % len(current_items)
+            render()
 
         # Button LEFT - Go back to parent directory
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if not prev_states["L"] and current_l:
+        if not prev_states["L"] and current_l and path_stack:
+            # Pop from stack and restore previous state
+            current_items, selected_index = path_stack.pop()
             if path_stack:
-                # Pop from stack and restore previous state
-                current_items, selected_index = path_stack.pop()
-                if path_stack:
-                    # Update current_path to parent
-                    prev_item = path_stack[-1][0][0] if path_stack[-1][0] else None
-                    current_path = prev_item.path if prev_item else None
-                else:
-                    current_path = None
-                render()
+                # Update current_path to parent
+                prev_item = path_stack[-1][0][0] if path_stack[-1][0] else None
+                current_path = prev_item.path if prev_item else None
+            else:
+                current_path = None
+            render()
 
         # Button RIGHT - Enter directory or view file
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if not prev_states["R"] and current_r:
-            if current_items and 0 <= selected_index < len(current_items):
-                selected_item = current_items[selected_index]
+        if (
+            not prev_states["R"]
+            and current_r
+            and current_items
+            and 0 <= selected_index < len(current_items)
+        ):
+            selected_item = current_items[selected_index]
 
-                if selected_item.is_dir:
-                    # Save current state to stack
-                    path_stack.append((current_items, selected_index))
+            if selected_item.is_dir:
+                # Save current state to stack
+                path_stack.append((current_items, selected_index))
 
-                    # Navigate into directory
-                    new_items = _list_directory(selected_item.path)
-                    if new_items:
-                        current_items = new_items
-                        selected_index = 0
-                        current_path = selected_item.path
-                        render()
-                    else:
-                        # Directory is empty or not accessible
-                        path_stack.pop()  # Remove from stack
-                        display.display_lines([title, "Cannot access", "directory"])
-                        time.sleep(1)
-                        render()
+                # Navigate into directory
+                new_items = _list_directory(selected_item.path)
+                if new_items:
+                    current_items = new_items
+                    selected_index = 0
+                    current_path = selected_item.path
+                    render()
                 else:
-                    # File selected - show file info
-                    file_path = selected_item.path
-                    file_name = file_path.name
+                    # Directory is empty or not accessible
+                    path_stack.pop()  # Remove from stack
+                    display.display_lines([title, "Cannot access", "directory"])
+                    time.sleep(1)
+                    render()
+            else:
+                # File selected - show file info
+                file_path = selected_item.path
+                file_name = file_path.name
 
-                    try:
-                        file_size = file_path.stat().st_size
-                        if file_size < 1024:
-                            size_str = f"{file_size}B"
-                        elif file_size < 1024 * 1024:
-                            size_str = f"{file_size / 1024:.1f}KB"
-                        elif file_size < 1024 * 1024 * 1024:
-                            size_str = f"{file_size / (1024 * 1024):.1f}MB"
-                        else:
-                            size_str = f"{file_size / (1024 * 1024 * 1024):.1f}GB"
+                try:
+                    file_size = file_path.stat().st_size
+                    if file_size < 1024:
+                        size_str = f"{file_size}B"
+                    elif file_size < 1024 * 1024:
+                        size_str = f"{file_size / 1024:.1f}KB"
+                    elif file_size < 1024 * 1024 * 1024:
+                        size_str = f"{file_size / (1024 * 1024):.1f}MB"
+                    else:
+                        size_str = f"{file_size / (1024 * 1024 * 1024):.1f}GB"
 
-                        # Show file info
-                        display.display_lines(
-                            [
-                                "FILE INFO",
-                                file_name[:20],
-                                size_str,
-                            ]
-                        )
-                        time.sleep(2)
-                        render()
-                    except (OSError, PermissionError):
-                        display.display_lines([title, "Cannot read", "file info"])
-                        time.sleep(1)
-                        render()
+                    # Show file info
+                    display.display_lines(
+                        [
+                            "FILE INFO",
+                            file_name[:20],
+                            size_str,
+                        ]
+                    )
+                    time.sleep(2)
+                    render()
+                except (OSError, PermissionError):
+                    display.display_lines([title, "Cannot read", "file info"])
+                    time.sleep(1)
+                    render()
 
         # Update button states
         prev_states["A"] = current_a

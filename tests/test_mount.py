@@ -352,7 +352,7 @@ class TestIsMounted:
 class TestSysfsOperations:
     """Tests for sysfs-based information retrieval."""
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     @patch("builtins.open", create=True)
     def test_is_removable_true(self, mock_open, mock_exists):
         """Test is_removable() returns True for removable device."""
@@ -363,7 +363,7 @@ class TestSysfsOperations:
 
         assert result is True
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     @patch("builtins.open", create=True)
     def test_is_removable_false(self, mock_open, mock_exists):
         """Test is_removable() returns False for non-removable device."""
@@ -374,7 +374,7 @@ class TestSysfsOperations:
 
         assert result is False
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     def test_is_removable_no_sysfs_entry(self, mock_exists):
         """Test is_removable() returns None when sysfs entry missing."""
         mock_exists.return_value = False
@@ -383,7 +383,7 @@ class TestSysfsOperations:
 
         assert result is None
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     @patch("builtins.open", create=True)
     def test_get_size(self, mock_open, mock_exists):
         """Test get_size() returns correct size in bytes."""
@@ -398,7 +398,7 @@ class TestSysfsOperations:
         # 31457280 * 512 = 16106127360 bytes (~15GB)
         assert result == 31457280 * 512
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     def test_get_size_no_sysfs_entry(self, mock_exists):
         """Test get_size() returns -1 when sysfs entry missing."""
         mock_exists.return_value = False
@@ -407,7 +407,7 @@ class TestSysfsOperations:
 
         assert result == -1
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     @patch("builtins.open", create=True)
     def test_get_model(self, mock_open, mock_exists):
         """Test get_model() returns device model."""
@@ -420,7 +420,7 @@ class TestSysfsOperations:
 
         assert result == "USB Flash Drive"
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     def test_get_model_no_sysfs_entry(self, mock_exists):
         """Test get_model() returns None when sysfs entry missing."""
         mock_exists.return_value = False
@@ -429,7 +429,7 @@ class TestSysfsOperations:
 
         assert result is None
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     @patch("builtins.open", create=True)
     def test_get_vendor(self, mock_open, mock_exists):
         """Test get_vendor() returns device vendor."""
@@ -440,7 +440,7 @@ class TestSysfsOperations:
 
         assert result == "SanDisk"
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.mount.Path.exists")
     def test_get_vendor_no_sysfs_entry(self, mock_exists):
         """Test get_vendor() returns None when sysfs entry missing."""
         mock_exists.return_value = False

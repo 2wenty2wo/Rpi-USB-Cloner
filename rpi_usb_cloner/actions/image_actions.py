@@ -38,7 +38,7 @@ def backup_image(
     """Create a Clonezilla-compatible backup of a USB drive."""
     from rpi_usb_cloner.ui import keyboard
 
-    BACKUP_TITLE_ICON = WRITE_ICON
+    backup_title_icon = WRITE_ICON
 
     # Step 1: Select backup mode (full/partial)
     backup_modes = [
@@ -267,18 +267,21 @@ def backup_image(
     if estimated_size > 0:
         summary_lines.append(f"Est: ~{devices.human_size(estimated_size)}")
 
-    if available_space > 0 and estimated_size > 0:
-        if estimated_size > available_space:
-            display.display_lines(
-                [
-                    "NOT ENOUGH",
-                    "SPACE",
-                    f"Need: {devices.human_size(estimated_size)}",
-                    f"Avail: {devices.human_size(available_space)}",
-                ]
-            )
-            time.sleep(2)
-            return
+    if (
+        available_space > 0
+        and estimated_size > 0
+        and estimated_size > available_space
+    ):
+        display.display_lines(
+            [
+                "NOT ENOUGH",
+                "SPACE",
+                f"Need: {devices.human_size(estimated_size)}",
+                f"Avail: {devices.human_size(available_space)}",
+            ]
+        )
+        time.sleep(2)
+        return
 
     summary_lines.append("Drive will unmount")
 
@@ -346,7 +349,7 @@ def backup_image(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=BACKUP_TITLE_ICON,
+            title_icon=backup_title_icon,
         )
         time.sleep(0.1)
 
@@ -359,7 +362,7 @@ def backup_image(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=BACKUP_TITLE_ICON,
+        title_icon=backup_title_icon,
     )
 
     # Check for errors
@@ -370,7 +373,7 @@ def backup_image(
         screens.wait_for_paginated_input(
             "BACKUP",
             ["FAILED", error_message],
-            title_icon=BACKUP_TITLE_ICON,
+            title_icon=backup_title_icon,
         )
         return
 
@@ -402,7 +405,7 @@ def backup_image(
             "BACKUP",
             summary_lines,
             selected_index=selection[0],
-            title_icon=BACKUP_TITLE_ICON,
+            title_icon=backup_title_icon,
         )
 
     render_screen()
@@ -1103,10 +1106,7 @@ def _format_restore_error_lines(error: Exception) -> list[str]:
     else:
         step_line = "Restore failed"
     reason = _extract_stderr_message(message) or _short_restore_reason(message)
-    if reason and reason != step_line:
-        lines = [step_line, reason]
-    else:
-        lines = [step_line]
+    lines = [step_line, reason] if reason and reason != step_line else [step_line]
     if message not in lines:
         lines.append(message)
     return lines

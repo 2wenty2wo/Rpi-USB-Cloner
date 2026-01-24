@@ -174,9 +174,10 @@ class TestImageUSBRestore:
         """Test restoration fails if not running as root."""
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
-        with patch("os.geteuid", return_value=1000):  # Non-root UID
-            with pytest.raises(PermissionError, match="Must run as root"):
-                restore_imageusb_file(valid_bin_file, "sdb")
+        with patch("os.geteuid", return_value=1000), pytest.raises(
+            PermissionError, match="Must run as root"
+        ):
+            restore_imageusb_file(valid_bin_file, "sdb")
 
     def test_restore_invalid_file(self, tmp_path, mock_device):
         """Test restoration fails with invalid file."""
@@ -187,9 +188,10 @@ class TestImageUSBRestore:
         with invalid_file.open("wb") as f:
             f.write(b"NOT_IMAGEUSB")
 
-        with patch("os.geteuid", return_value=0):  # Root
-            with pytest.raises(RuntimeError, match="Invalid ImageUSB file"):
-                restore_imageusb_file(invalid_file, "sdb")
+        with patch("os.geteuid", return_value=0), pytest.raises(
+            RuntimeError, match="Invalid ImageUSB file"
+        ):
+            restore_imageusb_file(invalid_file, "sdb")
 
     def test_restore_non_removable_device(self, valid_bin_file):
         """Test restoration fails on non-removable device."""

@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import resolve_device_node
@@ -18,7 +18,7 @@ def restore_iso_image(
     iso_path: Path,
     target_device: str,
     *,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> None:
     """Write an ISO file directly to a device using dd.
 
@@ -37,9 +37,8 @@ def restore_iso_image(
     target_name = Path(target_node).name
     target_info = devices.get_device_by_name(target_name)
 
-    if target_info:
-        if not devices.unmount_device(target_info):
-            raise RuntimeError("Failed to unmount target device before ISO restore")
+    if target_info and not devices.unmount_device(target_info):
+        raise RuntimeError("Failed to unmount target device before ISO restore")
 
     # Get ISO size
     iso_size = iso_path.stat().st_size
@@ -72,7 +71,7 @@ def restore_iso_image(
     )
 
 
-def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
+def _get_blockdev_size_bytes(device_node: str) -> int | None:
     """Get device size using blockdev command."""
     blockdev = shutil.which("blockdev")
     if not blockdev:
@@ -81,8 +80,7 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
 
     result = subprocess.run(
         [blockdev, "--getsize64", device_node],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if result.returncode != 0:
@@ -94,8 +92,8 @@ def _get_blockdev_size_bytes(device_node: str) -> Optional[int]:
 
 
 def _get_device_size_bytes(
-    target_info: Optional[dict], target_node: str
-) -> Optional[int]:
+    target_info: dict | None, target_node: str
+) -> int | None:
     """Get device size from device info or blockdev."""
     if target_info and target_info.get("size"):
         return int(target_info.get("size"))

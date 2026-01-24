@@ -39,10 +39,7 @@ def render_confirmation_screen(
         left_margin=context.x - 11,
     )
     content_top = layout.content_top
-    if isinstance(prompt_lines, str):
-        line_list = [prompt_lines]
-    else:
-        line_list = list(prompt_lines)
+    line_list = [prompt_lines] if isinstance(prompt_lines, str) else list(prompt_lines)
     wrapped_prompt_lines = display._wrap_lines_to_width(
         line_list,
         prompt_font,
@@ -154,15 +151,21 @@ def render_confirmation(
     while True:
         action_taken = False
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if prev_states["R"] and not current_r:
-            if confirm_selection == app_state.CONFIRM_NO:
-                confirm_selection = app_state.CONFIRM_YES
-                action_taken = True
+        if (
+            prev_states["R"]
+            and not current_r
+            and confirm_selection == app_state.CONFIRM_NO
+        ):
+            confirm_selection = app_state.CONFIRM_YES
+            action_taken = True
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if prev_states["L"] and not current_l:
-            if confirm_selection == app_state.CONFIRM_YES:
-                confirm_selection = app_state.CONFIRM_NO
-                action_taken = True
+        if (
+            prev_states["L"]
+            and not current_l
+            and confirm_selection == app_state.CONFIRM_YES
+        ):
+            confirm_selection = app_state.CONFIRM_NO
+            action_taken = True
         current_a = gpio.is_pressed(gpio.PIN_A)
         if prev_states["A"] and not current_a:
             return False
@@ -210,10 +213,7 @@ def render_update_buttons_screen(
         left_margin=context.x - 11,
     )
     content_top = layout.content_top
-    if isinstance(prompt_lines, str):
-        line_list = [prompt_lines]
-    else:
-        line_list = list(prompt_lines)
+    line_list = [prompt_lines] if isinstance(prompt_lines, str) else list(prompt_lines)
     wrapped_prompt_lines = display._wrap_lines_to_width(
         line_list,
         prompt_font,
@@ -330,10 +330,7 @@ def render_verify_finish_buttons_screen(
         left_margin=context.x - 11,
     )
     content_top = layout.content_top
-    if isinstance(prompt_lines, str):
-        line_list = [prompt_lines]
-    else:
-        line_list = list(prompt_lines)
+    line_list = [prompt_lines] if isinstance(prompt_lines, str) else list(prompt_lines)
     wrapped_prompt_lines = display._wrap_lines_to_width(
         line_list,
         prompt_font,

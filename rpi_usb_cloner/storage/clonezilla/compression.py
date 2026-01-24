@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 def is_gzip_compressed(image_files: list[Path]) -> bool:
@@ -26,7 +25,7 @@ def is_zstd_compressed(image_files: list[Path]) -> bool:
     return False
 
 
-def get_compression_type(image_files: list[Path]) -> Optional[str]:
+def get_compression_type(image_files: list[Path]) -> str | None:
     """Detect compression type of image files.
 
     Returns:

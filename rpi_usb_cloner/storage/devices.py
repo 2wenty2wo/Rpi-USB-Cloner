@@ -220,10 +220,7 @@ def has_root_mountpoint(device: dict[str, Any]) -> bool:
     mountpoint = device.get("mountpoint")
     if mountpoint in ROOT_MOUNTPOINTS:
         return True
-    for child in get_children(device):
-        if has_root_mountpoint(child):
-            return True
-    return False
+    return any(has_root_mountpoint(child) for child in get_children(device))
 
 
 def is_root_device(device: dict[str, Any]) -> bool:
@@ -377,7 +374,7 @@ def unmount_device_with_retry(
 
         all_unmounted = True
 
-        for partition_name, mountpoint in active_mountpoints:
+        for _partition_name, mountpoint in active_mountpoints:
             try:
                 run_command(["umount", mountpoint], check=True)
                 log(f"Unmounted {mountpoint}")
@@ -406,7 +403,7 @@ def unmount_device_with_retry(
         log("All partitions already unmounted before lazy unmount")
         return True, False
 
-    for partition_name, mountpoint in active_mountpoints:
+    for _partition_name, mountpoint in active_mountpoints:
         try:
             run_command(["umount", "-l", mountpoint], check=True)
             log(f"Lazy unmounted {mountpoint}")

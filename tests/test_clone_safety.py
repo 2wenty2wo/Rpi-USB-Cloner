@@ -131,7 +131,7 @@ class TestCloneDeviceSafety:
             "rpi_usb_cloner.storage.clone.operations.unmount_device"
         ) as mock_umount:
             mock_umount.return_value = True
-            result = clone_device(source, dest, mode="exact")
+            clone_device(source, dest, mode="exact")
 
         # Validation should have been called
         assert mock_validation.called
@@ -208,13 +208,15 @@ class TestCloneDeviceSmartSafety:
 
         mock_validation.return_value = None
 
-        with patch("rpi_usb_cloner.storage.clone.operations.copy_partition_table"):
-            with patch("rpi_usb_cloner.storage.clone.operations.clone_partclone"):
-                with patch(
-                    "rpi_usb_cloner.storage.clone.operations.unmount_device"
-                ) as mock_umount:
-                    mock_umount.return_value = True
-                    clone_device_smart(source, dest)
+        with patch(
+            "rpi_usb_cloner.storage.clone.operations.copy_partition_table"
+        ), patch(
+            "rpi_usb_cloner.storage.clone.operations.clone_partclone"
+        ), patch(
+            "rpi_usb_cloner.storage.clone.operations.unmount_device"
+        ) as mock_umount:
+            mock_umount.return_value = True
+            clone_device_smart(source, dest)
 
         # Verify validate_clone_operation was called with check_space=True
         call_args = mock_validation.call_args

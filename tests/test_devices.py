@@ -439,8 +439,8 @@ class TestUnmountDeviceWithRetry:
     def test_retry_on_failure(self, mocker):
         """Test retry mechanism on unmount failure."""
         # Simplify - just test that retries happen with mocked time.sleep
-        mock_run = mocker.patch("rpi_usb_cloner.storage.devices.run_command")
-        mock_sleep = mocker.patch("time.sleep")
+        mocker.patch("rpi_usb_cloner.storage.devices.run_command")
+        mocker.patch("time.sleep")
 
         device = {
             "name": "sda",
@@ -449,7 +449,6 @@ class TestUnmountDeviceWithRetry:
         }
 
         # Mock the check - simulate device becoming unmounted after retries
-        original_open = open
 
         def mock_proc_mounts(*args, **kwargs):
             # Return empty to simulate no mounts

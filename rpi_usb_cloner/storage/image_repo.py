@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 from rpi_usb_cloner.storage import clonezilla, devices, imageusb, mount
@@ -21,7 +21,7 @@ def _iter_partitions(device: dict) -> Iterable[dict]:
         stack.extend(devices.get_children(child))
 
 
-def _resolve_mountpoint(partition: dict) -> Optional[Path]:
+def _resolve_mountpoint(partition: dict) -> Path | None:
     mountpoint = partition.get("mountpoint")
     if mountpoint:
         return Path(mountpoint)
@@ -147,22 +147,24 @@ def list_clonezilla_images(repo_root: Path) -> list[DiskImage]:
 
     # Also include ImageUSB .BIN files from the repo root
     for bin_file in repo_root.glob("*.bin"):
-        if bin_file.is_file() and bin_file not in seen:
-            # Check if it's a valid ImageUSB file
-            if imageusb.is_imageusb_file(bin_file):
-                # Create DiskImage domain object for ImageUSB .BIN file
-                try:
-                    size_bytes = bin_file.stat().st_size
-                except OSError:
-                    size_bytes = None
+        if (
+            bin_file.is_file()
+            and bin_file not in seen
+            and imageusb.is_imageusb_file(bin_file)
+        ):
+            # Create DiskImage domain object for ImageUSB .BIN file
+            try:
+                size_bytes = bin_file.stat().st_size
+            except OSError:
+                size_bytes = None
 
-                image = DiskImage(
-                    name=bin_file.name,
-                    path=bin_file,
-                    image_type=ImageType.IMAGEUSB_BIN,
-                    size_bytes=size_bytes,
-                )
-                images.append(image)
-                seen.add(bin_file)
+            image = DiskImage(
+                name=bin_file.name,
+                path=bin_file,
+                image_type=ImageType.IMAGEUSB_BIN,
+                size_bytes=size_bytes,
+            )
+            images.append(image)
+            seen.add(bin_file)
 
     return sorted(images, key=lambda img: img.name)

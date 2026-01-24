@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices
@@ -25,7 +25,7 @@ def restore_imageusb_file(
     image_path: Path,
     target_device: str,
     *,
-    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    progress_callback: Callable[[list[str], float | None], None] | None = None,
 ) -> None:
     """Restore an ImageUSB .BIN file to a target device.
 
@@ -84,7 +84,7 @@ def restore_imageusb_file(
         # Data size is file size minus header
         data_size = file_size - IMAGEUSB_HEADER_SIZE
     except OSError as e:
-        raise RuntimeError(f"Cannot read file size: {e}")
+        raise RuntimeError(f"Cannot read file size: {e}") from e
 
     # Find dd command
     dd_path = shutil.which("dd")

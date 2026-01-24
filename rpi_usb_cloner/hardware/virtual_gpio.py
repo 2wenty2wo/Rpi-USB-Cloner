@@ -85,4 +85,4 @@ def get_active_virtual_presses() -> list[int]:
             _virtual_presses.popleft()
 
         # Return unique pins
-        return list(set(press.pin for press in _virtual_presses if press.is_active()))
+        return list({press.pin for press in _virtual_presses if press.is_active()})

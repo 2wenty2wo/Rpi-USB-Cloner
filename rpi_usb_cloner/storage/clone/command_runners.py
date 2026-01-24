@@ -23,8 +23,7 @@ def run_checked_command(command, input_text=None):
         command,
         input=input_text,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     if result.returncode != 0:
         stderr = result.stderr.strip()

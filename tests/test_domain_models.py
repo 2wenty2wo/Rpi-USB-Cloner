@@ -9,6 +9,7 @@ The conftest.py autouse fixtures are automatically skipped for these tests.
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -191,7 +192,7 @@ class TestDrive:
         """Test that Drive is immutable (frozen dataclass)."""
         drive = Drive(name="sda", size_bytes=8_000_000_000)
 
-        with pytest.raises(Exception):  # FrozenInstanceError or AttributeError
+        with pytest.raises(FrozenInstanceError):
             drive.name = "sdb"
 
 
@@ -244,7 +245,7 @@ class TestImageRepo:
         """Test that ImageRepo is immutable."""
         repo = ImageRepo(path=Path("/mnt/usb"), drive_name="sdb")
 
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             repo.drive_name = "sdc"
 
 
@@ -302,7 +303,7 @@ class TestDiskImage:
             image_type=ImageType.ISO,
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             image.name = "modified"
 
 
@@ -422,7 +423,7 @@ class TestCloneJob:
             job_id="test-job",
         )
 
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             job.mode = CloneMode.EXACT
 
 

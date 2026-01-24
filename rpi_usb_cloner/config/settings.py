@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 SETTINGS_PATH = Path(
@@ -15,7 +15,7 @@ SETTINGS_PATH = Path(
         Path.home() / ".config" / "rpi-usb-cloner" / "settings.json",
     )
 )
-DEFAULT_SETTINGS: Dict[str, Any] = {
+DEFAULT_SETTINGS: dict[str, Any] = {
     "screensaver_enabled": False,
     "screensaver_mode": "random",
     "screensaver_gif": None,
@@ -33,7 +33,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 
 @dataclass
 class SettingsStore:
-    values: Dict[str, Any] = field(default_factory=dict)
+    values: dict[str, Any] = field(default_factory=dict)
 
 
 settings_store = SettingsStore()

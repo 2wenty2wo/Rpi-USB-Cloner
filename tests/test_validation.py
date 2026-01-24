@@ -101,14 +101,14 @@ class TestValidateDeviceExists:
         mock_get_device.return_value = {"name": "sda", "size": 8000000000}
         validate_device_exists("sda")  # Should not raise
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.validation.Path.exists")
     def test_validate_device_exists_path_not_found(self, mock_exists):
         """Test validation fails when device path doesn't exist."""
         mock_exists.return_value = False
         with pytest.raises(DeviceNotFoundError):
             validate_device_exists("/dev/sdb")
 
-    @patch("os.path.exists")
+    @patch("rpi_usb_cloner.storage.validation.Path.exists")
     def test_validate_device_exists_path_found(self, mock_exists):
         """Test validation passes when device path exists."""
         mock_exists.return_value = True
@@ -416,7 +416,7 @@ class TestIsMountpointActive:
 
         assert _is_mountpoint_active("/mnt/usb") is False
 
-    @patch("os.path.ismount")
+    @patch("rpi_usb_cloner.storage.validation.Path.is_mount")
     def test_fallback_to_ismount(self, mock_ismount):
         """Test fallback to os.path.ismount when /proc/mounts unavailable."""
         from rpi_usb_cloner.storage.validation import _is_mountpoint_active

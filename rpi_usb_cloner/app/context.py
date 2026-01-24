@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Deque, Dict, List, Optional, Sequence
+from typing import Sequence
 
 from rpi_usb_cloner.ui.display import DisplayContext
 
@@ -12,11 +12,11 @@ from rpi_usb_cloner.ui.display import DisplayContext
 class LogEntry:
     message: str
     level: str = "info"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
-    source: Optional[str] = None
+    source: str | None = None
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "message": self.message,
             "level": self.level,
@@ -28,11 +28,11 @@ class LogEntry:
 
 @dataclass
 class AppContext:
-    display: Optional[DisplayContext] = None
-    input_state: Dict[str, bool] = field(default_factory=dict)
-    active_drive: Optional[str] = None
-    discovered_drives: List[str] = field(default_factory=list)
-    log_buffer: Deque[LogEntry] = field(default_factory=lambda: deque(maxlen=500))
+    display: DisplayContext | None = None
+    input_state: dict[str, bool] = field(default_factory=dict)
+    active_drive: str | None = None
+    discovered_drives: list[str] = field(default_factory=list)
+    log_buffer: deque[LogEntry] = field(default_factory=lambda: deque(maxlen=500))
     operation_active: bool = False
     allow_back_interrupt: bool = False
 
@@ -41,9 +41,9 @@ class AppContext:
         message: str | LogEntry,
         *,
         level: str = "info",
-        tags: Optional[Sequence[str]] = None,
-        timestamp: Optional[datetime] = None,
-        source: Optional[str] = None,
+        tags: Sequence[str] | None = None,
+        timestamp: datetime | None = None,
+        source: str | None = None,
     ) -> None:
         if isinstance(message, LogEntry):
             entry = message

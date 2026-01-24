@@ -40,10 +40,11 @@ def _should_log_websocket(record) -> bool:
     # For WebSocket connection/disconnection logs, only log if:
     # 1. It's an error/warning, OR
     # 2. It's not a connection/disconnection message
-    if "ws" in tags or "websocket" in tags:
-        if "connected" in message or "disconnected" in message:
-            # Suppress routine connection logs, only show in debug
-            return record["level"].no >= logger.level("DEBUG").no
+    if ("ws" in tags or "websocket" in tags) and (
+        "connected" in message or "disconnected" in message
+    ):
+        # Suppress routine connection logs, only show in debug
+        return record["level"].no >= logger.level("DEBUG").no
 
     return True
 
@@ -54,9 +55,10 @@ def _should_log_button(record) -> bool:
     tags = record["extra"].get("tags", [])
 
     # Button presses are TRACE-level only
-    if "button" in tags or "gpio" in tags:
-        if "button" in message or "press" in message:
-            return record["level"].no <= logger.level("TRACE").no
+    if ("button" in tags or "gpio" in tags) and (
+        "button" in message or "press" in message
+    ):
+        return record["level"].no <= logger.level("TRACE").no
 
     return True
 
@@ -118,13 +120,10 @@ def setup_logging(
     # Determine log levels
     if trace:
         console_level = "TRACE"
-        file_level = "TRACE"
     elif debug:
         console_level = "DEBUG"
-        file_level = "DEBUG"
     else:
         console_level = "INFO"
-        file_level = "INFO"
 
     # SINK 1: Console (stderr) - User-facing, filtered
     logger.add(

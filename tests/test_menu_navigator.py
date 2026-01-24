@@ -342,7 +342,7 @@ class TestDynamicItemProviders:
         assert len(items1) == 1
 
         # Second call - should call provider again
-        items2 = navigator.current_items()
+        navigator.current_items()
         assert call_count[0] == 2
 
     def test_items_provider_updates_dynamically(self, sample_menu_screens):
