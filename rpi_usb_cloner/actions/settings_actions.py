@@ -26,7 +26,6 @@ from rpi_usb_cloner.actions.settings import (
     is_git_repo,
     is_running_under_systemd,
     keyboard_test,
-    log_debug_msg,
     lucide_demo,
     parse_git_progress_ratio,
     poweroff_system,
@@ -54,7 +53,6 @@ from rpi_usb_cloner.actions.settings import (
 
 
 # Backwards compatibility aliases
-_log_debug = log_debug_msg
 _get_app_version = get_app_version
 _is_git_repo = is_git_repo
 _has_dirty_working_tree = has_dirty_working_tree
