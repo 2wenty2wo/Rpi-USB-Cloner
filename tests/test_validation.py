@@ -416,7 +416,7 @@ class TestIsMountpointActive:
 
         assert _is_mountpoint_active("/mnt/usb") is False
 
-    @patch("os.path.ismount")
+    @patch("rpi_usb_cloner.storage.validation.Path.is_mount")
     def test_fallback_to_ismount(self, mock_ismount):
         """Test fallback to os.path.ismount when /proc/mounts unavailable."""
         from rpi_usb_cloner.storage.validation import _is_mountpoint_active
