@@ -38,6 +38,10 @@ KEYBOARD_ICON = chr(57618)  # keyboard icon - text input
 INFO_ICON = chr(57487)  # info icon - information displays
 WRITE_ICON = chr(58597)  # write/backup icon - write operations
 
+# Arrow icons (used in menu labels)
+ARROW_LEFT = chr(57416)  # arrow-left - for restore operations
+ARROW_RIGHT = chr(57417)  # arrow-right - for backup/copy operations
+
 # File browser icons
 FILE_ICON = chr(58099)  # file icon - regular files
 FOLDER_ICON = chr(58174)  # folder icon - directories
