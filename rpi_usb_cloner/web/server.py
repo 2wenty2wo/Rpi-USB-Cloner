@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import pkgutil
 import threading
+from typing import Optional, Sequence, Union
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -41,7 +42,7 @@ class ServerHandle:
         self.thread.join(timeout=timeout)
 
 
-_current_handle: ServerHandle | None = None
+_current_handle: Optional[ServerHandle] = None
 
 
 class DisplayUpdateNotifier:
@@ -98,23 +99,28 @@ def _build_headers() -> dict[str, str]:
     }
 
 
+LogEntryLike = Union[LogEntry, str]
+
+
 def _diff_log_buffer(
-    previous: list[LogEntry | str], current: list[LogEntry | str]
-) -> tuple[list[LogEntry | str], bool]:
-    if not previous:
-        return current, bool(current)
-    if previous == current:
+    previous: Sequence[LogEntryLike], current: Sequence[LogEntryLike]
+) -> tuple[list[LogEntryLike], bool]:
+    previous_list = list(previous)
+    current_list = list(current)
+    if not previous_list:
+        return current_list, bool(current_list)
+    if previous_list == current_list:
         return [], False
-    if current[: len(previous)] == previous:
-        return current[len(previous) :], False
-    max_overlap = min(len(previous), len(current))
+    if current_list[: len(previous_list)] == previous_list:
+        return current_list[len(previous_list) :], False
+    max_overlap = min(len(previous_list), len(current_list))
     for overlap in range(max_overlap, 0, -1):
-        if previous[-overlap:] == current[:overlap]:
-            return current[overlap:], False
-    return current, True
+        if previous_list[-overlap:] == current_list[:overlap]:
+            return current_list[overlap:], False
+    return current_list, True
 
 
-def _serialize_log_entries(entries: list[LogEntry | str]) -> list[object]:
+def _serialize_log_entries(entries: Sequence[LogEntryLike]) -> list[object]:
     serialized: list[object] = []
     for entry in entries:
         if isinstance(entry, LogEntry):
@@ -274,9 +280,9 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
         f"Log WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
-    last_snapshot: list[LogEntry | str] = []
+    last_snapshot: list[LogEntryLike] = []
     try:
-        snapshot = list(app_context.log_buffer)
+        snapshot: list[LogEntryLike] = list(app_context.log_buffer)
         if snapshot:
             await ws.send_json(
                 {"type": "snapshot", "entries": _serialize_log_entries(snapshot)}
@@ -284,7 +290,7 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
         last_snapshot = snapshot
         while not ws.closed:
             await asyncio.sleep(0.5)
-            current = list(app_context.log_buffer)
+            current: list[LogEntryLike] = list(app_context.log_buffer)
             new_entries, reset = _diff_log_buffer(last_snapshot, current)
             if reset and current:
                 await ws.send_json(
@@ -525,7 +531,17 @@ def start_server(
     global _current_handle
     if is_running():
         return _current_handle
-    runner_queue: queue.Queue[tuple[str, object]]
+    runner_queue: queue.Queue[
+        tuple[
+            str,
+            Union[
+                BaseException,
+                tuple[
+                    web.AppRunner, asyncio.AbstractEventLoop, threading.Event
+                ],
+            ],
+        ]
+    ]
     import queue
 
     runner_queue = queue.Queue(maxsize=1)
@@ -598,7 +614,11 @@ def start_server(
     except queue.Empty as exc:
         raise TimeoutError("Web server failed to start within timeout.") from exc
     if status == "error":
-        raise payload
+        if isinstance(payload, BaseException):
+            raise payload
+        raise RuntimeError("Web server failed to start with an unknown error.")
+    if not isinstance(payload, tuple):
+        raise RuntimeError("Web server startup returned invalid payload.")
     runner, loop, stop_event = payload
     handle = ServerHandle(
         runner=runner,

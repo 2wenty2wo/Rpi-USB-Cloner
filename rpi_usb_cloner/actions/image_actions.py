@@ -97,6 +97,10 @@ def backup_image(
 
     source = source_candidates[selected_source_index]
     source_name = source.get("name")
+    if not source_name:
+        display.display_lines(["SOURCE", "MISSING"])
+        time.sleep(1)
+        return
     app_context.active_drive = source_name
     _log_debug(log_debug, f"Source device selected: {source_name}")
 
@@ -149,13 +153,13 @@ def backup_image(
     if len(repos) > 1:
         selected_repo = menus.select_list(
             "IMG REPO",
-            [repo.name for repo in repos],
+            [repo.path.name for repo in repos],
         )
         if selected_repo is None:
             return
-        repo_path = repos[selected_repo]
+        repo_path = repos[selected_repo].path
     else:
-        repo_path = repos[0]
+        repo_path = repos[0].path
 
     _log_debug(log_debug, f"Repository selected: {repo_path}")
 
@@ -521,7 +525,12 @@ def write_image(
     if selected_index is None:
         return
     target = target_candidates[selected_index]
-    app_context.active_drive = target.get("name")
+    target_name = target.get("name")
+    if not target_name:
+        display.display_lines(["TARGET", "MISSING"])
+        time.sleep(1)
+        return
+    app_context.active_drive = target_name
     refreshed_target = None
     for device in devices.list_usb_disks():
         if device.get("name") == app_context.active_drive:
@@ -563,6 +572,8 @@ def write_image(
         _show_manual_partition_instructions(target)
         if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
             return
+    assert partition_mode is not None
+    assert partition_label is not None
     screens.render_status_template("RESTORE PT", f"Set: {partition_label}")
     time.sleep(1.5)
     done = threading.Event()
@@ -580,8 +591,8 @@ def write_image(
     op_log.info(
         "Starting restore: %s -> %s (mode %s)",
         selected_image.name,
-        target.get("name"),
-        partition_mode or "iso",
+        target_name,
+        partition_mode,
     )
 
     def update_progress(lines: list[str], ratio: Optional[float]) -> None:
@@ -614,7 +625,7 @@ def write_image(
         try:
             clonezilla.restore_clonezilla_image(
                 plan,
-                target.get("name") or "",
+                target_name,
                 partition_mode=partition_mode,
                 progress_callback=update_progress,
             )
@@ -646,11 +657,11 @@ def write_image(
         title_icon=WRITE_ICON,
     )
     if "error" in error_holder:
-        error = error_holder["error"]
-        _log_debug(log_debug, f"Restore failed: {error}")
+        restore_error = error_holder["error"]
+        _log_debug(log_debug, f"Restore failed: {restore_error}")
         screens.wait_for_paginated_input(
             "WRITE",
-            ["FAILED", *_format_restore_error_lines(error)],
+            ["FAILED", *_format_restore_error_lines(restore_error)],
             title_icon=WRITE_ICON,
         )
         return
@@ -1290,7 +1301,6 @@ def _write_iso_image(
         "WRITE ISO",
         "SUCCESS",
         extra_lines=summary_lines,
-        title_icon=WRITE_ICON,
     )
     screens.wait_for_ack()
 
@@ -1398,6 +1408,5 @@ def _write_imageusb_image(
         "WRITE BIN",
         "SUCCESS",
         extra_lines=summary_lines,
-        title_icon=WRITE_ICON,
     )
     screens.wait_for_ack()

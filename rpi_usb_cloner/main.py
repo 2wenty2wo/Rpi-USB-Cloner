@@ -338,7 +338,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         except Exception as error:
             usb_log_debug(f"Failed to list USB mountpoints: {error}")
             return []
-        mountpoints = []
+        mountpoints: list[tuple[str, str]] = []
         for device in usb_devices:
             collect_mountpoints(device, mountpoints)
         snapshot = sorted(mountpoints)
@@ -458,7 +458,17 @@ def main(argv: Optional[list[str]] = None) -> None:
             current_selected_name = app_context.active_drive
             if current_selected_name != last_selected_name:
                 page_index = 0
-                total_pages, page_index = render_drive_info(page_index)
+                total_pages, page_index = render_drive_info(
+                    app_context.active_drive,
+                    list_usb_disks_filtered,
+                    get_device_name_from_dict,
+                    get_size_from_dict,
+                    get_vendor_from_dict,
+                    get_model_from_dict,
+                    display,
+                    screens,
+                    page_index,
+                )
                 last_selected_name = current_selected_name
             prev_states["A"] = current_a
             prev_states["L"] = current_l
@@ -516,8 +526,8 @@ def main(argv: Optional[list[str]] = None) -> None:
             status_line=status_line,
         )
 
-    last_render_state = {"key": None}
-    last_screen_id = {"value": None}
+    last_render_state: dict[str, Optional[tuple[object, ...]]] = {"key": None}
+    last_screen_id: dict[str, Optional[str]] = {"value": None}
 
     def calculate_transition_frames() -> int:
         context = display.get_display_context()

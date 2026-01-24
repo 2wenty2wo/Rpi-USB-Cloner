@@ -3,7 +3,7 @@
 import time
 from typing import Iterable, Optional
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.ui import display, menus, renderer
 
@@ -19,7 +19,7 @@ def render_progress_screen(
     progress_ratio: Optional[float] = None,
     animate: bool = False,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> None:
     context = display.get_display_context()
     title_font = context.fonts.get("title", context.fontdisks)

@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional, TypedDict
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import clone, devices
@@ -33,7 +33,7 @@ from .partition_table import (
 log = get_logger(source=__name__)
 
 
-def get_blockdev_size_bytes(device_node: str) -> int | None:
+def get_blockdev_size_bytes(device_node: str) -> Optional[int]:
     """Get device size using blockdev command."""
     blockdev = shutil.which("blockdev")
     if not blockdev:
@@ -52,11 +52,13 @@ def get_blockdev_size_bytes(device_node: str) -> int | None:
 
 
 def get_device_size_bytes(
-    target_info: dict | None, target_node: str
-) -> int | None:
+    target_info: Optional[dict], target_node: str
+) -> Optional[int]:
     """Get device size from device info or blockdev."""
-    if target_info and target_info.get("size"):
-        return int(target_info.get("size"))
+    if target_info:
+        size_value = target_info.get("size")
+        if size_value is not None:
+            return int(size_value)
     return get_blockdev_size_bytes(target_node)
 
 
@@ -109,17 +111,22 @@ def wait_for_partition_count(
     )
 
 
+class TargetPartitionInfo(TypedDict):
+    node: str
+    size_bytes: Optional[int]
+
+
 def wait_for_target_partitions(
     target_name: str,
     parts: Iterable[str],
     *,
     timeout_seconds: int,
     poll_interval: float = 1.0,
-) -> tuple[dict, dict[str, dict[str, int | None] | None]]:
+) -> tuple[dict, dict[str, Optional[TargetPartitionInfo]]]:
     """Wait for specific partitions to appear after partition table update."""
     deadline = time.monotonic() + timeout_seconds
     last_info = None
-    last_mapping: dict[str, dict[str, int | None] | None] = {}
+    last_mapping: dict[str, Optional[TargetPartitionInfo]] = {}
     while time.monotonic() < deadline:
         last_info = devices.get_device_by_name(target_name)
         if last_info:
@@ -140,14 +147,14 @@ def wait_for_target_partitions(
 def map_target_partitions(
     parts: Iterable[str],
     target_device: dict,
-) -> dict[str, dict[str, int | None] | None]:
+) -> dict[str, Optional[TargetPartitionInfo]]:
     """Map source partition names to target partition info."""
     target_children = [
         child
         for child in devices.get_children(target_device)
         if child.get("type") == "part"
     ]
-    target_by_number: dict[int, dict[str, int | None]] = {}
+    target_by_number: dict[int, TargetPartitionInfo] = {}
     for child in target_children:
         number = get_partition_number(child.get("name"))
         if number is None:
@@ -159,7 +166,7 @@ def map_target_partitions(
         else:
             size_bytes = int(size_bytes)
         target_by_number[number] = {"node": node, "size_bytes": size_bytes}
-    mapping: dict[str, dict[str, int | None] | None] = {}
+    mapping: dict[str, Optional[TargetPartitionInfo]] = {}
     for part_name in parts:
         number = get_partition_number(part_name)
         if number is None:
@@ -236,9 +243,9 @@ def run_restore_pipeline(
     restore_command: list[str],
     *,
     title: str,
-    total_bytes: int | None = None,
-    progress_callback: Callable[[list[str], float | None], None] | None = None,
-    subtitle: str | None = None,
+    total_bytes: Optional[int] = None,
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    subtitle: Optional[str] = None,
 ) -> None:
     """Execute the restoration pipeline with decompression and progress tracking."""
     if not image_files:
@@ -272,7 +279,7 @@ def run_restore_pipeline(
         upstream = decompress_proc.stdout
     if upstream is None:
         raise RuntimeError("Restore pipeline failed")
-    error: Exception | None = None
+    error: Optional[Exception] = None
     try:
         clone.run_checked_with_streaming_progress(
             restore_command,
@@ -305,9 +312,9 @@ def restore_partition_op(
     target_part: str,
     *,
     title: str,
-    total_bytes: int | None = None,
-    progress_callback: Callable[[list[str], float | None], None] | None = None,
-    subtitle: str | None = None,
+    total_bytes: Optional[int] = None,
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
+    subtitle: Optional[str] = None,
 ) -> None:
     """Restore a single partition from a restore operation."""
     restore_command = build_restore_command_from_plan(op, target_part)
@@ -325,7 +332,7 @@ def restore_image(
     image: ClonezillaImage,
     target_device: dict,
     *,
-    progress_callback: Callable[[str], None] | None = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
 ) -> None:
     """Restore a Clonezilla image to a target device (legacy API)."""
     if os.geteuid() != 0:
@@ -375,7 +382,11 @@ def restore_image(
             descriptor = {"mode": "dd", "compressed": is_compressed(dd_files)}
             image_files = dd_files
         if descriptor["mode"] == "partclone":
-            fstype = descriptor.get("fstype", "").lower()
+            fstype_value = descriptor.get("fstype")
+            if isinstance(fstype_value, str):
+                fstype = fstype_value.lower()
+            else:
+                fstype = ""
             tool = get_partclone_tool(fstype)
             if not tool:
                 raise RuntimeError(
@@ -408,7 +419,7 @@ def restore_clonezilla_image(
     target_device: str,
     *,
     partition_mode: str = "k0",
-    progress_callback: Callable[[list[str], float | None], None] | None = None,
+    progress_callback: Optional[Callable[[list[str], Optional[float]], None]] = None,
 ) -> None:
     """Restore a Clonezilla image to a target device.
 
@@ -474,12 +485,12 @@ def restore_clonezilla_image(
         applied_layout = False
         attempt_results: list[str] = []
         emit_prewrite_progress("Applying partition layout")
-        for op in layout_ops:
+        for layout_op in layout_ops:
             try:
-                applied_layout = apply_disk_layout_op(op, target_node)
+                applied_layout = apply_disk_layout_op(layout_op, target_node)
             except Exception as exc:
                 raise RuntimeError(
-                    f"Partition table apply failed ({op.kind}): {exc}"
+                    f"Partition table apply failed ({layout_op.kind}): {exc}"
                 ) from exc
             if not applied_layout:
                 continue
@@ -498,12 +509,12 @@ def restore_clonezilla_image(
             if observed_count < required_partitions:
                 log.warning(
                     "Partition count mismatch after %s layout op (expected %s, saw %s).",
-                    op.kind,
+                    layout_op.kind,
                     required_partitions,
                     observed_count,
                 )
                 attempt_results.append(
-                    f"{op.kind}: expected {required_partitions}, saw {observed_count}"
+                    f"{layout_op.kind}: expected {required_partitions}, saw {observed_count}"
                 )
                 applied_layout = False
         if layout_ops and not applied_layout:
@@ -524,12 +535,12 @@ def restore_clonezilla_image(
 
     if post_layout_ops:
         emit_prewrite_progress("Applying post-layout updates")
-    for op in post_layout_ops:
+    for layout_op in post_layout_ops:
         try:
-            apply_disk_layout_op(op, target_node)
+            apply_disk_layout_op(layout_op, target_node)
         except Exception as exc:
             raise RuntimeError(
-                f"Partition table apply failed ({op.kind}): {exc}"
+                f"Partition table apply failed ({layout_op.kind}): {exc}"
             ) from exc
 
     total_parts = len(plan.partition_ops)

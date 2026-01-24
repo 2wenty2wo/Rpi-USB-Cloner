@@ -28,6 +28,8 @@ Usage:
         raise SourceDestinationSameError(source_device, destination_device)
 """
 
+from typing import Optional
+
 
 class StorageError(Exception):
     """Base exception for all storage operations."""
@@ -133,7 +135,12 @@ class InsufficientSpaceError(CloneError):
 class CloneOperationError(CloneError):
     """Generic clone operation failure."""
 
-    def __init__(self, message: str, source: str = None, destination: str = None):
+    def __init__(
+        self,
+        message: str,
+        source: Optional[str] = None,
+        destination: Optional[str] = None,
+    ):
         self.source = source
         self.destination = destination
         super().__init__(message)
@@ -146,7 +153,7 @@ class FormatError(StorageError):
 class FormatOperationError(FormatError):
     """Generic format operation failure."""
 
-    def __init__(self, message: str, device: str = None):
+    def __init__(self, message: str, device: Optional[str] = None):
         self.device = device
         super().__init__(message)
 
@@ -158,6 +165,6 @@ class EraseError(StorageError):
 class EraseOperationError(EraseError):
     """Generic erase operation failure."""
 
-    def __init__(self, message: str, device: str = None):
+    def __init__(self, message: str, device: Optional[str] = None):
         self.device = device
         super().__init__(message)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
 # ImageUSB signature (first 16 bytes)
@@ -115,7 +116,7 @@ def validate_imageusb_file(file_path: Path) -> str | None:
     return None
 
 
-def get_imageusb_metadata(file_path: Path) -> dict[str, any]:
+def get_imageusb_metadata(file_path: Path) -> dict[str, Any]:
     """Extract metadata from an ImageUSB .BIN file.
 
     Args:

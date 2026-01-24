@@ -30,7 +30,7 @@ from .system_utils import (
 
 def get_update_status(
     repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, int | None]:
+) -> tuple[str, Optional[int]]:
     """Check if updates are available."""
     if not is_git_repo(repo_root):
         log_debug_msg(log_debug, "Update status check: repo not found")
@@ -69,7 +69,7 @@ def get_update_status(
 
 def check_update_status(
     repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> tuple[str, int | None, str]:
+) -> tuple[str, Optional[int], str]:
     """Check update status and return with timestamp."""
     status, behind_count = get_update_status(repo_root, log_debug=log_debug)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
@@ -82,8 +82,8 @@ def check_update_status(
 def build_update_info_lines(
     version: str,
     status: str,
-    behind_count: int | None,
-    last_checked: str | None,
+    behind_count: Optional[int],
+    last_checked: Optional[str],
 ) -> list[str]:
     """Build info lines for update display."""
     status_display = status
@@ -131,7 +131,7 @@ def run_update_flow(
         lines: list[str],
         action: Callable[[Callable[[float], None]], subprocess.CompletedProcess[str]],
         *,
-        running_ratio: float | None = 0.5,
+        running_ratio: Optional[float] = 0.5,
     ):
         done = threading.Event()
         result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
@@ -285,18 +285,18 @@ def update_version(*, log_debug: Optional[Callable[[str], None]] = None) -> None
     title_icon = get_screen_icon("update")
     repo_root = Path(__file__).resolve().parents[3]
     status = "Checking..."
-    behind_count: int | None = None
-    last_checked: str | None = None
+    behind_count: Optional[int] = None
+    last_checked: Optional[str] = None
     version = get_app_version(log_debug=log_debug)
     check_done = threading.Event()
     git_lock = threading.Lock()
     results_applied = False
-    result_holder: dict[str, tuple[str, int | None, str]] = {}
+    result_holder: dict[str, tuple[str, Optional[int], str]] = {}
     error_holder: dict[str, Exception] = {}
     header_lines: list[str] = []
     selection = 0
 
-    def apply_check_results() -> tuple[str, int | None, str | None]:
+    def apply_check_results() -> tuple[str, Optional[int], Optional[str]]:
         if "result" in result_holder:
             return (
                 result_holder["result"][0],

@@ -158,32 +158,33 @@ DEFAULT_LAYOUT = KeyboardLayout(
 )
 
 _keyboard_fonts: Optional[
-    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
+    tuple[display.Font, display.Font, display.Font]
 ] = None
 
 
-def _get_keyboard_fonts() -> (
-    tuple[ImageFont.ImageFont, ImageFont.ImageFont, ImageFont.ImageFont]
-):
+def _get_keyboard_fonts() -> tuple[display.Font, display.Font, display.Font]:
     global _keyboard_fonts
     if _keyboard_fonts is not None:
         return _keyboard_fonts
     context = display.get_display_context()
+    input_font: display.Font
     try:
         input_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8
+            str(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf"), 8
         )
     except OSError:
         input_font = context.fontdisks
+    key_font: display.Font
     try:
         key_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "dogicapixel.ttf", 8
+            str(display.ASSETS_DIR / "fonts" / "dogicapixel.ttf"), 8
         )
     except OSError:
         key_font = input_font
+    icon_font: display.Font
     try:
         icon_font = ImageFont.truetype(
-            display.ASSETS_DIR / "fonts" / "lucide.ttf",
+            str(display.ASSETS_DIR / "fonts" / "lucide.ttf"),
             16,
         )
     except OSError:
@@ -229,7 +230,7 @@ def _render_keyboard(
     selected_band: str,
     mode_index: int,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -242,7 +243,7 @@ def _render_keyboard(
     resolved_title_icon = title_icon if masked else None
     if masked and resolved_title_icon is None:
         resolved_title_icon = PASSWORD_ICON_GLYPH
-    resolved_title_icon_font = title_icon_font
+    resolved_title_icon_font: Optional[display.Font] = title_icon_font
     if resolved_title_icon and resolved_title_icon_font is None:
         resolved_title_icon_font = icon_font
     if title:
@@ -359,7 +360,7 @@ def _render_keyboard(
     ]
     mode_items = mode_selectors + mode_actions
     inter_group_gap = 8
-    mode_positions = []
+    mode_positions: list[tuple[int, int, str, display.Font, str]] = []
     for attempt_padding, attempt_gap in ((key_padding, 4), (2, 2), (0, 1)):
         mode_positions.clear()
         cursor_x = 0
@@ -419,7 +420,7 @@ def prompt_text(
     masked: bool = False,
     layout: KeyboardLayout = DEFAULT_LAYOUT,
     title_icon: Optional[str] = None,
-    title_icon_font: Optional[ImageFont.ImageFont] = None,
+    title_icon_font: Optional[display.Font] = None,
 ) -> Optional[str]:
     value = initial
     selected_col = 0

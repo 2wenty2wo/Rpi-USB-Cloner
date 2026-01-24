@@ -30,9 +30,10 @@ def compute_sha256(
     log.debug(f"Computing sha256 for {device_node}")
     display_lines([title, "Starting..."])
     dd_cmd = [dd_path, f"if={device_node}", "bs=4M", "status=progress"]
+    total_bytes_int: Optional[int] = None
     if total_bytes:
-        total_bytes = int(total_bytes)
-        dd_cmd.extend([f"count={total_bytes}", "iflag=count_bytes"])
+        total_bytes_int = int(total_bytes)
+        dd_cmd.extend([f"count={total_bytes_int}", "iflag=count_bytes"])
     dd_proc = subprocess.Popen(
         dd_cmd,
         stdout=subprocess.PIPE,
@@ -48,17 +49,20 @@ def compute_sha256(
     )
     if dd_proc.stdout:
         dd_proc.stdout.close()
+    dd_stderr = dd_proc.stderr
     last_update = time.time()
     while True:
-        line = dd_proc.stderr.readline()
+        if dd_stderr is None:
+            break
+        line = dd_stderr.readline()
         if line:
             log.debug(f"dd: {line.strip()}")
             match = re.search(r"(\d+)\s+bytes", line)
             if match:
                 bytes_copied = int(match.group(1))
                 percent = ""
-                if total_bytes:
-                    percent = f"{(bytes_copied / total_bytes) * 100:.1f}%"
+                if total_bytes_int:
+                    percent = f"{(bytes_copied / total_bytes_int) * 100:.1f}%"
                 display_lines([title, f"{human_size(bytes_copied)} {percent}".strip()])
                 last_update = time.time()
         if dd_proc.poll() is not None:
@@ -69,7 +73,7 @@ def compute_sha256(
     dd_proc.wait()
     sha_out, sha_err = sha_proc.communicate()
     if dd_proc.returncode != 0:
-        error_output = dd_proc.stderr.read().strip()
+        error_output = dd_stderr.read().strip() if dd_stderr else ""
         message = error_output.splitlines()[-1] if error_output else "dd failed"
         raise RuntimeError(message)
     if sha_proc.returncode != 0:
@@ -120,7 +124,7 @@ def verify_clone(
     target_parts = [
         child for child in get_children(target_device) if child.get("type") == "part"
     ]
-    target_parts_by_number = {}
+    target_parts_by_number: dict[int, dict[str, Any]] = {}
     for child in target_parts:
         part_number = get_partition_number(child.get("name"))
         if part_number is None:

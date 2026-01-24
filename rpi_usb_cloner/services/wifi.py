@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import threading
+from typing import Optional, TypedDict
 import time
 from dataclasses import dataclass
 from typing import Callable, Iterable, Sequence
@@ -22,9 +23,15 @@ def _noop_logger(message: str) -> None:
 _log_debug = get_logger(tags=["wifi"], source=__name__).debug
 _error_handler = None
 _command_runner = None
-_STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
+class WifiStatus(TypedDict):
+    connected: bool
+    ssid: Optional[str]
+    ip: Optional[str]
+
+
+_STATUS_CACHE: WifiStatus = {"connected": False, "ssid": None, "ip": None}
 _STATUS_CACHE_LOCK = threading.Lock()
-_STATUS_CACHE_TIME: float | None = None
+_STATUS_CACHE_TIME: Optional[float] = None
 
 
 def configure_wifi_helpers(
@@ -595,7 +602,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
         if _STATUS_CACHE_TIME is not None and now - _STATUS_CACHE_TIME <= ttl_s:
             return dict(_STATUS_CACHE)
 
-    status = {"connected": False, "ssid": None, "ip": None}
+    status: WifiStatus = {"connected": False, "ssid": None, "ip": None}
     try:
         result = _run_command(
             [

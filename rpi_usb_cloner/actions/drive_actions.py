@@ -109,8 +109,10 @@ def copy_drive(
                     try:
                         source_drive = Drive.from_lsblk_dict(source)
                         target_drive = Drive.from_lsblk_dict(target)
-                        clone_mode = CloneMode(mode)
-                        job = CloneJob(source_drive, target_drive, clone_mode, job_id)
+                        clone_mode_enum = CloneMode(mode)
+                        job = CloneJob(
+                            source_drive, target_drive, clone_mode_enum, job_id
+                        )
 
                         # CloneJob.validate() is called inside clone_device_v2
                         # This automatically prevents source==destination bug!
@@ -558,7 +560,10 @@ def _render_disk_usage_page(
             end_angle = start_angle - (used_percent / 100 * 360)
 
             draw.pieslice(
-                [(pie_x + 1, pie_y + 1), (pie_x + pie_size - 1, pie_y + pie_size - 1)],
+                (
+                    (pie_x + 1, pie_y + 1),
+                    (pie_x + pie_size - 1, pie_y + pie_size - 1),
+                ),
                 start=start_angle,
                 end=end_angle,
                 fill=255,

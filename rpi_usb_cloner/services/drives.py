@@ -240,16 +240,22 @@ def list_media_drive_labels() -> list[str]:
 def list_usb_disk_names() -> list[str]:
     """List USB disk names, excluding repo drives."""
     repo_devices = _get_repo_device_names()
-    return [
-        device.get("name")
-        for device in list_usb_disks()
-        if device.get("name") and device.get("name") not in repo_devices
-    ]
+    names: list[str] = []
+    for device in list_usb_disks():
+        name = device.get("name")
+        if name and name not in repo_devices:
+            names.append(name)
+    return names
 
 
 def list_raw_usb_disk_names() -> list[str]:
     """List USB disk names without filtering repo drives."""
-    return [device.get("name") for device in list_usb_disks() if device.get("name")]
+    names: list[str] = []
+    for device in list_usb_disks():
+        name = device.get("name")
+        if name:
+            names.append(name)
+    return names
 
 
 def list_usb_disk_labels() -> list[str]:

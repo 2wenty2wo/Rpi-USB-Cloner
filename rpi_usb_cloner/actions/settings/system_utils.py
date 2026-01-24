@@ -20,7 +20,7 @@ _GIT_PROGRESS_STAGES = {
 def run_command(
     args: list[str],
     *,
-    cwd: Path | None = None,
+    cwd: Optional[Path] = None,
     log_debug: Optional[Callable[[str], None]] = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run a command and capture output."""
@@ -50,7 +50,7 @@ def log_debug_msg(
 
 def get_git_version(
     repo_root: Path, *, log_debug: Optional[Callable[[str], None]]
-) -> str | None:
+) -> Optional[str]:
     """Get git version string from repository."""
     describe = run_command(
         ["git", "-C", str(repo_root), "describe", "--tags", "--always", "--dirty"],
@@ -201,7 +201,7 @@ def format_command_output(stdout: str, stderr: str) -> list[str]:
     return lines or ["No output"]
 
 
-def parse_git_progress_ratio(line: str) -> float | None:
+def parse_git_progress_ratio(line: str) -> Optional[float]:
     """Parse git progress percentage from stderr line."""
     match = re.search(
         r"^(Receiving objects|Resolving deltas|Updating files):\s+(\d+)%", line
