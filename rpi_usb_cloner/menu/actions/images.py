@@ -1,4 +1,4 @@
-"""Image-related menu actions."""
+"""Clone-related menu actions (backup, restore, verify)."""
 
 from __future__ import annotations
 
@@ -37,4 +37,15 @@ def write_image() -> None:
         lambda: image_actions.write_image(
             app_context=context.app_context, log_debug=context.log_debug
         )
+    )
+
+
+def verify_clone() -> None:
+    """Verify a clone/restore by comparing image hashes against target device."""
+    context = get_action_context()
+    _run_operation(
+        lambda: image_actions.verify_clone(
+            app_context=context.app_context, log_debug=context.log_debug
+        ),
+        allow_back_interrupt=True,
     )

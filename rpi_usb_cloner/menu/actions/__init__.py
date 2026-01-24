@@ -42,7 +42,7 @@ from .drives import (  # noqa: E402
     format_drive,
     unmount_drive,
 )
-from .images import backup_image, images_coming_soon, write_image  # noqa: E402
+from .images import backup_image, images_coming_soon, verify_clone, write_image  # noqa: E402
 from .settings import (  # noqa: E402
     demo_confirmation_screen,
     demo_info_screen,
@@ -69,7 +69,7 @@ from .settings import (  # noqa: E402
     update_version,
     wifi_settings,
 )
-from .tools import file_browser, tools_coming_soon, view_logs  # noqa: E402
+from .tools import file_browser, system_info, tools_coming_soon, view_logs  # noqa: E402
 
 
 # Common utility (used by all action modules)
@@ -87,14 +87,16 @@ __all__ = [
     "format_drive",
     "unmount_drive",
     "erase_drive",
-    # Image actions
+    # Clone/Image actions
     "backup_image",
     "write_image",
+    "verify_clone",
     "images_coming_soon",
     # Tool actions
     "view_logs",
     "tools_coming_soon",
     "file_browser",
+    "system_info",
     # Settings actions
     "settings_coming_soon",
     "wifi_settings",

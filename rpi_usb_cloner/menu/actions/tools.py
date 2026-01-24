@@ -20,3 +20,9 @@ def view_logs() -> None:
 def file_browser() -> None:
     context = get_action_context()
     screens.show_file_browser(context.app_context)
+
+
+def system_info() -> None:
+    """Display system information (CPU, memory, storage)."""
+    context = get_action_context()
+    tools_actions.system_info(app_context=context.app_context)
