@@ -171,7 +171,7 @@ def toggle_screenshots() -> None:
     time.sleep(1.5)
 
 
-def toggle_web_server(app_context=None, log_debug=None) -> None:
+def toggle_web_server(app_context=None) -> None:
     """Toggle web server enabled/disabled."""
     enabled = settings.get_bool("web_server_enabled", default=False)
     if enabled:
@@ -182,7 +182,7 @@ def toggle_web_server(app_context=None, log_debug=None) -> None:
         return
 
     try:
-        web_server.start_server(log_debug=log_debug, app_context=app_context)
+        web_server.start_server(app_context=app_context)
     except OSError:
         screens.render_status_template("WEB SERVER", "Start FAILED")
         time.sleep(1.5)

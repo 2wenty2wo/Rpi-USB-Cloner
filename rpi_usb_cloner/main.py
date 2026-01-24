@@ -875,6 +875,15 @@ def main(argv: Optional[list[str]] = None) -> None:
     except KeyboardInterrupt:
         pass
     except Exception as error:
+        # Log critical crash to all sinks (console, files, Web UI)
+        crash_log = get_logger(tags=["crash", "fatal"], source="main")
+        crash_log.critical(
+            f"Application crash: {type(error).__name__}",
+            error_type=type(error).__name__,
+            error_message=str(error),
+            error_traceback=str(error.__traceback__),
+        )
+        # Also print to stderr for immediate visibility
         print(f"An error occurred: {type(error).__name__}")
         print(str(error))
         error_displayed = True

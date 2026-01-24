@@ -90,37 +90,27 @@ def toggle_web_server() -> None:
     context = get_action_context()
     settings_actions.toggle_web_server(
         app_context=context.app_context,
-        log_debug=context.log_debug,
     )
 
 
 def update_version() -> None:
-    context = get_action_context()
-    _run_operation(lambda: settings_actions.update_version(log_debug=context.log_debug))
+    _run_operation(lambda: settings_actions.update_version())
 
 
 def restart_service() -> None:
-    context = get_action_context()
-    _run_operation(
-        lambda: settings_actions.restart_service(log_debug=context.log_debug)
-    )
+    _run_operation(lambda: settings_actions.restart_service())
 
 
 def stop_service() -> None:
-    context = get_action_context()
-    _run_operation(lambda: settings_actions.stop_service(log_debug=context.log_debug))
+    _run_operation(lambda: settings_actions.stop_service())
 
 
 def restart_system() -> None:
-    context = get_action_context()
-    _run_operation(lambda: settings_actions.restart_system(log_debug=context.log_debug))
+    _run_operation(lambda: settings_actions.restart_system())
 
 
 def shutdown_system() -> None:
-    context = get_action_context()
-    _run_operation(
-        lambda: settings_actions.shutdown_system(log_debug=context.log_debug)
-    )
+    _run_operation(lambda: settings_actions.shutdown_system())
 
 
 def show_about_credits() -> None:

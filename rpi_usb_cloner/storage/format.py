@@ -49,7 +49,7 @@ import subprocess
 import time
 from typing import Callable, List, Optional
 
-from rpi_usb_cloner.logging import get_logger
+from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_device_by_name,
@@ -66,21 +66,16 @@ from rpi_usb_cloner.storage.validation import (
 )
 
 
-_log_debug: Optional[Callable[[str], None]] = get_logger(
-    tags=["format"], source=__name__
-).debug
+# Create logger for format operations
+log = LoggerFactory.for_clone()
 
 
 def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
-    """Configure logging for format operations."""
-    global _log_debug
-    _log_debug = log_debug
+    """Configure format helpers (kept for backwards compatibility).
 
-
-def log_debug(message: str) -> None:
-    """Log debug message if logger is configured."""
-    if _log_debug:
-        _log_debug(message)
+    Note: log_debug parameter is ignored - logging now uses LoggerFactory.
+    """
+    pass
 
 
 def _validate_device_path(device_path: str) -> bool:
@@ -98,11 +93,11 @@ def _create_partition_table(device_path: str) -> bool:
         True on success, False on failure
     """
     try:
-        log_debug(f"Creating MBR partition table on {device_path}")
+        log.debug(f"Creating MBR partition table on {device_path}")
         run_command(["parted", "-s", device_path, "mklabel", "msdos"])
         return True
     except subprocess.CalledProcessError as error:
-        log_debug(f"Failed to create partition table: {error}")
+        log.debug(f"Failed to create partition table: {error}")
         return False
 
 
@@ -116,14 +111,14 @@ def _create_partition(device_path: str) -> bool:
         True on success, False on failure
     """
     try:
-        log_debug(f"Creating primary partition on {device_path}")
+        log.debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
         run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
         # Wait for partition device node to appear
         time.sleep(1)
         return True
     except subprocess.CalledProcessError as error:
-        log_debug(f"Failed to create partition: {error}")
+        log.debug(f"Failed to create partition: {error}")
         return False
 
 
@@ -181,11 +176,11 @@ def _format_filesystem(
         command.append(partition_path)
 
     else:
-        log_debug(f"Unsupported filesystem type: {filesystem}")
+        log.debug(f"Unsupported filesystem type: {filesystem}")
         return False
 
     try:
-        log_debug(f"Formatting {partition_path} as {filesystem} (mode: {mode})")
+        log.debug(f"Formatting {partition_path} as {filesystem} (mode: {mode})")
 
         # Update progress
         if progress_callback:
@@ -214,7 +209,7 @@ def _format_filesystem(
                 if readable:
                     line = stderr_stream.readline()
                     if line:
-                        log_debug(f"mkfs output: {line.strip()}")
+                        log.debug(f"mkfs output: {line.strip()}")
                         match = pattern.search(line)
                         if match and progress_callback:
                             percent = int(match.group(1))
@@ -229,10 +224,10 @@ def _format_filesystem(
 
         if returncode != 0:
             stderr_output = process.stderr.read() if process.stderr else ""
-            log_debug(f"Format failed: {stderr_output}")
+            log.debug(f"Format failed: {stderr_output}")
             return False
 
-        log_debug(f"Successfully formatted {partition_path} as {filesystem}")
+        log.debug(f"Successfully formatted {partition_path} as {filesystem}")
 
         # Update progress to complete
         if progress_callback:
@@ -241,10 +236,10 @@ def _format_filesystem(
         return True
 
     except subprocess.CalledProcessError as error:
-        log_debug(f"Failed to format partition: {error}")
+        log.debug(f"Failed to format partition: {error}")
         return False
     except Exception as error:
-        log_debug(f"Unexpected error during format: {error}")
+        log.debug(f"Unexpected error during format: {error}")
         return False
 
 
@@ -272,19 +267,19 @@ def format_device(
     """
     device_name = device.get("name")
     if not device_name:
-        log_debug("Device has no name field")
+        log.debug("Device has no name field")
         return False
 
     # SAFETY: Validate format operation before proceeding
     try:
         validate_format_operation(device, check_unmounted=False)
     except (DeviceBusyError, MountVerificationError) as error:
-        log_debug(f"Format aborted: {error}")
+        log.debug(f"Format aborted: {error}")
         if progress_callback:
             progress_callback(["Device busy"], None)
         return False
     except Exception as error:
-        log_debug(f"Format aborted: validation failed: {error}")
+        log.debug(f"Format aborted: validation failed: {error}")
         if progress_callback:
             progress_callback(["Validation failed"], None)
         return False
@@ -295,35 +290,35 @@ def format_device(
 
     # Validate device path
     if not _validate_device_path(device_path):
-        log_debug(f"Invalid device path: {device_path}")
+        log.debug(f"Invalid device path: {device_path}")
         return False
 
     device_label = format_device_label(device)
-    log_debug(f"Starting format of {device_label} as {filesystem} ({mode})")
+    log.debug(f"Starting format of {device_label} as {filesystem} ({mode})")
 
     # Unmount device and all partitions
     try:
         if progress_callback:
             progress_callback(["Unmounting..."], 0.0)
         if not unmount_device(device):
-            log_debug("Failed to unmount device; aborting format")
+            log.debug("Failed to unmount device; aborting format")
             if progress_callback:
                 progress_callback(["Unmount failed"], None)
             return False
     except Exception as error:
-        log_debug(f"Failed to unmount device: {error}")
+        log.debug(f"Failed to unmount device: {error}")
         return False
 
     try:
         refreshed_device = get_device_by_name(device_name) or device
         validate_device_unmounted(refreshed_device)
     except (DeviceBusyError, MountVerificationError) as error:
-        log_debug(f"Format aborted: {error}")
+        log.debug(f"Format aborted: {error}")
         if progress_callback:
             progress_callback(["Device busy"], None)
         return False
     except Exception as error:
-        log_debug(f"Format aborted: mount verification failed: {error}")
+        log.debug(f"Format aborted: mount verification failed: {error}")
         if progress_callback:
             progress_callback(["Validation failed"], None)
         return False
@@ -348,5 +343,5 @@ def format_device(
     ):
         return False
 
-    log_debug(f"Format completed successfully: {device_label}")
+    log.debug(f"Format completed successfully: {device_label}")
     return True

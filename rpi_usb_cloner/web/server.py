@@ -554,7 +554,6 @@ def start_server(
         stop_event = threading.Event()
         app["display_notifier"] = notifier
         app["display_stop_event"] = stop_event
-        app["log_debug"] = log_debug
         app["app_context"] = app_context
         app.router.add_get("/", handle_root)
         app.router.add_get("/screen.png", handle_screen_png)
