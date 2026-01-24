@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from rpi_usb_cloner.domain import CloneJob
+from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.devices import (
     get_children,
     get_device_by_name,
@@ -32,7 +33,9 @@ from .models import (
     normalize_clone_mode,
     resolve_device_node,
 )
-from .progress import _log_debug
+
+# Create logger for clone operations
+log = LoggerFactory.for_clone()
 
 
 def _get_device_dict(device: Union[str, dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -66,11 +69,23 @@ def copy_partition_table(
         run_checked_command(
             [sgdisk_path, f"--replicate={dst_node}", "--randomize-guids", src_node]
         )
-        _log_debug(f"GPT partition table replicated from {src_node} to {dst_node}")
+        log.info(
+            f"GPT partition table replicated from {src_node} to {dst_node}",
+            source=src_node,
+            destination=dst_node,
+            label="gpt",
+            tags=["partition", "gpt"],
+        )
         return
     if label in ("dos", "mbr", "msdos"):
         run_checked_command([sfdisk_path, dst_node], input_text=dump_output)
-        _log_debug(f"MBR partition table cloned from {src_node} to {dst_node}")
+        log.info(
+            f"MBR partition table cloned from {src_node} to {dst_node}",
+            source=src_node,
+            destination=dst_node,
+            label=label,
+            tags=["partition", "mbr"],
+        )
         return
     raise RuntimeError(f"Unsupported partition table label: {label}")
 
@@ -233,20 +248,37 @@ def clone_device(
             check_unmounted=False,
         )
     except SourceDestinationSameError as error:
+        log.error(
+            "Clone aborted: source and destination are the same device",
+            error=str(error),
+            tags=["clone", "validation", "error"],
+        )
         display_lines(["FAILED", "Same device!"])
-        _log_debug(f"Clone aborted: {error}")
         return False
     except InsufficientSpaceError as error:
+        log.error(
+            "Clone aborted: insufficient space on target",
+            error=str(error),
+            tags=["clone", "space", "error"],
+        )
         display_lines(["FAILED", "No space"])
-        _log_debug(f"Clone aborted: {error}")
         return False
     except (DeviceBusyError, MountVerificationError) as error:
+        log.error(
+            "Clone aborted: device busy or mount verification failed",
+            error=str(error),
+            tags=["clone", "busy", "error"],
+        )
         display_lines(["FAILED", "Device busy"])
-        _log_debug(f"Clone aborted: {error}")
         return False
     except Exception as error:
+        log.error(
+            "Clone aborted: validation failed",
+            error=str(error),
+            error_type=type(error).__name__,
+            tags=["clone", "validation", "error"],
+        )
         display_lines(["FAILED", "Validation"])
-        _log_debug(f"Clone aborted: validation failed: {error}")
         return False
 
     if mode is None:
@@ -263,25 +295,42 @@ def clone_device(
         return True
     target_device = _get_device_dict(target)
     if not target_device:
+        log.error(
+            "Clone aborted: target device not found",
+            target=str(target),
+            tags=["clone", "device", "error"],
+        )
         display_lines(["FAILED", "Target missing"])
-        _log_debug("Clone aborted: target device not found")
         return False
     if not unmount_device(target_device):
+        log.error(
+            "Clone aborted: failed to unmount target device",
+            target=target_device.get("name"),
+            tags=["clone", "unmount", "error"],
+        )
         display_lines(["FAILED", "Unmount target"])
-        _log_debug("Clone aborted: target unmount failed")
         return False
     try:
         validate_device_unmounted(target_device)
     except (DeviceBusyError, MountVerificationError) as error:
+        log.error(
+            "Clone aborted: target still mounted after unmount attempt",
+            target=target_device.get("name"),
+            error=str(error),
+            tags=["clone", "busy", "error"],
+        )
         display_lines(["FAILED", "Device busy"])
-        _log_debug(f"Clone aborted: target still mounted: {error}")
         return False
     try:
         total_bytes = source.get("size") if isinstance(source, dict) else None
         clone_dd(source, target, total_bytes=total_bytes, title="CLONING")
     except RuntimeError as error:
+        log.error(
+            "Clone failed during dd operation",
+            error=str(error),
+            tags=["clone", "dd", "error"],
+        )
         display_lines(["FAILED", str(error)[:20]])
-        _log_debug(f"Clone failed: {error}")
         return False
     return True
 
@@ -307,55 +356,103 @@ def clone_device_smart(
             check_unmounted=False,
         )
     except SourceDestinationSameError as error:
+        log.error(
+            "Smart clone aborted: source and destination are the same",
+            error=str(error),
+            tags=["clone", "smart", "validation", "error"],
+        )
         display_lines(["FAILED", "Same device!"])
-        _log_debug(f"Smart clone aborted: {error}")
         return False
     except InsufficientSpaceError as error:
+        log.error(
+            "Smart clone aborted: insufficient space on target",
+            error=str(error),
+            tags=["clone", "smart", "space", "error"],
+        )
         display_lines(["FAILED", "No space"])
-        _log_debug(f"Smart clone aborted: {error}")
         return False
     except (DeviceBusyError, MountVerificationError) as error:
+        log.error(
+            "Smart clone aborted: device busy or mount verification failed",
+            error=str(error),
+            tags=["clone", "smart", "busy", "error"],
+        )
         display_lines(["FAILED", "Device busy"])
-        _log_debug(f"Smart clone aborted: {error}")
         return False
     except Exception as error:
+        log.error(
+            "Smart clone aborted: validation failed",
+            error=str(error),
+            error_type=type(error).__name__,
+            tags=["clone", "smart", "validation", "error"],
+        )
         display_lines(["FAILED", "Validation"])
-        _log_debug(f"Smart clone aborted: validation failed: {error}")
         return False
 
     source_device = _get_device_dict(source)
     target_device = _get_device_dict(target)
     if not source_device or not target_device:
+        log.error(
+            "Smart clone aborted: source or target device not found",
+            source=str(source) if not source_device else None,
+            target=str(target) if not target_device else None,
+            tags=["clone", "smart", "device", "error"],
+        )
         display_lines(["FAILED", "Device missing"])
-        _log_debug("Smart clone aborted: source or target missing")
         return False
     source_node = f"/dev/{source_device.get('name')}"
     target_node = f"/dev/{target_device.get('name')}"
     if not unmount_device(target_device):
+        log.error(
+            "Smart clone aborted: failed to unmount target",
+            target=target_node,
+            tags=["clone", "smart", "unmount", "error"],
+        )
         display_lines(["FAILED", "Unmount target"])
-        _log_debug("Smart clone aborted: target unmount failed")
         return False
     try:
         validate_device_unmounted(target_device)
     except (DeviceBusyError, MountVerificationError) as error:
+        log.error(
+            "Smart clone aborted: target still mounted after unmount",
+            target=target_node,
+            error=str(error),
+            tags=["clone", "smart", "busy", "error"],
+        )
         display_lines(["FAILED", "Device busy"])
-        _log_debug(f"Smart clone aborted: target still mounted: {error}")
         return False
     try:
         display_lines(["CLONING", "Copy table"])
         copy_partition_table(source, target)
     except RuntimeError as error:
+        log.error(
+            "Partition table copy failed during smart clone",
+            source=source_node,
+            target=target_node,
+            error=str(error),
+            tags=["clone", "smart", "partition", "error"],
+        )
         display_lines(["FAILED", "Partition tbl"])
-        _log_debug(f"Partition table copy failed: {error}")
         return False
     try:
         clone_partclone(source, target)
     except RuntimeError as error:
+        log.error(
+            f"Smart clone failed: {source_node} -> {target_node}",
+            source=source_node,
+            target=target_node,
+            error=str(error),
+            tags=["clone", "smart", "partclone", "error"],
+        )
         display_lines(["FAILED", str(error)[:20]])
-        _log_debug(f"Smart clone failed ({source_node} -> {target_node}): {error}")
         return False
+    log.success(
+        f"Smart clone completed: {source_node} -> {target_node}",
+        source=source_node,
+        target=target_node,
+        tags=["clone", "smart", "success"],
+    )
     display_lines(["CLONING", "Complete"])
-    _log_debug(f"Smart clone completed from {source_node} to {target_node}")
     return True
 
 
@@ -391,14 +488,37 @@ def clone_device_v2(job: CloneJob) -> bool:
         # Map domain validation error to storage layer display
         error_msg = str(error)
         if "same device" in error_msg.lower():
+            log.error(
+                "Clone aborted: validation failed - same device",
+                job_id=job.job_id,
+                error=str(error),
+                tags=["clone", "validation", "error"],
+            )
             display_lines(["FAILED", "Same device!"])
         elif "smaller than source" in error_msg.lower():
+            log.error(
+                "Clone aborted: validation failed - insufficient space",
+                job_id=job.job_id,
+                error=str(error),
+                tags=["clone", "validation", "space", "error"],
+            )
             display_lines(["FAILED", "No space"])
         elif "not removable" in error_msg.lower():
+            log.error(
+                "Clone aborted: validation failed - device not removable",
+                job_id=job.job_id,
+                error=str(error),
+                tags=["clone", "validation", "removable", "error"],
+            )
             display_lines(["FAILED", "Not removable"])
         else:
+            log.error(
+                "Clone aborted: validation failed",
+                job_id=job.job_id,
+                error=str(error),
+                tags=["clone", "validation", "error"],
+            )
             display_lines(["FAILED", "Validation"])
-        _log_debug(f"Clone aborted: {error}")
         return False
 
     # Convert Drive objects to device paths (for backward compat with old API)
@@ -410,8 +530,14 @@ def clone_device_v2(job: CloneJob) -> bool:
     dest_dict = get_device_by_name(job.destination.name)
 
     if not source_dict or not dest_dict:
+        log.error(
+            "Clone aborted: could not find source or destination device",
+            job_id=job.job_id,
+            source=job.source.name if not source_dict else None,
+            destination=job.destination.name if not dest_dict else None,
+            tags=["clone", "device", "lookup", "error"],
+        )
         display_lines(["FAILED", "Device lookup"])
-        _log_debug("Clone aborted: Could not find source or destination device")
         return False
 
     # Call existing implementation

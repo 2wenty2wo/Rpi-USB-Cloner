@@ -450,7 +450,12 @@ def restore_clonezilla_image(
     )
     target_size = get_device_size_bytes(target_info, target_node)
     if required_size is None or target_size is None:
-        print("Warning: unable to determine size information; skipping size check.")
+        log.warning(
+            "Unable to determine size information; skipping size check",
+            required_size=required_size,
+            target_size=target_size,
+            tags=["clonezilla", "restore", "size"],
+        )
     elif target_size < required_size:
         raise RuntimeError(
             f"Target device too small ({devices.human_size(target_size)} < {devices.human_size(required_size)})"

@@ -59,7 +59,7 @@ Example:
 Implementation Notes:
     - Relies on lsblk command availability (standard on Raspberry Pi OS)
     - Uses JSON parsing for structured output
-    - Global _log_debug and _error_handler for debugging and error reporting
+    - Global log.debug and _error_handler for debugging and error reporting
     - Must be configured with configure_device_helpers() before use
 """
 
@@ -70,22 +70,21 @@ import subprocess
 import time
 from typing import Any, Callable, Iterable, Optional, Union
 
+from rpi_usb_cloner.logging import LoggerFactory
+
 
 ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 LSBLK_CACHE_TTL_SECONDS = 1.0
 
-_log_debug: Callable[[str], None]
+# Create logger for device operations
+log = LoggerFactory.for_usb()
+
 _error_handler: Optional[Callable[[Iterable[str]], None]]
 _last_lsblk_names: Optional[tuple[str, ...]] = None
 _lsblk_cache: Optional[list[dict]] = None
 _lsblk_cache_time: Optional[float] = None
 
 
-def _noop_logger(message: str) -> None:
-    return None
-
-
-_log_debug = _noop_logger
 _error_handler = None
 
 
@@ -93,8 +92,11 @@ def configure_device_helpers(
     log_debug: Optional[Callable[[str], None]] = None,
     error_handler: Optional[Callable[[Iterable[str]], None]] = None,
 ) -> None:
-    global _log_debug, _error_handler
-    _log_debug = log_debug or _noop_logger
+    """Configure device helpers (kept for backwards compatibility).
+
+    Note: log_debug parameter is ignored - logging now uses LoggerFactory.
+    """
+    global _error_handler
     _error_handler = error_handler
 
 
@@ -105,22 +107,22 @@ def run_command(
     log_command: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     if log_command:
-        _log_debug(f"Running command: {' '.join(command)}")
+        log.debug(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, check=check, text=True, capture_output=True)
     except subprocess.CalledProcessError as error:
-        _log_debug(f"Command failed: {' '.join(command)}")
+        log.error(f"Command failed: {' '.join(command)}", tags=["command", "error"])
         if error.stdout:
-            _log_debug(f"stdout: {error.stdout.strip()}")
+            log.debug(f"stdout: {error.stdout.strip()}")
         if error.stderr:
-            _log_debug(f"stderr: {error.stderr.strip()}")
+            log.debug(f"stderr: {error.stderr.strip()}")
         raise
     if result.stdout and (log_output or result.returncode != 0):
-        _log_debug(f"stdout: {result.stdout.strip()}")
+        log.debug(f"stdout: {result.stdout.strip()}")
     if result.stderr and (log_output or result.returncode != 0):
-        _log_debug(f"stderr: {result.stderr.strip()}")
+        log.debug(f"stderr: {result.stderr.strip()}")
     if log_command:
-        _log_debug(f"Command completed with return code {result.returncode}")
+        log.debug(f"Command completed with return code {result.returncode}")
     return result
 
 
@@ -184,11 +186,11 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
         )
         if device_names != _last_lsblk_names:
             if device_names:
-                _log_debug(
+                log.debug(
                     f"lsblk found {len(device_names)} devices: {', '.join(device_names)}"
                 )
             else:
-                _log_debug("lsblk found no block devices")
+                log.debug("lsblk found no block devices")
             _last_lsblk_names = device_names
         _lsblk_cache = devices
         _lsblk_cache_time = now
@@ -196,7 +198,7 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
     except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
         if _error_handler:
             _error_handler(["LSBLK ERROR", str(error)])
-        _log_debug(f"lsblk failed: {error}")
+        log.debug(f"lsblk failed: {error}")
         if _lsblk_cache is not None and not force_refresh:
             return _lsblk_cache
         return []
@@ -295,7 +297,7 @@ def unmount_device(device: dict[str, Any], raise_on_failure: bool = False) -> bo
 
     failed_mounts = [mp for mp in failed_mounts if _is_mountpoint_active(mp)]
     if failed_mounts:
-        _log_debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
+        log.debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
         if _error_handler:
             _error_handler(["UNMOUNT FAILED", *failed_mounts])
 
