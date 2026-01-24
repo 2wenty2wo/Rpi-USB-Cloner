@@ -43,21 +43,21 @@ def render_slide_transition(
     if direction not in {"forward", "back"}:
         direction = "forward"
 
-    with display._display_lock:
-        for index in range(1, frame_count + 1):
-            shift = int(round(width * index / frame_count))
-            if direction == "back":
-                from_offset = shift
-                to_offset = -width + shift
-            else:
-                from_offset = -shift
-                to_offset = width - shift
+    for index in range(1, frame_count + 1):
+        shift = int(round(width * index / frame_count))
+        if direction == "back":
+            from_offset = shift
+            to_offset = -width + shift
+        else:
+            from_offset = -shift
+            to_offset = width - shift
 
-            region = Image.new("1", (dirty_width, dirty_height), 0)
-            region.paste(from_frame, (from_offset - left, -top))
-            region.paste(to_frame, (to_offset - left, -top))
+        region = Image.new("1", (dirty_width, dirty_height), 0)
+        region.paste(from_frame, (from_offset - left, -top))
+        region.paste(to_frame, (to_offset - left, -top))
+        with display._display_lock:
             context.image.paste(region, (left, top))
             context.disp.display(context.image)
             display.mark_display_dirty()
-            if frame_delay > 0:
-                time.sleep(frame_delay)
+        if frame_delay > 0:
+            time.sleep(frame_delay)
