@@ -2,6 +2,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
+from PIL import Image, ImageDraw
+
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware.gpio import (
     PIN_A,
@@ -16,7 +18,7 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
-from rpi_usb_cloner.ui import display, renderer
+from rpi_usb_cloner.ui import display, renderer, transitions
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     DEFAULT_SCROLL_CYCLE_SECONDS,
@@ -96,6 +98,151 @@ def get_standard_content_top(
 def _get_default_footer_positions(width: int, footer: List[str]) -> List[int]:
     spacing = width // (len(footer) + 1)
     return [(spacing * (index + 1)) - 10 for index in range(len(footer))]
+
+
+def _render_header_lines_image(
+    image: Image.Image,
+    *,
+    title: str,
+    header_lines: List[str],
+    title_font: Optional[display.Font] = None,
+    title_icon: Optional[str] = None,
+    items_font: Optional[display.Font] = None,
+    content_top: Optional[int] = None,
+) -> None:
+    context = display.get_display_context()
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    current_y = context.top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title:
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=header_font,
+            icon=title_icon,
+            extra_gap=2,
+            left_margin=context.x - 11,
+            draw=draw,
+            image=image,
+        )
+        current_y = layout.content_top
+    if content_top is not None:
+        current_y = max(current_y, content_top)
+    items_font = items_font or context.fontdisks
+    left_margin = context.x - 11
+    available_width = max(0, context.width - left_margin)
+    wrapped_lines = display._wrap_lines_to_width(
+        header_lines,
+        items_font,
+        available_width,
+    )
+    line_height = _get_line_height(items_font)
+    line_step = line_height + 2
+    available_height = context.height - current_y - 2
+    lines_per_page = max(1, available_height // line_step)
+    total_pages = max(1, (len(wrapped_lines) + lines_per_page - 1) // lines_per_page)
+    page_lines = wrapped_lines[:lines_per_page]
+    for line in page_lines:
+        draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
+        current_y += line_step
+    if total_pages > 1:
+        indicator = f"1/{total_pages}>"
+        indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
+        indicator_width = indicator_bbox[2] - indicator_bbox[0]
+        indicator_height = indicator_bbox[3] - indicator_bbox[1]
+        draw.text(
+            (
+                context.width - indicator_width - 2,
+                context.height - indicator_height - 2,
+            ),
+            indicator,
+            font=items_font,
+            fill=255,
+        )
+
+
+def _render_menu_list_image(
+    *,
+    title: str,
+    items: List[str],
+    selected_index: int,
+    scroll_offset: int,
+    visible_rows: int,
+    title_font: Optional[display.Font] = None,
+    title_icon: Optional[str] = None,
+    items_font: Optional[display.Font] = None,
+    footer: Optional[List[str]] = None,
+    footer_positions: Optional[List[int]] = None,
+    content_top: Optional[int] = None,
+    enable_horizontal_scroll: bool = False,
+    scroll_start_time: Optional[float] = None,
+    scroll_start_delay: float = 0.0,
+    target_cycle_seconds: float = DEFAULT_SCROLL_CYCLE_SECONDS,
+    scroll_gap: int = 20,
+    screen_id: Optional[str] = None,
+    header_lines: Optional[List[str]] = None,
+) -> Image.Image:
+    context = display.get_display_context()
+    image = Image.new("1", (context.width, context.height), 0)
+    if header_lines:
+        _render_header_lines_image(
+            image,
+            title=title,
+            header_lines=header_lines,
+            title_font=title_font,
+            title_icon=title_icon,
+            items_font=items_font,
+            content_top=content_top,
+        )
+    draw = ImageDraw.Draw(image)
+    renderer._render_menu(
+        draw=draw,
+        image=image,
+        title="" if header_lines else title,
+        items=items,
+        selected_index=selected_index,
+        scroll_offset=scroll_offset,
+        status_line=None,
+        visible_rows=visible_rows,
+        title_font=title_font,
+        title_icon=title_icon,
+        title_icon_font=None,
+        items_font=items_font,
+        status_font=None,
+        footer=footer,
+        footer_positions=footer_positions,
+        footer_selected_index=None,
+        footer_font=None,
+        content_top=content_top,
+        enable_horizontal_scroll=enable_horizontal_scroll,
+        scroll_start_time=scroll_start_time,
+        scroll_start_delay=scroll_start_delay,
+        target_cycle_seconds=target_cycle_seconds,
+        scroll_gap=scroll_gap,
+        screen_id=screen_id,
+        clear=not header_lines,
+    )
+    return image
+
+
+def _get_transition_frame_count() -> int:
+    context = display.get_display_context()
+    default_frames = max(8, min(24, context.width // 4))
+    setting_value = settings.get_setting("transition_frame_count", 3)
+    try:
+        frames = int(setting_value)
+    except (TypeError, ValueError):
+        return default_frames
+    return max(1, min(24, frames))
+
+
+def _get_transition_frame_delay() -> float:
+    setting_value = settings.get_setting("transition_frame_delay", 0.005)
+    try:
+        delay = float(setting_value)
+    except (TypeError, ValueError):
+        return 0.005
+    return max(0.0, delay)
 
 
 def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
@@ -254,6 +401,7 @@ def select_list(
     scroll_gap: int = 20,
     scroll_refresh_interval: Optional[float] = None,
     scroll_start_delay: float = 0.0,
+    transition_direction: Optional[str] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     if not items:
@@ -337,9 +485,45 @@ def select_list(
     scroll_refresh_interval = max(0.02, float(scroll_refresh_interval))
 
     scroll_start_time = time.monotonic() if enable_scroll else None
-    scroll_offset = render(
-        selected_index, scroll_offset, scroll_start_time=scroll_start_time
-    )
+    if transition_direction:
+        scroll_offset = clamp_scroll_offset(selected_index, scroll_offset)
+        from_image = context.image.copy()
+        to_image = _render_menu_list_image(
+            title=title,
+            items=items,
+            selected_index=selected_index,
+            scroll_offset=scroll_offset,
+            visible_rows=visible_rows,
+            title_font=title_font,
+            title_icon=title_icon,
+            items_font=items_font,
+            footer=footer,
+            footer_positions=footer_positions,
+            content_top=content_top,
+            enable_horizontal_scroll=enable_scroll,
+            scroll_start_time=scroll_start_time,
+            scroll_start_delay=scroll_start_delay,
+            target_cycle_seconds=target_cycle_seconds,
+            scroll_gap=scroll_gap,
+            screen_id=screen_id,
+            header_lines=header_lines,
+        )
+        transitions.render_slide_transition(
+            from_image=from_image,
+            to_image=to_image,
+            direction=transition_direction,
+            frame_count=_get_transition_frame_count(),
+            frame_delay=_get_transition_frame_delay(),
+        )
+        with display._display_lock:
+            context = display.get_display_context()
+            context.image.paste(to_image)
+            context.disp.display(context.image)
+            display.mark_display_dirty()
+    else:
+        scroll_offset = render(
+            selected_index, scroll_offset, scroll_start_time=scroll_start_time
+        )
     last_rendered_index = selected_index
     last_refresh_time = time.monotonic()
     last_scroll_render = time.monotonic()
@@ -489,6 +673,7 @@ def render_menu_list(
     header_lines: Optional[List[str]] = None,
     refresh_callback: Optional[Callable[[], Optional[List[str]]]] = None,
     refresh_interval: float = 0.25,
+    transition_direction: Optional[str] = None,
 ) -> Optional[int]:
     context = display.get_display_context()
     title_font = title_font or context.fonts.get("title", context.fontdisks)
@@ -514,6 +699,7 @@ def render_menu_list(
         header_lines=header_lines,
         refresh_callback=refresh_callback,
         refresh_interval=refresh_interval,
+        transition_direction=transition_direction,
     )
 
 
