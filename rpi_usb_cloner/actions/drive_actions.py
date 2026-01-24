@@ -1338,19 +1338,13 @@ def create_repo_drive(
     if not confirmed:
         return
 
-    # Get the first partition to create the flag file on
+    # Get the first mountable partition to create the flag file on
     from rpi_usb_cloner.storage.devices import get_children
 
     children = get_children(target)
-    partition = None
+    partitions = [child for child in children if child.get("type") == "part"]
 
-    # Find the first partition with a mountpoint or that can be mounted
-    for child in children:
-        if child.get("type") == "part":
-            partition = child
-            break
-
-    if not partition:
+    if not partitions:
         # Device has no partitions - show error
         screens.render_error_screen(
             title="CREATE REPO",
@@ -1362,34 +1356,46 @@ def create_repo_drive(
         time.sleep(1)
         return
 
-    partition_name = partition.get("name")
-    mountpoint = partition.get("mountpoint")
+    mountpoint = None
+    partition_name = None
 
-    # Mount the partition if not already mounted
-    if not mountpoint:
+    # Prefer a partition that is already mounted; otherwise try mounting each.
+    for partition in partitions:
+        mountpoint = partition.get("mountpoint")
+        partition_name = partition.get("name")
+        if mountpoint:
+            _log_debug(
+                log_debug,
+                f"Using mounted partition {partition_name} at {mountpoint}",
+            )
+            break
+
         display.display_lines(["MOUNTING..."])
         try:
             partition_node = f"/dev/{partition_name}"
             mount_module.mount_partition(partition_node, name=partition_name)
-            # Refresh device info to get new mountpoint
-            for device in list_usb_disks():
-                if device.get("name") == target_name:
-                    for child in get_children(device):
-                        if child.get("name") == partition_name:
-                            mountpoint = child.get("mountpoint")
-                            break
-                    break
         except (ValueError, RuntimeError) as error:
-            _log_debug(log_debug, f"Failed to mount partition: {error}")
-            screens.render_error_screen(
-                title="CREATE REPO",
-                message="Mount failed",
-                title_icon=FOLDER_ICON,
-                message_icon=ALERT_ICON,
-                message_icon_size=24,
+            _log_debug(
+                log_debug,
+                f"Failed to mount partition {partition_name}: {error}",
             )
-            time.sleep(1)
-            return
+            continue
+
+        # Refresh device info to get new mountpoint
+        for device in list_usb_disks():
+            if device.get("name") == target_name:
+                for child in get_children(device):
+                    if child.get("name") == partition_name:
+                        mountpoint = child.get("mountpoint")
+                        break
+                break
+
+        if mountpoint:
+            _log_debug(
+                log_debug,
+                f"Mounted partition {partition_name} at {mountpoint}",
+            )
+            break
 
     if not mountpoint:
         screens.render_error_screen(
