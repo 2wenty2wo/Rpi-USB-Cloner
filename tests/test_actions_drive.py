@@ -323,7 +323,6 @@ class TestCopyDrive:
         drive_actions.copy_drive(
             state=mock_app_state,
             clone_mode="smart",
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -368,7 +367,6 @@ class TestEraseDrive:
 
         drive_actions.erase_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -402,7 +400,6 @@ class TestUnmountDrive:
 
         drive_actions.unmount_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -428,7 +425,6 @@ class TestUnmountDrive:
 
         drive_actions.unmount_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -467,7 +463,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -500,7 +495,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -542,7 +536,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -599,7 +592,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -657,7 +649,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 
@@ -727,7 +718,6 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            
             get_selected_usb_name=get_selected,
         )
 

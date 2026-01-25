@@ -11,7 +11,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger, LoggerFactory
+from rpi_usb_cloner.logging import LoggerFactory, get_logger
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device_v2, erase_device
@@ -29,6 +29,7 @@ from rpi_usb_cloner.ui.icons import (
     FOLDER_ICON,
     SPARKLES_ICON,
 )
+
 
 # Create loggers for different operation types
 log_menu = LoggerFactory.for_menu()  # For menu navigation/selection
@@ -135,13 +136,23 @@ def copy_drive(
                                 "COPY", "Done", progress_line="Complete."
                             )
                         else:
-                            log_operation.error("Copy failed", source=source_name, target=target_name, mode=mode)
+                            log_operation.error(
+                                "Copy failed",
+                                source=source_name,
+                                target=target_name,
+                                mode=mode,
+                            )
                             screens.render_status_template(
                                 "COPY", "Failed", progress_line="Check logs."
                             )
                     except (KeyError, ValueError) as error:
                         # Handle Drive conversion or CloneMode errors
-                        log_operation.error("Copy failed", source=source_name, target=target_name, error=str(error))
+                        log_operation.error(
+                            "Copy failed",
+                            source=source_name,
+                            target=target_name,
+                            error=str(error),
+                        )
                         screens.render_status_template(
                             "COPY", "Failed", progress_line="Invalid params"
                         )
@@ -352,13 +363,20 @@ def erase_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        log_operation.error("Erase failed with exception", device=target_name, mode=mode, error=str(error))
+        log_operation.error(
+            "Erase failed with exception",
+            device=target_name,
+            mode=mode,
+            error=str(error),
+        )
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
         log_operation.error("Erase failed", device=target_name, mode=mode)
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     else:
-        log_operation.info("Erase completed successfully", device=target_name, mode=mode)
+        log_operation.info(
+            "Erase completed successfully", device=target_name, mode=mode
+        )
         screens.render_status_template("ERASE", "Done", progress_line="Complete.")
     time.sleep(1)
 
@@ -522,7 +540,9 @@ def _render_disk_usage_page(
             used_bytes += used
             partition_count += 1
         except (FileNotFoundError, PermissionError, OSError) as error:
-            log_system.debug("Disk usage check failed", mountpoint=mountpoint, error=str(error))
+            log_system.debug(
+                "Disk usage check failed", mountpoint=mountpoint, error=str(error)
+            )
 
     if partition_count == 0 or total_bytes == 0:
         # No mounted partitions or no usage data
@@ -863,9 +883,7 @@ def _view_devices(
     # Route to appropriate renderer based on page index
     if page_index == 0:
         # Page 1: DISK USAGE
-        _render_disk_usage_page(
-            device, page_index=page_index, total_pages=total_pages
-        )
+        _render_disk_usage_page(device, page_index=page_index, total_pages=total_pages)
     elif page_index == 1:
         # Page 2: DEVICE INFO
         _render_device_identity_page(
@@ -1081,13 +1099,32 @@ def format_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        log_operation.error("Format failed with exception", device=target_name, filesystem=filesystem, mode=format_type, label=label, error=str(error))
+        log_operation.error(
+            "Format failed with exception",
+            device=target_name,
+            filesystem=filesystem,
+            mode=format_type,
+            label=label,
+            error=str(error),
+        )
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
-        log_operation.error("Format failed", device=target_name, filesystem=filesystem, mode=format_type, label=label)
+        log_operation.error(
+            "Format failed",
+            device=target_name,
+            filesystem=filesystem,
+            mode=format_type,
+            label=label,
+        )
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     else:
-        log_operation.info("Format completed successfully", device=target_name, filesystem=filesystem, mode=format_type, label=label)
+        log_operation.info(
+            "Format completed successfully",
+            device=target_name,
+            filesystem=filesystem,
+            mode=format_type,
+            label=label,
+        )
         screens.render_status_template("FORMAT", "Done", progress_line="Complete.")
     time.sleep(1)
 
@@ -1359,16 +1396,24 @@ def create_repo_drive(
         if not partition_name:
             continue
         if mountpoint:
-            log_system.debug("Using mounted partition", partition=partition_name, mountpoint=mountpoint)
+            log_system.debug(
+                "Using mounted partition",
+                partition=partition_name,
+                mountpoint=mountpoint,
+            )
             break
 
-        log_system.info("Mounting partition for repo creation", partition=partition_name)
+        log_system.info(
+            "Mounting partition for repo creation", partition=partition_name
+        )
         display.display_lines(["MOUNTING..."])
         try:
             partition_node = f"/dev/{partition_name}"
             mount_module.mount_partition(partition_node, name=partition_name)
         except (ValueError, RuntimeError) as error:
-            log_system.warning("Failed to mount partition", partition=partition_name, error=str(error))
+            log_system.warning(
+                "Failed to mount partition", partition=partition_name, error=str(error)
+            )
             continue
 
         # Refresh device info to get new mountpoint
@@ -1381,7 +1426,11 @@ def create_repo_drive(
                 break
 
         if mountpoint:
-            log_system.info("Mounted partition successfully", partition=partition_name, mountpoint=mountpoint)
+            log_system.info(
+                "Mounted partition successfully",
+                partition=partition_name,
+                mountpoint=mountpoint,
+            )
             break
 
     if not mountpoint:
@@ -1405,7 +1454,11 @@ def create_repo_drive(
 
     try:
         flag_path.touch(exist_ok=True)
-        log_system.info("Successfully created repo flag file", device=target_name, path=str(flag_path))
+        log_system.info(
+            "Successfully created repo flag file",
+            device=target_name,
+            path=str(flag_path),
+        )
 
         # Invalidate the repo cache so the drive is recognized
         drives.invalidate_repo_cache()
@@ -1419,7 +1472,12 @@ def create_repo_drive(
         time.sleep(1.5)
 
     except OSError as error:
-        log_system.error("Failed to create repo flag file", device=target_name, path=str(flag_path), error=str(error))
+        log_system.error(
+            "Failed to create repo flag file",
+            device=target_name,
+            path=str(flag_path),
+            error=str(error),
+        )
         screens.render_error_screen(
             title="CREATE REPO",
             message="Write failed",

@@ -39,6 +39,53 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
         return "Repo not found", None
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
+        if is_dubious_ownership_error(fetch.stderr) and is_running_under_systemd():
+            log.debug(
+                "Update status check: dubious ownership detected; retrying with "
+                "safe.directory",
+                component="update_manager",
+            )
+            run_command(
+                ["git", "config", "--global", "--add", "safe.directory", str(repo_root)]
+            )
+            fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
+            if fetch.returncode != 0:
+                log.debug(
+                    f"Update status check: fetch retry failed {fetch.returncode}",
+                    component="update_manager",
+                )
+                return "Unable to check", None
+            upstream = run_command(
+                ["git", "rev-parse", "--abbrev-ref", "@{u}"],
+                cwd=repo_root,
+            )
+            upstream_ref = upstream.stdout.strip()
+            if upstream.returncode != 0 or not upstream_ref:
+                log.debug(
+                    "Update status check: upstream missing after retry",
+                    component="update_manager",
+                )
+                return "Unable to check", None
+            behind = run_command(
+                ["git", "rev-list", "--count", "HEAD..@{u}"],
+                cwd=repo_root,
+            )
+            if behind.returncode != 0:
+                log.debug(
+                    "Update status check: rev-list failed after retry",
+                    component="update_manager",
+                )
+                return "Unable to check", None
+            count = behind.stdout.strip()
+            log.debug(
+                f"Update status check: behind count after retry={count!r}",
+                component="update_manager",
+            )
+            if count.isdigit():
+                behind_count = int(count)
+                status = "Update available" if behind_count > 0 else "Up to date"
+                return status, behind_count
+            return "Up to date", None
         log.debug(
             f"Update status check: fetch failed {fetch.returncode}",
             component="update_manager",
