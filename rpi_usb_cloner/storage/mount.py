@@ -58,6 +58,7 @@ from typing import Optional
 
 from rpi_usb_cloner.logging import LoggerFactory
 
+
 # Module logger
 log = LoggerFactory.for_system()
 

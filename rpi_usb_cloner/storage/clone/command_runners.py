@@ -14,6 +14,7 @@ from .progress import (
     parse_progress_from_output,
 )
 
+
 # Module logger
 log = LoggerFactory.for_clone()
 

@@ -386,6 +386,8 @@ Complete
 
         # Should not display anything
         assert mock_display_lines.call_count == 0
+
+
 @pytest.fixture
 def mock_display_lines(monkeypatch):
     """Mock the display_lines function."""

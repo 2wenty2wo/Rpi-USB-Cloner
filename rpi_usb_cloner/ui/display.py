@@ -88,7 +88,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Callable, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
@@ -97,6 +97,7 @@ from PIL import Image, ImageDraw, ImageFont
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
 from rpi_usb_cloner.logging import LoggerFactory
+
 
 # Module logger
 log = LoggerFactory.for_menu()
