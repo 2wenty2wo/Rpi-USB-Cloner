@@ -96,7 +96,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
-from rpi_usb_cloner.logging import get_logger
+from rpi_usb_cloner.logging import LoggerFactory
+
+# Module logger
+log = LoggerFactory.for_menu()
 
 
 Font = Union[ImageFont.ImageFont, ImageFont.FreeTypeFont]
@@ -120,9 +123,6 @@ class DisplayContext:
 
 
 _context: Optional[DisplayContext] = None
-_log_debug: Optional[Callable[[str], None]] = get_logger(
-    tags=["display"], source=__name__
-).debug
 _display_lock = threading.RLock()
 
 
@@ -156,13 +156,6 @@ class TitleLayout:
     max_title_width: int
     icon_width: int
     icon_height: int
-
-
-def configure_display_helpers(
-    log_debug: Optional[Callable[[str], None]] = None
-) -> None:
-    global _log_debug
-    _log_debug = log_debug
 
 
 def set_display_context(context: DisplayContext) -> None:
@@ -230,25 +223,21 @@ def capture_screenshot() -> Optional[Path]:
         try:
             resolved_dir.chmod(0o775)
         except (PermissionError, OSError) as error:
-            if _log_debug:
-                _log_debug(f"Screenshot dir permissions unchanged: {error}")
+            log.debug(f"Screenshot dir permissions unchanged: {error}")
         try:
             import pwd
 
             pi_user = pwd.getpwnam("pi")
             os.chown(resolved_dir, pi_user.pw_uid, pi_user.pw_gid)
         except (KeyError, PermissionError, OSError) as error:
-            if _log_debug:
-                _log_debug(f"Screenshot dir ownership unchanged: {error}")
+            log.debug(f"Screenshot dir ownership unchanged: {error}")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         screenshot_path = resolved_dir / f"screenshot_{timestamp}.png"
         screenshot.save(screenshot_path)
-        if _log_debug:
-            _log_debug(f"Screenshot saved: {screenshot_path}")
+        log.debug(f"Screenshot saved: {screenshot_path}")
         return screenshot_path
     except Exception as error:
-        if _log_debug:
-            _log_debug(f"Screenshot failed: {error}")
+        log.debug(f"Screenshot failed: {error}")
         return None
 
 
@@ -669,5 +658,4 @@ def basemenu(state: app_state.AppState) -> None:
     state.run_once = 0
     if not devices_present:
         state.index = app_state.MENU_NONE
-    if _log_debug:
-        _log_debug("Base menu drawn")
+    log.debug("Base menu drawn")

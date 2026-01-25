@@ -9,14 +9,11 @@ For new code, prefer importing directly from:
 
 # Re-export all public APIs from the clone package
 from rpi_usb_cloner.storage.clone import (
-    _log_debug,
     clone_dd,
     clone_device,
     clone_device_smart,
     clone_partclone,
     compute_sha256,
-    configure_clone_helpers,
-    configure_progress_logger,
     copy_partition_table,
     erase_device,
     format_eta,
@@ -25,7 +22,6 @@ from rpi_usb_cloner.storage.clone import (
     format_progress_lines,
     get_partition_display_name,
     get_partition_number,
-    log_debug,
     normalize_clone_mode,
     resolve_device_node,
     run_checked_command,
@@ -43,8 +39,6 @@ __all__ = [
     "clone_device_smart",
     "clone_partclone",
     "compute_sha256",
-    "configure_clone_helpers",
-    "configure_progress_logger",
     "copy_partition_table",
     "erase_device",
     "format_eta",
@@ -53,7 +47,6 @@ __all__ = [
     "format_progress_lines",
     "get_partition_display_name",
     "get_partition_number",
-    "log_debug",
     "normalize_clone_mode",
     "resolve_device_node",
     "run_checked_command",
@@ -62,5 +55,4 @@ __all__ = [
     "run_progress_command",
     "verify_clone",
     "verify_clone_device",
-    "_log_debug",
 ]

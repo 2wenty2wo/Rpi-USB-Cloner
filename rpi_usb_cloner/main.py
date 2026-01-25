@@ -242,7 +242,6 @@ def main(argv: Optional[list[str]] = None) -> None:
     context = display.init_display()
     display.set_display_context(context)
     app_context.display = context
-    display.configure_display_helpers(log_debug=get_logger(source="display").debug)
 
     # Check web server enabled setting (default: False for new installations)
     # Environment variable WEB_SERVER_ENABLED can override the setting

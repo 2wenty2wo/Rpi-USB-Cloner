@@ -427,7 +427,7 @@ python3 test_logging_demo.py --trace
 
 ---
 
-## ✅ Completed Migration (2026-01-24)
+## ✅ Completed Migration (2026-01-24/2026-01-25)
 
 ### Apply to Existing Modules ✅ COMPLETE
 1. ✅ **Clone Operations** - All clone/erase operations now use LoggerFactory
@@ -437,8 +437,19 @@ python3 test_logging_demo.py --trace
 5. ✅ **WiFi Management** - WiFi operations use LoggerFactory.for_system()
 6. ✅ **Format Operations** - Drive formatting uses LoggerFactory.for_clone()
 7. ✅ **Crash Handler** - Critical errors logged with log.critical()
+8. ✅ **Progress Monitoring** (2026-01-25) - Removed callback-based logging from `storage/clone/progress.py`
+9. ✅ **Command Runners** (2026-01-25) - Migrated `storage/clone/command_runners.py` to use LoggerFactory
+10. ✅ **Display Module** (2026-01-25) - Migrated `ui/display.py` from callback-based to LoggerFactory.for_menu()
+11. ✅ **Mount Utilities** (2026-01-25) - Migrated `storage/mount.py` demo code to LoggerFactory.for_system()
 
-**Result:** 100% of application logging now uses LoggerFactory and appears in Web UI
+### Removed Callback-Based Logging Infrastructure (2026-01-25)
+- ✅ Removed `configure_progress_logger()` function from `storage/clone/progress.py`
+- ✅ Removed `configure_display_helpers()` function from `ui/display.py`
+- ✅ Removed callback configuration call from `main.py`
+- ✅ Removed compatibility exports from `storage/clone/__init__.py` and `storage/clone.py`
+- ✅ All modules now use LoggerFactory directly without configuration callbacks
+
+**Result:** 100% of application logging now uses LoggerFactory and appears in Web UI. All callback-based logging infrastructure removed.
 
 ---
 
@@ -484,15 +495,18 @@ The logging system has been transformed from basic print statements and scattere
 - **User experience improved** with beautiful, filterable Web UI
 - **OLED functionality preserved** - All display calls maintained
 
-**Migration Statistics (2026-01-24):**
-- **14 files migrated** to LoggerFactory pattern
-- **~150+ logging calls** converted from callbacks/print to loguru
-- **8 modules** now use domain-specific loggers (for_clone, for_usb, for_system)
-- **0 breaking changes** - Backwards compatible configuration functions
+**Migration Statistics:**
+- **18 files migrated** to LoggerFactory pattern (14 on 2026-01-24, +4 on 2026-01-25)
+- **~170+ logging calls** converted from callbacks/print to loguru
+- **9 modules** now use domain-specific loggers (for_clone, for_usb, for_system, for_menu)
+- **Callback-based logging infrastructure removed** - All modules use LoggerFactory directly
+- **Configuration functions removed** - `configure_progress_logger()`, `configure_display_helpers()`
+- **Compatibility layer cleaned** - Removed obsolete exports from `storage/clone/__init__.py` and `storage/clone.py`
 
 ---
 
-**Version:** 2.0.0 (Complete Migration)
-**Last Updated:** 2026-01-24
+**Version:** 2.1.0 (Callback-Free Migration)
+**Last Updated:** 2026-01-25
+**Previous Version:** 2.0.0 (2026-01-24)
 **Original Version:** 2026-01-20
 **Author:** Claude (Anthropic)
