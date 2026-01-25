@@ -118,7 +118,6 @@ from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.clone import configure_clone_helpers
 from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import (
@@ -276,7 +275,6 @@ def main(argv: Optional[list[str]] = None) -> None:
     devices.configure_device_helpers(
         log_debug=usb_log_debug, error_handler=display.display_lines
     )
-    configure_clone_helpers(log_debug=get_logger(source="clone").debug)
     configure_format_helpers(
         log_debug=get_logger(tags=["format"], source="format").debug
     )
