@@ -515,6 +515,8 @@ def main(argv: Optional[list[str]] = None) -> None:
             )
         if screen.screen_id == definitions.DRIVES_MENU.screen_id:
             return active_drive_label or "NO DRIVE SELECTED"
+        if screen.screen_id == definitions.CLONE_MENU.screen_id:
+            return active_drive_label or "NO DRIVE SELECTED"
         if screen.screen_id == definitions.MAIN_MENU.screen_id:
             return active_drive_label or "NO DRIVE SELECTED"
         return status_line
