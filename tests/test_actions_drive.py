@@ -103,21 +103,6 @@ def mock_erase_device(mocker):
 # ==============================================================================
 
 
-class TestLogDebug:
-    """Test the _log_debug helper function."""
-
-    def test_logs_when_callback_provided(self):
-        """Test logging when callback is provided."""
-        log_callback = Mock()
-        drive_actions._log_debug(log_callback, "Test message")
-        log_callback.assert_called_once_with("Test message")
-
-    def test_no_error_when_callback_is_none(self):
-        """Test no error when callback is None."""
-        # Should not raise any exception
-        drive_actions._log_debug(None, "Test message")
-
-
 class TestHandleScreenshot:
     """Test the _handle_screenshot helper function."""
 
@@ -338,7 +323,7 @@ class TestCopyDrive:
         drive_actions.copy_drive(
             state=mock_app_state,
             clone_mode="smart",
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -383,7 +368,7 @@ class TestEraseDrive:
 
         drive_actions.erase_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -417,7 +402,7 @@ class TestUnmountDrive:
 
         drive_actions.unmount_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -443,7 +428,7 @@ class TestUnmountDrive:
 
         drive_actions.unmount_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -482,7 +467,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -515,7 +500,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -557,7 +542,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -614,7 +599,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -672,7 +657,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
@@ -742,7 +727,7 @@ class TestCreateRepoDrive:
 
         drive_actions.create_repo_drive(
             state=mock_app_state,
-            log_debug=None,
+            
             get_selected_usb_name=get_selected,
         )
 
