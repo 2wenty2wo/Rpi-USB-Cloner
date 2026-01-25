@@ -40,6 +40,12 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
         if is_dubious_ownership_error(fetch.stderr):
+            if not is_running_under_systemd():
+                log.debug(
+                    "Update status check: dubious ownership detected outside systemd",
+                    component="update_manager",
+                )
+                return "Unable to check", None
             log.debug(
                 "Update status check: dubious ownership detected; retrying with "
                 "safe.directory",
@@ -247,7 +253,8 @@ def run_update_flow(
         running_ratio=None,
     )
     dubious_ownership = is_dubious_ownership_error(pull_result.stderr)
-    if dubious_ownership:
+    safe_directory_added = False
+    if dubious_ownership and is_running_under_systemd():
         log.debug(
             f"Dubious ownership detected; adding safe.directory for {repo_root}",
             component="update_manager",
@@ -255,6 +262,7 @@ def run_update_flow(
         run_command(
             ["git", "config", "--global", "--add", "safe.directory", str(repo_root)],
         )
+        safe_directory_added = True
         pull_result = run_with_progress(
             ["Updating...", "Pulling again..."],
             lambda update_progress: run_git_pull(
@@ -265,11 +273,15 @@ def run_update_flow(
         )
     output_lines = format_command_output(pull_result.stdout, pull_result.stderr)
     if dubious_ownership:
-        output_lines = [
-            "Dubious ownership detected.",
-            "Service User= should own repo.",
-            f"Or run: git config --global --add safe.directory {repo_root}",
-        ] + output_lines
+        ownership_lines = ["Dubious ownership detected."]
+        if safe_directory_added:
+            ownership_lines.append("Configured safe.directory.")
+        elif is_running_under_systemd():
+            ownership_lines.append("Service User= should own repo.")
+        ownership_lines.append(
+            f"Or run: git config --global --add safe.directory {repo_root}"
+        )
+        output_lines = ownership_lines + output_lines
     if pull_result.returncode != 0:
         log.debug(
             f"Git pull failed with return code {pull_result.returncode}",
