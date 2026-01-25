@@ -485,9 +485,14 @@ def select_list(
     scroll_refresh_interval = max(0.02, float(scroll_refresh_interval))
 
     scroll_start_time = time.monotonic() if enable_scroll else None
+    # Store original image for back transition when entering with forward transition
+    original_image: Optional[Image.Image] = None
     if transition_direction:
         scroll_offset = clamp_scroll_offset(selected_index, scroll_offset)
         from_image = context.image.copy()
+        # Store original for back transition on exit
+        if transition_direction == "forward":
+            original_image = from_image.copy()
         to_image = _render_menu_list_image(
             title=title,
             items=items,
@@ -636,6 +641,21 @@ def select_list(
                 last_repeat_time["R"] = now
         current_a = is_pressed(PIN_A)
         if not prev_states["A"] and current_a:
+            # Play back transition if we entered with forward transition
+            if original_image is not None:
+                current_image = context.image.copy()
+                transitions.render_slide_transition(
+                    from_image=current_image,
+                    to_image=original_image,
+                    direction="back",
+                    frame_count=_get_transition_frame_count(),
+                    frame_delay=_get_transition_frame_delay(),
+                )
+                with display._display_lock:
+                    context = display.get_display_context()
+                    context.image.paste(original_image)
+                    context.disp.display(context.image)
+                    display.mark_display_dirty()
             return None
         current_b = is_pressed(PIN_B)
         if not prev_states["B"] and current_b:
@@ -871,6 +891,7 @@ def select_usb_drive(
     footer: Optional[List[str]] = None,
     selected_name: Optional[str] = None,
     header_lines: Optional[List[str]] = None,
+    transition_direction: Optional[str] = None,
 ) -> Optional[int]:
     if not devices_list:
         return None
@@ -888,10 +909,11 @@ def select_usb_drive(
         footer=footer,
         selected_index=selected_index,
         header_lines=header_lines,
+        transition_direction=transition_direction,
     )
 
 
-def select_clone_mode(current_mode=None):
+def select_clone_mode(current_mode=None, *, transition_direction: Optional[str] = None):
     modes = ["smart", "exact", "verify"]
     selected_mode = normalize_clone_mode(current_mode or "smart")
     if selected_mode not in modes:
@@ -901,6 +923,7 @@ def select_clone_mode(current_mode=None):
         [mode.upper() for mode in modes],
         selected_index=modes.index(selected_mode),
         screen_id="clone",
+        transition_direction=transition_direction,
     )
     if selected_index is None:
         return None

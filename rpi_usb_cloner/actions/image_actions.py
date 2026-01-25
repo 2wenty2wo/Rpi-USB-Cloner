@@ -52,6 +52,7 @@ def backup_image(
         mode_labels,
         selected_index=0,
         title_icon=SETTINGS_ICON,
+        transition_direction="forward",
     )
 
     if selected_mode_index is None:
@@ -90,6 +91,7 @@ def backup_image(
         source_candidates,
         title_icon=USB_ICON,
         selected_name=app_context.active_drive,
+        transition_direction="forward",
     )
 
     if selected_source_index is None:
@@ -154,6 +156,7 @@ def backup_image(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            transition_direction="forward",
         )
         if selected_repo is None:
             return
@@ -226,6 +229,7 @@ def backup_image(
         compression_labels,
         selected_index=default_compression_index,
         title_icon=SETTINGS_ICON,
+        transition_direction="forward",
     )
 
     if selected_compression_index is None:
@@ -457,6 +461,7 @@ def write_image(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            transition_direction="forward",
         )
         if selected_repo is None:
             return
@@ -474,6 +479,7 @@ def write_image(
         screen_id="images",
         enable_horizontal_scroll=True,
         scroll_start_delay=1.5,
+        transition_direction="forward",
     )
     if selected_index is None:
         return
@@ -517,6 +523,7 @@ def write_image(
         target_candidates,
         title_icon=USB_ICON,
         selected_name=app_context.active_drive,
+        transition_direction="forward",
     )
     if selected_index is None:
         return
@@ -961,6 +968,7 @@ def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
         [label for _, label in options],
         selected_index=selected_index,
         title_icon=SETTINGS_ICON,
+        transition_direction="forward",
     )
     if selection is None:
         return None
@@ -1317,6 +1325,7 @@ def verify_clone(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            transition_direction="forward",
         )
         if selected_repo is None:
             return
@@ -1338,6 +1347,7 @@ def verify_clone(
         screen_id="verify_images",
         enable_horizontal_scroll=True,
         scroll_start_delay=1.5,
+        transition_direction="forward",
     )
     if selected_index is None:
         return
@@ -1388,6 +1398,7 @@ def verify_clone(
         target_candidates,
         title_icon=USB_ICON,
         selected_name=app_context.active_drive,
+        transition_direction="forward",
     )
     if selected_target_index is None:
         return

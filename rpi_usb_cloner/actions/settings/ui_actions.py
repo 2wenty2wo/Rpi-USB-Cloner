@@ -42,6 +42,7 @@ def select_restore_partition_mode() -> None:
         selected_index=selected_index,
         header_lines=["Partition table mode"],
         title_icon=SETTINGS_ICON,
+        transition_direction="forward",
     )
     if selection is None:
         return
@@ -93,6 +94,7 @@ def select_screensaver_gif() -> None:
         "SELECT GIF",
         gif_names,
         selected_index=selected_index,
+        transition_direction="forward",
     )
     if selection is None:
         return
@@ -215,6 +217,7 @@ def select_transition_speed() -> None:
         selected_index=selected_index,
         header_lines=["Slide transition speed"],
         title_icon=SETTINGS_ICON,
+        transition_direction="forward",
     )
     if selection is None:
         return
