@@ -21,3 +21,6 @@ psutil==5.9.8
 
 # Structured logging
 loguru==0.7.2
+
+# Typing helpers for runtime (Python 3.8)
+typing_extensions==4.12.2
