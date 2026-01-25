@@ -271,11 +271,7 @@ def backup_image(
     if estimated_size > 0:
         summary_lines.append(f"Est: ~{devices.human_size(estimated_size)}")
 
-    if (
-        available_space > 0
-        and estimated_size > 0
-        and estimated_size > available_space
-    ):
+    if available_space > 0 and estimated_size > 0 and estimated_size > available_space:
         display.display_lines(
             [
                 "NOT ENOUGH",

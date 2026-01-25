@@ -3,10 +3,9 @@ from __future__ import annotations
 import re
 import subprocess
 import threading
-from typing import Optional, TypedDict
 import time
 from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Sequence, TypedDict
 
 from rpi_usb_cloner.logging import LoggerFactory
 
@@ -15,26 +14,32 @@ from rpi_usb_cloner.logging import LoggerFactory
 log = LoggerFactory.for_system()
 
 _error_handler: Callable[[Iterable[str]], None] | None
-_command_runner: Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None
+_command_runner: (
+    Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None
+)
 
 
 _error_handler = None
 _command_runner = None
+
+
 class WifiStatus(TypedDict):
     connected: bool
-    ssid: Optional[str]
-    ip: Optional[str]
+    ssid: str | None
+    ip: str | None
 
 
 _STATUS_CACHE: WifiStatus = {"connected": False, "ssid": None, "ip": None}
 _STATUS_CACHE_LOCK = threading.Lock()
-_STATUS_CACHE_TIME: Optional[float] = None
+_STATUS_CACHE_TIME: float | None = None
 
 
 def configure_wifi_helpers(
     log_debug: Callable[[str], None] | None = None,
     error_handler: Callable[[Iterable[str]], None] | None = None,
-    command_runner: Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None = None,
+    command_runner: (
+        Callable[[Sequence[str], bool], subprocess.CompletedProcess[str]] | None
+    ) = None,
 ) -> None:
     """Configure WiFi helpers (kept for backwards compatibility).
 

@@ -21,6 +21,7 @@ from .system_utils import (
     stop_service as stop_systemd_service,
 )
 
+
 # Create logger for power management
 log = LoggerFactory.for_system()
 
@@ -156,25 +157,13 @@ def confirm_action(
     }
     while True:
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if (
-            not prev_states["R"]
-            and current_r
-            and selection == app_state.CONFIRM_NO
-        ):
+        if not prev_states["R"] and current_r and selection == app_state.CONFIRM_NO:
             selection = app_state.CONFIRM_YES
-            log.debug(
-                f"Confirmation selection changed: {selection}", component="power"
-            )
+            log.debug(f"Confirmation selection changed: {selection}", component="power")
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if (
-            not prev_states["L"]
-            and current_l
-            and selection == app_state.CONFIRM_YES
-        ):
+        if not prev_states["L"] and current_l and selection == app_state.CONFIRM_YES:
             selection = app_state.CONFIRM_NO
-            log.debug(
-                f"Confirmation selection changed: {selection}", component="power"
-            )
+            log.debug(f"Confirmation selection changed: {selection}", component="power")
         current_a = gpio.is_pressed(gpio.PIN_A)
         if not prev_states["A"] and current_a:
             return False

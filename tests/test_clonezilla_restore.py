@@ -11,7 +11,6 @@ This test suite covers:
 - Cleanup on failure
 """
 
-import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
 

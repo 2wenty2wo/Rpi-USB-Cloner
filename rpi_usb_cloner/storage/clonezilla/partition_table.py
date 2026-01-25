@@ -13,7 +13,7 @@ import shutil
 import struct
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import devices
@@ -84,7 +84,7 @@ def read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
     """Read a disk layout operation from a file."""
     data = path.read_bytes()
     size_bytes = len(data)
-    contents: Optional[str]
+    contents: str | None
     if b"\x00" in data[:1024]:
         contents = None
     else:
@@ -95,8 +95,8 @@ def read_disk_layout_op(kind: str, path: Path) -> DiskLayoutOp:
 def estimate_required_size_bytes(
     disk_layout_ops: list[DiskLayoutOp],
     *,
-    image_dir: Optional[Path] = None,
-) -> Optional[int]:
+    image_dir: Path | None = None,
+) -> int | None:
     """Estimate the minimum disk size required for restoration."""
     ops = list(disk_layout_ops)
     if image_dir:
@@ -164,7 +164,7 @@ def estimate_required_size_bytes(
     return (max_sector + 1) * sector_size
 
 
-def estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
+def estimate_last_lba_from_sgdisk_backup(path: Path) -> int | None:
     """Extract the last LBA from an sgdisk backup file."""
     data = path.read_bytes()
     signature = b"EFI PART"
@@ -177,7 +177,7 @@ def estimate_last_lba_from_sgdisk_backup(path: Path) -> Optional[int]:
     return max(current_lba, backup_lba, last_usable)
 
 
-def normalize_partition_mode(partition_mode: Optional[str]) -> str:
+def normalize_partition_mode(partition_mode: str | None) -> str:
     """Normalize partition mode string."""
     if not partition_mode:
         return "k0"
@@ -191,7 +191,7 @@ def build_partition_mode_layout_ops(
     disk_layout_ops: list[DiskLayoutOp],
     *,
     partition_mode: str,
-    target_size: Optional[int],
+    target_size: int | None,
 ) -> list[DiskLayoutOp]:
     """Build layout operations based on partition mode."""
     if partition_mode not in {"k0", "k", "k1", "k2"}:
@@ -208,7 +208,7 @@ def build_partition_mode_layout_ops(
 def build_scaled_sfdisk_layout(
     disk_layout_ops: list[DiskLayoutOp],
     target_size: int,
-) -> Optional[DiskLayoutOp]:
+) -> DiskLayoutOp | None:
     """Build a scaled sfdisk layout for the target size."""
     for op in disk_layout_ops:
         if op.kind in {"disk", "sfdisk", "pt.sf"}:
@@ -237,7 +237,7 @@ def parse_sfdisk_fields(rest: str) -> list[tuple[str, str]]:
     return fields
 
 
-def get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> Optional[int]:
+def get_sfdisk_int_field(fields: list[tuple[str, str]], key: str) -> int | None:
     """Extract an integer field value from sfdisk fields."""
     for field_key, value in fields:
         if field_key != key:
@@ -276,7 +276,7 @@ def format_sfdisk_line(prefix: str, fields: list[tuple[str, str]]) -> str:
     return f"{prefix} : {', '.join(rendered)}"
 
 
-def scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+def scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> DiskLayoutOp | None:
     """Scale an sfdisk partition table to fit target size."""
     if op.kind not in {"disk", "sfdisk", "pt.sf"} or not op.contents:
         return None
@@ -346,7 +346,7 @@ def scale_sfdisk_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayo
     )
 
 
-def parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
+def parse_parted_sector(value: str, unit_is_sectors: bool) -> int | None:
     """Parse a parted sector value."""
     match = re.match(r"(\d+)(s)?$", value)
     if not match:
@@ -358,10 +358,10 @@ def parse_parted_sector(value: str, unit_is_sectors: bool) -> Optional[int]:
 
 def parse_parted_layout(
     contents: str,
-) -> Optional[tuple[int, Optional[str], list[dict[str, Any]]]]:
+) -> tuple[int, str | None, list[dict[str, Any]]] | None:
     """Parse a parted partition table layout."""
     sector_size = 512
-    label: Optional[str] = None
+    label: str | None = None
     script_partitions: list[dict[str, Any]] = []
     print_partitions: list[dict[str, Any]] = []
     unit_is_sectors = False
@@ -439,7 +439,7 @@ def parse_parted_layout(
     return sector_size, label, partitions
 
 
-def normalize_parted_label(label: Optional[str]) -> Optional[str]:
+def normalize_parted_label(label: str | None) -> str | None:
     """Normalize a parted partition table label."""
     if not label:
         return None
@@ -453,10 +453,10 @@ def normalize_parted_label(label: Optional[str]) -> Optional[str]:
 
 def build_sfdisk_script_from_parted(
     *,
-    label: Optional[str],
+    label: str | None,
     sector_size: int,
     partitions: list[dict[str, Any]],
-) -> Optional[str]:
+) -> str | None:
     """Convert a parted layout to sfdisk script format."""
     normalized_label = normalize_parted_label(label)
     if not normalized_label:
@@ -493,7 +493,7 @@ def build_sfdisk_script_from_parted(
     return "\n".join(lines)
 
 
-def scale_parted_layout(op: DiskLayoutOp, target_size: int) -> Optional[DiskLayoutOp]:
+def scale_parted_layout(op: DiskLayoutOp, target_size: int) -> DiskLayoutOp | None:
     """Scale a parted partition table to fit target size."""
     if op.kind != "pt.parted" or not op.contents:
         return None
@@ -528,7 +528,7 @@ def scale_partition_geometry(
     target_sectors: int,
     sector_size: int,
     layout_label: str,
-) -> Optional[list[dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Scale partition geometry to fit target disk size.
 
     Implements proportional scaling while maintaining alignment and gaps.

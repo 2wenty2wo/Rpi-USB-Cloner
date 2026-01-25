@@ -456,7 +456,9 @@ def draw_title_with_icon(
         if icon.endswith(".png"):
             is_image_icon = True
             try:
-                icon_path = Path(icon) if Path(icon).is_absolute() else ASSETS_DIR / icon
+                icon_path = (
+                    Path(icon) if Path(icon).is_absolute() else ASSETS_DIR / icon
+                )
                 icon_image = Image.open(icon_path).convert("1")
                 icon_width = icon_image.width
                 icon_ascent = icon_image.height

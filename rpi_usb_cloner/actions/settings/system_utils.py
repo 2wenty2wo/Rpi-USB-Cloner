@@ -98,9 +98,7 @@ def is_dubious_ownership_error(stderr: str) -> bool:
 def is_running_under_systemd() -> bool:
     """Detect if running under systemd."""
     invocation_id = os.environ.get("INVOCATION_ID")
-    log.debug(
-        f"Systemd detection: INVOCATION_ID={invocation_id!r}", component="system"
-    )
+    log.debug(f"Systemd detection: INVOCATION_ID={invocation_id!r}", component="system")
     if invocation_id:
         log.debug(
             "Systemd detection: running under systemd via INVOCATION_ID",

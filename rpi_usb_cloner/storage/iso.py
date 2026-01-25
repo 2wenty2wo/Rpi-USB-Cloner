@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import resolve_device_node
@@ -91,9 +91,7 @@ def _get_blockdev_size_bytes(device_node: str) -> int | None:
         return None
 
 
-def _get_device_size_bytes(
-    target_info: Optional[dict], target_node: str
-) -> Optional[int]:
+def _get_device_size_bytes(target_info: dict | None, target_node: str) -> int | None:
     """Get device size from device info or blockdev."""
     if target_info:
         size_value = target_info.get("size")

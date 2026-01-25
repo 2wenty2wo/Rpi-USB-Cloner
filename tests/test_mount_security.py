@@ -314,7 +314,9 @@ class TestSecurityRegression:
                     "os.system(" in source
                     and '"""' not in source.split("os.system(")[0]
                 ):
-                    raise AssertionError(f"os.system() call found in function {name} - regression detected!")
+                    raise AssertionError(
+                        f"os.system() call found in function {name} - regression detected!"
+                    )
 
     def test_no_shell_true_in_subprocess(self):
         """Verify subprocess is never called with shell=True"""
