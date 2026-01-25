@@ -7,6 +7,7 @@ from rpi_usb_cloner.menu.model import MenuScreen
 from .. import actions as menu_actions
 from . import menu_entry
 
+
 DRIVE_LIST_MENU: MenuScreen = MenuScreen(
     screen_id="drive_list",
     title="SELECT DRIVE",

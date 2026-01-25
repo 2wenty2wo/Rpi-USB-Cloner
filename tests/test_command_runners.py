@@ -1,6 +1,5 @@
 """Tests for command execution utilities with progress tracking."""
 
-import subprocess
 from unittest.mock import Mock, patch
 
 import pytest

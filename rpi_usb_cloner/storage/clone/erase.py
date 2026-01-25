@@ -21,6 +21,7 @@ from rpi_usb_cloner.storage.validation import (
 
 from .command_runners import run_checked_with_streaming_progress
 
+
 # Create logger for erase operations
 log = LoggerFactory.for_clone()
 

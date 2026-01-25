@@ -1363,6 +1363,8 @@ def create_repo_drive(
     for partition in partitions:
         mountpoint = partition.get("mountpoint")
         partition_name = partition.get("name")
+        if not partition_name:
+            continue
         if mountpoint:
             _log_debug(
                 log_debug,

@@ -27,6 +27,7 @@ from .system_utils import (
     restart_service as restart_systemd_service,
 )
 
+
 # Create logger for update operations
 log = LoggerFactory.for_system()
 

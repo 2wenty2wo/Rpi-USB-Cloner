@@ -123,7 +123,9 @@ _log_debug_func: Optional[Callable[[str], None]] = get_logger(
 ).debug
 
 
-def configure_progress_logger(log_debug: Optional[Callable[[str], None]] = None) -> None:
+def configure_progress_logger(
+    log_debug: Optional[Callable[[str], None]] = None
+) -> None:
     """Configure the debug logger for progress monitoring."""
     global _log_debug_func
     _log_debug_func = log_debug

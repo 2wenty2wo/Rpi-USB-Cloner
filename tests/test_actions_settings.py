@@ -19,15 +19,17 @@ GPIO/UI concerns before meaningful unit tests can be written.
 For now, we rely on integration and manual testing for these functions.
 """
 
-import pytest
-
 
 class TestPlaceholder:
     """Placeholder test class to prevent test discovery errors."""
 
     def test_module_imports(self):
         """Test that settings modules can be imported."""
-        from rpi_usb_cloner.actions.settings import system_power, system_utils, ui_actions
+        from rpi_usb_cloner.actions.settings import (
+            system_power,
+            system_utils,
+            ui_actions,
+        )
 
         # Just verify modules exist
         assert system_power is not None

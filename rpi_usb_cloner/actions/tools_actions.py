@@ -1,6 +1,7 @@
-import os
+from __future__ import annotations
+
 import platform
-from typing import Optional
+from pathlib import Path
 
 import psutil
 
@@ -15,20 +16,21 @@ def coming_soon() -> None:
 
 def _format_bytes(num_bytes: int) -> str:
     """Format bytes to human readable string."""
+    value = float(num_bytes)
     for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(num_bytes) < 1024.0:
-            return f"{num_bytes:.1f}{unit}"
-        num_bytes /= 1024.0
-    return f"{num_bytes:.1f}PB"
+        if abs(value) < 1024.0:
+            return f"{value:.1f}{unit}"
+        value /= 1024.0
+    return f"{value:.1f}PB"
 
 
-def _get_cpu_temp() -> Optional[float]:
+def _get_cpu_temp() -> float | None:
     """Get CPU temperature on Raspberry Pi."""
     try:
         # Try reading from thermal zone (Linux)
-        temp_path = "/sys/class/thermal/thermal_zone0/temp"
-        if os.path.exists(temp_path):
-            with open(temp_path) as f:
+        temp_path = Path("/sys/class/thermal/thermal_zone0/temp")
+        if temp_path.exists():
+            with temp_path.open() as f:
                 return float(f.read().strip()) / 1000.0
     except (OSError, ValueError):
         pass

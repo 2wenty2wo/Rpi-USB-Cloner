@@ -5,9 +5,7 @@ which handle backup/restore operations for Clonezilla images and other image for
 """
 
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import Mock
 
 import pytest
 

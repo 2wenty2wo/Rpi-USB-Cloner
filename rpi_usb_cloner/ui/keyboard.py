@@ -157,9 +157,7 @@ DEFAULT_LAYOUT = KeyboardLayout(
     ],
 )
 
-_keyboard_fonts: Optional[
-    tuple[display.Font, display.Font, display.Font]
-] = None
+_keyboard_fonts: Optional[tuple[display.Font, display.Font, display.Font]] = None
 
 
 def _get_keyboard_fonts() -> tuple[display.Font, display.Font, display.Font]:

@@ -5,12 +5,13 @@ from __future__ import annotations
 import asyncio
 import pkgutil
 import threading
-from typing import Optional, Sequence, Union
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Sequence, Union
 
 from aiohttp import web
+from typing_extensions import TypeAlias
 
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
@@ -42,7 +43,7 @@ class ServerHandle:
         self.thread.join(timeout=timeout)
 
 
-_current_handle: Optional[ServerHandle] = None
+_current_handle: ServerHandle | None = None
 
 
 class DisplayUpdateNotifier:
@@ -99,7 +100,7 @@ def _build_headers() -> dict[str, str]:
     }
 
 
-LogEntryLike = Union[LogEntry, str]
+LogEntryLike: TypeAlias = Union[LogEntry, str]
 
 
 def _diff_log_buffer(
@@ -534,12 +535,8 @@ def start_server(
     runner_queue: queue.Queue[
         tuple[
             str,
-            Union[
-                BaseException,
-                tuple[
-                    web.AppRunner, asyncio.AbstractEventLoop, threading.Event
-                ],
-            ],
+            BaseException
+            | tuple[web.AppRunner, asyncio.AbstractEventLoop, threading.Event],
         ]
     ]
     import queue

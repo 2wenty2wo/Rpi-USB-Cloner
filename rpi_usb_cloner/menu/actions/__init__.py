@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.state import AppState
@@ -15,11 +15,11 @@ class ActionContext:
     clone_mode: str
     state: AppState
     log_debug: Callable[[str], None]
-    get_selected_usb_name: Callable[[], Optional[str]]
+    get_selected_usb_name: Callable[[], str | None]
     show_drive_info: Callable[[], None]
 
 
-_ACTION_CONTEXT: Optional[ActionContext] = None
+_ACTION_CONTEXT: ActionContext | None = None
 
 
 def set_action_context(context: ActionContext) -> None:

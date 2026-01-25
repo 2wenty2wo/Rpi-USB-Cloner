@@ -13,6 +13,7 @@ import pytest
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.app import state as app_state
 
+
 # ==============================================================================
 # Fixtures
 # ==============================================================================
@@ -77,11 +78,10 @@ def mock_devices_list(mocker, mock_usb_device):
     device2["name"] = "sdb"
     device2["path"] = "/dev/sdb"
 
-    mock = mocker.patch(
+    return mocker.patch(
         "rpi_usb_cloner.actions.drive_actions.list_usb_disks",
         return_value=[device1, device2],
     )
-    return mock
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ class TestHandleScreenshot:
         mocker.patch(
             "rpi_usb_cloner.actions.drive_actions.settings.get_bool", return_value=True
         )
-        mock_screens = mocker.patch("rpi_usb_cloner.actions.drive_actions.screens")
+        mocker.patch("rpi_usb_cloner.actions.drive_actions.screens")
         mock_display = mocker.patch("rpi_usb_cloner.actions.drive_actions.display")
         # Correct method name: capture_screenshot (not take_screenshot)
         mock_display.capture_screenshot = Mock(return_value=Path("/tmp/screenshot.png"))

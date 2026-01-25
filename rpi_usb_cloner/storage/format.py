@@ -43,7 +43,6 @@ Example:
 """
 
 import re
-from typing import Callable, Optional
 import select
 import subprocess
 import time
@@ -75,7 +74,6 @@ def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) 
 
     Note: log_debug parameter is ignored - logging now uses LoggerFactory.
     """
-    pass
 
 
 def _validate_device_path(device_path: str) -> bool:
@@ -268,6 +266,7 @@ def format_device(
     device_name = device.get("name")
     if not device_name:
         log.debug("Device has no name field")
+        log.warning("Format aborted: device has no name field")
         return False
 
     # SAFETY: Validate format operation before proceeding
@@ -275,11 +274,13 @@ def format_device(
         validate_format_operation(device, check_unmounted=False)
     except (DeviceBusyError, MountVerificationError) as error:
         log.debug(f"Format aborted: {error}")
+        log.warning(f"Format aborted due to validation failure: {error}")
         if progress_callback:
             progress_callback(["Device busy"], None)
         return False
     except Exception as error:
         log.debug(f"Format aborted: validation failed: {error}")
+        log.error(f"Format aborted: validation failed: {error}")
         if progress_callback:
             progress_callback(["Validation failed"], None)
         return False
@@ -291,10 +292,12 @@ def format_device(
     # Validate device path
     if not _validate_device_path(device_path):
         log.debug(f"Invalid device path: {device_path}")
+        log.warning(f"Format aborted: invalid device path {device_path}")
         return False
 
     device_label = format_device_label(device)
     log.debug(f"Starting format of {device_label} as {filesystem} ({mode})")
+    log.info("Starting format of %s as %s (%s)", device_label, filesystem, mode)
 
     # Unmount device and all partitions
     try:
@@ -302,11 +305,13 @@ def format_device(
             progress_callback(["Unmounting..."], 0.0)
         if not unmount_device(device):
             log.debug("Failed to unmount device; aborting format")
+            log.warning("Format aborted: failed to unmount %s", device_label)
             if progress_callback:
                 progress_callback(["Unmount failed"], None)
             return False
     except Exception as error:
         log.debug(f"Failed to unmount device: {error}")
+        log.error("Format aborted: unmount failed for %s: %s", device_label, error)
         return False
 
     try:
@@ -314,11 +319,19 @@ def format_device(
         validate_device_unmounted(refreshed_device)
     except (DeviceBusyError, MountVerificationError) as error:
         log.debug(f"Format aborted: {error}")
+        log.warning(
+            "Format aborted: device still mounted for %s: %s", device_label, error
+        )
         if progress_callback:
             progress_callback(["Device busy"], None)
         return False
     except Exception as error:
         log.debug(f"Format aborted: mount verification failed: {error}")
+        log.error(
+            "Format aborted: mount verification failed for %s: %s",
+            device_label,
+            error,
+        )
         if progress_callback:
             progress_callback(["Validation failed"], None)
         return False
@@ -328,6 +341,9 @@ def format_device(
         progress_callback(["Creating partition table..."], 0.1)
 
     if not _create_partition_table(device_path):
+        log.warning(
+            "Format aborted: failed to create partition table on %s", device_label
+        )
         return False
 
     # Create partition
@@ -335,13 +351,20 @@ def format_device(
         progress_callback(["Creating partition..."], 0.3)
 
     if not _create_partition(device_path):
+        log.warning("Format aborted: failed to create partition on %s", device_label)
         return False
 
     # Format filesystem
     if not _format_filesystem(
         partition_path, filesystem, mode, label, progress_callback
     ):
+        log.warning(
+            "Format aborted: filesystem format failed on %s (%s)",
+            device_label,
+            filesystem,
+        )
         return False
 
     log.debug(f"Format completed successfully: {device_label}")
+    log.info("Format completed successfully for %s", device_label)
     return True

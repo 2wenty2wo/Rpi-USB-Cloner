@@ -210,9 +210,7 @@ class TestCloneDeviceSmartSafety:
 
         with patch(
             "rpi_usb_cloner.storage.clone.operations.copy_partition_table"
-        ), patch(
-            "rpi_usb_cloner.storage.clone.operations.clone_partclone"
-        ), patch(
+        ), patch("rpi_usb_cloner.storage.clone.operations.clone_partclone"), patch(
             "rpi_usb_cloner.storage.clone.operations.unmount_device"
         ) as mock_umount:
             mock_umount.return_value = True

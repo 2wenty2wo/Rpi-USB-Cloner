@@ -109,9 +109,7 @@ def get_filesystem_type(partition_node: str) -> str | None:
     return None
 
 
-def get_partition_used_space(
-    partition_node: str, fstype: str | None
-) -> int | None:
+def get_partition_used_space(partition_node: str, fstype: str | None) -> int | None:
     """Get used space on a partition in bytes.
 
     Returns:
@@ -762,7 +760,6 @@ def verify_backup_image(
             source_device,
             progress_callback=progress_callback,
         )
-
 
     except Exception as e:
         log.error(f"Verification failed: {e}")
