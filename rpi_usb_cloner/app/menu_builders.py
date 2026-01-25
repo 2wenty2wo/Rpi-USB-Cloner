@@ -11,6 +11,20 @@ def build_device_items(drives_service, drive_menu, menu_actions):
     return items
 
 
+def _build_transition_label(settings_store):
+    transition_frames = settings_store.get_setting("transition_frame_count", 3)
+    transition_delay = settings_store.get_setting("transition_frame_delay", 0.005)
+    try:
+        transition_frames_label = int(transition_frames)
+    except (TypeError, ValueError):
+        transition_frames_label = 3
+    try:
+        transition_delay_label = float(transition_delay)
+    except (TypeError, ValueError):
+        transition_delay_label = 0.005
+    return f"TRANSITIONS: {transition_frames_label}F {transition_delay_label:.3f}s"
+
+
 def build_settings_items(settings_store, app_state, menu_actions, power_menu):
     screensaver_enabled = settings_store.get_bool(
         "screensaver_enabled",
@@ -32,20 +46,6 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         web_server_state = "ON" if web_server_enabled else "OFF"
         web_server_label = f"WEB SERVER: {web_server_state}"
 
-    transition_frames = settings_store.get_setting("transition_frame_count", 3)
-    transition_delay = settings_store.get_setting("transition_frame_delay", 0.005)
-    try:
-        transition_frames_label = int(transition_frames)
-    except (TypeError, ValueError):
-        transition_frames_label = 3
-    try:
-        transition_delay_label = float(transition_delay)
-    except (TypeError, ValueError):
-        transition_delay_label = 0.005
-    transition_label = (
-        f"TRANSITIONS: {transition_frames_label}F {transition_delay_label:.3f}s"
-    )
-
     return [
         MenuItem(
             label="WIFI",
@@ -54,10 +54,6 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         MenuItem(
             label=web_server_label,
             action=menu_actions.toggle_web_server,
-        ),
-        MenuItem(
-            label=transition_label,
-            action=menu_actions.select_transition_speed,
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
@@ -105,5 +101,31 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
         MenuItem(
             label=f"SELECT GIF: {selected_label}",
             action=menu_actions.select_screensaver_gif,
+        ),
+    ]
+
+
+def build_develop_items(settings_store, menu_actions):
+    transition_label = _build_transition_label(settings_store)
+    return [
+        MenuItem(
+            label="SCREENS",
+            submenu=definitions.SCREENS_MENU,
+        ),
+        MenuItem(
+            label="ICONS",
+            submenu=definitions.ICONS_MENU,
+        ),
+        MenuItem(
+            label="TITLE FONT PREVIEW",
+            action=menu_actions.preview_title_font,
+        ),
+        MenuItem(
+            label="SCREENSHOTS",
+            action=menu_actions.toggle_screenshots,
+        ),
+        MenuItem(
+            label=transition_label,
+            action=menu_actions.select_transition_speed,
         ),
     ]

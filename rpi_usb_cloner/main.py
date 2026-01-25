@@ -105,6 +105,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
 from rpi_usb_cloner.app.menu_builders import (
+    build_develop_items,
     build_device_items,
     build_screensaver_items,
     build_settings_items,
@@ -357,6 +358,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         menu_actions,
         definitions.POWER_MENU,
     )
+    get_develop_items = partial(
+        build_develop_items,
+        settings_store,
+        menu_actions,
+    )
     get_screensaver_items = partial(
         build_screensaver_items,
         settings_store,
@@ -491,6 +497,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         items_providers={
             definitions.DRIVE_LIST_MENU.screen_id: get_device_items,
             definitions.SETTINGS_MENU.screen_id: get_settings_items,
+            definitions.DEVELOP_MENU.screen_id: get_develop_items,
             definitions.SCREENSAVER_MENU.screen_id: get_screensaver_items,
         },
     )
