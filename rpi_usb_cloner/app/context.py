@@ -15,6 +15,7 @@ class LogEntry:
     tags: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.now)
     source: str | None = None
+    details: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -23,6 +24,7 @@ class LogEntry:
             "tags": list(self.tags),
             "timestamp": self.timestamp.isoformat(),
             "source": self.source,
+            "details": dict(self.details) if self.details else None,
         }
 
 
@@ -44,6 +46,7 @@ class AppContext:
         tags: Sequence[str] | None = None,
         timestamp: datetime | None = None,
         source: str | None = None,
+        details: dict[str, object] | None = None,
     ) -> None:
         if isinstance(message, LogEntry):
             entry = message
@@ -56,6 +59,7 @@ class AppContext:
                 tags=list(tags) if tags else [],
                 timestamp=timestamp or datetime.now(),
                 source=source,
+                details=dict(details) if details else None,
             )
         if entry.message:
             self.log_buffer.append(entry)

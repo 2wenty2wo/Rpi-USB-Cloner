@@ -230,12 +230,19 @@ def setup_logging(
             record = message.record
             # Apply level threshold before sending to the web UI.
             if record["level"].no >= logger.level(resolved_web_ui_level).no:
+                extras = record["extra"]
+                details = {
+                    key: value
+                    for key, value in extras.items()
+                    if key not in {"job_id", "tags", "source"} and value is not None
+                }
                 app_context.add_log(
                     record["message"],
                     level=record["level"].name.lower(),
-                    tags=record["extra"].get("tags", []),
+                    tags=extras.get("tags", []),
                     timestamp=record["time"],
-                    source=record["extra"].get("source"),
+                    source=extras.get("source"),
+                    details=details or None,
                 )
 
         # Keep the combined filter so button/websocket/cache noise stays hidden
