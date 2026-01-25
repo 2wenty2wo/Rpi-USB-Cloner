@@ -44,7 +44,6 @@ from .operations import (
     clone_partclone,
     copy_partition_table,
 )
-
 from .progress import (
     format_eta,
     format_progress_display,

@@ -21,6 +21,7 @@ TOOLS_ICON = chr(57580)  # tools icon
 FILE_BROWSER_ICON = chr(58175)  # folders icon
 IMAGES_ICON = chr(57559)  # folder icon
 DRIVES_ICON = chr(57581)  # hard-drive icon
+CLONE_ICON = chr(58365)  # copy-plus
 ICONS_DEMO_ICON = chr(57922)  # icons icon
 SCREENS_ICON = chr(57629)  # screens icon
 UPDATE_ICON = chr(57669)  # refresh-cw - update screens
@@ -66,6 +67,7 @@ SCREEN_ICONS = {
     "images": IMAGES_ICON,
     "drives": DRIVES_ICON,
     "drive_list": DRIVES_ICON,
+    "clone": CLONE_ICON,
     "icons": ICONS_DEMO_ICON,
     "screens": SCREENS_ICON,
 }

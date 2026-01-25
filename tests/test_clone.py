@@ -476,4 +476,3 @@ class TestRunCheckedCommand:
 
         call_args = mock_run.call_args
         assert call_args[1]["input"] == "test input"
-

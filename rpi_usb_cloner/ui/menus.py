@@ -900,6 +900,7 @@ def select_clone_mode(current_mode=None):
         "CLONE MODE",
         [mode.upper() for mode in modes],
         selected_index=modes.index(selected_mode),
+        screen_id="clone",
     )
     if selected_index is None:
         return None

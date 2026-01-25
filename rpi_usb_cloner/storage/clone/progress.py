@@ -5,6 +5,7 @@ import re
 from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.devices import human_size
 
+
 # Module logger
 log = LoggerFactory.for_clone()
 
