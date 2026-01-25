@@ -1040,8 +1040,9 @@
           const tags = Array.isArray(entry.tags) ? entry.tags : [];
           const source = entry.source || 'APP';
           const timestamp = entry.timestamp || null;
+          const details = entry.details && typeof entry.details === 'object' ? entry.details : {};
           if (message.trim().length > 0) {
-            appendLog(level, message, {}, source, timestamp, tags);
+            appendLog(level, message, details, source, timestamp, tags);
           }
         }
       });

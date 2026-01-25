@@ -132,6 +132,7 @@ def _serialize_log_entries(entries: Sequence[LogEntryLike]) -> list[object]:
                     "tags": list(entry.tags),
                     "timestamp": entry.timestamp.isoformat(),
                     "source": entry.source,
+                    "details": dict(entry.details) if entry.details else None,
                 }
             )
         else:
