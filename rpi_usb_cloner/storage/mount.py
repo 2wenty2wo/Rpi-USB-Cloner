@@ -56,6 +56,11 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from rpi_usb_cloner.logging import LoggerFactory
+
+# Module logger
+log = LoggerFactory.for_system()
+
 
 def list_media_devices() -> list[str]:
     # If the major number is 8, that indicates it to be a disk device.
@@ -300,13 +305,13 @@ if __name__ == "__main__":
     for device in devices:
         mount(device)
 
-        print("Drive:", get_device_name(device))
-        print("Mounted:", "Yes" if is_mounted(device) else "No")
-        print("Removable:", "Yes" if is_removable(device) else "No")
-        print("Size:", get_size(device), "bytes")
-        print("Size:", "%.2f" % (get_size(device) / 1024**3), "GB")
-        print("Model:", get_model(device))
-        print("Vendor:", get_vendor(device))
-        print(" ")
+        log.info(f"Drive: {get_device_name(device)}")
+        log.info(f"Mounted: {'Yes' if is_mounted(device) else 'No'}")
+        log.info(f"Removable: {'Yes' if is_removable(device) else 'No'}")
+        log.info(f"Size: {get_size(device)} bytes")
+        log.info(f"Size: {get_size(device) / 1024**3:.2f} GB")
+        log.info(f"Model: {get_model(device)}")
+        log.info(f"Vendor: {get_vendor(device)}")
+        log.info("")
 
         unmount(device)

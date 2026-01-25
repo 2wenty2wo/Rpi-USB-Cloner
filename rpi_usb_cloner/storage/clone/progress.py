@@ -1,10 +1,12 @@
 """Progress monitoring and formatting for clone operations."""
 
 import re
-from typing import Callable, Optional
 
-from rpi_usb_cloner.logging import get_logger
+from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.devices import human_size
+
+# Module logger
+log = LoggerFactory.for_clone()
 
 
 def format_eta(seconds):
@@ -101,7 +103,7 @@ def parse_progress_from_output(stderr_output, total_bytes=None, title="WORKING")
     if not stderr_output:
         return
     for line in stderr_output.splitlines():
-        _log_debug(f"stderr: {line.strip()}")
+        log.debug(f"stderr: {line.strip()}")
         bytes_match = re.search(r"(\d+)\s+bytes", line)
         percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
         if bytes_match:
@@ -115,23 +117,3 @@ def parse_progress_from_output(stderr_output, total_bytes=None, title="WORKING")
             continue
         if percent_match and not total_bytes:
             display_lines([title, f"{percent_match.group(1)}%"])
-
-
-# Global debug logger
-_log_debug_func: Optional[Callable[[str], None]] = get_logger(
-    tags=["clone", "progress"], source=__name__
-).debug
-
-
-def configure_progress_logger(
-    log_debug: Optional[Callable[[str], None]] = None
-) -> None:
-    """Configure the debug logger for progress monitoring."""
-    global _log_debug_func
-    _log_debug_func = log_debug
-
-
-def _log_debug(message: str) -> None:
-    """Log debug message if logger is configured."""
-    if _log_debug_func:
-        _log_debug_func(message)

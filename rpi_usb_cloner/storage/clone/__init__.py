@@ -23,7 +23,6 @@ Command Execution:
 """
 
 from .command_runners import (
-    configure_progress_logger,
     run_checked_command,
     run_checked_with_progress,
     run_checked_with_streaming_progress,
@@ -46,34 +45,12 @@ from .operations import (
     copy_partition_table,
 )
 
-# Import internal functions for test compatibility
-from .progress import _log_debug as _progress_log_debug
-from .progress import (
-    configure_progress_logger as configure_clone_helpers,
-)
 from .progress import (
     format_eta,
     format_progress_display,
     format_progress_lines,
 )
 from .verification import compute_sha256, verify_clone, verify_clone_device
-
-
-# Unified log_debug function for backwards compatibility
-def log_debug(message: str) -> None:
-    """Log debug message (for backwards compatibility with tests)."""
-    _progress_log_debug(message)
-
-
-# Dynamic attribute access for _log_debug to support testing
-def __getattr__(name):
-    """Handle dynamic attribute access for test compatibility."""
-    if name == "_log_debug":
-        # Return the actual configured logger from progress module
-        from .progress import _log_debug_func
-
-        return _log_debug_func
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
@@ -104,10 +81,4 @@ __all__ = [
     "run_checked_with_progress",
     "run_checked_with_streaming_progress",
     "run_progress_command",
-    # Configuration
-    "configure_clone_helpers",
-    "configure_progress_logger",
-    # Internal (for tests)
-    "log_debug",
-    "_log_debug",
 ]

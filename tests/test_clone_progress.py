@@ -3,7 +3,6 @@
 import pytest
 
 from rpi_usb_cloner.storage.clone.progress import (
-    configure_progress_logger,
     format_eta,
     format_progress_display,
     format_progress_lines,
@@ -387,56 +386,6 @@ Complete
 
         # Should not display anything
         assert mock_display_lines.call_count == 0
-
-
-class TestConfigureProgressLogger:
-    """Tests for configure_progress_logger function."""
-
-    def test_configure_logger(self):
-        """Test configuring the logger."""
-        from unittest.mock import Mock
-
-        logger = Mock()
-        configure_progress_logger(logger)
-
-        # Import and use _log_debug
-        from rpi_usb_cloner.storage.clone.progress import _log_debug
-
-        _log_debug("test message")
-
-        # Logger should be called
-        logger.assert_called_once_with("test message")
-
-    def test_configure_none_logger(self):
-        """Test configuring with None logger."""
-        configure_progress_logger(None)
-
-        # Should not raise errors
-        from rpi_usb_cloner.storage.clone.progress import _log_debug
-
-        _log_debug("test message")  # Should not crash
-
-    def test_logger_replacement(self):
-        """Test that logger can be replaced."""
-        from unittest.mock import Mock
-
-        from rpi_usb_cloner.storage.clone.progress import _log_debug
-
-        logger1 = Mock()
-        logger2 = Mock()
-
-        configure_progress_logger(logger1)
-        _log_debug("message1")
-
-        configure_progress_logger(logger2)
-        _log_debug("message2")
-
-        # First logger should only have first message
-        logger1.assert_called_once_with("message1")
-        # Second logger should only have second message
-        logger2.assert_called_once_with("message2")
-
-
 @pytest.fixture
 def mock_display_lines(monkeypatch):
     """Mock the display_lines function."""
