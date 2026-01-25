@@ -39,7 +39,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
         return "Repo not found", None
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
-        if is_dubious_ownership_error(fetch.stderr) and is_running_under_systemd():
+        if is_dubious_ownership_error(fetch.stderr):
             log.debug(
                 "Update status check: dubious ownership detected; retrying with "
                 "safe.directory",
@@ -135,9 +135,13 @@ def build_update_info_lines(
     last_checked: Optional[str],
 ) -> list[str]:
     """Build info lines for update display."""
-    status_display = status
-    if status == "Update available":
-        status_display = "Update avail."
+    # Abbreviate status strings to fit on OLED display width
+    status_abbreviations = {
+        "Update available": "Update avail.",
+        "Unable to check": "Check failed",
+        "No upstream configured": "No upstream",
+    }
+    status_display = status_abbreviations.get(status, status)
     lines = [f"Version: {version}", f"Status: {status_display}"]
     # Always add a third line to prevent layout shift
     if behind_count is not None and behind_count > 0:
@@ -243,7 +247,7 @@ def run_update_flow(
         running_ratio=None,
     )
     dubious_ownership = is_dubious_ownership_error(pull_result.stderr)
-    if dubious_ownership and is_running_under_systemd():
+    if dubious_ownership:
         log.debug(
             f"Dubious ownership detected; adding safe.directory for {repo_root}",
             component="update_manager",
