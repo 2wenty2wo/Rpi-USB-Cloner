@@ -11,7 +11,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger
+from rpi_usb_cloner.logging import get_logger, LoggerFactory
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device_v2, erase_device
@@ -30,12 +30,16 @@ from rpi_usb_cloner.ui.icons import (
     SPARKLES_ICON,
 )
 
+# Create loggers for different operation types
+log_menu = LoggerFactory.for_menu()  # For menu navigation/selection
+log_operation = LoggerFactory.for_clone()  # For format/erase/copy operations
+log_system = LoggerFactory.for_system()  # For unmount/repo operations
+
 
 def copy_drive(
     *,
     state: app_state.AppState,
     clone_mode: str,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     source, target = _pick_source_target(get_selected_usb_name)
@@ -75,11 +79,11 @@ def copy_drive(
             if prev_states["R"] and not current_r:
                 if confirm_selection == app_state.CONFIRM_NO:
                     confirm_selection = app_state.CONFIRM_YES
-                    _log_debug(log_debug, "Copy menu selection changed: YES")
+                    log_menu.debug("Copy menu selection changed: YES")
                     state.run_once = 0
                 elif confirm_selection == app_state.CONFIRM_YES:
                     confirm_selection = app_state.CONFIRM_YES
-                    _log_debug(log_debug, "Copy menu selection changed: YES")
+                    log_menu.debug("Copy menu selection changed: YES")
                     state.lcdstart = datetime.now()
                     state.run_once = 0
             current_l = gpio.is_pressed(gpio.PIN_L)
@@ -89,16 +93,16 @@ def copy_drive(
                 and confirm_selection == app_state.CONFIRM_YES
             ):
                 confirm_selection = app_state.CONFIRM_NO
-                _log_debug(log_debug, "Copy menu selection changed: NO")
+                log_menu.debug("Copy menu selection changed: NO")
                 state.lcdstart = datetime.now()
                 state.run_once = 0
             current_a = gpio.is_pressed(gpio.PIN_A)
             if prev_states["A"] and not current_a:
-                _log_debug(log_debug, "Copy menu: Button A pressed")
+                log_menu.debug("Copy menu: Button A pressed (cancel)")
                 return
             current_b = gpio.is_pressed(gpio.PIN_B)
             if prev_states["B"] and not current_b:
-                _log_debug(log_debug, "Copy menu: Button B pressed")
+                log_menu.debug("Copy menu: Button B pressed (confirm)")
                 if confirm_selection == app_state.CONFIRM_YES:
                     screens.render_status_template(
                         "COPY", "Running...", progress_line="Starting..."
@@ -131,13 +135,13 @@ def copy_drive(
                                 "COPY", "Done", progress_line="Complete."
                             )
                         else:
-                            _log_debug(log_debug, "Copy failed")
+                            log_operation.error("Copy failed", source=source_name, target=target_name, mode=mode)
                             screens.render_status_template(
                                 "COPY", "Failed", progress_line="Check logs."
                             )
                     except (KeyError, ValueError) as error:
                         # Handle Drive conversion or CloneMode errors
-                        _log_debug(log_debug, f"Copy failed: {error}")
+                        log_operation.error("Copy failed", source=source_name, target=target_name, error=str(error))
                         screens.render_status_template(
                             "COPY", "Failed", progress_line="Invalid params"
                         )
@@ -148,7 +152,7 @@ def copy_drive(
                     return
             current_c = gpio.is_pressed(gpio.PIN_C)
             if prev_states["C"] and not current_c:
-                _log_debug(log_debug, "Copy menu: Button C pressed")
+                log_menu.trace("Copy menu: Button C pressed (screenshot)")
                 if _handle_screenshot():
                     screens.render_confirmation_screen(
                         title,
@@ -172,12 +176,10 @@ def copy_drive(
 def drive_info(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     page_index = 0
     total_pages, page_index = _view_devices(
-        log_debug=log_debug,
         get_selected_usb_name=get_selected_usb_name,
         page_index=page_index,
     )
@@ -201,7 +203,6 @@ def drive_info(
         if prev_states["L"] and not current_l:
             page_index = max(0, page_index - 1)
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
@@ -209,7 +210,6 @@ def drive_info(
         if prev_states["R"] and not current_r:
             page_index = min(total_pages - 1, page_index + 1)
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
@@ -217,7 +217,6 @@ def drive_info(
         if prev_states["U"] and not current_u:
             page_index = max(0, page_index - 1)
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
@@ -225,14 +224,12 @@ def drive_info(
         if prev_states["D"] and not current_d:
             page_index = min(total_pages - 1, page_index + 1)
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
         current_c = gpio.is_pressed(gpio.PIN_C)
         if prev_states["C"] and not current_c and _handle_screenshot():
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
@@ -240,7 +237,6 @@ def drive_info(
         if current_selected_name != last_selected_name:
             page_index = 0
             total_pages, page_index = _view_devices(
-                log_debug=log_debug,
                 get_selected_usb_name=get_selected_usb_name,
                 page_index=page_index,
             )
@@ -257,7 +253,6 @@ def drive_info(
 def erase_drive(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     repo_devices = drives._get_repo_device_names()
@@ -291,7 +286,6 @@ def erase_drive(
     prompt_lines = [f"ERASE {target_name}", f"MODE {mode.upper()}"]
     if not _confirm_destructive_action(
         state=state,
-        log_debug=log_debug,
         prompt_lines=prompt_lines,
     ):
         return
@@ -358,12 +352,13 @@ def erase_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        _log_debug(log_debug, f"Erase failed with exception: {error}")
+        log_operation.error("Erase failed with exception", device=target_name, mode=mode, error=str(error))
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
-        _log_debug(log_debug, "Erase failed")
+        log_operation.error("Erase failed", device=target_name, mode=mode)
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     else:
+        log_operation.info("Erase completed successfully", device=target_name, mode=mode)
         screens.render_status_template("ERASE", "Done", progress_line="Complete.")
     time.sleep(1)
 
@@ -425,7 +420,6 @@ def _ensure_root_for_erase() -> bool:
 def _confirm_destructive_action(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     prompt_lines: Iterable[str],
 ) -> bool:
     title = "DATA LOSS"
@@ -448,14 +442,14 @@ def _confirm_destructive_action(
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            _log_debug(log_debug, "Destructive menu selection changed: YES")
+            log_menu.debug("Destructive action confirmation changed: YES")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            _log_debug(log_debug, "Destructive menu selection changed: NO")
+            log_menu.debug("Destructive action confirmation changed: NO")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
@@ -477,7 +471,6 @@ def _confirm_destructive_action(
 def _render_disk_usage_page(
     device: dict,
     *,
-    log_debug: Callable[[str], None] | None,
     page_index: int,
     total_pages: int,
 ) -> None:
@@ -529,7 +522,7 @@ def _render_disk_usage_page(
             used_bytes += used
             partition_count += 1
         except (FileNotFoundError, PermissionError, OSError) as error:
-            _log_debug(log_debug, f"Usage check failed for {mountpoint}: {error}")
+            log_system.debug("Disk usage check failed", mountpoint=mountpoint, error=str(error))
 
     if partition_count == 0 or total_bytes == 0:
         # No mounted partitions or no usage data
@@ -731,7 +724,6 @@ def _render_drive_metadata_page(
 def _render_partition_info_page(
     device: dict,
     *,
-    log_debug: Callable[[str], None] | None,
     partition_page_index: int,
     page_index: int,
     total_pages: int,
@@ -816,7 +808,6 @@ def _draw_page_indicator(context, page_index: int, total_pages: int, font) -> No
 
 def _view_devices(
     *,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
     page_index: int,
 ) -> tuple[int, int]:
@@ -873,7 +864,7 @@ def _view_devices(
     if page_index == 0:
         # Page 1: DISK USAGE
         _render_disk_usage_page(
-            device, log_debug=log_debug, page_index=page_index, total_pages=total_pages
+            device, page_index=page_index, total_pages=total_pages
         )
     elif page_index == 1:
         # Page 2: DEVICE INFO
@@ -890,7 +881,6 @@ def _view_devices(
         partition_page_index = page_index - 3
         _render_partition_info_page(
             device,
-            log_debug=log_debug,
             partition_page_index=partition_page_index,
             page_index=page_index,
             total_pages=total_pages,
@@ -902,7 +892,6 @@ def _view_devices(
 def format_drive(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Format a USB drive with user-selected filesystem."""
@@ -955,7 +944,6 @@ def format_drive(
         prompt_lines = ["Full format is SLOW!", "Continue?"]
         if not _confirm_destructive_action(
             state=state,
-            log_debug=log_debug,
             prompt_lines=prompt_lines,
         ):
             return
@@ -982,12 +970,12 @@ def format_drive(
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            _log_debug(log_debug, "Label selection changed: YES")
+            log_menu.debug("Format label selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            _log_debug(log_debug, "Label selection changed: NO")
+            log_menu.debug("Format label selection changed: NO")
 
     add_label = gpio.poll_button_events(
         {
@@ -1020,7 +1008,6 @@ def format_drive(
     ]
     if not _confirm_destructive_action(
         state=state,
-        log_debug=log_debug,
         prompt_lines=prompt_lines,
     ):
         return
@@ -1094,12 +1081,13 @@ def format_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        _log_debug(log_debug, f"Format failed with exception: {error}")
+        log_operation.error("Format failed with exception", device=target_name, filesystem=filesystem, mode=format_type, label=label, error=str(error))
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
-        _log_debug(log_debug, "Format failed")
+        log_operation.error("Format failed", device=target_name, filesystem=filesystem, mode=format_type, label=label)
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     else:
+        log_operation.info("Format completed successfully", device=target_name, filesystem=filesystem, mode=format_type, label=label)
         screens.render_status_template("FORMAT", "Done", progress_line="Complete.")
     time.sleep(1)
 
@@ -1107,7 +1095,6 @@ def format_drive(
 def unmount_drive(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Unmount a USB drive and optionally power it off."""
@@ -1177,12 +1164,12 @@ def unmount_drive(
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            _log_debug(log_debug, "Unmount selection changed: YES")
+            log_menu.debug("Unmount selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            _log_debug(log_debug, "Unmount selection changed: NO")
+            log_menu.debug("Unmount selection changed: NO")
 
     confirmed = gpio.poll_button_events(
         {
@@ -1200,18 +1187,22 @@ def unmount_drive(
         return
 
     # Attempt to unmount
+    log_system.info("Attempting to unmount device", device=device_name)
     display.display_lines(["UNMOUNTING..."])
-    success, used_lazy = unmount_device_with_retry(device, log_debug=log_debug)
+    success, used_lazy = unmount_device_with_retry(device)
 
     if not success:
+        log_system.error("Unmount failed", device=device_name)
         display.display_lines(["UNMOUNT", "FAILED"])
         time.sleep(1)
         return
 
     # Show success message
     if used_lazy:
+        log_system.info("Device unmounted (lazy)", device=device_name)
         display.display_lines(["UNMOUNTED", "(lazy)"])
     else:
+        log_system.info("Device unmounted successfully", device=device_name)
         display.display_lines(["UNMOUNTED"])
     time.sleep(0.5)
 
@@ -1246,10 +1237,13 @@ def unmount_drive(
     )
 
     if power_off_confirmed:
+        log_system.info("Attempting to power off device", device=device_name)
         display.display_lines(["POWERING OFF..."])
-        if power_off_device(device, log_debug=log_debug):
+        if power_off_device(device):
+            log_system.info("Device powered off successfully", device=device_name)
             display.display_lines(["POWERED OFF"])
         else:
+            log_system.error("Power off failed", device=device_name)
             display.display_lines(["POWER OFF", "FAILED"])
         time.sleep(1)
 
@@ -1257,7 +1251,6 @@ def unmount_drive(
 def create_repo_drive(
     *,
     state: app_state.AppState,
-    log_debug: Callable[[str], None] | None,
     get_selected_usb_name: Callable[[], str | None],
 ) -> None:
     """Create an image repository on a USB drive by adding flag file.
@@ -1316,12 +1309,12 @@ def create_repo_drive(
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            _log_debug(log_debug, "Create repo selection changed: YES")
+            log_menu.debug("Create repo selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            _log_debug(log_debug, "Create repo selection changed: NO")
+            log_menu.debug("Create repo selection changed: NO")
 
     confirmed = gpio.poll_button_events(
         {
@@ -1366,21 +1359,16 @@ def create_repo_drive(
         if not partition_name:
             continue
         if mountpoint:
-            _log_debug(
-                log_debug,
-                f"Using mounted partition {partition_name} at {mountpoint}",
-            )
+            log_system.debug("Using mounted partition", partition=partition_name, mountpoint=mountpoint)
             break
 
+        log_system.info("Mounting partition for repo creation", partition=partition_name)
         display.display_lines(["MOUNTING..."])
         try:
             partition_node = f"/dev/{partition_name}"
             mount_module.mount_partition(partition_node, name=partition_name)
         except (ValueError, RuntimeError) as error:
-            _log_debug(
-                log_debug,
-                f"Failed to mount partition {partition_name}: {error}",
-            )
+            log_system.warning("Failed to mount partition", partition=partition_name, error=str(error))
             continue
 
         # Refresh device info to get new mountpoint
@@ -1393,10 +1381,7 @@ def create_repo_drive(
                 break
 
         if mountpoint:
-            _log_debug(
-                log_debug,
-                f"Mounted partition {partition_name} at {mountpoint}",
-            )
+            log_system.info("Mounted partition successfully", partition=partition_name, mountpoint=mountpoint)
             break
 
     if not mountpoint:
@@ -1414,13 +1399,13 @@ def create_repo_drive(
     from pathlib import Path
 
     flag_path = Path(mountpoint) / image_repo.REPO_FLAG_FILENAME
-    _log_debug(log_debug, f"Creating repo flag file at: {flag_path}")
+    log_system.info("Creating repo flag file", device=target_name, path=str(flag_path))
 
     display.display_lines(["CREATING REPO..."])
 
     try:
         flag_path.touch(exist_ok=True)
-        _log_debug(log_debug, f"Successfully created repo flag file: {flag_path}")
+        log_system.info("Successfully created repo flag file", device=target_name, path=str(flag_path))
 
         # Invalidate the repo cache so the drive is recognized
         drives.invalidate_repo_cache()
@@ -1434,7 +1419,7 @@ def create_repo_drive(
         time.sleep(1.5)
 
     except OSError as error:
-        _log_debug(log_debug, f"Failed to create repo flag file: {error}")
+        log_system.error("Failed to create repo flag file", device=target_name, path=str(flag_path), error=str(error))
         screens.render_error_screen(
             title="CREATE REPO",
             message="Write failed",
@@ -1443,11 +1428,6 @@ def create_repo_drive(
             message_icon_size=24,
         )
         time.sleep(1)
-
-
-def _log_debug(log_debug: Callable[[str], None] | None, message: str) -> None:
-    if log_debug:
-        log_debug(message)
 
 
 def _handle_screenshot() -> bool:

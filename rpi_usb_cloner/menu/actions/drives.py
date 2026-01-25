@@ -51,7 +51,6 @@ def copy_drive() -> None:
         lambda: drive_actions.copy_drive(
             state=context.state,
             clone_mode=context.clone_mode,
-            log_debug=context.log_debug,
             get_selected_usb_name=context.get_selected_usb_name,
         )
     )
@@ -63,7 +62,6 @@ def drive_info() -> None:
         return
     drive_actions.drive_info(
         state=context.state,
-        log_debug=context.log_debug,
         get_selected_usb_name=context.get_selected_usb_name,
     )
 
@@ -75,7 +73,6 @@ def format_drive() -> None:
     _run_operation(
         lambda: drive_actions.format_drive(
             state=context.state,
-            log_debug=context.log_debug,
             get_selected_usb_name=context.get_selected_usb_name,
         )
     )
@@ -87,7 +84,6 @@ def unmount_drive() -> None:
         return
     drive_actions.unmount_drive(
         state=context.state,
-        log_debug=context.log_debug,
         get_selected_usb_name=context.get_selected_usb_name,
     )
 
@@ -99,7 +95,6 @@ def erase_drive() -> None:
     _run_operation(
         lambda: drive_actions.erase_drive(
             state=context.state,
-            log_debug=context.log_debug,
             get_selected_usb_name=context.get_selected_usb_name,
         )
     )
@@ -111,6 +106,5 @@ def create_repo_drive() -> None:
         return
     drive_actions.create_repo_drive(
         state=context.state,
-        log_debug=context.log_debug,
         get_selected_usb_name=context.get_selected_usb_name,
     )
