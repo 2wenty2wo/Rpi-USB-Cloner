@@ -297,7 +297,12 @@ def format_device(
 
     device_label = format_device_label(device)
     log.debug(f"Starting format of {device_label} as {filesystem} ({mode})")
-    log.info("Starting format of %s as %s (%s)", device_label, filesystem, mode)
+    log.info(
+        "Starting format of {} as {} ({})",
+        device_label,
+        filesystem,
+        mode,
+    )
 
     # Unmount device and all partitions
     try:
@@ -366,5 +371,5 @@ def format_device(
         return False
 
     log.debug(f"Format completed successfully: {device_label}")
-    log.info("Format completed successfully for %s", device_label)
+    log.info("Format completed successfully for {}", device_label)
     return True
