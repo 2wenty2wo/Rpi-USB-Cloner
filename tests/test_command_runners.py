@@ -5,7 +5,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from rpi_usb_cloner.storage.clone.command_runners import (
-    configure_progress_logger,
     run_checked_command,
     run_checked_with_progress,
     run_checked_with_streaming_progress,
@@ -405,33 +404,3 @@ class TestRunCheckedWithStreamingProgress:
             if call_args[0][1] is not None:
                 ratio = call_args[0][1]
                 assert 0.0 <= ratio <= 1.0
-
-
-class TestConfigureProgressLogger:
-    """Tests for progress logger configuration."""
-
-    def test_configure_logger(self):
-        """Test configuring the progress logger."""
-        logger = Mock()
-        configure_progress_logger(logger)
-
-        # Use run_checked_command which uses _log_debug internally
-        with patch(
-            "rpi_usb_cloner.storage.clone.command_runners.subprocess.run"
-        ) as mock_run:
-            mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
-            run_checked_command(["echo", "test"])
-
-        # Logger should have been called
-        assert logger.call_count > 0
-
-    def test_logger_none(self):
-        """Test that None logger doesn't raise errors."""
-        configure_progress_logger(None)
-
-        # Should not raise any errors
-        with patch(
-            "rpi_usb_cloner.storage.clone.command_runners.subprocess.run"
-        ) as mock_run:
-            mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
-            run_checked_command(["echo", "test"])
