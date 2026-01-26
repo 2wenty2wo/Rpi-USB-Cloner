@@ -4,7 +4,7 @@ import time
 from typing import Iterable, Optional
 
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui import display, menus, transitions
 from rpi_usb_cloner.ui.constants import BUTTON_POLL_DELAY
 
 
@@ -227,11 +227,14 @@ def wait_for_scrollable_key_value_input(
     label_font=None,
     buttons: Optional[Iterable[int]] = None,
     poll_delay: float = BUTTON_POLL_DELAY,
+    transition_direction: Optional[str] = None,
 ) -> None:
     if buttons is None:
         buttons = (gpio.PIN_A, gpio.PIN_B)
     buttons = tuple(buttons)
     line_list = list(lines)
+    original_image = None
+    context = display.get_display_context()
 
     def render(offset: int) -> tuple[int, int]:
         return display.render_scrollable_key_value_lines(
@@ -244,7 +247,35 @@ def wait_for_scrollable_key_value_input(
             title_icon=title_icon,
         )
 
-    max_scroll, scroll_offset = render(scroll_offset)
+    if transition_direction:
+        from_image = context.image.copy()
+        if transition_direction == "forward":
+            original_image = from_image.copy()
+        to_image, max_scroll, scroll_offset = (
+            display.render_scrollable_key_value_lines_image(
+                title,
+                line_list,
+                scroll_offset=scroll_offset,
+                title_font=title_font,
+                items_font=body_font,
+                label_font=label_font,
+                title_icon=title_icon,
+            )
+        )
+        transitions.render_slide_transition(
+            from_image=from_image,
+            to_image=to_image,
+            direction=transition_direction,
+            frame_count=menus._get_transition_frame_count(),
+            frame_delay=menus._get_transition_frame_delay(),
+        )
+        with display._display_lock:
+            context = display.get_display_context()
+            context.image.paste(to_image)
+            context.disp.display(context.image)
+            display.mark_display_dirty()
+    else:
+        max_scroll, scroll_offset = render(scroll_offset)
     nav_buttons = (gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D)
     menus.wait_for_buttons_release(buttons + nav_buttons, poll_delay=poll_delay)
     prev_states = {
@@ -258,9 +289,37 @@ def wait_for_scrollable_key_value_input(
     while True:
         current_a = gpio.is_pressed(gpio.PIN_A)
         if gpio.PIN_A in buttons and prev_states["A"] and not current_a:
+            if original_image is not None:
+                current_image = context.image.copy()
+                transitions.render_slide_transition(
+                    from_image=current_image,
+                    to_image=original_image,
+                    direction="back",
+                    frame_count=menus._get_transition_frame_count(),
+                    frame_delay=menus._get_transition_frame_delay(),
+                )
+                with display._display_lock:
+                    context = display.get_display_context()
+                    context.image.paste(original_image)
+                    context.disp.display(context.image)
+                    display.mark_display_dirty()
             return
         current_b = gpio.is_pressed(gpio.PIN_B)
         if gpio.PIN_B in buttons and prev_states["B"] and not current_b:
+            if original_image is not None:
+                current_image = context.image.copy()
+                transitions.render_slide_transition(
+                    from_image=current_image,
+                    to_image=original_image,
+                    direction="back",
+                    frame_count=menus._get_transition_frame_count(),
+                    frame_delay=menus._get_transition_frame_delay(),
+                )
+                with display._display_lock:
+                    context = display.get_display_context()
+                    context.image.paste(original_image)
+                    context.disp.display(context.image)
+                    display.mark_display_dirty()
             return
         current_l = gpio.is_pressed(gpio.PIN_L)
         current_r = gpio.is_pressed(gpio.PIN_R)
