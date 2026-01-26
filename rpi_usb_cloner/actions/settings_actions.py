@@ -7,105 +7,162 @@ For new code, prefer importing directly from:
     rpi_usb_cloner.actions.settings.*
 """
 
-# Re-export all public APIs from the settings package
-from rpi_usb_cloner.actions.settings import (
-    build_update_info_lines,
-    check_update_status,
-    coming_soon,
-    confirm_action,
-    demo_confirmation_screen,
-    demo_info_screen,
-    demo_progress_screen,
-    demo_status_screen,
-    format_command_output,
-    get_app_version,
-    get_update_status,
-    has_dirty_working_tree,
-    heroicons_demo,
-    is_dubious_ownership_error,
-    is_git_repo,
-    is_running_under_systemd,
-    keyboard_test,
-    lucide_demo,
-    parse_git_progress_ratio,
-    poweroff_system,
-    preview_title_font,
-    reboot_system,
-    restart_service,
-    restart_system,
-    run_command,
-    run_git_pull,
-    run_update_flow,
-    screensaver_settings,
-    select_restore_partition_mode,
-    select_screensaver_gif,
-    select_transition_speed,
-    show_about_credits,  # Display credits screen from assets/credits.png
-    shutdown_system,
-    stop_service,
-    toggle_screensaver_enabled,
-    toggle_screensaver_mode,
-    toggle_screenshots,
-    toggle_web_server,
-    update_version,
-    wifi_settings,
-)
+from __future__ import annotations
+
+import importlib
+from typing import Any
 
 
-# Backwards compatibility aliases
-_get_app_version = get_app_version
-_is_git_repo = is_git_repo
-_has_dirty_working_tree = has_dirty_working_tree
-_run_git_pull = run_git_pull
-_GIT_PROGRESS_STAGES = {
-    "Receiving objects": 0,
-    "Resolving deltas": 1,
-    "Updating files": 2,
+_EXPORTS = {
+    # UI actions
+    "coming_soon": ("rpi_usb_cloner.actions.settings.ui_actions", "coming_soon"),
+    "wifi_settings": ("rpi_usb_cloner.actions.settings.ui_actions", "wifi_settings"),
+    "select_restore_partition_mode": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "select_restore_partition_mode",
+    ),
+    "select_transition_speed": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "select_transition_speed",
+    ),
+    "screensaver_settings": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "screensaver_settings",
+    ),
+    "toggle_screensaver_enabled": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_screensaver_enabled",
+    ),
+    "toggle_screensaver_mode": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_screensaver_mode",
+    ),
+    "select_screensaver_gif": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "select_screensaver_gif",
+    ),
+    "keyboard_test": ("rpi_usb_cloner.actions.settings.ui_actions", "keyboard_test"),
+    "demo_confirmation_screen": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "demo_confirmation_screen",
+    ),
+    "demo_status_screen": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "demo_status_screen",
+    ),
+    "demo_info_screen": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "demo_info_screen",
+    ),
+    "demo_progress_screen": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "demo_progress_screen",
+    ),
+    "lucide_demo": ("rpi_usb_cloner.actions.settings.ui_actions", "lucide_demo"),
+    "heroicons_demo": ("rpi_usb_cloner.actions.settings.ui_actions", "heroicons_demo"),
+    "preview_title_font": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "preview_title_font",
+    ),
+    "toggle_screenshots": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_screenshots",
+    ),
+    "toggle_web_server": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_web_server",
+    ),
+    "show_about_credits": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "show_about_credits",
+    ),
+    # Update manager
+    "update_version": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "update_version",
+    ),
+    "get_update_status": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "get_update_status",
+    ),
+    "check_update_status": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "check_update_status",
+    ),
+    "build_update_info_lines": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "build_update_info_lines",
+    ),
+    "run_update_flow": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "run_update_flow",
+    ),
+    # System power
+    "restart_service": (
+        "rpi_usb_cloner.actions.settings.system_power",
+        "restart_service",
+    ),
+    "stop_service": (
+        "rpi_usb_cloner.actions.settings.system_power",
+        "stop_service",
+    ),
+    "restart_system": (
+        "rpi_usb_cloner.actions.settings.system_power",
+        "restart_system",
+    ),
+    "shutdown_system": (
+        "rpi_usb_cloner.actions.settings.system_power",
+        "shutdown_system",
+    ),
+    "confirm_action": (
+        "rpi_usb_cloner.actions.settings.system_power",
+        "confirm_action",
+    ),
+    # System utilities
+    "get_app_version": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "get_app_version",
+    ),
+    "is_git_repo": ("rpi_usb_cloner.actions.settings.system_utils", "is_git_repo"),
+    "has_dirty_working_tree": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "has_dirty_working_tree",
+    ),
+    "is_dubious_ownership_error": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "is_dubious_ownership_error",
+    ),
+    "is_running_under_systemd": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "is_running_under_systemd",
+    ),
+    "format_command_output": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "format_command_output",
+    ),
+    "run_command": ("rpi_usb_cloner.actions.settings.system_utils", "run_command"),
+    "run_git_pull": ("rpi_usb_cloner.actions.settings.system_utils", "run_git_pull"),
+    "parse_git_progress_ratio": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "parse_git_progress_ratio",
+    ),
+    "reboot_system": ("rpi_usb_cloner.actions.settings.system_utils", "reboot_system"),
+    "poweroff_system": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "poweroff_system",
+    ),
 }
-_parse_git_progress_ratio = parse_git_progress_ratio
-_get_update_status = get_update_status
-_check_update_status = check_update_status
-_build_update_info_lines = build_update_info_lines
-_format_command_output = format_command_output
-_is_dubious_ownership_error = is_dubious_ownership_error
-_is_running_under_systemd = is_running_under_systemd
-_restart_systemd_service = restart_service
-_stop_systemd_service = stop_service
-_confirm_power_action = confirm_action
-_confirm_action = confirm_action
-_run_systemctl_command = run_command
-_restart_service = restart_service
-_stop_service = stop_service
-_reboot_system = reboot_system
-_poweroff_system = poweroff_system
-_get_git_version = get_app_version
-_run_command = run_command
-_SERVICE_NAME = "rpi-usb-cloner.service"
-_run_update_flow = run_update_flow
 
-__all__ = [
-    "coming_soon",
-    "wifi_settings",
-    "select_restore_partition_mode",
-    "select_transition_speed",
-    "screensaver_settings",
-    "toggle_screensaver_enabled",
-    "toggle_screensaver_mode",
-    "select_screensaver_gif",
-    "keyboard_test",
-    "demo_confirmation_screen",
-    "demo_status_screen",
-    "demo_info_screen",
-    "demo_progress_screen",
-    "lucide_demo",
-    "heroicons_demo",
-    "preview_title_font",
-    "toggle_screenshots",
-    "toggle_web_server",
-    "show_about_credits",  # ABOUT menu: Display credits screen
-    "update_version",
-    "restart_service",
-    "stop_service",
-    "restart_system",
-    "shutdown_system",
-]
+__all__ = list(_EXPORTS.keys())
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_path, attribute = _EXPORTS[name]
+    module = importlib.import_module(module_path)
+    return getattr(module, attribute)
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)
