@@ -496,6 +496,7 @@
                       <div class="progress-bar bg-secondary-lt" role="progressbar" style="width: 0%;" aria-label="Free space" data-repo-segment="free"></div>
                     </div>
                     <div id="image-repo-chart-legend" class="d-flex flex-wrap gap-2 mt-3"></div>
+                    <div id="image-repo-divider" class="hr my-3 d-none"></div>
                   </div>
                   <div id="image-repo-container">
                     <div class="text-center text-muted py-4">
@@ -1279,6 +1280,7 @@
       const countBadge = document.getElementById('image-count');
       const chartContainer = document.getElementById('image-repo-chart');
       const chartLegend = document.getElementById('image-repo-chart-legend');
+      const chartDivider = document.getElementById('image-repo-divider');
       const chartSegments = chartContainer.querySelectorAll('[data-repo-segment]');
 
       const repoEntries = repoStats ? Object.values(repoStats) : [];
@@ -1287,6 +1289,7 @@
 
       if (!hasRepos) {
         chartContainer.classList.add('d-none');
+        chartDivider.classList.add('d-none');
         chartLegend.innerHTML = '';
         chartSegments.forEach((segment) => {
           segment.style.width = '0%';
@@ -1350,6 +1353,7 @@
 
       if (totalCapacity > 0) {
         chartContainer.classList.remove('d-none');
+        chartDivider.classList.remove('d-none');
         chartSegments.forEach((segment) => {
           const segmentKey = segment.dataset.repoSegment;
           const entry = segmentData.find((item) => item.key === segmentKey);
@@ -1364,6 +1368,7 @@
         `).join('');
       } else {
         chartContainer.classList.add('d-none');
+        chartDivider.classList.add('d-none');
         chartLegend.innerHTML = '';
         chartSegments.forEach((segment) => {
           segment.style.width = '0%';
