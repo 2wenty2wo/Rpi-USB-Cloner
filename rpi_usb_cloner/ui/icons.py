@@ -28,7 +28,7 @@ UPDATE_ICON = chr(57669)  # refresh-cw - update screens
 WIFI_ICON = chr(57774)  # wifi - wifi screens
 POWER_ICON = chr(57664)  # power - power screens
 DEVELOP_ICON = chr(57729)  # terminal - develop screen
-LOGS_ICON = chr(58021)  # chart-line - logs screen
+LOGS_ICON = chr(58868)  # logs icon - logs screen
 
 # Action icons (used in operations and confirmations)
 ALERT_ICON = chr(57639)  # octagon-alert - warnings and errors

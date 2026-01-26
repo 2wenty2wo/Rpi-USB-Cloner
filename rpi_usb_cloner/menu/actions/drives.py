@@ -9,7 +9,6 @@ from rpi_usb_cloner.ui import screens
 from rpi_usb_cloner.ui.icons import (
     ALERT_ICON,
     DRIVES_ICON,
-    EJECT_ICON,
     FOLDER_ICON,
     SPARKLES_ICON,
 )
@@ -80,7 +79,7 @@ def format_drive() -> None:
 
 def unmount_drive() -> None:
     context = get_action_context()
-    if not _ensure_drive_selected("UNMOUNT DRIVE", EJECT_ICON):
+    if not _ensure_drive_selected("UNMOUNT DRIVE", DRIVES_ICON):
         return
     drive_actions.unmount_drive(
         state=context.state,
