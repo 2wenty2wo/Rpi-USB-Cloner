@@ -34,7 +34,10 @@ def run_command(
 ) -> subprocess.CompletedProcess[str]:
     """Run a command and capture output."""
     cwd_display = str(cwd) if cwd else None
-    log.debug(f"Running command: {args} cwd={cwd_display}", component="system")
+    log.debug(
+        f"Running command: {_escape_braces(repr(args))} cwd={cwd_display}",
+        component="system",
+    )
     result = subprocess.run(
         args,
         cwd=cwd,
