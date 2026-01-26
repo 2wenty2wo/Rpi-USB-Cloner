@@ -56,6 +56,10 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
             action=menu_actions.toggle_web_server,
         ),
         MenuItem(
+            label="SYSTEM INFO",
+            action=menu_actions.system_info,
+        ),
+        MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
             submenu=definitions.SCREENSAVER_MENU,
         ),
