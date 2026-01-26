@@ -31,21 +31,52 @@ from .system_utils import (
 # Create logger for update operations
 log = LoggerFactory.for_system()
 
+OLED_LINE_MAX = 21
 
-def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
+
+def _truncate_oled_line(text: str, max_length: int = OLED_LINE_MAX) -> str:
+    if len(text) <= max_length:
+        return text
+    if max_length <= 1:
+        return text[:max_length]
+    return f"{text[: max_length - 1]}…"
+
+
+def _extract_error_hint(stderr: str) -> str:
+    if not stderr:
+        return ""
+    line = ""
+    for candidate in stderr.splitlines():
+        candidate = candidate.strip()
+        if candidate:
+            line = candidate
+            break
+    if not line:
+        return ""
+    lowered = line.lower()
+    for prefix in ("fatal:", "error:", "warning:"):
+        if lowered.startswith(prefix):
+            line = line[len(prefix) :].strip()
+            break
+    line = " ".join(line.split())
+    return _truncate_oled_line(line)
+
+
+def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
     """Check if updates are available."""
     if not is_git_repo(repo_root):
         log.debug("Update status check: repo not found", component="update_manager")
-        return "Repo not found", None
+        return "Repo not found", None, ""
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
+        error_hint = _extract_error_hint(fetch.stderr)
         if is_dubious_ownership_error(fetch.stderr):
             if not is_running_under_systemd():
                 log.debug(
                     "Update status check: dubious ownership detected outside systemd",
                     component="update_manager",
                 )
-                return "Unable to check", None
+                return "Unable to check", None, error_hint
             log.debug(
                 "Update status check: dubious ownership detected; retrying with "
                 "safe.directory",
@@ -56,11 +87,13 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
             )
             fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
             if fetch.returncode != 0:
+                error_hint = _extract_error_hint(fetch.stderr)
                 log.debug(
-                    f"Update status check: fetch retry failed {fetch.returncode}",
+                    "Update status check: fetch retry failed "
+                    f"{fetch.returncode} hint={error_hint!r}",
                     component="update_manager",
                 )
-                return "Unable to check", None
+                return "Unable to check", None, error_hint
             upstream = run_command(
                 ["git", "rev-parse", "--abbrev-ref", "@{u}"],
                 cwd=repo_root,
@@ -71,17 +104,19 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
                     "Update status check: upstream missing after retry",
                     component="update_manager",
                 )
-                return "Unable to check", None
+                return "Unable to check", None, ""
             behind = run_command(
                 ["git", "rev-list", "--count", "HEAD..@{u}"],
                 cwd=repo_root,
             )
             if behind.returncode != 0:
+                error_hint = _extract_error_hint(behind.stderr)
                 log.debug(
-                    "Update status check: rev-list failed after retry",
+                    "Update status check: rev-list failed after retry "
+                    f"hint={error_hint!r}",
                     component="update_manager",
                 )
-                return "Unable to check", None
+                return "Unable to check", None, error_hint
             count = behind.stdout.strip()
             log.debug(
                 f"Update status check: behind count after retry={count!r}",
@@ -90,13 +125,14 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
             if count.isdigit():
                 behind_count = int(count)
                 status = "Update available" if behind_count > 0 else "Up to date"
-                return status, behind_count
-            return "Up to date", None
+                return status, behind_count, ""
+            return "Up to date", None, ""
         log.debug(
-            f"Update status check: fetch failed {fetch.returncode}",
+            "Update status check: fetch failed "
+            f"{fetch.returncode} hint={error_hint!r}",
             component="update_manager",
         )
-        return "Unable to check", None
+        return "Unable to check", None, error_hint
     upstream = run_command(
         ["git", "rev-parse", "--abbrev-ref", "@{u}"],
         cwd=repo_root,
@@ -104,14 +140,18 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
     upstream_ref = upstream.stdout.strip()
     if upstream.returncode != 0 or not upstream_ref:
         log.debug("Update status check: upstream missing", component="update_manager")
-        return "No upstream configured", None
+        return "No upstream configured", None, ""
     behind = run_command(
         ["git", "rev-list", "--count", "HEAD..@{u}"],
         cwd=repo_root,
     )
     if behind.returncode != 0:
-        log.debug("Update status check: rev-list failed", component="update_manager")
-        return "Unable to check", None
+        error_hint = _extract_error_hint(behind.stderr)
+        log.debug(
+            f"Update status check: rev-list failed hint={error_hint!r}",
+            component="update_manager",
+        )
+        return "Unable to check", None, error_hint
     count = behind.stdout.strip()
     log.debug(
         f"Update status check: behind count={count!r}", component="update_manager"
@@ -119,19 +159,20 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int]]:
     if count.isdigit():
         behind_count = int(count)
         status = "Update available" if behind_count > 0 else "Up to date"
-        return status, behind_count
-    return "Up to date", None
+        return status, behind_count, ""
+    return "Up to date", None, ""
 
 
-def check_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
+def check_update_status(repo_root: Path) -> tuple[str, Optional[int], str, str]:
     """Check update status and return with timestamp."""
-    status, behind_count = get_update_status(repo_root)
+    status, behind_count, error_hint = get_update_status(repo_root)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
     log.debug(
-        f"Update status check complete at {last_checked}: {status}",
+        f"Update status check complete at {last_checked}: {status} "
+        f"hint={error_hint!r}",
         component="update_manager",
     )
-    return status, behind_count, last_checked
+    return status, behind_count, last_checked, error_hint
 
 
 def build_update_info_lines(
@@ -139,6 +180,7 @@ def build_update_info_lines(
     status: str,
     behind_count: Optional[int],
     last_checked: Optional[str],
+    error_hint: str,
 ) -> list[str]:
     """Build info lines for update display."""
     # Abbreviate status strings to fit on OLED display width
@@ -148,13 +190,18 @@ def build_update_info_lines(
         "No upstream configured": "No upstream",
     }
     status_display = status_abbreviations.get(status, status)
-    lines = [f"Version: {version}", f"Status: {status_display}"]
+    lines = [
+        f"Version: {version}",
+        f"Status: {status_display}",
+    ]
     # Always add a third line to prevent layout shift
-    if behind_count is not None and behind_count > 0:
+    if error_hint:
+        lines.append(f"Hint: {error_hint}")
+    elif behind_count is not None and behind_count > 0:
         lines.append(f"Commits behind: {behind_count}")
     else:
         lines.append("")  # Empty line to reserve space
-    return lines
+    return [_truncate_oled_line(line) for line in lines]
 
 
 def run_update_flow(
@@ -349,21 +396,23 @@ def update_version() -> None:
     status = "Checking..."
     behind_count: Optional[int] = None
     last_checked: Optional[str] = None
+    error_hint = ""
     version = get_app_version()
     check_done = threading.Event()
     git_lock = threading.Lock()
     results_applied = False
-    result_holder: dict[str, tuple[str, Optional[int], str]] = {}
+    result_holder: dict[str, tuple[str, Optional[int], str, str]] = {}
     error_holder: dict[str, Exception] = {}
     header_lines: list[str] = []
     selection = 0
 
-    def apply_check_results() -> tuple[str, Optional[int], Optional[str]]:
+    def apply_check_results() -> tuple[str, Optional[int], Optional[str], str]:
         if "result" in result_holder:
             return (
                 result_holder["result"][0],
                 result_holder["result"][1],
                 result_holder["result"][2],
+                result_holder["result"][3],
             )
         if "error" in error_holder:
             log.debug(
@@ -374,17 +423,18 @@ def update_version() -> None:
                 "Unable to check",
                 None,
                 time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+                "",
             )
-        return status, behind_count, last_checked
+        return status, behind_count, last_checked, error_hint
 
     def apply_check_results_to_state() -> None:
-        nonlocal status, behind_count, last_checked, results_applied
-        status, behind_count, last_checked = apply_check_results()
+        nonlocal status, behind_count, last_checked, error_hint, results_applied
+        status, behind_count, last_checked, error_hint = apply_check_results()
         results_applied = True
 
     def update_header_lines() -> None:
         header_lines[:] = build_update_info_lines(
-            version, status, behind_count, last_checked
+            version, status, behind_count, last_checked, error_hint
         )
 
     def refresh_update_menu() -> bool:
@@ -454,6 +504,7 @@ def update_version() -> None:
                 if not check_done.is_set():
                     status = "Checking..."
                     behind_count = None
+                    error_hint = ""
                     update_header_lines()
                     while not check_done.is_set():
                         screens.render_update_buttons_screen(
@@ -476,8 +527,8 @@ def update_version() -> None:
                         title_icon=title_icon,
                     )
                     with git_lock:
-                        status, behind_count, last_checked = check_update_status(
-                            repo_root
+                        status, behind_count, last_checked, error_hint = (
+                            check_update_status(repo_root)
                         )
                     update_header_lines()
                     screens.render_update_buttons_screen(
@@ -487,7 +538,12 @@ def update_version() -> None:
                         title_icon=title_icon,
                     )
                     version = get_app_version()
-                    result_holder["result"] = (status, behind_count, last_checked)
+                    result_holder["result"] = (
+                        status,
+                        behind_count,
+                        last_checked,
+                        error_hint,
+                    )
                     check_done.set()
                     results_applied = True
                 refresh_needed = True
@@ -506,9 +562,16 @@ def update_version() -> None:
                     apply_check_results_to_state()
                 with git_lock:
                     run_update_flow(title, title_icon=title_icon)
-                    status, behind_count, last_checked = check_update_status(repo_root)
+                    status, behind_count, last_checked, error_hint = check_update_status(
+                        repo_root
+                    )
                 version = get_app_version()
-                result_holder["result"] = (status, behind_count, last_checked)
+                result_holder["result"] = (
+                    status,
+                    behind_count,
+                    last_checked,
+                    error_hint,
+                )
                 check_done.set()
                 results_applied = True
                 refresh_needed = True
