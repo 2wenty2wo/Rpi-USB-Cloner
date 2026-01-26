@@ -57,12 +57,16 @@ A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero
     <td>
       <img src="docs/screenshots/screenshot_20260127_081347.png" width="300">
     </td>
+    <td></td></td>
+  </tr>
+</table>
+<table>
+  <tr>
     <td>
       <img src="docs/screenshots/screencapture-192-168-1-154-8000-2026-01-27-08_33_59.png" width="300">
     </td>
   </tr>
 </table>
-
 
 ## 🚀 Quickstart
 
