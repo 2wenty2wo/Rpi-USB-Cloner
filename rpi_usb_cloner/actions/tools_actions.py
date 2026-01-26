@@ -84,7 +84,7 @@ def system_info(*, app_context: AppContext) -> None:
     lines.append(("OS:", f"{platform.system()}"))
     lines.append(("Python:", f"{platform.python_version()}"))
 
-    screens.wait_for_paginated_key_value_input(
+    screens.wait_for_scrollable_key_value_input(
         "SYSTEM INFO",
         lines,
         title_icon=INFO_ICON,

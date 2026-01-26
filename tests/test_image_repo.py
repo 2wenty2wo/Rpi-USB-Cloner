@@ -3,11 +3,8 @@
 This module tests image repository discovery and management functions.
 """
 
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 
@@ -143,9 +140,7 @@ class TestResolvesMountpoint:
         )
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo.devices.get_children",
-            return_value=[
-                {"name": "sda1", "type": "part", "mountpoint": "/media/usb"}
-            ],
+            return_value=[{"name": "sda1", "type": "part", "mountpoint": "/media/usb"}],
         )
 
         partition = {"name": "sda1", "mountpoint": None}
@@ -435,9 +430,7 @@ class TestListClonezillaImages:
 
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo.clonezilla.list_clonezilla_image_dirs",
-            side_effect=lambda path: [img_c, img_a, img_b]
-            if path == tmp_path
-            else [],
+            side_effect=lambda path: [img_c, img_a, img_b] if path == tmp_path else [],
         )
 
         images = list_clonezilla_images(tmp_path)
@@ -513,7 +506,9 @@ class TestIsTempClonezillaPath:
 
         assert _is_temp_clonezilla_path(Path("normal_file.txt")) is False
         assert _is_temp_clonezilla_path(Path("/data/image.gz")) is False
-        assert _is_temp_clonezilla_path(Path("template.doc")) is False  # 'temp' substring
+        assert (
+            _is_temp_clonezilla_path(Path("template.doc")) is False
+        )  # 'temp' substring
 
 
 class TestSumTreeBytes:
@@ -530,7 +525,8 @@ class TestSumTreeBytes:
         # Mock to only check file-level temp patterns, not parent path
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo._is_temp_clonezilla_path",
-            side_effect=lambda p: p.name.startswith(".") or p.suffix in {".tmp", ".part"},
+            side_effect=lambda p: p.name.startswith(".")
+            or p.suffix in {".tmp", ".part"},
         )
 
         (tmp_path / "file.txt").write_bytes(b"x" * 100)
@@ -542,7 +538,8 @@ class TestSumTreeBytes:
 
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo._is_temp_clonezilla_path",
-            side_effect=lambda p: p.name.startswith(".") or p.suffix in {".tmp", ".part"},
+            side_effect=lambda p: p.name.startswith(".")
+            or p.suffix in {".tmp", ".part"},
         )
 
         (tmp_path / "file1.txt").write_bytes(b"a" * 100)
@@ -555,7 +552,8 @@ class TestSumTreeBytes:
 
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo._is_temp_clonezilla_path",
-            side_effect=lambda p: p.name.startswith(".") or p.suffix in {".tmp", ".part"},
+            side_effect=lambda p: p.name.startswith(".")
+            or p.suffix in {".tmp", ".part"},
         )
 
         (tmp_path / "dir1").mkdir()
@@ -571,7 +569,8 @@ class TestSumTreeBytes:
         # Mock that detects temp files by name only
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo._is_temp_clonezilla_path",
-            side_effect=lambda p: p.name.startswith(".") or p.suffix in {".tmp", ".part"},
+            side_effect=lambda p: p.name.startswith(".")
+            or p.suffix in {".tmp", ".part"},
         )
 
         (tmp_path / "normal.txt").write_bytes(b"x" * 100)
