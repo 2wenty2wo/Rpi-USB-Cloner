@@ -2,7 +2,7 @@
 
 > **Purpose**: This document provides comprehensive guidance for AI assistants (like Claude) working on the Raspberry Pi USB Cloner codebase. It covers architecture, conventions, workflows, and common tasks.
 
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-01-26
 **Project**: Raspberry Pi USB Cloner
 **Language**: Python 3.8+
 **License**: MIT
@@ -46,6 +46,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 | **Image Processing** | Pillow | 10.1.0 |
 | **Display Drivers** | luma.oled, luma.core | 3.12.0, 2.4.2 |
 | **System Monitoring** | psutil | 5.9.8 |
+| **Logging** | loguru | 0.7.2 |
 | **Testing** | pytest, pytest-cov, pytest-mock | ≥7.4.0 |
 | **Code Quality** | Black, Ruff, mypy | 24.8.0, ≥0.1.0, 1.11.2 |
 
@@ -60,7 +61,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 # Main entry point
 /home/user/Rpi-USB-Cloner/rpi-usb-cloner.py
     ↓
-rpi_usb_cloner/main.py (892 lines)
+rpi_usb_cloner/main.py (907 lines)
     ↓
 Main event loop with GPIO polling, USB detection, display rendering
 ```
@@ -172,8 +173,9 @@ def run_with_progress(
 ```
 Rpi-USB-Cloner/
 ├── rpi-usb-cloner.py              # Entry point script
-├── rpi_usb_cloner/                # Main package (93 files, ~20,000 LOC)
-│   ├── main.py                    # Main event loop (892 lines) ⭐
+├── rpi_usb_cloner/                # Main package (93 files, ~23,600 LOC)
+│   ├── main.py                    # Main event loop (907 lines) ⭐
+│   ├── logging.py                 # Loguru logging factory
 │   │
 │   ├── app/                        # Application state
 │   │   ├── context.py             # AppContext (runtime state) ⭐
@@ -187,12 +189,16 @@ Rpi-USB-Cloner/
 │   │   ├── definitions/           # Menu structure definitions
 │   │   │   ├── main.py            # Main menu
 │   │   │   ├── drives.py          # Drives submenu
-│   │   │   ├── images.py          # Images submenu
+│   │   │   ├── clone.py           # Clone/Images submenu
 │   │   │   ├── tools.py           # Tools submenu
 │   │   │   └── settings.py        # Settings submenu
 │   │   └── actions/               # Menu action handlers (deprecated, see actions/)
 │   │
-│   ├── actions/                    # Action handlers (NEW location)
+│   ├── domain/                     # Domain models (type-safe)
+│   │   ├── __init__.py            # Exports: Drive, DiskImage, ImageRepo, etc.
+│   │   └── models.py              # Core domain objects ⭐
+│   │
+│   ├── actions/                    # Action handlers
 │   │   ├── drive_actions.py       # Drive operations
 │   │   ├── image_actions.py       # Image operations
 │   │   ├── tools_actions.py       # Tools operations
@@ -210,6 +216,8 @@ Rpi-USB-Cloner/
 │   │   ├── menus.py               # Menu utilities
 │   │   ├── screensaver.py         # Screensaver with GIF support
 │   │   ├── icons.py               # Lucide icon definitions
+│   │   ├── transitions.py         # Menu slide transitions
+│   │   ├── constants.py           # UI constants
 │   │   ├── screens/               # Screen renderers
 │   │   │   ├── progress.py        # Progress bars with ETA
 │   │   │   ├── confirmation.py    # Yes/No dialogs, checkboxes
@@ -228,6 +236,9 @@ Rpi-USB-Cloner/
 │   │   ├── mount.py               # Device mounting utilities
 │   │   ├── format.py              # Device formatting
 │   │   ├── validation.py          # Input validation
+│   │   ├── image_repo.py          # Image repository management ⭐
+│   │   ├── iso.py                 # ISO file handling
+│   │   ├── exceptions.py          # Storage-related exceptions
 │   │   ├── clone.py               # Legacy clone wrapper (deprecated)
 │   │   ├── clone/                 # Modern cloning module ⭐
 │   │   │   ├── operations.py      # Clone/dd/partclone ops ⭐
@@ -245,7 +256,9 @@ Rpi-USB-Cloner/
 │   │   │   ├── compression.py     # Compression handling
 │   │   │   ├── file_utils.py      # File utilities
 │   │   │   └── models.py          # Data models
-│   │   └── image_repo.py          # Image repository management
+│   │   └── imageusb/              # ImageUSB .BIN file support
+│   │       ├── detection.py       # Detect ImageUSB files
+│   │       └── restore.py         # Restore ImageUSB images
 │   │
 │   ├── services/                   # Service layer ⭐
 │   │   ├── drives.py              # Drive listing/selection/labels
@@ -262,6 +275,7 @@ Rpi-USB-Cloner/
 │   │   │   └── index.html         # Main web UI
 │   │   └── static/
 │   │       ├── tabler/            # Tabler CSS framework
+│   │       ├── apexcharts/        # ApexCharts (repo usage charts)
 │   │       └── favicon/           # Favicons
 │   │
 │   ├── config/                     # Configuration
@@ -453,6 +467,38 @@ save_settings()
 }
 ```
 
+### Logging System
+
+**Framework**: loguru (structured logging with multi-sink support)
+**Log Directory**: `~/.local/state/rpi-usb-cloner/logs/` (override with `RPI_USB_CLONER_LOG_DIR`)
+
+#### Log Files
+| File | Level | Retention | Purpose |
+|------|-------|-----------|---------|
+| `operations.log` | INFO+ | 7 days | Important events, operations |
+| `debug.log` | DEBUG+ | 3 days | Detailed diagnostics (--debug mode) |
+| `trace.log` | TRACE+ | 1 day | Ultra-verbose (--trace mode) |
+| `structured.jsonl` | INFO+ | 7 days | Machine-parseable JSON logs |
+
+#### Logger Factory API (`logging.py`)
+```python
+from rpi_usb_cloner.logging import LoggerFactory, operation_context
+
+# Domain-specific loggers
+log = LoggerFactory.for_clone(job_id="clone-abc123")
+log = LoggerFactory.for_usb()
+log = LoggerFactory.for_web(connection_id="ws-123")
+log = LoggerFactory.for_clonezilla()
+log = LoggerFactory.for_gpio()
+log = LoggerFactory.for_menu()
+log = LoggerFactory.for_system()
+
+# Operation tracking with automatic timing
+with operation_context("clone", source="/dev/sda", target="/dev/sdb") as log:
+    log.info("Clone progress", percent=50)
+    # Auto-logs start, completion/failure, and duration
+```
+
 ---
 
 ## 5. Development Workflow
@@ -606,8 +652,19 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Files**: 30 test modules (as of 2026-01-24)
+**Test Files**: 30 test modules with ~960 tests
 **Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
+
+**Coverage Strengths** (≥80%):
+- Config/Settings: 100%
+- Domain Models: 100%
+- Storage Validation: 97%
+- Clonezilla operations: 85-90%
+
+**Coverage Gaps** (<50%):
+- UI/Action handlers (complex GPIO polling)
+- Web server
+- Main application loop
 
 ### Running Tests
 
@@ -1170,6 +1227,24 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ### Recent Improvements
 
+#### 2026-01-26: Web UI & Image Repository Enhancements ✅
+**New Features**:
+- **Image Sizes in Repo List**: Images now display their sizes in the repository listing
+- **Free Space Badge**: Improved badge contrast for better readability
+- **Repository Usage Charts**: Added ApexCharts integration for visualizing repo storage usage
+- **Image Repo Divider**: Added visual divider after chart legend for cleaner UI
+- **Domain Models**: Introduced type-safe domain objects (`Drive`, `DiskImage`, `ImageRepo`, `CloneJob`)
+
+**Architecture**:
+- New `domain/models.py` with dataclasses for type-safe operations
+- New `storage/image_repo.py` for centralized image repository management
+- New `storage/imageusb/` module for ImageUSB .BIN file support
+- `CloneJob.validate()` now enforces source != destination check
+
+**Bug Fixes**:
+- Fixed image size refresh in WebSocket to avoid blocking main thread
+- Removed duplicate chart labels from image repo display
+
 #### 2026-01-24: UI Enhancements & Test Coverage ✅
 **New Features**:
 - **Menu Transitions**: Added slide transitions for menu lists with configurable transition speed settings
@@ -1180,7 +1255,7 @@ sudo journalctl -u rpi-usb-cloner.service -f
 **Test Coverage**:
 - Added comprehensive action handler tests (+38 tests)
 - Coverage increased by +7.47% for action modules
-- Total test files: 30 (was 26)
+- Total test files: 30
 - See `TEST_COVERAGE_ANALYSIS.md` for detailed coverage report
 
 **Bug Fixes**:
@@ -1415,10 +1490,12 @@ def clone_device(source: str, destination: str) -> None:
 
 | File | LOC | Description |
 |------|-----|-------------|
-| `rpi_usb_cloner/main.py` | 892 | Main event loop, entry point ⭐ |
+| `rpi_usb_cloner/main.py` | 907 | Main event loop, entry point ⭐ |
 | `rpi_usb_cloner/app/context.py` | ~100 | AppContext (runtime state) ⭐ |
+| `rpi_usb_cloner/domain/models.py` | ~230 | Domain objects (Drive, DiskImage, CloneJob) ⭐ |
 | `rpi_usb_cloner/menu/navigator.py` | ~200 | Menu navigation logic ⭐ |
 | `rpi_usb_cloner/storage/devices.py` | ~250 | USB device detection ⭐ |
+| `rpi_usb_cloner/storage/image_repo.py` | ~270 | Image repository management ⭐ |
 | `rpi_usb_cloner/storage/clone/operations.py` | ~400 | Clone operations ⭐ |
 | `rpi_usb_cloner/ui/renderer.py` | ~300 | OLED rendering ⭐ |
 | `rpi_usb_cloner/web/server.py` | ~400 | Web server (aiohttp) ⭐ |
@@ -1467,6 +1544,41 @@ select_active_drive(name: str) -> None  # Set active drive in context
 get_active_drive_label() -> str         # Get active drive label
 ```
 
+#### Domain Models (NEW)
+```python
+# domain/models.py
+@dataclass(frozen=True)
+class Drive:
+    name: str                          # e.g., "sda"
+    size_bytes: int
+    vendor: str | None = None
+    model: str | None = None
+    is_removable: bool = True
+    device_path: str                   # Property: "/dev/sda"
+    format_label() -> str              # e.g., "sda Kingston 8.0GB"
+    from_lsblk_dict(device: dict)      # Factory method
+
+@dataclass(frozen=True)
+class ImageRepo:
+    path: Path                         # Mount point
+    drive_name: str | None             # Associated drive
+
+@dataclass(frozen=True)
+class DiskImage:
+    name: str                          # Image name
+    path: Path                         # Full path
+    image_type: ImageType              # CLONEZILLA_DIR, ISO, IMAGEUSB_BIN
+    size_bytes: int | None = None
+
+@dataclass(frozen=True)
+class CloneJob:
+    source: Drive
+    destination: Drive
+    mode: CloneMode                    # SMART, EXACT, VERIFY
+    job_id: str
+    validate() -> None                 # Raises ValueError on safety issues
+```
+
 #### Clone Operations
 ```python
 # storage/clone/operations.py
@@ -1500,6 +1612,15 @@ restore_clonezilla_image(
 
 # storage/clonezilla/image_discovery.py
 discover_clonezilla_images() -> List[ClonezillaImage]
+```
+
+#### Image Repository Management (NEW)
+```python
+# storage/image_repo.py
+find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[ImageRepo]
+list_clonezilla_images(repo_root: Path) -> list[DiskImage]  # Also includes ISOs, ImageUSB
+get_image_size_bytes(image: DiskImage) -> int | None
+get_repo_usage(repo: ImageRepo) -> dict  # Returns total/used/free bytes + type breakdown
 ```
 
 #### UI Rendering
@@ -1559,6 +1680,23 @@ class MenuNavigator:
     def navigate_down(self) -> None
     def select_item(self) -> Optional[str]  # Returns action name
     def go_back(self) -> None
+```
+
+#### Logging
+```python
+# logging.py
+setup_logging(app_context, debug=False, trace=False) -> Logger
+get_logger(job_id=None, tags=None, source=None) -> Logger
+
+# Context managers
+with operation_context("clone", source="/dev/sda") as log:
+    log.info("Progress", percent=50)  # Auto-logs duration on exit
+
+# Factory methods
+LoggerFactory.for_clone(job_id=None) -> Logger
+LoggerFactory.for_usb() -> Logger
+LoggerFactory.for_web(connection_id=None) -> Logger
+LoggerFactory.for_clonezilla(job_id=None) -> Logger
 ```
 
 ---
