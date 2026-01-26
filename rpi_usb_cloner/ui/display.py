@@ -281,11 +281,23 @@ def init_display() -> DisplayContext:
     font = ImageFont.load_default()
     fontcopy = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "Born2bSportyFS.otf"), 16)
     fontinsert = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "slkscr.ttf"), 16)
-    fontdisks = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "slkscr.ttf"), 8)
+    fontdisks: Font
+    fontitems_bold: Font
+    try:
+        fontdisks = ImageFont.truetype(str(ASSETS_DIR / "fonts" / "slkscr.ttf"), 8)
+    except OSError:
+        fontdisks = font
+    try:
+        fontitems_bold = ImageFont.truetype(
+            str(ASSETS_DIR / "fonts" / "slkscrb.ttf"), 8
+        )
+    except OSError:
+        fontitems_bold = fontdisks
     fontmain = font
     fonts: Dict[str, Font] = {
         "title": fontcopy,
         "items": fontdisks,
+        "items_bold": fontitems_bold,
         "footer": fontcopy,
     }
 
@@ -573,6 +585,112 @@ def render_paginated_lines(
         for line in page_lines:
             draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
             current_y += line_step
+        if total_pages > 1:
+            left_indicator = "<" if page_index > 0 else ""
+            right_indicator = ">" if page_index < total_pages - 1 else ""
+            indicator = (
+                f"{left_indicator}{page_index + 1}/{total_pages}{right_indicator}"
+            )
+            indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
+            indicator_width = indicator_bbox[2] - indicator_bbox[0]
+            indicator_height = indicator_bbox[3] - indicator_bbox[1]
+            draw.text(
+                (
+                    context.width - indicator_width - 2,
+                    context.height - indicator_height - 2,
+                ),
+                indicator,
+                font=items_font,
+                fill=255,
+            )
+        context.disp.display(context.image)
+        mark_display_dirty()
+        return total_pages, page_index
+
+
+def render_paginated_key_value_lines(
+    title,
+    lines,
+    page_index=0,
+    items_font: Optional[Font] = None,
+    label_font: Optional[Font] = None,
+    title_font: Optional[Font] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[Font] = None,
+    content_top: Optional[int] = None,
+    label_gap: int = 2,
+):
+    context = get_display_context()
+    draw = context.draw
+    with _display_lock:
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+        current_y = context.top
+        header_font = title_font or context.fonts.get("title", context.fontdisks)
+        if title:
+            layout = draw_title_with_icon(
+                title,
+                title_font=header_font,
+                icon=title_icon,
+                icon_font=title_icon_font,
+                extra_gap=2,
+                left_margin=context.x - 11,
+            )
+            current_y = layout.content_top
+        if content_top is not None:
+            current_y = max(current_y, content_top)
+        items_font = items_font or context.fontdisks
+        label_font = label_font or context.fonts.get("items_bold", items_font)
+        left_margin = context.x - 11
+
+        label_widths = [
+            _measure_text_width(draw, str(label), label_font)
+            for label, _value in lines
+            if label
+        ]
+        label_width = max(label_widths, default=0)
+        value_x = left_margin + label_width + (label_gap if label_width else 0)
+        value_width = max(0, context.width - value_x - 1)
+
+        wrapped_lines = []
+        for label, value in lines:
+            label_text = str(label)
+            value_text = "" if value is None else str(value)
+            value_lines = _wrap_lines_to_width(
+                [value_text],
+                items_font,
+                value_width,
+            )
+            if not value_lines:
+                value_lines = [""]
+            is_first_line = True
+            for value_line in value_lines:
+                wrapped_lines.append((label_text if is_first_line else "", value_line))
+                is_first_line = False
+
+        line_height = max(
+            _get_line_height(items_font),
+            _get_line_height(label_font),
+        )
+        line_step = line_height + 2
+        available_height = context.height - current_y - 2
+        lines_per_page = max(1, available_height // line_step)
+        total_pages = max(
+            1, (len(wrapped_lines) + lines_per_page - 1) // lines_per_page
+        )
+        page_index = max(0, min(page_index, total_pages - 1))
+        start = page_index * lines_per_page
+        end = start + lines_per_page
+        page_lines = wrapped_lines[start:end]
+
+        for label_text, value_text in page_lines:
+            if label_text:
+                draw.text(
+                    (left_margin, current_y), label_text, font=label_font, fill=255
+                )
+            if value_text:
+                draw.text((value_x, current_y), value_text, font=items_font, fill=255)
+            current_y += line_step
+
         if total_pages > 1:
             left_indicator = "<" if page_index > 0 else ""
             right_indicator = ">" if page_index < total_pages - 1 else ""

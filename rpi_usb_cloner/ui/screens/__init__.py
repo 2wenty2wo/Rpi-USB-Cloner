@@ -9,7 +9,12 @@ from .confirmation import (
 from .demos import show_heroicons_demo, show_lucide_demo, show_title_font_preview
 from .error import render_error_screen
 from .file_browser import show_file_browser
-from .info import render_info_screen, wait_for_paginated_input
+from .info import (
+    render_info_screen,
+    render_key_value_screen,
+    wait_for_paginated_input,
+    wait_for_paginated_key_value_input,
+)
 from .logs import show_logs
 from .progress import render_progress_screen
 from .status import (
@@ -36,7 +41,9 @@ __all__ = [
     "render_progress_screen",
     # Info screens
     "render_info_screen",
+    "render_key_value_screen",
     "wait_for_paginated_input",
+    "wait_for_paginated_key_value_input",
     # Error screens
     "render_error_screen",
     # Demo screens

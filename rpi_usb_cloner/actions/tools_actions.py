@@ -39,34 +39,34 @@ def _get_cpu_temp() -> float | None:
 
 def system_info(*, app_context: AppContext) -> None:
     """Display system information (CPU, memory, storage, temperature)."""
-    lines = []
+    lines: list[tuple[str, str]] = []
 
     # CPU info
     cpu_percent = psutil.cpu_percent(interval=0.5)
     cpu_count = psutil.cpu_count() or 1
-    lines.append(f"CPU: {cpu_percent:.1f}% ({cpu_count} cores)")
+    lines.append(("CPU:", f"{cpu_percent:.1f}% ({cpu_count} cores)"))
 
     # CPU temperature
     cpu_temp = _get_cpu_temp()
     if cpu_temp is not None:
-        lines.append(f"Temp: {cpu_temp:.1f}C")
+        lines.append(("Temp:", f"{cpu_temp:.1f}C"))
 
     # Memory info
     mem = psutil.virtual_memory()
     mem_used = _format_bytes(mem.used)
     mem_total = _format_bytes(mem.total)
-    lines.append(f"RAM: {mem_used}/{mem_total}")
-    lines.append(f"RAM: {mem.percent:.1f}% used")
+    lines.append(("RAM:", f"{mem_used}/{mem_total}"))
+    lines.append(("RAM:", f"{mem.percent:.1f}% used"))
 
     # Disk info (root filesystem)
     try:
         disk = psutil.disk_usage("/")
         disk_used = _format_bytes(disk.used)
         disk_total = _format_bytes(disk.total)
-        lines.append(f"Disk: {disk_used}/{disk_total}")
-        lines.append(f"Disk: {disk.percent:.1f}% used")
+        lines.append(("Disk:", f"{disk_used}/{disk_total}"))
+        lines.append(("Disk:", f"{disk.percent:.1f}% used"))
     except OSError:
-        lines.append("Disk: unavailable")
+        lines.append(("Disk:", "unavailable"))
 
     # System uptime
     try:
@@ -76,15 +76,15 @@ def system_info(*, app_context: AppContext) -> None:
         uptime_secs = int(time.time() - boot_time)
         hours, remainder = divmod(uptime_secs, 3600)
         minutes, _ = divmod(remainder, 60)
-        lines.append(f"Uptime: {hours}h {minutes}m")
+        lines.append(("Uptime:", f"{hours}h {minutes}m"))
     except (OSError, AttributeError):
         pass
 
     # Platform info
-    lines.append(f"OS: {platform.system()}")
-    lines.append(f"Python: {platform.python_version()}")
+    lines.append(("OS:", f"{platform.system()}"))
+    lines.append(("Python:", f"{platform.python_version()}"))
 
-    screens.wait_for_paginated_input(
+    screens.wait_for_paginated_key_value_input(
         "SYSTEM INFO",
         lines,
         title_icon=INFO_ICON,
