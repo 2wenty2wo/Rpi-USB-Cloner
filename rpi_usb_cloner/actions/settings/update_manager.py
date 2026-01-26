@@ -34,6 +34,11 @@ log = LoggerFactory.for_system()
 OLED_LINE_MAX = 21
 
 
+def _escape_braces(text: str) -> str:
+    """Escape curly braces for loguru formatting."""
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def _truncate_oled_line(text: str, max_length: int = OLED_LINE_MAX) -> str:
     if len(text) <= max_length:
         return text
@@ -98,7 +103,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 )
                 log.warning(
                     "Update check failed: git fetch retry failed "
-                    f"rc={fetch.returncode} stderr={fetch.stderr!r} hint={error_hint!r}",
+                    f"rc={fetch.returncode} stderr={_escape_braces(repr(fetch.stderr))} "
+                    f"hint={_escape_braces(repr(error_hint))}",
                     component="update_manager",
                 )
                 return "Unable to check", None, error_hint
@@ -110,7 +116,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             if upstream.returncode != 0 or not upstream_ref:
                 log.warning(
                     "Update check failed: no upstream branch configured "
-                    f"rc={upstream.returncode} stdout={upstream.stdout!r} stderr={upstream.stderr!r}",
+                    f"rc={upstream.returncode} stdout={_escape_braces(repr(upstream.stdout))} "
+                    f"stderr={_escape_braces(repr(upstream.stderr))}",
                     component="update_manager",
                 )
                 return "Unable to check", None, "No upstream branch"
@@ -126,7 +133,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 )
                 log.warning(
                     "Update check failed: git rev-list failed after retry "
-                    f"rc={behind.returncode} stderr={behind.stderr!r} hint={error_hint!r}",
+                    f"rc={behind.returncode} stderr={_escape_braces(repr(behind.stderr))} "
+                    f"hint={_escape_braces(repr(error_hint))}",
                     component="update_manager",
                 )
                 return "Unable to check", None, error_hint
@@ -142,7 +150,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             return "Up to date", None, ""
         log.warning(
             "Update check failed: git fetch failed "
-            f"rc={fetch.returncode} stderr={fetch.stderr!r} hint={error_hint!r}",
+            f"rc={fetch.returncode} stderr={_escape_braces(repr(fetch.stderr))} "
+            f"hint={_escape_braces(repr(error_hint))}",
             component="update_manager",
         )
         return "Unable to check", None, error_hint
@@ -166,7 +175,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
         )
         log.warning(
             "Update check failed: git rev-list failed "
-            f"rc={behind.returncode} stderr={behind.stderr!r} hint={error_hint!r}",
+            f"rc={behind.returncode} stderr={_escape_braces(repr(behind.stderr))} "
+            f"hint={_escape_braces(repr(error_hint))}",
             component="update_manager",
         )
         return "Unable to check", None, error_hint
@@ -435,7 +445,8 @@ def update_version() -> None:
         if "error" in error_holder:
             exc = error_holder["error"]
             log.warning(
-                f"Update check failed with exception: {type(exc).__name__}: {exc}",
+                f"Update check failed with exception: {type(exc).__name__}: "
+                f"{_escape_braces(str(exc))}",
                 component="update_manager",
             )
             return (

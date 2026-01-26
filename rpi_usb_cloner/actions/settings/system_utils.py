@@ -22,6 +22,11 @@ _GIT_PROGRESS_STAGES = {
 log = LoggerFactory.for_system()
 
 
+def _escape_braces(text: str) -> str:
+    """Escape curly braces for loguru formatting."""
+    return text.replace("{", "{{").replace("}", "}}")
+
+
 def run_command(
     args: list[str],
     *,
@@ -38,8 +43,14 @@ def run_command(
         check=False,
     )
     log.debug(f"Command return code: {result.returncode}", component="system")
-    log.debug(f"Command stdout: {result.stdout.strip()!r}", component="system")
-    log.debug(f"Command stderr: {result.stderr.strip()!r}", component="system")
+    log.debug(
+        f"Command stdout: {_escape_braces(repr(result.stdout.strip()))}",
+        component="system",
+    )
+    log.debug(
+        f"Command stderr: {_escape_braces(repr(result.stderr.strip()))}",
+        component="system",
+    )
     return result
 
 
