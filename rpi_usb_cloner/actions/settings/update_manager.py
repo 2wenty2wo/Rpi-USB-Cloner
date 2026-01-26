@@ -42,15 +42,21 @@ def _truncate_oled_line(text: str, max_length: int = OLED_LINE_MAX) -> str:
     return f"{text[: max_length - 1]}…"
 
 
-def _extract_error_hint(stderr: str) -> str:
-    if not stderr:
-        return ""
+def _extract_error_hint(stderr: str, stdout: str = "", fallback: str = "") -> str:
     line = ""
     for candidate in stderr.splitlines():
         candidate = candidate.strip()
         if candidate:
             line = candidate
             break
+    if not line and stdout:
+        for candidate in stdout.splitlines():
+            candidate = candidate.strip()
+            if candidate:
+                line = candidate
+                break
+    if not line and fallback:
+        line = fallback.strip()
     if not line:
         return ""
     lowered = line.lower()
@@ -69,7 +75,11 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
         return "Repo not found", None, ""
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
-        error_hint = _extract_error_hint(fetch.stderr)
+        error_hint = _extract_error_hint(
+            fetch.stderr,
+            fetch.stdout,
+            f"git fetch rc={fetch.returncode}",
+        )
         if is_dubious_ownership_error(fetch.stderr):
             if not is_running_under_systemd():
                 log.debug(
@@ -87,7 +97,11 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             )
             fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
             if fetch.returncode != 0:
-                error_hint = _extract_error_hint(fetch.stderr)
+                error_hint = _extract_error_hint(
+                    fetch.stderr,
+                    fetch.stdout,
+                    f"git fetch rc={fetch.returncode}",
+                )
                 log.debug(
                     "Update status check: fetch retry failed "
                     f"{fetch.returncode} hint={error_hint!r}",
@@ -110,7 +124,11 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 cwd=repo_root,
             )
             if behind.returncode != 0:
-                error_hint = _extract_error_hint(behind.stderr)
+                error_hint = _extract_error_hint(
+                    behind.stderr,
+                    behind.stdout,
+                    f"git rev-list rc={behind.returncode}",
+                )
                 log.debug(
                     "Update status check: rev-list failed after retry "
                     f"hint={error_hint!r}",
@@ -146,7 +164,11 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
         cwd=repo_root,
     )
     if behind.returncode != 0:
-        error_hint = _extract_error_hint(behind.stderr)
+        error_hint = _extract_error_hint(
+            behind.stderr,
+            behind.stdout,
+            f"git rev-list rc={behind.returncode}",
+        )
         log.debug(
             f"Update status check: rev-list failed hint={error_hint!r}",
             component="update_manager",
@@ -562,8 +584,8 @@ def update_version() -> None:
                     apply_check_results_to_state()
                 with git_lock:
                     run_update_flow(title, title_icon=title_icon)
-                    status, behind_count, last_checked, error_hint = check_update_status(
-                        repo_root
+                    status, behind_count, last_checked, error_hint = (
+                        check_update_status(repo_root)
                     )
                 version = get_app_version()
                 result_holder["result"] = (
