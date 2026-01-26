@@ -17,6 +17,7 @@ from typing_extensions import TypeAlias
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.storage import image_repo
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.web.system_health import (
     get_system_health,
@@ -482,12 +483,20 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
             asyncio.Task[dict[str, dict[str, dict[str, int] | int]]] | None
         ) = None
         next_repo_stats_refresh = 0.0
+        image_sizes: dict[str, int | None] = {}
+        image_sizes_task: asyncio.Task[dict[str, int | None]] | None = None
+        next_image_sizes_refresh = 0.0
 
         while not ws.closed:
-            from rpi_usb_cloner.storage import image_repo
-
             repos = image_repo.find_image_repos()
             image_list = []
+            repo_images: dict[Path, list[image_repo.DiskImage]] = {}
+            all_images: list[image_repo.DiskImage] = []
+
+            for repo in repos:
+                images = image_repo.list_clonezilla_images(repo.path)
+                repo_images[repo.path] = images
+                all_images.extend(images)
 
             now = time.monotonic()
             if now >= next_repo_stats_refresh and repo_stats_task is None:
@@ -495,6 +504,12 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                     asyncio.to_thread(_build_repo_stats, repos)
                 )
                 next_repo_stats_refresh = now + REPO_STATS_REFRESH_SECONDS
+
+            if now >= next_image_sizes_refresh and image_sizes_task is None:
+                image_sizes_task = asyncio.create_task(
+                    asyncio.to_thread(_build_image_sizes, all_images)
+                )
+                next_image_sizes_refresh = now + REPO_STATS_REFRESH_SECONDS
 
             if repo_stats_task is not None and repo_stats_task.done():
                 try:
@@ -506,14 +521,28 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                     )
                 repo_stats_task = None
 
+            if image_sizes_task is not None and image_sizes_task.done():
+                try:
+                    image_sizes = image_sizes_task.result()
+                except Exception as exc:
+                    log.warning(
+                        f"Image size refresh failed: {exc}",
+                        tags=["ws", "websocket", "error", "repo"],
+                    )
+                image_sizes_task = None
+
             for repo in repos:
-                for image in image_repo.list_clonezilla_images(repo.path):
+                for image in repo_images.get(repo.path, []):
+                    size_bytes = image.size_bytes
+                    if size_bytes is None:
+                        size_bytes = image_sizes.get(str(image.path))
                     image_list.append(
                         {
                             "name": image.name,
                             "path": str(image.path),
                             "type": image.image_type.value,
                             "repo_label": str(repo.path),
+                            "size_bytes": size_bytes,
                         }
                     )
 
@@ -535,14 +564,21 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
 
 
 def _build_repo_stats(
-    repos: list["image_repo.ImageRepo"],
+    repos: list[image_repo.ImageRepo],
 ) -> dict[str, dict[str, dict[str, int] | int]]:
-    from rpi_usb_cloner.storage import image_repo
-
     stats: dict[str, dict[str, dict[str, int] | int]] = {}
     for repo in repos:
         stats[str(repo.path)] = image_repo.get_repo_usage(repo)
     return stats
+
+
+def _build_image_sizes(
+    images: list[image_repo.DiskImage],
+) -> dict[str, int | None]:
+    sizes: dict[str, int | None] = {}
+    for image in images:
+        sizes[str(image.path)] = image_repo.get_image_size_bytes(image)
+    return sizes
 
 
 def is_running() -> bool:
