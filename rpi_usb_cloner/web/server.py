@@ -17,6 +17,7 @@ from typing_extensions import TypeAlias
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.storage import image_repo
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.web.system_health import (
     get_system_health,
@@ -484,8 +485,6 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
         next_repo_stats_refresh = 0.0
 
         while not ws.closed:
-            from rpi_usb_cloner.storage import image_repo
-
             repos = image_repo.find_image_repos()
             image_list = []
 
@@ -508,12 +507,14 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
 
             for repo in repos:
                 for image in image_repo.list_clonezilla_images(repo.path):
+                    size_bytes = image_repo.get_image_size_bytes(image)
                     image_list.append(
                         {
                             "name": image.name,
                             "path": str(image.path),
                             "type": image.image_type.value,
                             "repo_label": str(repo.path),
+                            "size_bytes": size_bytes,
                         }
                     )
 
@@ -535,10 +536,8 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
 
 
 def _build_repo_stats(
-    repos: list["image_repo.ImageRepo"],
+    repos: list[image_repo.ImageRepo],
 ) -> dict[str, dict[str, dict[str, int] | int]]:
-    from rpi_usb_cloner.storage import image_repo
-
     stats: dict[str, dict[str, dict[str, int] | int]] = {}
     for repo in repos:
         stats[str(repo.path)] = image_repo.get_repo_usage(repo)

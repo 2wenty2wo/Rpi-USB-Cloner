@@ -210,6 +210,15 @@ def _sum_tree_bytes(root: Path) -> int:
     return total
 
 
+def get_image_size_bytes(image: DiskImage) -> int | None:
+    """Return size for a disk image, computing Clonezilla directory sizes."""
+    if image.size_bytes is not None:
+        return image.size_bytes
+    if image.image_type == ImageType.CLONEZILLA_DIR:
+        return _sum_tree_bytes(image.path)
+    return None
+
+
 def _get_repo_space_bytes(repo_root: Path) -> tuple[int, int, int]:
     try:
         stats = os.statvfs(repo_root)
