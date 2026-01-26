@@ -487,6 +487,16 @@
                   </div>
                 </div>
                 <div class="card-body">
+                  <div id="image-repo-chart" class="px-3 pt-3 pb-2 d-none">
+                    <div class="text-secondary small mb-2">Repo usage by image type</div>
+                    <div class="progress progress-stacked" style="height: 0.75rem;">
+                      <div class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-label="Clonezilla usage" data-repo-segment="clonezilla"></div>
+                      <div class="progress-bar bg-info" role="progressbar" style="width: 0%;" aria-label="ISO usage" data-repo-segment="iso"></div>
+                      <div class="progress-bar bg-warning" role="progressbar" style="width: 0%;" aria-label="BIN usage" data-repo-segment="imageusb"></div>
+                      <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;" aria-label="Other usage" data-repo-segment="other"></div>
+                    </div>
+                    <div id="image-repo-chart-legend" class="d-flex flex-wrap gap-2 mt-3"></div>
+                  </div>
                   <div id="image-repo-container">
                     <div class="text-center text-muted py-4">
                       <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
@@ -1251,11 +1261,37 @@
       container.innerHTML = `<div class="list-group list-group-flush">${deviceItems}</div>`;
     }
 
-    function updateImageRepoList(images) {
+    function formatBytes(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) {
+        return '0 B';
+      }
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+      const value = bytes / Math.pow(1024, exponent);
+      const formatted = value >= 10 ? value.toFixed(1) : value.toFixed(2);
+      return `${formatted} ${units[exponent]}`;
+    }
+
+    function updateImageRepoList(images, repoStats) {
       const container = document.getElementById('image-repo-container');
       const countBadge = document.getElementById('image-count');
+      const chartContainer = document.getElementById('image-repo-chart');
+      const chartLegend = document.getElementById('image-repo-chart-legend');
+      const chartSegments = chartContainer.querySelectorAll('[data-repo-segment]');
 
-      if (!images || images.length === 0) {
+      const repoEntries = repoStats ? Object.values(repoStats) : [];
+      const imageCount = images ? images.length : 0;
+      const hasRepos = repoEntries.length > 0 || imageCount > 0;
+
+      if (!hasRepos) {
+        chartContainer.classList.add('d-none');
+        chartLegend.innerHTML = '';
+        chartSegments.forEach((segment) => {
+          segment.style.width = '0%';
+        });
+      }
+
+      if (!hasRepos) {
         container.innerHTML = `
           <div class="text-center text-muted py-4">
             <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
@@ -1268,11 +1304,58 @@
         return;
       }
 
-      const imageText = images.length === 1 ? 'image' : 'images';
-      countBadge.textContent = `${images.length} ${imageText}`;
+      const imageText = imageCount === 1 ? 'image' : 'images';
+      countBadge.textContent = `${imageCount} ${imageText}`;
       countBadge.className = 'badge bg-primary text-white';
 
-      const imageItems = images.map((image) => {
+      const repoTotals = repoEntries.reduce(
+        (accumulator, entry) => {
+          const typeBytes = entry.type_bytes || {};
+          accumulator.clonezilla += typeBytes.clonezilla || 0;
+          accumulator.iso += typeBytes.iso || 0;
+          accumulator.imageusb += typeBytes.imageusb || 0;
+          accumulator.other += typeBytes.other || 0;
+          return accumulator;
+        },
+        {
+          clonezilla: 0,
+          iso: 0,
+          imageusb: 0,
+          other: 0
+        }
+      );
+
+      const totalBytes = Object.values(repoTotals).reduce((sum, value) => sum + value, 0);
+      const segmentData = [
+        { key: 'clonezilla', label: 'Clonezilla', color: 'primary', bytes: repoTotals.clonezilla },
+        { key: 'iso', label: 'ISO', color: 'info', bytes: repoTotals.iso },
+        { key: 'imageusb', label: 'BIN', color: 'warning', bytes: repoTotals.imageusb },
+        { key: 'other', label: 'Other', color: 'secondary', bytes: repoTotals.other }
+      ];
+
+      if (totalBytes > 0) {
+        chartContainer.classList.remove('d-none');
+        chartSegments.forEach((segment) => {
+          const segmentKey = segment.dataset.repoSegment;
+          const entry = segmentData.find((item) => item.key === segmentKey);
+          const widthPercent = entry && totalBytes > 0 ? (entry.bytes / totalBytes) * 100 : 0;
+          segment.style.width = `${widthPercent.toFixed(1)}%`;
+        });
+
+        chartLegend.innerHTML = segmentData.map((entry) => `
+          <span class="badge bg-${entry.color} text-white">
+            ${entry.label}: ${formatBytes(entry.bytes)}
+          </span>
+        `).join('');
+      } else {
+        chartContainer.classList.add('d-none');
+        chartLegend.innerHTML = '';
+        chartSegments.forEach((segment) => {
+          segment.style.width = '0%';
+        });
+      }
+
+      const imageItems = (images || []).map((image) => {
         const name = escapeHtml(image.name);
         const path = escapeHtml(image.path);
         const repoLabel = escapeHtml(image.repo_label);
@@ -1344,7 +1427,7 @@
       imagesSocket.addEventListener('message', (event) => {
         try {
           const data = JSON.parse(event.data);
-          updateImageRepoList(data.images);
+          updateImageRepoList(data.images, data.repo_stats);
         } catch (error) {
           debugLog('error', 'Failed to parse images payload', { error });
         }
