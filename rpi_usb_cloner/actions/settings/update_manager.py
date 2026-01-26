@@ -140,7 +140,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 return "Unable to check", None, error_hint
             count = behind.stdout.strip()
             log.debug(
-                f"Update status check: behind count after retry={count!r}",
+                f"Update status check: behind count after retry="
+                f"{_escape_braces(repr(count))}",
                 component="update_manager",
             )
             if count.isdigit():
@@ -182,7 +183,8 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
         return "Unable to check", None, error_hint
     count = behind.stdout.strip()
     log.debug(
-        f"Update status check: behind count={count!r}", component="update_manager"
+        f"Update status check: behind count={_escape_braces(repr(count))}",
+        component="update_manager",
     )
     if count.isdigit():
         behind_count = int(count)
