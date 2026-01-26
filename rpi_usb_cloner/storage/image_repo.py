@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Iterable
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage import clonezilla, devices, imageusb, mount
+from rpi_usb_cloner.storage.imageusb.detection import get_imageusb_metadata
 
 
 REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
@@ -169,3 +171,92 @@ def list_clonezilla_images(repo_root: Path) -> list[DiskImage]:
             seen.add(bin_file)
 
     return sorted(images, key=lambda img: img.name)
+
+
+def _iter_clonezilla_image_dirs(repo_root: Path) -> Iterable[Path]:
+    candidates = [repo_root / "clonezilla", repo_root / "images", repo_root]
+    seen: set[Path] = set()
+    for candidate in candidates:
+        for image_dir in clonezilla.list_clonezilla_image_dirs(candidate):
+            if image_dir in seen:
+                continue
+            seen.add(image_dir)
+            yield image_dir
+
+
+def _is_temp_clonezilla_path(path: Path) -> bool:
+    lowered = path.name.lower()
+    if lowered.startswith("."):
+        return True
+    if lowered.endswith((".tmp", ".part", ".partial", ".swp", ".swx")):
+        return True
+    return any(part.lower() in {"tmp", "temp"} for part in path.parts)
+
+
+def _sum_tree_bytes(root: Path) -> int:
+    total = 0
+    try:
+        paths = root.rglob("*")
+    except OSError:
+        return 0
+    for path in paths:
+        if _is_temp_clonezilla_path(path):
+            continue
+        try:
+            if path.is_file() and not path.is_symlink():
+                total += path.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def _get_repo_space_bytes(repo_root: Path) -> tuple[int, int, int]:
+    try:
+        stats = os.statvfs(repo_root)
+    except OSError:
+        return 0, 0, 0
+    total_bytes = stats.f_frsize * stats.f_blocks
+    free_bytes = stats.f_frsize * stats.f_bavail
+    used_bytes = max(0, total_bytes - free_bytes)
+    return total_bytes, used_bytes, free_bytes
+
+
+def get_repo_usage(repo: ImageRepo) -> dict[str, dict[str, int] | int]:
+    """Compute repository usage statistics and image size aggregates."""
+    total_bytes, used_bytes, free_bytes = _get_repo_space_bytes(repo.path)
+
+    clonezilla_bytes = 0
+    for image_dir in _iter_clonezilla_image_dirs(repo.path):
+        clonezilla_bytes += _sum_tree_bytes(image_dir)
+
+    iso_bytes = 0
+    for iso_file in repo.path.glob("*.iso"):
+        try:
+            if iso_file.is_file() and not iso_file.is_symlink():
+                iso_bytes += iso_file.stat().st_size
+        except OSError:
+            continue
+
+    imageusb_bytes = 0
+    for bin_file in repo.path.glob("*.bin"):
+        if not bin_file.is_file() or bin_file.is_symlink():
+            continue
+        if not imageusb.is_imageusb_file(bin_file):
+            continue
+        metadata = get_imageusb_metadata(bin_file)
+        size_bytes = metadata.get("data_size_bytes") or metadata.get("size_bytes") or 0
+        imageusb_bytes += max(0, int(size_bytes))
+
+    other_bytes = max(0, used_bytes - (clonezilla_bytes + iso_bytes + imageusb_bytes))
+
+    return {
+        "total_bytes": total_bytes,
+        "used_bytes": used_bytes,
+        "free_bytes": free_bytes,
+        "type_bytes": {
+            "clonezilla": clonezilla_bytes,
+            "iso": iso_bytes,
+            "imageusb": imageusb_bytes,
+            "other": other_bytes,
+        },
+    }
