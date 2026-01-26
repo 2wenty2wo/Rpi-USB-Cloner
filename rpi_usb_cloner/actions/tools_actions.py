@@ -88,4 +88,5 @@ def system_info(*, app_context: AppContext) -> None:
         "SYSTEM INFO",
         lines,
         title_icon=ACTIVITY_ICON,
+        transition_direction="forward",
     )

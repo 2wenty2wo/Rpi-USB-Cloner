@@ -710,6 +710,149 @@ def render_paginated_key_value_lines(
         return total_pages, page_index
 
 
+def _render_scrollable_key_value_lines(
+    *,
+    context: DisplayContext,
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    title,
+    lines,
+    scroll_offset=0,
+    items_font: Optional[Font] = None,
+    label_font: Optional[Font] = None,
+    title_font: Optional[Font] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[Font] = None,
+    content_top: Optional[int] = None,
+    label_gap: int = 2,
+) -> tuple[int, int]:
+    draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
+    current_y = context.top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title:
+        layout = draw_title_with_icon(
+            title,
+            title_font=header_font,
+            icon=title_icon,
+            icon_font=title_icon_font,
+            extra_gap=2,
+            left_margin=context.x - 11,
+            draw=draw,
+            image=image,
+        )
+        current_y = layout.content_top
+    if content_top is not None:
+        current_y = max(current_y, content_top)
+    content_start = current_y
+    items_font = items_font or context.fontdisks
+    label_font = label_font or context.fonts.get("items_bold", items_font)
+    left_margin = context.x - 11
+
+    line_height = max(
+        _get_line_height(items_font),
+        _get_line_height(label_font),
+    )
+    line_step = line_height + 2
+    available_height = context.height - current_y - 2
+    visible_rows = max(1, available_height // line_step)
+
+    scrollbar_width = 2
+    scrollbar_padding = 1
+    max_line_width = context.width - left_margin - 1
+
+    def build_wrapped_lines(
+        available_width: int,
+    ) -> list[tuple[str, str, int]]:
+        wrapped = []
+        for label, value in lines:
+            label_text = str(label)
+            value_text = "" if value is None else str(value)
+            label_width = _measure_text_width(draw, label_text, label_font)
+            value_x = left_margin + label_width + (label_gap if label_width else 0)
+            value_width = max(0, available_width - (value_x - left_margin))
+            value_lines = _wrap_lines_to_width(
+                [value_text],
+                items_font,
+                value_width,
+            )
+            if not value_lines:
+                value_lines = [""]
+            is_first_line = True
+            for value_line in value_lines:
+                wrapped.append(
+                    (label_text if is_first_line else "", value_line, value_x)
+                )
+                is_first_line = False
+        return wrapped
+
+    available_width = max_line_width
+    wrapped_lines = build_wrapped_lines(available_width)
+    needs_scrollbar = len(wrapped_lines) > visible_rows
+    if needs_scrollbar:
+        available_width = max(
+            0,
+            max_line_width - scrollbar_width - scrollbar_padding,
+        )
+        wrapped_lines = build_wrapped_lines(available_width)
+        needs_scrollbar = len(wrapped_lines) > visible_rows
+
+    max_scroll = max(len(wrapped_lines) - visible_rows, 0)
+    scroll_offset = max(0, min(scroll_offset, max_scroll))
+    start = scroll_offset
+    end = start + visible_rows
+    page_lines = wrapped_lines[start:end]
+
+    for label_text, value_text, value_x in page_lines:
+        if label_text:
+            draw.text((left_margin, current_y), label_text, font=label_font, fill=255)
+        if value_text:
+            draw.text((value_x, current_y), value_text, font=items_font, fill=255)
+        current_y += line_step
+
+    if needs_scrollbar:
+        track_top = min(content_start, current_y - line_step)
+        track_bottom = min(
+            context.height - 1,
+            track_top + (visible_rows * line_step) - 1,
+        )
+        track_height = track_bottom - track_top + 1
+        min_thumb_px = 1
+        thumb_height = max(
+            min_thumb_px,
+            int(track_height * visible_rows / max(len(wrapped_lines), 1)),
+        )
+        thumb_bottom_limit = track_bottom - 1
+        max_thumb_height = max(thumb_bottom_limit - track_top, 0)
+        if max_thumb_height < min_thumb_px:
+            thumb_height = max_thumb_height
+        else:
+            thumb_height = min(thumb_height, max_thumb_height)
+        usable_track_height = max_thumb_height
+        thumb_range = max(usable_track_height - thumb_height, 0)
+        if max_scroll > 0:
+            thumb_offset = int(round((scroll_offset / max_scroll) * thumb_range))
+        else:
+            thumb_offset = 0
+        thumb_offset = max(0, min(thumb_offset, thumb_range))
+        thumb_top = track_top + thumb_offset
+        thumb_top = min(thumb_top, thumb_bottom_limit - thumb_height)
+        thumb_top = max(track_top, thumb_top)
+        if thumb_top + thumb_height > thumb_bottom_limit:
+            thumb_top = max(track_top, thumb_bottom_limit - thumb_height)
+        thumb_bottom = thumb_top + thumb_height
+        track_right = context.width - 1
+        track_left = track_right - (scrollbar_width - 1)
+        for track_y in range(track_top, track_bottom + 1, 3):
+            draw.point((track_right, track_y), fill=255)
+        draw.rectangle(
+            (track_left, thumb_top, track_right, thumb_bottom),
+            outline=255,
+            fill=255,
+        )
+
+    return max_scroll, scroll_offset
+
+
 def render_scrollable_key_value_lines(
     title,
     lines,
@@ -725,133 +868,57 @@ def render_scrollable_key_value_lines(
     context = get_display_context()
     draw = context.draw
     with _display_lock:
-        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-        current_y = context.top
-        header_font = title_font or context.fonts.get("title", context.fontdisks)
-        if title:
-            layout = draw_title_with_icon(
-                title,
-                title_font=header_font,
-                icon=title_icon,
-                icon_font=title_icon_font,
-                extra_gap=2,
-                left_margin=context.x - 11,
-            )
-            current_y = layout.content_top
-        if content_top is not None:
-            current_y = max(current_y, content_top)
-        content_start = current_y
-        items_font = items_font or context.fontdisks
-        label_font = label_font or context.fonts.get("items_bold", items_font)
-        left_margin = context.x - 11
-
-        line_height = max(
-            _get_line_height(items_font),
-            _get_line_height(label_font),
+        max_scroll, scroll_offset = _render_scrollable_key_value_lines(
+            context=context,
+            draw=draw,
+            image=context.image,
+            title=title,
+            lines=lines,
+            scroll_offset=scroll_offset,
+            items_font=items_font,
+            label_font=label_font,
+            title_font=title_font,
+            title_icon=title_icon,
+            title_icon_font=title_icon_font,
+            content_top=content_top,
+            label_gap=label_gap,
         )
-        line_step = line_height + 2
-        available_height = context.height - current_y - 2
-        visible_rows = max(1, available_height // line_step)
-
-        scrollbar_width = 2
-        scrollbar_padding = 1
-        max_line_width = context.width - left_margin - 1
-
-        def build_wrapped_lines(
-            available_width: int,
-        ) -> list[tuple[str, str, int]]:
-            wrapped = []
-            for label, value in lines:
-                label_text = str(label)
-                value_text = "" if value is None else str(value)
-                label_width = _measure_text_width(draw, label_text, label_font)
-                value_x = left_margin + label_width + (label_gap if label_width else 0)
-                value_width = max(0, available_width - (value_x - left_margin))
-                value_lines = _wrap_lines_to_width(
-                    [value_text],
-                    items_font,
-                    value_width,
-                )
-                if not value_lines:
-                    value_lines = [""]
-                is_first_line = True
-                for value_line in value_lines:
-                    wrapped.append(
-                        (label_text if is_first_line else "", value_line, value_x)
-                    )
-                    is_first_line = False
-            return wrapped
-
-        available_width = max_line_width
-        wrapped_lines = build_wrapped_lines(available_width)
-        needs_scrollbar = len(wrapped_lines) > visible_rows
-        if needs_scrollbar:
-            available_width = max(
-                0,
-                max_line_width - scrollbar_width - scrollbar_padding,
-            )
-            wrapped_lines = build_wrapped_lines(available_width)
-            needs_scrollbar = len(wrapped_lines) > visible_rows
-
-        max_scroll = max(len(wrapped_lines) - visible_rows, 0)
-        scroll_offset = max(0, min(scroll_offset, max_scroll))
-        start = scroll_offset
-        end = start + visible_rows
-        page_lines = wrapped_lines[start:end]
-
-        for label_text, value_text, value_x in page_lines:
-            if label_text:
-                draw.text(
-                    (left_margin, current_y), label_text, font=label_font, fill=255
-                )
-            if value_text:
-                draw.text((value_x, current_y), value_text, font=items_font, fill=255)
-            current_y += line_step
-
-        if needs_scrollbar:
-            track_top = min(content_start, current_y - line_step)
-            track_bottom = min(
-                context.height - 1,
-                track_top + (visible_rows * line_step) - 1,
-            )
-            track_height = track_bottom - track_top + 1
-            min_thumb_px = 1
-            thumb_height = max(
-                min_thumb_px,
-                int(track_height * visible_rows / max(len(wrapped_lines), 1)),
-            )
-            thumb_bottom_limit = track_bottom - 1
-            max_thumb_height = max(thumb_bottom_limit - track_top, 0)
-            if max_thumb_height < min_thumb_px:
-                thumb_height = max_thumb_height
-            else:
-                thumb_height = min(thumb_height, max_thumb_height)
-            usable_track_height = max_thumb_height
-            thumb_range = max(usable_track_height - thumb_height, 0)
-            if max_scroll > 0:
-                thumb_offset = int(round((scroll_offset / max_scroll) * thumb_range))
-            else:
-                thumb_offset = 0
-            thumb_offset = max(0, min(thumb_offset, thumb_range))
-            thumb_top = track_top + thumb_offset
-            thumb_top = min(thumb_top, thumb_bottom_limit - thumb_height)
-            thumb_top = max(track_top, thumb_top)
-            if thumb_top + thumb_height > thumb_bottom_limit:
-                thumb_top = max(track_top, thumb_bottom_limit - thumb_height)
-            thumb_bottom = thumb_top + thumb_height
-            track_right = context.width - 1
-            track_left = track_right - (scrollbar_width - 1)
-            for track_y in range(track_top, track_bottom + 1, 3):
-                draw.point((track_right, track_y), fill=255)
-            draw.rectangle(
-                (track_left, thumb_top, track_right, thumb_bottom),
-                outline=255,
-                fill=255,
-            )
-
         context.disp.display(context.image)
         mark_display_dirty()
         return max_scroll, scroll_offset
+
+
+def render_scrollable_key_value_lines_image(
+    title,
+    lines,
+    scroll_offset=0,
+    items_font: Optional[Font] = None,
+    label_font: Optional[Font] = None,
+    title_font: Optional[Font] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font: Optional[Font] = None,
+    content_top: Optional[int] = None,
+    label_gap: int = 2,
+) -> tuple[Image.Image, int, int]:
+    context = get_display_context()
+    image = Image.new("1", (context.width, context.height), 0)
+    draw = ImageDraw.Draw(image)
+    max_scroll, scroll_offset = _render_scrollable_key_value_lines(
+        context=context,
+        draw=draw,
+        image=image,
+        title=title,
+        lines=lines,
+        scroll_offset=scroll_offset,
+        items_font=items_font,
+        label_font=label_font,
+        title_font=title_font,
+        title_icon=title_icon,
+        title_icon_font=title_icon_font,
+        content_top=content_top,
+        label_gap=label_gap,
+    )
+    return image, max_scroll, scroll_offset
 
 
 def basemenu(state: app_state.AppState) -> None:
