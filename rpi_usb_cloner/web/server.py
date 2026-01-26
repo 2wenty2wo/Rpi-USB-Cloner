@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import pkgutil
 import threading
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -27,6 +28,7 @@ from rpi_usb_cloner.web.system_health import (
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 FRAME_DELAY_SECONDS = 0.15
+REPO_STATS_REFRESH_SECONDS = 30.0
 
 
 @dataclass
@@ -475,14 +477,36 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
     )
 
     try:
+        repo_stats: dict[str, dict[str, dict[str, int] | int]] = {}
+        repo_stats_task: (
+            asyncio.Task[dict[str, dict[str, dict[str, int] | int]]] | None
+        ) = None
+        next_repo_stats_refresh = 0.0
+
         while not ws.closed:
             from rpi_usb_cloner.storage import image_repo
 
             repos = image_repo.find_image_repos()
             image_list = []
-            repo_stats = {}
+
+            now = time.monotonic()
+            if now >= next_repo_stats_refresh and repo_stats_task is None:
+                repo_stats_task = asyncio.create_task(
+                    asyncio.to_thread(_build_repo_stats, repos)
+                )
+                next_repo_stats_refresh = now + REPO_STATS_REFRESH_SECONDS
+
+            if repo_stats_task is not None and repo_stats_task.done():
+                try:
+                    repo_stats = repo_stats_task.result()
+                except Exception as exc:
+                    log.warning(
+                        f"Repo stats refresh failed: {exc}",
+                        tags=["ws", "websocket", "error", "repo"],
+                    )
+                repo_stats_task = None
+
             for repo in repos:
-                repo_stats[str(repo.path)] = image_repo.get_repo_usage(repo)
                 for image in image_repo.list_clonezilla_images(repo.path):
                     image_list.append(
                         {
@@ -508,6 +532,17 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
         )
 
     return ws
+
+
+def _build_repo_stats(
+    repos: list["image_repo.ImageRepo"],
+) -> dict[str, dict[str, dict[str, int] | int]]:
+    from rpi_usb_cloner.storage import image_repo
+
+    stats: dict[str, dict[str, dict[str, int] | int]] = {}
+    for repo in repos:
+        stats[str(repo.path)] = image_repo.get_repo_usage(repo)
+    return stats
 
 
 def is_running() -> bool:
