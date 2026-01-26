@@ -81,12 +81,6 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             f"git fetch rc={fetch.returncode}",
         )
         if is_dubious_ownership_error(fetch.stderr):
-            if not is_running_under_systemd():
-                log.debug(
-                    "Update status check: dubious ownership detected outside systemd",
-                    component="update_manager",
-                )
-                return "Unable to check", None, error_hint
             log.debug(
                 "Update status check: dubious ownership detected; retrying with "
                 "safe.directory",
