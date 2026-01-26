@@ -642,19 +642,13 @@ def render_paginated_key_value_lines(
         label_font = label_font or context.fonts.get("items_bold", items_font)
         left_margin = context.x - 11
 
-        label_widths = [
-            _measure_text_width(draw, str(label), label_font)
-            for label, _value in lines
-            if label
-        ]
-        label_width = max(label_widths, default=0)
-        value_x = left_margin + label_width + (label_gap if label_width else 0)
-        value_width = max(0, context.width - value_x - 1)
-
         wrapped_lines = []
         for label, value in lines:
             label_text = str(label)
             value_text = "" if value is None else str(value)
+            label_width = _measure_text_width(draw, label_text, label_font)
+            value_x = left_margin + label_width + (label_gap if label_width else 0)
+            value_width = max(0, context.width - value_x - 1)
             value_lines = _wrap_lines_to_width(
                 [value_text],
                 items_font,
@@ -664,7 +658,9 @@ def render_paginated_key_value_lines(
                 value_lines = [""]
             is_first_line = True
             for value_line in value_lines:
-                wrapped_lines.append((label_text if is_first_line else "", value_line))
+                wrapped_lines.append(
+                    (label_text if is_first_line else "", value_line, value_x)
+                )
                 is_first_line = False
 
         line_height = max(
@@ -682,7 +678,7 @@ def render_paginated_key_value_lines(
         end = start + lines_per_page
         page_lines = wrapped_lines[start:end]
 
-        for label_text, value_text in page_lines:
+        for label_text, value_text, value_x in page_lines:
             if label_text:
                 draw.text(
                     (left_margin, current_y), label_text, font=label_font, fill=255
@@ -749,12 +745,6 @@ def render_scrollable_key_value_lines(
         label_font = label_font or context.fonts.get("items_bold", items_font)
         left_margin = context.x - 11
 
-        label_widths = [
-            _measure_text_width(draw, str(label), label_font)
-            for label, _value in lines
-            if label
-        ]
-        label_width = max(label_widths, default=0)
         line_height = max(
             _get_line_height(items_font),
             _get_line_height(label_font),
@@ -767,11 +757,16 @@ def render_scrollable_key_value_lines(
         scrollbar_padding = 1
         max_line_width = context.width - left_margin - 1
 
-        def build_wrapped_lines(value_width: int) -> list[tuple[str, str]]:
+        def build_wrapped_lines(
+            available_width: int,
+        ) -> list[tuple[str, str, int]]:
             wrapped = []
             for label, value in lines:
                 label_text = str(label)
                 value_text = "" if value is None else str(value)
+                label_width = _measure_text_width(draw, label_text, label_font)
+                value_x = left_margin + label_width + (label_gap if label_width else 0)
+                value_width = max(0, available_width - (value_x - left_margin))
                 value_lines = _wrap_lines_to_width(
                     [value_text],
                     items_font,
@@ -781,36 +776,30 @@ def render_scrollable_key_value_lines(
                     value_lines = [""]
                 is_first_line = True
                 for value_line in value_lines:
-                    wrapped.append((label_text if is_first_line else "", value_line))
+                    wrapped.append(
+                        (label_text if is_first_line else "", value_line, value_x)
+                    )
                     is_first_line = False
             return wrapped
 
-        def calculate_value_width(use_scrollbar: bool) -> int:
-            available_width = max_line_width
-            if use_scrollbar:
-                available_width = max(
-                    0,
-                    available_width - scrollbar_width - scrollbar_padding,
-                )
-            value_start = left_margin + label_width + (label_gap if label_width else 0)
-            return max(0, available_width - (value_start - left_margin))
-
-        value_width = calculate_value_width(False)
-        wrapped_lines = build_wrapped_lines(value_width)
+        available_width = max_line_width
+        wrapped_lines = build_wrapped_lines(available_width)
         needs_scrollbar = len(wrapped_lines) > visible_rows
         if needs_scrollbar:
-            value_width = calculate_value_width(True)
-            wrapped_lines = build_wrapped_lines(value_width)
+            available_width = max(
+                0,
+                max_line_width - scrollbar_width - scrollbar_padding,
+            )
+            wrapped_lines = build_wrapped_lines(available_width)
             needs_scrollbar = len(wrapped_lines) > visible_rows
 
-        value_x = left_margin + label_width + (label_gap if label_width else 0)
         max_scroll = max(len(wrapped_lines) - visible_rows, 0)
         scroll_offset = max(0, min(scroll_offset, max_scroll))
         start = scroll_offset
         end = start + visible_rows
         page_lines = wrapped_lines[start:end]
 
-        for label_text, value_text in page_lines:
+        for label_text, value_text, value_x in page_lines:
             if label_text:
                 draw.text(
                     (left_margin, current_y), label_text, font=label_font, fill=255
