@@ -2,7 +2,7 @@
 
 > **Purpose**: This document provides comprehensive guidance for AI assistants (like Claude) working on the Raspberry Pi USB Cloner codebase. It covers architecture, conventions, workflows, and common tasks.
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-27
 **Project**: Raspberry Pi USB Cloner
 **Language**: Python 3.8+
 **License**: MIT
@@ -283,12 +283,12 @@ Rpi-USB-Cloner/
 │   │
 │   └── __init__.py
 │
-├── tests/                          # Test suite (30 test files)
+├── tests/                          # Test suite (32 test files)
 │   ├── conftest.py                # Shared fixtures ⭐
 │   ├── test_devices.py            # Device detection tests
 │   ├── test_clone*.py             # Cloning tests (5 files)
 │   ├── test_clonezilla*.py        # Clonezilla tests (6 files)
-│   ├── test_actions_*.py          # Action handler tests (3 files)
+│   ├── test_actions_*.py          # Action handler tests (4 files)
 │   ├── test_settings.py           # Settings tests
 │   ├── test_mount_security.py     # Security tests
 │   └── test_*.py                  # Other test modules
@@ -471,6 +471,7 @@ save_settings()
 
 **Framework**: loguru (structured logging with multi-sink support)
 **Log Directory**: `~/.local/state/rpi-usb-cloner/logs/` (override with `RPI_USB_CLONER_LOG_DIR`)
+**Architecture**: 100% LoggerFactory-based (callback-free since 2026-01-25)
 
 #### Log Files
 | File | Level | Retention | Purpose |
@@ -481,23 +482,29 @@ save_settings()
 | `structured.jsonl` | INFO+ | 7 days | Machine-parseable JSON logs |
 
 #### Logger Factory API (`logging.py`)
+All modules use `LoggerFactory` directly - no callback configuration needed.
+
 ```python
 from rpi_usb_cloner.logging import LoggerFactory, operation_context
 
-# Domain-specific loggers
-log = LoggerFactory.for_clone(job_id="clone-abc123")
-log = LoggerFactory.for_usb()
-log = LoggerFactory.for_web(connection_id="ws-123")
-log = LoggerFactory.for_clonezilla()
-log = LoggerFactory.for_gpio()
-log = LoggerFactory.for_menu()
-log = LoggerFactory.for_system()
+# Domain-specific loggers (pre-configured with source/tags)
+log = LoggerFactory.for_clone(job_id="clone-abc123")  # source="clone", tags=["clone", "storage"]
+log = LoggerFactory.for_usb()                          # source="usb", tags=["usb", "hardware"]
+log = LoggerFactory.for_web(connection_id="ws-123")    # source="web", tags=["web", "ws"]
+log = LoggerFactory.for_clonezilla()                   # source="clonezilla", tags=["clonezilla", "backup"]
+log = LoggerFactory.for_gpio()                         # source="gpio", tags=["gpio", "hardware", "button"]
+log = LoggerFactory.for_menu()                         # source="menu", tags=["ui", "menu"]
+log = LoggerFactory.for_system()                       # source="system", tags=["system"]
 
 # Operation tracking with automatic timing
 with operation_context("clone", source="/dev/sda", target="/dev/sdb") as log:
     log.info("Clone progress", percent=50)
     # Auto-logs start, completion/failure, and duration
 ```
+
+#### Utility Classes
+- **ThrottledLogger**: Rate-limited logging for high-frequency events (e.g., progress updates)
+- **EventLogger**: Structured event logging with standardized schemas (clone_started, clone_progress, device_hotplug)
 
 ---
 
@@ -652,7 +659,7 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Files**: 30 test modules with ~960 tests
+**Test Files**: 32 test modules with ~960 tests
 **Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
 
 **Coverage Strengths** (≥80%):
@@ -1245,6 +1252,23 @@ sudo journalctl -u rpi-usb-cloner.service -f
 - Fixed image size refresh in WebSocket to avoid blocking main thread
 - Removed duplicate chart labels from image repo display
 
+#### 2026-01-25: Logging System - Callback-Free Migration ✅
+**Infrastructure Changes**:
+- **100% LoggerFactory Coverage**: All modules now use `LoggerFactory` directly (no callbacks)
+- **Removed Callback Infrastructure**: Eliminated `configure_progress_logger()` and `configure_display_helpers()` functions
+- **Cleaned Compatibility Layer**: Removed obsolete exports from `storage/clone/__init__.py` and `storage/clone.py`
+
+**Modules Migrated**:
+- `storage/clone/progress.py` - Progress monitoring now uses LoggerFactory
+- `storage/clone/command_runners.py` - Command execution logging migrated
+- `ui/display.py` - Display module uses `LoggerFactory.for_menu()`
+- `storage/mount.py` - Mount utilities use `LoggerFactory.for_system()`
+
+**Impact**:
+- ~170+ logging calls converted from callbacks/print to loguru
+- All application logging now appears in Web UI
+- LOGGING_IMPROVEMENTS.md updated to version 2.1.0
+
 #### 2026-01-24: UI Enhancements & Test Coverage ✅
 **New Features**:
 - **Menu Transitions**: Added slide transitions for menu lists with configurable transition speed settings
@@ -1255,7 +1279,7 @@ sudo journalctl -u rpi-usb-cloner.service -f
 **Test Coverage**:
 - Added comprehensive action handler tests (+38 tests)
 - Coverage increased by +7.47% for action modules
-- Total test files: 30
+- Total test files: 32
 - See `TEST_COVERAGE_ANALYSIS.md` for detailed coverage report
 
 **Bug Fixes**:
@@ -1692,11 +1716,18 @@ get_logger(job_id=None, tags=None, source=None) -> Logger
 with operation_context("clone", source="/dev/sda") as log:
     log.info("Progress", percent=50)  # Auto-logs duration on exit
 
-# Factory methods
-LoggerFactory.for_clone(job_id=None) -> Logger
-LoggerFactory.for_usb() -> Logger
-LoggerFactory.for_web(connection_id=None) -> Logger
-LoggerFactory.for_clonezilla(job_id=None) -> Logger
+# Factory methods (all modules use these directly - no callbacks)
+LoggerFactory.for_clone(job_id=None) -> Logger      # Clone operations
+LoggerFactory.for_usb() -> Logger                    # USB device detection
+LoggerFactory.for_web(connection_id=None) -> Logger  # Web server
+LoggerFactory.for_clonezilla(job_id=None) -> Logger  # Clonezilla operations
+LoggerFactory.for_gpio() -> Logger                   # GPIO/hardware buttons
+LoggerFactory.for_menu() -> Logger                   # Menu navigation/UI
+LoggerFactory.for_system() -> Logger                 # System operations
+
+# Utility classes
+ThrottledLogger(log, interval_seconds=5.0)  # Rate-limited logging
+EventLogger.log_clone_started(log, source, target, mode)  # Structured events
 ```
 
 ---
