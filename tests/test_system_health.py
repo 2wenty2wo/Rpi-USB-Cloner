@@ -6,8 +6,6 @@ This module tests system health monitoring functions.
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
-
 
 class TestSystemHealthDataclass:
     """Tests for SystemHealth dataclass."""
@@ -190,7 +188,7 @@ class TestGetSystemHealth:
         from rpi_usb_cloner.web.system_health import SystemHealth, get_system_health
 
         # Mock psutil functions
-        mock_cpu = mocker.patch("psutil.cpu_percent", return_value=25.5)
+        mocker.patch("psutil.cpu_percent", return_value=25.5)
         mock_memory = Mock()
         mock_memory.percent = 60.0
         mock_memory.used = 2 * 1024 * 1024 * 1024  # 2GB

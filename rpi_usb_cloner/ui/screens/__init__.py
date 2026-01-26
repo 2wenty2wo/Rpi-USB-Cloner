@@ -14,6 +14,7 @@ from .info import (
     render_key_value_screen,
     wait_for_paginated_input,
     wait_for_paginated_key_value_input,
+    wait_for_scrollable_key_value_input,
 )
 from .logs import show_logs
 from .progress import render_progress_screen
@@ -44,6 +45,7 @@ __all__ = [
     "render_key_value_screen",
     "wait_for_paginated_input",
     "wait_for_paginated_key_value_input",
+    "wait_for_scrollable_key_value_input",
     # Error screens
     "render_error_screen",
     # Demo screens

@@ -214,3 +214,69 @@ def wait_for_paginated_key_value_input(
         prev_states["U"] = current_u
         prev_states["D"] = current_d
         time.sleep(poll_delay)
+
+
+def wait_for_scrollable_key_value_input(
+    title: str,
+    lines: Iterable[tuple[str, str]],
+    *,
+    scroll_offset: int = 0,
+    title_icon: Optional[str] = None,
+    title_font=None,
+    body_font=None,
+    label_font=None,
+    buttons: Optional[Iterable[int]] = None,
+    poll_delay: float = BUTTON_POLL_DELAY,
+) -> None:
+    if buttons is None:
+        buttons = (gpio.PIN_A, gpio.PIN_B)
+    buttons = tuple(buttons)
+    line_list = list(lines)
+
+    def render(offset: int) -> tuple[int, int]:
+        return display.render_scrollable_key_value_lines(
+            title,
+            line_list,
+            scroll_offset=offset,
+            title_font=title_font,
+            items_font=body_font,
+            label_font=label_font,
+            title_icon=title_icon,
+        )
+
+    max_scroll, scroll_offset = render(scroll_offset)
+    nav_buttons = (gpio.PIN_L, gpio.PIN_R, gpio.PIN_U, gpio.PIN_D)
+    menus.wait_for_buttons_release(buttons + nav_buttons, poll_delay=poll_delay)
+    prev_states = {
+        "A": gpio.is_pressed(gpio.PIN_A),
+        "B": gpio.is_pressed(gpio.PIN_B),
+        "L": gpio.is_pressed(gpio.PIN_L),
+        "R": gpio.is_pressed(gpio.PIN_R),
+        "U": gpio.is_pressed(gpio.PIN_U),
+        "D": gpio.is_pressed(gpio.PIN_D),
+    }
+    while True:
+        current_a = gpio.is_pressed(gpio.PIN_A)
+        if gpio.PIN_A in buttons and prev_states["A"] and not current_a:
+            return
+        current_b = gpio.is_pressed(gpio.PIN_B)
+        if gpio.PIN_B in buttons and prev_states["B"] and not current_b:
+            return
+        current_l = gpio.is_pressed(gpio.PIN_L)
+        current_r = gpio.is_pressed(gpio.PIN_R)
+        current_u = gpio.is_pressed(gpio.PIN_U)
+        current_d = gpio.is_pressed(gpio.PIN_D)
+        if max_scroll > 0:
+            if prev_states["U"] and not current_u:
+                scroll_offset = max(0, scroll_offset - 1)
+                max_scroll, scroll_offset = render(scroll_offset)
+            if prev_states["D"] and not current_d:
+                scroll_offset = min(max_scroll, scroll_offset + 1)
+                max_scroll, scroll_offset = render(scroll_offset)
+        prev_states["A"] = current_a
+        prev_states["B"] = current_b
+        prev_states["L"] = current_l
+        prev_states["R"] = current_r
+        prev_states["U"] = current_u
+        prev_states["D"] = current_d
+        time.sleep(poll_delay)
