@@ -512,6 +512,7 @@
       </div>
     </div>
   </div>
+  <script src="/static/apexcharts/apexcharts.min.js"></script>
   <script src="/static/tabler/tabler.min.js"></script>
   <script>
     // Theme toggle functionality
@@ -1272,6 +1273,7 @@
       return `${formatted} ${units[exponent]}`;
     }
 
+    // Image repo chart uses stacked progress bars; ApexCharts is loaded for future use.
     function updateImageRepoList(images, repoStats) {
       const container = document.getElementById('image-repo-container');
       const countBadge = document.getElementById('image-count');
