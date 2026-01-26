@@ -36,6 +36,33 @@ A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero
 - **Secure Erasure** - Quick or full device erasure with verification
 
 
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td>
+      <img src="docs/screenshots/screenshot_20260127_081329.png" width="300">
+    </td>
+    <td>
+      <img src="docs/screenshots/screenshot_20260127_081335.png" width="300">
+    </td>
+    <td>
+      <img src="docs/screenshots/screenshot_20260127_081339.png" width="300">
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <img src="docs/screenshots/screenshot_20260127_081343.png" width="300">
+    </td>
+    <td>
+      <img src="docs/screenshots/screenshot_20260127_081347.png" width="300">
+    </td>
+    <td></td>
+  </tr>
+</table>
+
+
+
 ## 🚀 Quickstart
 
 Quick setup for experienced users:
