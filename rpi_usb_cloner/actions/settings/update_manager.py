@@ -433,8 +433,9 @@ def update_version() -> None:
                 result_holder["result"][3],
             )
         if "error" in error_holder:
-            log.debug(
-                f"Update status check failed: {error_holder['error']}",
+            exc = error_holder["error"]
+            log.warning(
+                f"Update check failed with exception: {type(exc).__name__}: {exc}",
                 component="update_manager",
             )
             return (
