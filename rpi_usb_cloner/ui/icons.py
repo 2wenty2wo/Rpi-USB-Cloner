@@ -39,6 +39,10 @@ KEYBOARD_ICON = chr(57618)  # keyboard icon - text input
 INFO_ICON = chr(57487)  # info icon - information displays
 WRITE_ICON = chr(58597)  # write/backup icon - write operations
 ACTIVITY_ICON = chr(57400)  # activity icon - system status displays
+COPY_DRIVE_ICON = chr(58611)  # send-to-back - drive copy flow
+BACKUP_IMAGE_ICON = chr(58598)  # hard-drive-upload - image backup flow
+WRITE_IMAGE_ICON = chr(58597)  # hard-drive-download - image write flow
+VERIFY_CLONE_ICON = chr(57681)  # search - clone verification flow
 
 # Arrow icons (used in menu labels)
 ARROW_LEFT = chr(57416)  # arrow-left - for restore operations
