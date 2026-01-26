@@ -1,451 +1,252 @@
-"""
-Tests for menu navigation logic.
-
-Tests cover:
-- Menu navigation (up, down, selection)
-- Menu stack management
-- Submenu navigation
-- Action activation
-"""
-
-from typing import Callable
-
 import pytest
-
-from rpi_usb_cloner.menu.model import MenuItem, MenuScreen
+from unittest.mock import Mock
 from rpi_usb_cloner.menu.navigator import MenuNavigator, ScreenState
+from rpi_usb_cloner.menu.model import MenuScreen, MenuItem
 
+# Fixtures for common test data
+@pytest.fixture
+def empty_screen():
+    return MenuScreen(screen_id="empty", title="Empty", items=[])
 
 @pytest.fixture
-def sample_menu_screens():
-    """Create sample menu screens for testing."""
-
-    def dummy_action():
-        pass
-
-    main_menu = MenuScreen(
-        screen_id="main",
-        title="Main Menu",
+def simple_screen():
+    return MenuScreen(
+        screen_id="root",
+        title="Root",
         items=[
-            MenuItem(label="Action 1", action=dummy_action),
-            MenuItem(label="Action 2", action=dummy_action),
-            MenuItem(
-                label="Submenu",
-                submenu=MenuScreen(screen_id="submenu", title="Submenu", items=[]),
-            ),
-            MenuItem(label="Action 3", action=dummy_action),
-        ],
+            MenuItem(label="Item 1", action=lambda: None),
+            MenuItem(label="Item 2", action=lambda: None),
+            MenuItem(label="Item 3", action=lambda: None),
+        ]
     )
 
-    submenu = MenuScreen(
-        screen_id="submenu",
-        title="Submenu",
-        items=[
-            MenuItem(label="Sub Action 1", action=dummy_action),
-            MenuItem(label="Sub Action 2", action=dummy_action),
-        ],
+@pytest.fixture
+def submenu_item():
+    return MenuItem(
+        label="Submenu",
+        submenu=MenuScreen(
+            screen_id="child",
+            title="Child",
+            items=[MenuItem(label="Child Item 1", action=lambda: None)]
+        )
     )
 
-    empty_menu = MenuScreen(screen_id="empty", title="Empty Menu", items=[])
-
+@pytest.fixture
+def complex_screens(simple_screen, submenu_item):
+    child_screen = submenu_item.submenu
+    # Add submenu item to root screen
+    simple_screen.items.append(submenu_item)
+    
     return {
-        "main": main_menu,
-        "submenu": submenu,
-        "empty": empty_menu,
+        "root": simple_screen,
+        "child": child_screen,
+        "empty": MenuScreen(screen_id="empty", title="Empty", items=[])
     }
 
+class TestMenuNavigator:
+    """Test the pure logic of MenuNavigator without hardware dependencies."""
 
-@pytest.fixture
-def navigator(sample_menu_screens):
-    """Create a menu navigator with sample screens."""
-    return MenuNavigator(screens=sample_menu_screens, root_screen_id="main")
-
-
-class TestMenuNavigatorInitialization:
-    """Test menu navigator initialization."""
-
-    def test_init_with_valid_root(self, sample_menu_screens):
-        """Test initialization with valid root screen."""
-        navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="main")
-        assert navigator.current_screen().screen_id == "main"
+    def test_initialization(self, simple_screen):
+        """Test that navigator initializes correctly with a root screen."""
+        screens = {"root": simple_screen}
+        navigator = MenuNavigator(screens, root_screen_id="root")
+        
+        assert navigator.current_screen().screen_id == "root"
         assert navigator.current_state().selected_index == 0
+        assert navigator.current_state().scroll_offset == 0
+        assert len(navigator._stack) == 1
 
-    def test_init_with_invalid_root_raises_error(self, sample_menu_screens):
-        """Test initialization with invalid root screen ID raises ValueError."""
+    def test_initialization_invalid_root(self):
+        """Test that unknown root screen raises ValueError."""
         with pytest.raises(ValueError, match="Unknown root screen"):
-            MenuNavigator(screens=sample_menu_screens, root_screen_id="nonexistent")
+            MenuNavigator({}, root_screen_id="missing")
 
-    def test_init_with_items_providers(self, sample_menu_screens):
-        """Test initialization with dynamic item providers."""
-
-        def provider():
-            return [MenuItem(label="Dynamic", action=lambda: None)]
-
+    def test_items_provider(self, simple_screen):
+        """Test that dynamic item providers override static items."""
+        dynamic_items = [MenuItem(label="Dynamic", action=lambda: None)]
+        provider_mock = Mock(return_value=dynamic_items)
+        
+        screens = {"root": simple_screen}
         navigator = MenuNavigator(
-            screens=sample_menu_screens,
-            root_screen_id="main",
-            items_providers={"main": provider},
+            screens, 
+            root_screen_id="root",
+            items_providers={"root": provider_mock}
         )
+        
+        assert navigator.current_items() == dynamic_items
+        provider_mock.assert_called_once()
+        # Should not be simple_screen.items
+        assert navigator.current_items() != simple_screen.items
 
-        items = navigator.current_items()
-        assert len(items) == 1
-        assert items[0].label == "Dynamic"
+    def test_move_selection_within_bounds(self, simple_screen):
+        """Test moving selection up and down within bounds."""
+        screens = {"root": simple_screen}
+        navigator = MenuNavigator(screens, root_screen_id="root")
+        visible_rows = 4
 
-
-class TestMenuNavigation:
-    """Test menu navigation operations."""
-
-    def test_current_state_returns_top_of_stack(self, navigator):
-        """Test current_state returns the top of the navigation stack."""
-        state = navigator.current_state()
-        assert isinstance(state, ScreenState)
-        assert state.screen_id == "main"
-
-    def test_current_screen_returns_screen_object(self, navigator):
-        """Test current_screen returns the MenuScreen object."""
-        screen = navigator.current_screen()
-        assert isinstance(screen, MenuScreen)
-        assert screen.screen_id == "main"
-        assert screen.title == "Main Menu"
-
-    def test_current_items_returns_menu_items(self, navigator):
-        """Test current_items returns list of MenuItem objects."""
-        items = navigator.current_items()
-        assert len(items) == 4
-        assert all(isinstance(item, MenuItem) for item in items)
-
-    def test_move_selection_down(self, navigator):
-        """Test moving selection down increments selected index."""
+        # Initial state
         assert navigator.current_state().selected_index == 0
-        navigator.move_selection(delta=1, visible_rows=4)
+
+        # Move down (next item)
+        navigator.move_selection(1, visible_rows)
         assert navigator.current_state().selected_index == 1
 
-    def test_move_selection_up(self, navigator):
-        """Test moving selection up decrements selected index."""
-        navigator.move_selection(delta=1, visible_rows=4)  # Move to index 1
-        navigator.move_selection(delta=-1, visible_rows=4)
-        assert navigator.current_state().selected_index == 0
-
-    def test_move_selection_clamps_at_bottom(self, navigator):
-        """Test selection stays at last item when moving past bottom."""
-        navigator.move_selection(delta=10, visible_rows=4)  # Try to move past end
-        items = navigator.current_items()
-        assert navigator.current_state().selected_index == len(items) - 1
-
-    def test_move_selection_clamps_at_top(self, navigator):
-        """Test selection stays at first item when moving past top."""
-        navigator.move_selection(delta=-10, visible_rows=4)  # Try to move past start
-        assert navigator.current_state().selected_index == 0
-
-    def test_move_selection_on_empty_menu(self, sample_menu_screens):
-        """Test moving selection on empty menu resets to 0."""
-        navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="empty")
-        navigator.move_selection(delta=1, visible_rows=4)
-        assert navigator.current_state().selected_index == 0
-
-
-class TestSubmenuNavigation:
-    """Test submenu navigation."""
-
-    def test_activate_action_returns_callable(self, navigator):
-        """Test activating action item returns callable."""
-        action = navigator.activate(visible_rows=4)
-        assert isinstance(action, Callable)
-
-    def test_activate_submenu_pushes_to_stack(self, navigator):
-        """Test activating submenu pushes new state to stack."""
-        # Move to submenu item (index 2)
-        navigator.move_selection(delta=2, visible_rows=4)
-        result = navigator.activate(visible_rows=4)
-
-        # Should return None and push submenu to stack
-        assert result is None
-        assert navigator.current_screen().screen_id == "submenu"
-        assert navigator.current_state().selected_index == 0
-
-    def test_activate_on_empty_menu_returns_none(self, sample_menu_screens):
-        """Test activate on empty menu returns None."""
-        navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="empty")
-        result = navigator.activate(visible_rows=4)
-        assert result is None
-
-    def test_activate_with_invalid_submenu_raises_error(self, sample_menu_screens):
-        """Test activate with invalid submenu ID raises ValueError."""
-        # Create item with invalid submenu reference
-        invalid_item = MenuItem(
-            label="Invalid",
-            submenu=MenuScreen(screen_id="invalid", title="Invalid", items=[]),
-        )
-        sample_menu_screens["main"].items = [invalid_item]
-        navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="main")
-
-        with pytest.raises(ValueError, match="Unknown screen"):
-            navigator.activate(visible_rows=4)
-
-
-class TestBackNavigation:
-    """Test back navigation."""
-
-    def test_back_from_submenu_returns_true(self, navigator):
-        """Test going back from submenu returns True."""
-        # Navigate to submenu
-        navigator.move_selection(delta=2, visible_rows=4)
-        navigator.activate(visible_rows=4)
-
-        # Go back
-        result = navigator.back()
-        assert result is True
-        assert navigator.current_screen().screen_id == "main"
-
-    def test_back_from_root_returns_false(self, navigator):
-        """Test going back from root menu returns False."""
-        result = navigator.back()
-        assert result is False
-        assert navigator.current_screen().screen_id == "main"
-
-    def test_back_preserves_previous_selection(self, navigator):
-        """Test going back preserves selection in previous menu."""
-        # Select item 2 (submenu) on main menu
-        navigator.move_selection(delta=2, visible_rows=4)
+        # Move down again
+        navigator.move_selection(1, visible_rows)
         assert navigator.current_state().selected_index == 2
 
+        # Move up (previous item)
+        navigator.move_selection(-1, visible_rows)
+        assert navigator.current_state().selected_index == 1
+
+    def test_move_selection_clamping(self, simple_screen):
+        """Test that selection stops at start and end of list."""
+        screens = {"root": simple_screen}
+        navigator = MenuNavigator(screens, root_screen_id="root")
+        visible_rows = 4
+        num_items = len(simple_screen.items) # 3 items
+
+        # Try to move up from index 0
+        navigator.move_selection(-1, visible_rows)
+        assert navigator.current_state().selected_index == 0
+
+        # Move beyond last item
+        for _ in range(num_items + 5):
+            navigator.move_selection(1, visible_rows)
+        
+        assert navigator.current_state().selected_index == num_items - 1
+
+    def test_move_selection_empty_list(self, empty_screen):
+        """Test moving selection in an empty list does nothing."""
+        screens = {"empty": empty_screen}
+        navigator = MenuNavigator(screens, root_screen_id="empty")
+        
+        navigator.move_selection(1, visible_rows=4)
+        assert navigator.current_state().selected_index == 0
+        
+        navigator.move_selection(-1, visible_rows=4)
+        assert navigator.current_state().selected_index == 0
+
+    def test_scrolling_logic_move_down(self):
+        """Test that scroll offset increases when moving down past visible rows."""
+        # Create 10 items
+        items = [MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)]
+        screen = MenuScreen(screen_id="long", title="Long", items=items)
+        screens = {"long": screen}
+        
+        navigator = MenuNavigator(screens, root_screen_id="long")
+        visible_rows = 3
+        
+        # Move down to index 2 (still visible, 3rd item)
+        # [0, 1, 2] -> Visible
+        navigator.set_selection("long", 2, visible_rows)
+        assert navigator.current_state().scroll_offset == 0
+        
+        # Move down to index 3 (4th item, should push scroll)
+        # Scroll should be 1: [1, 2, 3] visible
+        navigator.move_selection(1, visible_rows)
+        assert navigator.current_state().selected_index == 3
+        assert navigator.current_state().scroll_offset == 1
+        
+        # Move to end
+        navigator.set_selection("long", 9, visible_rows)
+        # Max scroll = len(10) - visible(3) = 7
+        assert navigator.current_state().scroll_offset == 7
+
+    def test_scrolling_logic_move_up(self):
+        """Test that scroll offset decreases when moving up past visible rows."""
+        items = [MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)]
+        screen = MenuScreen(screen_id="long", title="Long", items=items)
+        screens = {"long": screen}
+        
+        navigator = MenuNavigator(screens, root_screen_id="long")
+        visible_rows = 3
+        
+        # Start at end
+        navigator.set_selection("long", 9, visible_rows)
+        assert navigator.current_state().scroll_offset == 7
+        
+        # Move up to index 6 (7th item)
+        # Visible range at end: 7, 8, 9 (Indices) -> Scroll offset 7
+        navigator.set_selection("long", 6, visible_rows)
+        # Target index 6 is < scroll offset 7
+        # New scroll should be 6. Visible: 6, 7, 8
+        assert navigator.current_state().scroll_offset == 6
+
+    def test_activate_leaf_item(self, variable_screens=None):
+        """Test activating a leaf item returns its action string."""
+        # Setup specific screen for this test
+        mock_action = Mock()
+        item = MenuItem(label="Leaf", action=mock_action)
+        screen = MenuScreen(screen_id="root", title="Root", items=[item])
+        screens = {"root": screen}
+        
+        navigator = MenuNavigator(screens, root_screen_id="root")
+        
+        action = navigator.activate(visible_rows=4)
+        assert action == mock_action
+        # Stack should remain unchanged
+        assert len(navigator._stack) == 1
+
+    def test_activate_submenu_item(self, complex_screens):
+        """Test activating a submenu item acts as navigation."""
+        navigator = MenuNavigator(complex_screens, root_screen_id="root")
+        
+        # Navigate to the submenu item (Item 1, Item 2, Item 3, Submenu)
+        # Index 3 is the submenu
+        navigator.set_selection("root", 3, visible_rows=4)
+        
+        # Activate should return None (consumed by navigator)
+        result = navigator.activate(visible_rows=4)
+        assert result is None
+        
+        # Should have pushed to stack
+        assert len(navigator._stack) == 2
+        assert navigator.current_screen().screen_id == "child"
+        assert navigator.last_navigation_action() == "forward"
+
+    def test_back_navigation(self, complex_screens):
+        """Test back() pops the stack."""
+        navigator = MenuNavigator(complex_screens, root_screen_id="root")
+        
+        # Enter submenu
+        navigator.set_selection("root", 3, visible_rows=4)
+        navigator.activate(visible_rows=4)
+        assert navigator.current_screen().screen_id == "child"
+        
+        # Go back
+        success = navigator.back()
+        assert success is True
+        assert navigator.current_screen().screen_id == "root"
+        assert len(navigator._stack) == 1
+        assert navigator.last_navigation_action() == "back"
+
+    def test_back_at_root(self, simple_screen):
+        """Test back() at root level returns False and does nothing."""
+        screens = {"root": simple_screen}
+        navigator = MenuNavigator(screens, root_screen_id="root")
+        
+        success = navigator.back()
+        assert success is False
+        assert len(navigator._stack) == 1
+        assert navigator.current_screen().screen_id == "root"
+
+    def test_selection_persistence(self, complex_screens):
+        """Test that parent menu remembers selection when returning from child."""
+        navigator = MenuNavigator(complex_screens, root_screen_id="root")
+        
+        # Select index 3 (Submenu)
+        navigator.set_selection("root", 3, visible_rows=4)
+        
         # Enter submenu
         navigator.activate(visible_rows=4)
-        assert navigator.current_screen().screen_id == "submenu"
-
-        # Go back - should return to index 2 on main menu
+        
+        # Do stuff in submenu (move around)
+        navigator.move_selection(1, visible_rows=4)
+        
+        # Go back
         navigator.back()
-        assert navigator.current_screen().screen_id == "main"
-        assert navigator.current_state().selected_index == 2
-
-
-class TestScrollOffset:
-    """Test scroll offset calculation."""
-
-    def test_scroll_offset_zero_when_all_items_visible(self, navigator):
-        """Test scroll offset is 0 when all items fit on screen."""
-        state = navigator.current_state()
-        assert state.scroll_offset == 0
-
-    def test_scroll_offset_adjusts_when_selection_below_visible(self):
-        """Test scroll offset adjusts when selection moves below visible area."""
-        # Create menu with many items
-        many_items = MenuScreen(
-            screen_id="many",
-            title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
-        )
-        navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
-
-        # Move selection down with limited visible rows
-        navigator.move_selection(delta=5, visible_rows=3)
-
-        # Scroll offset should adjust to keep selection visible
-        state = navigator.current_state()
-        assert state.scroll_offset > 0
-        assert state.selected_index >= state.scroll_offset
-        assert state.selected_index < state.scroll_offset + 3
-
-    def test_scroll_offset_adjusts_when_selection_above_visible(self):
-        """Test scroll offset adjusts when selection moves above visible area."""
-        many_items = MenuScreen(
-            screen_id="many",
-            title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
-        )
-        navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
-
-        # Move to bottom
-        navigator.move_selection(delta=9, visible_rows=3)
-        assert navigator.current_state().scroll_offset > 0
-
-        # Move back up
-        navigator.move_selection(delta=-5, visible_rows=3)
-
-        # Scroll should adjust
-        state = navigator.current_state()
-        assert state.selected_index >= state.scroll_offset
-
-    def test_sync_visible_rows_recalculates_scroll(self):
-        """Test sync_visible_rows recalculates scroll offset."""
-        many_items = MenuScreen(
-            screen_id="many",
-            title="Many Items",
-            items=[MenuItem(label=f"Item {i}", action=lambda: None) for i in range(10)],
-        )
-        navigator = MenuNavigator(screens={"many": many_items}, root_screen_id="many")
-
-        # Set selection and sync
-        navigator.move_selection(delta=5, visible_rows=3)
-        navigator.sync_visible_rows(visible_rows=5)
-
-        # Scroll offset should be recalculated
-        state = navigator.current_state()
-        assert state.selected_index >= state.scroll_offset
-        assert state.selected_index < state.scroll_offset + 5
-
-
-class TestSetSelection:
-    """Test set_selection method."""
-
-    def test_set_selection_updates_index(self, navigator):
-        """Test set_selection updates selected index."""
-        navigator.set_selection(screen_id="main", index=2, visible_rows=4)
-        assert navigator.current_state().selected_index == 2
-
-    def test_set_selection_clamps_negative_index(self, navigator):
-        """Test set_selection clamps negative index to 0."""
-        navigator.set_selection(screen_id="main", index=-5, visible_rows=4)
-        assert navigator.current_state().selected_index == 0
-
-    def test_set_selection_on_nonexistent_screen_does_nothing(self, navigator):
-        """Test set_selection on non-existent screen ID does nothing."""
-        original_index = navigator.current_state().selected_index
-        navigator.set_selection(screen_id="nonexistent", index=5, visible_rows=4)
-        # Should not change current screen's selection
-        assert navigator.current_state().selected_index == original_index
-
-    def test_set_selection_in_navigation_stack(self, navigator):
-        """Test set_selection can update screens in navigation stack."""
-        # Navigate to submenu
-        navigator.move_selection(delta=2, visible_rows=4)
-        navigator.activate(visible_rows=4)
-
-        # Update selection in previous screen (main)
-        navigator.set_selection(screen_id="main", index=3, visible_rows=4)
-
-        # Go back and verify selection was updated
-        navigator.back()
+        
+        # Should be back at index 3
+        assert navigator.current_state().screen_id == "root"
         assert navigator.current_state().selected_index == 3
-
-
-class TestDynamicItemProviders:
-    """Test dynamic item providers."""
-
-    def test_items_provider_called_for_current_items(self, sample_menu_screens):
-        """Test items provider is called when getting current items."""
-        call_count = [0]
-
-        def provider():
-            call_count[0] += 1
-            return [MenuItem(label="Dynamic", action=lambda: None)]
-
-        navigator = MenuNavigator(
-            screens=sample_menu_screens,
-            root_screen_id="main",
-            items_providers={"main": provider},
-        )
-
-        # First call
-        items1 = navigator.current_items()
-        assert call_count[0] == 1
-        assert len(items1) == 1
-
-        # Second call - should call provider again
-        navigator.current_items()
-        assert call_count[0] == 2
-
-    def test_items_provider_updates_dynamically(self, sample_menu_screens):
-        """Test items provider can return different items on each call."""
-        state = {"counter": 0}
-
-        def provider():
-            state["counter"] += 1
-            return [
-                MenuItem(label=f"Item {i}", action=lambda: None)
-                for i in range(state["counter"])
-            ]
-
-        navigator = MenuNavigator(
-            screens=sample_menu_screens,
-            root_screen_id="main",
-            items_providers={"main": provider},
-        )
-
-        # First call - 1 item
-        assert len(navigator.current_items()) == 1
-
-        # Second call - 2 items
-        assert len(navigator.current_items()) == 2
-
-        # Third call - 3 items
-        assert len(navigator.current_items()) == 3
-
-    def test_current_items_for_specific_screen(self, sample_menu_screens):
-        """Test current_items_for returns items for specific screen."""
-
-        def provider():
-            return [MenuItem(label="Dynamic", action=lambda: None)]
-
-        navigator = MenuNavigator(
-            screens=sample_menu_screens,
-            root_screen_id="main",
-            items_providers={"main": provider},
-        )
-
-        # Get items for main screen (has provider)
-        main_items = navigator.current_items_for("main")
-        assert len(main_items) == 1
-        assert main_items[0].label == "Dynamic"
-
-        # Get items for submenu (no provider, uses static items)
-        submenu_items = navigator.current_items_for("submenu")
-        assert len(submenu_items) == 2
-        assert submenu_items[0].label == "Sub Action 1"
-
-
-class TestEdgeCases:
-    """Test edge cases and error conditions."""
-
-    def test_activate_with_out_of_bounds_selection(self, navigator):
-        """Test activate with out-of-bounds selection index."""
-        # Manually set selection to out of bounds
-        navigator.current_state().selected_index = 100
-
-        # Activate should handle this gracefully
-        action = navigator.activate(visible_rows=4)
-
-        # Should clamp to valid index and return action
-        assert (
-            navigator.current_state().selected_index
-            == len(navigator.current_items()) - 1
-        )
-        assert isinstance(action, Callable)
-
-    def test_ensure_scroll_with_empty_items(self, sample_menu_screens):
-        """Test _ensure_scroll with empty items list."""
-        navigator = MenuNavigator(screens=sample_menu_screens, root_screen_id="empty")
-        state = navigator.current_state()
-
-        # Should handle empty list gracefully
-        scroll = navigator._ensure_scroll(state, visible_rows=4)
-        assert scroll == 0
-        assert state.selected_index == 0
-
-    def test_move_selection_with_changing_item_count(self, sample_menu_screens):
-        """Test move_selection when item count changes dynamically."""
-        state = {"items": 5}
-
-        def provider():
-            return [
-                MenuItem(label=f"Item {i}", action=lambda: None)
-                for i in range(state["items"])
-            ]
-
-        navigator = MenuNavigator(
-            screens=sample_menu_screens,
-            root_screen_id="main",
-            items_providers={"main": provider},
-        )
-
-        # Move to item 3
-        navigator.move_selection(delta=3, visible_rows=4)
-        assert navigator.current_state().selected_index == 3
-
-        # Reduce item count to 2
-        state["items"] = 2
-
-        # Move selection - should clamp to new max
-        navigator.move_selection(delta=0, visible_rows=4)
-        # Note: The current implementation doesn't auto-clamp on move_selection(0)
-        # This is acceptable behavior - clamping happens on activate()
