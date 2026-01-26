@@ -494,6 +494,7 @@
                       <div class="progress-bar bg-info" role="progressbar" style="width: 0%;" aria-label="ISO usage" data-repo-segment="iso"></div>
                       <div class="progress-bar bg-warning" role="progressbar" style="width: 0%;" aria-label="BIN usage" data-repo-segment="imageusb"></div>
                       <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;" aria-label="Other usage" data-repo-segment="other"></div>
+                      <div class="progress-bar bg-secondary-lt" role="progressbar" style="width: 0%;" aria-label="Free space" data-repo-segment="free"></div>
                     </div>
                     <div id="image-repo-chart-legend" class="d-flex flex-wrap gap-2 mt-3"></div>
                   </div>
@@ -1327,25 +1328,38 @@
         }
       );
 
-      const totalBytes = Object.values(repoTotals).reduce((sum, value) => sum + value, 0);
+      const capacityTotals = repoEntries.reduce(
+        (accumulator, entry) => {
+          accumulator.total += entry.total_bytes || 0;
+          accumulator.free += entry.free_bytes || 0;
+          return accumulator;
+        },
+        {
+          total: 0,
+          free: 0
+        }
+      );
+
+      const totalCapacity = capacityTotals.total;
       const segmentData = [
-        { key: 'clonezilla', label: 'Clonezilla', color: 'primary', bytes: repoTotals.clonezilla },
-        { key: 'iso', label: 'ISO', color: 'info', bytes: repoTotals.iso },
-        { key: 'imageusb', label: 'BIN', color: 'warning', bytes: repoTotals.imageusb },
-        { key: 'other', label: 'Other', color: 'secondary', bytes: repoTotals.other }
+        { key: 'clonezilla', label: 'Clonezilla', color: 'primary', bytes: repoTotals.clonezilla, textClass: 'text-white' },
+        { key: 'iso', label: 'ISO', color: 'info', bytes: repoTotals.iso, textClass: 'text-white' },
+        { key: 'imageusb', label: 'BIN', color: 'warning', bytes: repoTotals.imageusb, textClass: 'text-white' },
+        { key: 'other', label: 'Other', color: 'secondary', bytes: repoTotals.other, textClass: 'text-white' },
+        { key: 'free', label: 'Free', color: 'secondary-lt', bytes: capacityTotals.free, textClass: 'text-dark' }
       ];
 
-      if (totalBytes > 0) {
+      if (totalCapacity > 0) {
         chartContainer.classList.remove('d-none');
         chartSegments.forEach((segment) => {
           const segmentKey = segment.dataset.repoSegment;
           const entry = segmentData.find((item) => item.key === segmentKey);
-          const widthPercent = entry && totalBytes > 0 ? (entry.bytes / totalBytes) * 100 : 0;
+          const widthPercent = entry ? (entry.bytes / totalCapacity) * 100 : 0;
           segment.style.width = `${widthPercent.toFixed(1)}%`;
         });
 
         chartLegend.innerHTML = segmentData.map((entry) => `
-          <span class="badge bg-${entry.color} text-white">
+          <span class="badge bg-${entry.color} ${entry.textClass}">
             ${entry.label}: ${formatBytes(entry.bytes)}
           </span>
         `).join('');
