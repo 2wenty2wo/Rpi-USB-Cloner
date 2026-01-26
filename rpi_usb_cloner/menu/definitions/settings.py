@@ -63,6 +63,7 @@ SETTINGS_MENU = MenuScreen(
     items=[
         menu_entry("WIFI", action=menu_actions.wifi_settings),
         menu_entry("WEB SERVER", action=menu_actions.toggle_web_server),
+        menu_entry("SYSTEM INFO", action=menu_actions.system_info),
         menu_entry("SCREENSAVER", submenu=SCREENSAVER_MENU),
         menu_entry("DEVELOP", submenu=DEVELOP_MENU),
         menu_entry("POWER", submenu=POWER_MENU),
