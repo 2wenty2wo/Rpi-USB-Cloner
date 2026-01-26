@@ -7,7 +7,7 @@ import psutil
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.ui import screens
-from rpi_usb_cloner.ui.icons import INFO_ICON
+from rpi_usb_cloner.ui.icons import ACTIVITY_ICON
 
 
 def coming_soon() -> None:
@@ -87,5 +87,5 @@ def system_info(*, app_context: AppContext) -> None:
     screens.wait_for_scrollable_key_value_input(
         "SYSTEM INFO",
         lines,
-        title_icon=INFO_ICON,
+        title_icon=ACTIVITY_ICON,
     )

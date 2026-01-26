@@ -38,6 +38,7 @@ USB_ICON = chr(57516)  # usb drive icon - USB selection
 KEYBOARD_ICON = chr(57618)  # keyboard icon - text input
 INFO_ICON = chr(57487)  # info icon - information displays
 WRITE_ICON = chr(58597)  # write/backup icon - write operations
+ACTIVITY_ICON = chr(57400)  # activity icon - system status displays
 
 # Arrow icons (used in menu labels)
 ARROW_LEFT = chr(57416)  # arrow-left - for restore operations
