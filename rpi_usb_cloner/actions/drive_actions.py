@@ -24,6 +24,7 @@ from rpi_usb_cloner.storage.devices import (
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import (
     ALERT_ICON,
+    COPY_DRIVE_ICON,
     DRIVES_ICON,
     EJECT_ICON,
     FOLDER_ICON,
@@ -63,6 +64,7 @@ def copy_drive(
         title,
         [prompt],
         selected_index=confirm_selection,
+        title_icon=COPY_DRIVE_ICON,
     )
     menus.wait_for_buttons_release(
         [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
@@ -106,7 +108,10 @@ def copy_drive(
                 log_menu.debug("Copy menu: Button B pressed (confirm)")
                 if confirm_selection == app_state.CONFIRM_YES:
                     screens.render_status_template(
-                        "COPY", "Running...", progress_line="Starting..."
+                        "COPY",
+                        "Running...",
+                        progress_line="Starting...",
+                        title_icon=COPY_DRIVE_ICON,
                     )
                     mode = menus.select_clone_mode(clone_mode)
                     if not mode:
@@ -117,7 +122,10 @@ def copy_drive(
                         f"Starting clone: {source_name} -> {target_name} (mode {mode})"
                     )
                     screens.render_status_template(
-                        "COPY", "Running...", progress_line=f"Mode {mode.upper()}"
+                        "COPY",
+                        "Running...",
+                        progress_line=f"Mode {mode.upper()}",
+                        title_icon=COPY_DRIVE_ICON,
                     )
 
                     # Use type-safe CloneJob API (Step 4 refactoring)
@@ -133,7 +141,10 @@ def copy_drive(
                         # This automatically prevents source==destination bug!
                         if clone_device_v2(job):
                             screens.render_status_template(
-                                "COPY", "Done", progress_line="Complete."
+                                "COPY",
+                                "Done",
+                                progress_line="Complete.",
+                                title_icon=COPY_DRIVE_ICON,
                             )
                         else:
                             log_operation.error(
@@ -143,7 +154,10 @@ def copy_drive(
                                 mode=mode,
                             )
                             screens.render_status_template(
-                                "COPY", "Failed", progress_line="Check logs."
+                                "COPY",
+                                "Failed",
+                                progress_line="Check logs.",
+                                title_icon=COPY_DRIVE_ICON,
                             )
                     except (KeyError, ValueError) as error:
                         # Handle Drive conversion or CloneMode errors
@@ -154,7 +168,10 @@ def copy_drive(
                             error=str(error),
                         )
                         screens.render_status_template(
-                            "COPY", "Failed", progress_line="Invalid params"
+                            "COPY",
+                            "Failed",
+                            progress_line="Invalid params",
+                            title_icon=COPY_DRIVE_ICON,
                         )
 
                     time.sleep(1)
@@ -169,6 +186,7 @@ def copy_drive(
                         title,
                         [prompt],
                         selected_index=confirm_selection,
+                        title_icon=COPY_DRIVE_ICON,
                     )
             prev_states["R"] = current_r
             prev_states["L"] = current_l
@@ -179,6 +197,7 @@ def copy_drive(
                 title,
                 [prompt],
                 selected_index=confirm_selection,
+                title_icon=COPY_DRIVE_ICON,
             )
     except KeyboardInterrupt:
         raise

@@ -15,11 +15,10 @@ from rpi_usb_cloner.storage.clonezilla.backup import check_tool_available
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import (
     ALERT_ICON,
-    INFO_ICON,
+    BACKUP_IMAGE_ICON,
     KEYBOARD_ICON,
-    SETTINGS_ICON,
-    USB_ICON,
-    WRITE_ICON,
+    VERIFY_CLONE_ICON,
+    WRITE_IMAGE_ICON,
 )
 
 
@@ -38,7 +37,7 @@ def backup_image(
     """Create a Clonezilla-compatible backup of a USB drive."""
     from rpi_usb_cloner.ui import keyboard
 
-    backup_title_icon = WRITE_ICON
+    backup_title_icon = BACKUP_IMAGE_ICON
 
     # Step 1: Select backup mode (full/partial)
     backup_modes = [
@@ -51,7 +50,7 @@ def backup_image(
         "BACKUP MODE",
         mode_labels,
         selected_index=0,
-        title_icon=SETTINGS_ICON,
+        title_icon=backup_title_icon,
         transition_direction="forward",
     )
 
@@ -89,7 +88,7 @@ def backup_image(
     selected_source_index = menus.select_usb_drive(
         "SOURCE USB",
         source_candidates,
-        title_icon=USB_ICON,
+        title_icon=backup_title_icon,
         selected_name=app_context.active_drive,
         transition_direction="forward",
     )
@@ -156,6 +155,7 @@ def backup_image(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            title_icon=backup_title_icon,
             transition_direction="forward",
         )
         if selected_repo is None:
@@ -228,7 +228,7 @@ def backup_image(
         "COMPRESSION",
         compression_labels,
         selected_index=default_compression_index,
-        title_icon=SETTINGS_ICON,
+        title_icon=backup_title_icon,
         transition_direction="forward",
     )
 
@@ -293,7 +293,7 @@ def backup_image(
     if not _confirm_prompt(
         log_debug=log_debug,
         title="BACKUP?",
-        title_icon=INFO_ICON,
+        title_icon=backup_title_icon,
         prompt_lines=summary_lines,
         default=app_state.CONFIRM_NO,
     ):
@@ -384,7 +384,11 @@ def backup_image(
     # Step 9: Show success summary
     if "result" not in result_holder:
         _log_debug(log_debug, "Backup completed but no result")
-        screens.render_status_template("BACKUP", "COMPLETED")
+        screens.render_status_template(
+            "BACKUP",
+            "COMPLETED",
+            title_icon=backup_title_icon,
+        )
         time.sleep(1)
         return
 
@@ -434,7 +438,12 @@ def backup_image(
         if selection[0] == 0:
             # VERIFY selected
             _log_debug(log_debug, "Starting verification")
-            _verify_backup(source_name, image_dir, log_debug)
+            _verify_backup(
+                source_name,
+                image_dir,
+                log_debug,
+                title_icon=backup_title_icon,
+            )
         return True
 
     gpio.poll_button_events(
@@ -452,6 +461,7 @@ def backup_image(
 def write_image(
     *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
 ) -> None:
+    write_title_icon = WRITE_IMAGE_ICON
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     if not repos:
         display.display_lines(["IMAGE REPO", "NOT FOUND"])
@@ -461,6 +471,7 @@ def write_image(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            title_icon=write_title_icon,
             transition_direction="forward",
         )
         if selected_repo is None:
@@ -479,6 +490,7 @@ def write_image(
         screen_id="images",
         enable_horizontal_scroll=True,
         scroll_start_delay=1.5,
+        title_icon=write_title_icon,
         transition_direction="forward",
     )
     if selected_index is None:
@@ -491,7 +503,9 @@ def write_image(
 
     # For Clonezilla images, prompt for partition mode
     if not is_iso and not is_imageusb:
-        partition_selection = _prompt_restore_partition_mode()
+        partition_selection = _prompt_restore_partition_mode(
+            title_icon=write_title_icon
+        )
         if partition_selection is None:
             return
         partition_mode, partition_label = partition_selection
@@ -521,7 +535,7 @@ def write_image(
     selected_index = menus.select_usb_drive(
         "TARGET USB",
         target_candidates,
-        title_icon=USB_ICON,
+        title_icon=write_title_icon,
         selected_name=app_context.active_drive,
         transition_direction="forward",
     )
@@ -551,14 +565,24 @@ def write_image(
     if is_iso:
         if not _confirm_destructive_action(log_debug=log_debug):
             return
-        _write_iso_image(selected_image.path, target, log_debug=log_debug)
+        _write_iso_image(
+            selected_image.path,
+            target,
+            log_debug=log_debug,
+            title_icon=write_title_icon,
+        )
         return
 
     # Handle ImageUSB .BIN files
     if is_imageusb:
         if not _confirm_destructive_action(log_debug=log_debug):
             return
-        _write_imageusb_image(selected_image.path, target, log_debug=log_debug)
+        _write_imageusb_image(
+            selected_image.path,
+            target,
+            log_debug=log_debug,
+            title_icon=write_title_icon,
+        )
         return
 
     # Continue with Clonezilla image flow
@@ -572,12 +596,21 @@ def write_image(
     if not _confirm_destructive_action(log_debug=log_debug):
         return
     if partition_mode == "k2":
-        _show_manual_partition_instructions(target)
-        if not _wait_for_manual_partitions(plan, target, log_debug=log_debug):
+        _show_manual_partition_instructions(target, title_icon=write_title_icon)
+        if not _wait_for_manual_partitions(
+            plan,
+            target,
+            log_debug=log_debug,
+            title_icon=write_title_icon,
+        ):
             return
     assert partition_mode is not None
     assert partition_label is not None
-    screens.render_status_template("RESTORE PT", f"Set: {partition_label}")
+    screens.render_status_template(
+        "RESTORE PT",
+        f"Set: {partition_label}",
+        title_icon=write_title_icon,
+    )
     time.sleep(1.5)
     done = threading.Event()
     result_holder: dict[str, None] = {}
@@ -647,7 +680,7 @@ def write_image(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=WRITE_ICON,
+            title_icon=write_title_icon,
         )
         time.sleep(0.1)
     thread.join()
@@ -657,7 +690,7 @@ def write_image(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=WRITE_ICON,
+        title_icon=write_title_icon,
     )
     if "error" in error_holder:
         restore_error = error_holder["error"]
@@ -665,7 +698,7 @@ def write_image(
         screens.wait_for_paginated_input(
             "WRITE",
             ["FAILED", *_format_restore_error_lines(restore_error)],
-            title_icon=WRITE_ICON,
+            title_icon=write_title_icon,
         )
         return
     elapsed_seconds = time.monotonic() - start_time
@@ -687,7 +720,7 @@ def write_image(
             "WRITE",
             summary_lines,
             selected_index=selection[0],
-            title_icon=WRITE_ICON,
+            title_icon=write_title_icon,
         )
 
     render_screen()
@@ -712,7 +745,7 @@ def write_image(
         if selection[0] == 0:
             # VERIFY selected
             _log_debug(log_debug, "Starting verification")
-            _verify_restore(plan, target, log_debug)
+            _verify_restore(plan, target, log_debug, title_icon=write_title_icon)
         return True
 
     gpio.poll_button_events(
@@ -783,6 +816,8 @@ def _verify_backup(
     source_device: str,
     image_dir,
     log_debug: Optional[Callable[[str], None]],
+    *,
+    title_icon: Optional[str] = None,
 ) -> None:
     """Verify a backup image against the source device."""
     _log_debug(log_debug, f"Verifying backup in {image_dir}")
@@ -829,7 +864,7 @@ def _verify_backup(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=INFO_ICON,
+            title_icon=title_icon,
         )
         time.sleep(0.1)
 
@@ -847,6 +882,7 @@ def _verify_backup(
                 "completed successfully.",
                 "Press A/B to continue.",
             ],
+            title_icon=title_icon,
         )
     else:
         _log_debug(log_debug, "Backup verification failed")
@@ -858,6 +894,7 @@ def _verify_backup(
                 "Backup may be corrupt.",
                 "Press A/B to continue.",
             ],
+            title_icon=title_icon,
         )
 
     screens.wait_for_ack()
@@ -867,6 +904,8 @@ def _verify_restore(
     plan: clonezilla.RestorePlan,
     target: dict,
     log_debug: Optional[Callable[[str], None]],
+    *,
+    title_icon: Optional[str] = None,
 ) -> None:
     """Verify the restored image against the target disk."""
     target_name = target.get("name", "")
@@ -914,7 +953,7 @@ def _verify_restore(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=INFO_ICON,
+            title_icon=title_icon,
         )
         time.sleep(0.1)
 
@@ -932,6 +971,7 @@ def _verify_restore(
                 "completed successfully.",
                 "Press A/B to continue.",
             ],
+            title_icon=title_icon,
         )
     else:
         _log_debug(log_debug, "Verification failed")
@@ -944,12 +984,15 @@ def _verify_restore(
                 "source image.",
                 "Press A/B to continue.",
             ],
+            title_icon=title_icon,
         )
 
     screens.wait_for_ack()
 
 
-def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
+def _prompt_restore_partition_mode(
+    *, title_icon: Optional[str] = None
+) -> Optional[tuple[str, str]]:
     options = [
         ("k0", "USE SOURCE (-k0)"),
         ("k", "SKIP TABLE (-k)"),
@@ -967,7 +1010,7 @@ def _prompt_restore_partition_mode() -> Optional[tuple[str, str]]:
         "PARTITIONS",
         [label for _, label in options],
         selected_index=selected_index,
-        title_icon=SETTINGS_ICON,
+        title_icon=title_icon,
         transition_direction="forward",
     )
     if selection is None:
@@ -990,7 +1033,9 @@ def _confirm_destructive_action(*, log_debug: Optional[Callable[[str], None]]) -
     )
 
 
-def _show_manual_partition_instructions(target: dict) -> None:
+def _show_manual_partition_instructions(
+    target: dict, *, title_icon: Optional[str] = None
+) -> None:
     target_label = target.get("name") or devices.format_device_label(target)
     screens.wait_for_paginated_input(
         "MANUAL PT",
@@ -1002,6 +1047,7 @@ def _show_manual_partition_instructions(target: dict) -> None:
             "to create partitions.",
             "Press A/B to continue.",
         ],
+        title_icon=title_icon,
     )
 
 
@@ -1068,6 +1114,7 @@ def _wait_for_manual_partitions(
     target: dict,
     *,
     log_debug: Optional[Callable[[str], None]] = None,
+    title_icon: Optional[str] = None,
 ) -> bool:
     target_name = target.get("name") or ""
     deadline = time.monotonic() + 10
@@ -1089,6 +1136,7 @@ def _wait_for_manual_partitions(
     screens.wait_for_paginated_input(
         "MANUAL PT",
         [*lines, "Create partitions", "and retry."],
+        title_icon=title_icon,
     )
     return False
 
@@ -1207,6 +1255,7 @@ def _write_iso_image(
     target: dict,
     *,
     log_debug: Optional[Callable[[str], None]] = None,
+    title_icon: Optional[str] = None,
 ) -> None:
     """Write an ISO file directly to a USB device."""
     done = threading.Event()
@@ -1263,7 +1312,7 @@ def _write_iso_image(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=WRITE_ICON,
+            title_icon=title_icon,
         )
         time.sleep(0.1)
     thread.join()
@@ -1273,7 +1322,7 @@ def _write_iso_image(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=WRITE_ICON,
+        title_icon=title_icon,
     )
     if "error" in error_holder:
         error = error_holder["error"]
@@ -1281,7 +1330,7 @@ def _write_iso_image(
         screens.wait_for_paginated_input(
             "WRITE ISO",
             ["FAILED", str(error)],
-            title_icon=WRITE_ICON,
+            title_icon=title_icon,
         )
         return
     elapsed_seconds = time.monotonic() - start_time
@@ -1305,6 +1354,7 @@ def _write_iso_image(
         "WRITE ISO",
         "SUCCESS",
         extra_lines=summary_lines,
+        title_icon=title_icon,
     )
     screens.wait_for_ack()
 
@@ -1313,6 +1363,7 @@ def verify_clone(
     *, app_context: AppContext, log_debug: Optional[Callable[[str], None]] = None
 ) -> None:
     """Verify a previously created backup image against a device."""
+    verify_title_icon = VERIFY_CLONE_ICON
     # Step 1: Find image repositories
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
     if not repos:
@@ -1325,6 +1376,7 @@ def verify_clone(
         selected_repo = menus.select_list(
             "IMG REPO",
             [repo.path.name for repo in repos],
+            title_icon=verify_title_icon,
             transition_direction="forward",
         )
         if selected_repo is None:
@@ -1347,6 +1399,7 @@ def verify_clone(
         screen_id="verify_images",
         enable_horizontal_scroll=True,
         scroll_start_delay=1.5,
+        title_icon=verify_title_icon,
         transition_direction="forward",
     )
     if selected_index is None:
@@ -1396,7 +1449,7 @@ def verify_clone(
     selected_target_index = menus.select_usb_drive(
         "VERIFY DEVICE",
         target_candidates,
-        title_icon=USB_ICON,
+        title_icon=verify_title_icon,
         selected_name=app_context.active_drive,
         transition_direction="forward",
     )
@@ -1414,7 +1467,7 @@ def verify_clone(
     _log_debug(log_debug, f"Verifying {selected_image.name} against {target_name}")
 
     # Step 7: Run verification
-    _verify_restore(plan, target, log_debug)
+    _verify_restore(plan, target, log_debug, title_icon=verify_title_icon)
 
 
 def _write_imageusb_image(
@@ -1422,6 +1475,7 @@ def _write_imageusb_image(
     target: dict,
     *,
     log_debug: Optional[Callable[[str], None]] = None,
+    title_icon: Optional[str] = None,
 ) -> None:
     """Write an ImageUSB .BIN file directly to a USB device."""
     done = threading.Event()
@@ -1478,7 +1532,7 @@ def _write_imageusb_image(
             lines,
             progress_ratio=ratio,
             animate=False,
-            title_icon=WRITE_ICON,
+            title_icon=title_icon,
         )
         time.sleep(0.1)
     thread.join()
@@ -1488,7 +1542,7 @@ def _write_imageusb_image(
         lines,
         progress_ratio=ratio,
         animate=False,
-        title_icon=WRITE_ICON,
+        title_icon=title_icon,
     )
     if "error" in error_holder:
         error = error_holder["error"]
@@ -1496,7 +1550,7 @@ def _write_imageusb_image(
         screens.wait_for_paginated_input(
             "WRITE BIN",
             ["FAILED", str(error)],
-            title_icon=WRITE_ICON,
+            title_icon=title_icon,
         )
         return
     elapsed_seconds = time.monotonic() - start_time
@@ -1520,5 +1574,6 @@ def _write_imageusb_image(
         "WRITE BIN",
         "SUCCESS",
         extra_lines=summary_lines,
+        title_icon=title_icon,
     )
     screens.wait_for_ack()

@@ -14,6 +14,8 @@ def render_status_template(
     *,
     progress_line: Optional[str] = None,
     extra_lines: Optional[Iterable[str]] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font=None,
     title_font=None,
     body_font=None,
 ) -> None:
@@ -28,6 +30,8 @@ def render_status_template(
         page_index=0,
         title_font=title_font,
         items_font=body_font,
+        title_icon=title_icon,
+        title_icon_font=title_icon_font,
     )
 
 
@@ -58,6 +62,8 @@ def render_status_screen(
     *,
     progress_line: Optional[str] = None,
     extra_lines: Optional[Iterable[str]] = None,
+    title_icon: Optional[str] = None,
+    title_icon_font=None,
     title_font=None,
     body_font=None,
 ) -> None:
@@ -66,6 +72,8 @@ def render_status_screen(
         status,
         progress_line=progress_line,
         extra_lines=extra_lines,
+        title_icon=title_icon,
+        title_icon_font=title_icon_font,
         title_font=title_font,
         body_font=body_font,
     )
