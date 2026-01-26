@@ -96,9 +96,9 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                     fetch.stdout,
                     f"git fetch rc={fetch.returncode}",
                 )
-                log.debug(
-                    "Update status check: fetch retry failed "
-                    f"{fetch.returncode} hint={error_hint!r}",
+                log.warning(
+                    "Update check failed: git fetch retry failed "
+                    f"rc={fetch.returncode} stderr={fetch.stderr!r} hint={error_hint!r}",
                     component="update_manager",
                 )
                 return "Unable to check", None, error_hint
@@ -108,11 +108,12 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             )
             upstream_ref = upstream.stdout.strip()
             if upstream.returncode != 0 or not upstream_ref:
-                log.debug(
-                    "Update status check: upstream missing after retry",
+                log.warning(
+                    "Update check failed: no upstream branch configured "
+                    f"rc={upstream.returncode} stdout={upstream.stdout!r} stderr={upstream.stderr!r}",
                     component="update_manager",
                 )
-                return "Unable to check", None, ""
+                return "Unable to check", None, "No upstream branch"
             behind = run_command(
                 ["git", "rev-list", "--count", "HEAD..@{u}"],
                 cwd=repo_root,
@@ -123,9 +124,9 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                     behind.stdout,
                     f"git rev-list rc={behind.returncode}",
                 )
-                log.debug(
-                    "Update status check: rev-list failed after retry "
-                    f"hint={error_hint!r}",
+                log.warning(
+                    "Update check failed: git rev-list failed after retry "
+                    f"rc={behind.returncode} stderr={behind.stderr!r} hint={error_hint!r}",
                     component="update_manager",
                 )
                 return "Unable to check", None, error_hint
@@ -139,9 +140,9 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 status = "Update available" if behind_count > 0 else "Up to date"
                 return status, behind_count, ""
             return "Up to date", None, ""
-        log.debug(
-            "Update status check: fetch failed "
-            f"{fetch.returncode} hint={error_hint!r}",
+        log.warning(
+            "Update check failed: git fetch failed "
+            f"rc={fetch.returncode} stderr={fetch.stderr!r} hint={error_hint!r}",
             component="update_manager",
         )
         return "Unable to check", None, error_hint
@@ -163,8 +164,9 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             behind.stdout,
             f"git rev-list rc={behind.returncode}",
         )
-        log.debug(
-            f"Update status check: rev-list failed hint={error_hint!r}",
+        log.warning(
+            "Update check failed: git rev-list failed "
+            f"rc={behind.returncode} stderr={behind.stderr!r} hint={error_hint!r}",
             component="update_manager",
         )
         return "Unable to check", None, error_hint
