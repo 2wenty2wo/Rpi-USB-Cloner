@@ -480,7 +480,9 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
 
             repos = image_repo.find_image_repos()
             image_list = []
+            repo_stats = {}
             for repo in repos:
+                repo_stats[str(repo.path)] = image_repo.get_repo_usage(repo)
                 for image in image_repo.list_clonezilla_images(repo.path):
                     image_list.append(
                         {
@@ -491,7 +493,7 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                         }
                     )
 
-            await ws.send_json({"images": image_list})
+            await ws.send_json({"images": image_list, "repo_stats": repo_stats})
             await asyncio.sleep(2.0)
 
     except asyncio.CancelledError:
