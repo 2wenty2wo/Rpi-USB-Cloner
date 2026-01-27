@@ -12,6 +12,43 @@ from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
 from rpi_usb_cloner.web import server as web_server
 
 
+def validate_restore_partition_mode(mode: str) -> str:
+    """Validate Clonezilla restore partition mode."""
+    valid_modes = {"k0", "k", "k1", "k2"}
+    if mode not in valid_modes:
+        valid_list = ", ".join(sorted(valid_modes))
+        raise ValueError(
+            f"Invalid restore partition mode: {mode}. Expected: {valid_list}."
+        )
+    return mode
+
+
+def apply_restore_partition_mode(mode: str) -> None:
+    """Persist the restore partition mode to settings."""
+    validated = validate_restore_partition_mode(mode)
+    settings.set_setting("restore_partition_mode", validated)
+
+
+def validate_transition_settings(frames: int, delay: float) -> None:
+    """Validate transition settings values."""
+    valid_pairs = {(2, 0.0), (3, 0.005), (4, 0.01)}
+    if (frames, delay) not in valid_pairs:
+        valid_list = ", ".join(
+            f"{pair[0]}@{pair[1]:.3f}s" for pair in sorted(valid_pairs)
+        )
+        raise ValueError(
+            "Invalid transition settings: "
+            f"frames={frames}, delay={delay}. Expected one of: {valid_list}."
+        )
+
+
+def apply_transition_settings(frames: int, delay: float) -> None:
+    """Persist transition settings to configuration."""
+    validate_transition_settings(frames, delay)
+    settings.set_setting("transition_frame_count", frames)
+    settings.set_setting("transition_frame_delay", delay)
+
+
 def coming_soon() -> None:
     """Display coming soon screen."""
     screens.show_coming_soon(title="SETTINGS")
@@ -47,7 +84,7 @@ def select_restore_partition_mode() -> None:
     if selection is None:
         return
     selected_value, selected_label = options[selection]
-    settings.set_setting("restore_partition_mode", selected_value)
+    apply_restore_partition_mode(selected_value)
     screens.render_status_template("RESTORE PT", f"Set: {selected_label}")
     time.sleep(1.5)
 
@@ -246,8 +283,7 @@ def select_transition_speed() -> None:
     if selection is None:
         return
     label, frames, delay = options[selection]
-    settings.set_setting("transition_frame_count", frames)
-    settings.set_setting("transition_frame_delay", delay)
+    apply_transition_settings(frames, delay)
     screens.render_status_template("TRANSITIONS", f"Set: {label}")
     time.sleep(1.5)
 

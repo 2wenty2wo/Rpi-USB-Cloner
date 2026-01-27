@@ -2,7 +2,7 @@
 
 import sys
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
@@ -120,20 +120,6 @@ def shutdown_system() -> None:
         time.sleep(1)
 
 
-def confirm_power_action(
-    title: str,
-    action_label: str,
-) -> bool:
-    """Confirm a power action with the user."""
-    prompt = f"Are you sure you want to {action_label.lower()}?"
-    confirmed = confirm_action(title, prompt)
-    log.debug(
-        f"Power action confirmation {action_label}: confirmed={confirmed}",
-        component="power",
-    )
-    return confirmed
-
-
 def confirm_action(
     title: str,
     prompt: str,
@@ -181,3 +167,24 @@ def confirm_action(
             title_icon=title_icon,
         )
         time.sleep(menus.BUTTON_POLL_DELAY)
+
+
+def build_power_action_prompt(action_label: str) -> str:
+    """Build confirmation prompt for power actions."""
+    return f"Are you sure you want to {action_label.lower()}?"
+
+
+def confirm_power_action(
+    title: str,
+    action_label: str,
+    *,
+    confirm_callback: Callable[[str, str], bool] = confirm_action,
+) -> bool:
+    """Confirm a power action with the user."""
+    prompt = build_power_action_prompt(action_label)
+    confirmed = confirm_callback(title, prompt)
+    log.debug(
+        f"Power action confirmation {action_label}: confirmed={confirmed}",
+        component="power",
+    )
+    return confirmed
