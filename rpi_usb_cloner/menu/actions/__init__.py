@@ -43,7 +43,6 @@ from .drives import (  # noqa: E402
     format_drive,
     unmount_drive,
 )
-from .transfer import copy_images_network, copy_images_usb, wifi_direct_host, wifi_direct_join  # noqa: E402
 from .images import (  # noqa: E402
     backup_image,
     images_coming_soon,
@@ -78,6 +77,12 @@ from .settings import (  # noqa: E402
     wifi_settings,
 )
 from .tools import file_browser, system_info, tools_coming_soon, view_logs  # noqa: E402
+from .transfer import (  # noqa: E402
+    copy_images_network,
+    copy_images_usb,
+    wifi_direct_host,
+    wifi_direct_join,
+)
 
 
 # Common utility (used by all action modules)

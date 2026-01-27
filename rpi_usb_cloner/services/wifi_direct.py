@@ -9,17 +9,15 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from rpi_usb_cloner.logging import get_logger
+
 
 log = get_logger(source=__name__)
 
 
 class WiFiDirectError(Exception):
     """Raised when WiFi Direct operations fail."""
-
-    pass
 
 
 @dataclass
@@ -102,8 +100,8 @@ class WiFiDirectService:
             log.info(f"Started as Group Owner on {self.p2p_interface}")
             return self.p2p_interface
 
-        except subprocess.TimeoutExpired:
-            raise WiFiDirectError("P2P group creation timed out")
+        except subprocess.TimeoutExpired as exc:
+            raise WiFiDirectError("P2P group creation timed out") from exc
 
     def stop_group_owner(self) -> None:
         """Stop P2P group and cleanup."""
@@ -151,7 +149,11 @@ class WiFiDirectService:
 
             # Get peers
             peers_output = self._run_wpa_cli("p2p_peers")
-            peer_addresses = [addr.strip() for addr in peers_output.strip().split("\n") if addr.strip()]
+            peer_addresses = [
+                addr.strip()
+                for addr in peers_output.strip().split("\n")
+                if addr.strip()
+            ]
 
             peers = []
             for addr in peer_addresses:
@@ -276,7 +278,9 @@ class WiFiDirectService:
 
         log.debug(f"Running: {' '.join(full_cmd)}")
 
-        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            full_cmd, capture_output=True, text=True, timeout=timeout
+        )
 
         output = result.stdout.strip()
         if result.returncode != 0:
@@ -293,7 +297,9 @@ class WiFiDirectService:
         start = time.time()
         while time.time() - start < timeout:
             try:
-                result = subprocess.run(["ip", "link", "show"], capture_output=True, text=True, timeout=5)
+                result = subprocess.run(
+                    ["ip", "link", "show"], capture_output=True, text=True, timeout=5
+                )
 
                 # Look for p2p-wlan0-X pattern
                 match = re.search(r"(p2p-\w+-\d+)", result.stdout)
@@ -349,7 +355,9 @@ class WiFiDirectService:
                 "--no-daemon",
             ]
 
-            self._dnsmasq_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._dnsmasq_process = subprocess.Popen(
+                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
 
             log.info("Started dnsmasq DHCP server")
 

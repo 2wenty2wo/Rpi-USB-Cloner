@@ -15,6 +15,7 @@ from zeroconf import ServiceBrowser, ServiceInfo, ServiceStateChange, Zeroconf
 
 from rpi_usb_cloner.logging import get_logger
 
+
 log = get_logger(source=__name__)
 
 # Service type for Pi USB Cloner transfers
@@ -128,7 +129,10 @@ class DiscoveryService:
         self._on_update_callback = on_update
 
         def on_service_state_change(
-            zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange
+            zeroconf: Zeroconf,
+            service_type: str,
+            name: str,
+            state_change: ServiceStateChange,
         ) -> None:
             """Handler for service discovery events."""
             if state_change == ServiceStateChange.Added:
@@ -139,20 +143,24 @@ class DiscoveryService:
                         # Filter out self
                         self._discovered_peers[name] = peer
                         log.info(f"Discovered peer: {peer.hostname} at {peer.address}")
-                        
+
                         if self._on_update_callback:
-                            self._on_update_callback(list(self._discovered_peers.values()))
+                            self._on_update_callback(
+                                list(self._discovered_peers.values())
+                            )
 
             elif state_change == ServiceStateChange.Removed:
                 if name in self._discovered_peers:
                     removed = self._discovered_peers.pop(name)
                     log.info(f"Peer removed: {removed.hostname}")
-                    
+
                     if self._on_update_callback:
                         self._on_update_callback(list(self._discovered_peers.values()))
 
         # Start browsing
-        self._browser = ServiceBrowser(self.zeroconf, SERVICE_TYPE, handlers=[on_service_state_change])
+        self._browser = ServiceBrowser(
+            self.zeroconf, SERVICE_TYPE, handlers=[on_service_state_change]
+        )
 
         # Wait for discovery
         import time
@@ -195,22 +203,31 @@ class DiscoveryService:
             address = socket.inet_ntoa(info.addresses[0])
 
             # Parse TXT records
-            txt_records = {}
+            txt_records: dict[str, str] = {}
             if info.properties:
-                for key, value in info.properties.items():
-                    if isinstance(key, bytes):
-                        key = key.decode("utf-8")
-                    if isinstance(value, bytes):
-                        value = value.decode("utf-8")
+                for raw_key, raw_value in info.properties.items():
+                    key = (
+                        raw_key.decode("utf-8")
+                        if isinstance(raw_key, bytes)
+                        else str(raw_key)
+                    )
+                    if raw_value is None:
+                        value = ""
+                    elif isinstance(raw_value, bytes):
+                        value = raw_value.decode("utf-8")
+                    else:
+                        value = str(raw_value)
                     txt_records[key] = value
 
             device_id = txt_records.get("device_id", "unknown")
-            hostname = txt_records.get("hostname", info.server.rstrip("."))
+            server_name = info.server or ""
+            hostname = txt_records.get("hostname") or server_name.rstrip(".") or "unknown"
+            port = info.port or SERVICE_PORT
 
             return PeerDevice(
                 hostname=hostname,
                 address=address,
-                port=info.port,
+                port=port,
                 device_id=device_id,
                 txt_records=txt_records,
             )

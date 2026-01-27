@@ -42,6 +42,7 @@ Example:
     >>> success = format_device(device, "vfat", "quick", label="BACKUP")
 """
 
+import contextlib
 import os
 import re
 import select
@@ -106,42 +107,50 @@ def _create_partition_table(device_path: str) -> bool:
     retry_delays = [2, 4, 6]  # Increasing delays between retries
 
     for attempt in range(max_retries):
-        log.debug(f"Creating MBR partition table on {device_path} (attempt {attempt + 1}/{max_retries})")
-        
+        log.debug(
+            f"Creating MBR partition table on {device_path} (attempt {attempt + 1}/{max_retries})"
+        )
+
         # Use check=False to capture stderr without raising exception immediately
         result = run_command(
             ["parted", "-s", device_path, "mklabel", "msdos"],
             check=False,
             log_command=False,  # We're logging it ourselves
         )
-        
+
         if result.returncode == 0:
             log.debug("Partition table created successfully")
             return True
-        
+
         # Log the actual error from parted
         stderr_msg = result.stderr.strip() if result.stderr else "no error message"
         stdout_msg = result.stdout.strip() if result.stdout else ""
-        log.error(f"parted failed (attempt {attempt + 1}/{max_retries}): stderr='{stderr_msg}' stdout='{stdout_msg}' rc={result.returncode}")
-        
+        log.error(
+            f"parted failed (attempt {attempt + 1}/{max_retries}): stderr='{stderr_msg}' stdout='{stdout_msg}' rc={result.returncode}"
+        )
+
         if attempt < max_retries - 1:
             # Device might still be busy, wait and retry
             delay = retry_delays[attempt]
             log.debug(f"Retrying in {delay} seconds...")
-            
+
             # Try to settle the device before retry
-            for cmd in (["sync"], ["partprobe", device_path], ["udevadm", "settle", "--timeout=5"]):
+            for cmd in (
+                ["sync"],
+                ["partprobe", device_path],
+                ["udevadm", "settle", "--timeout=5"],
+            ):
                 if shutil.which(cmd[0]):
-                    try:
+                    with contextlib.suppress(subprocess.CalledProcessError, OSError):
                         run_command(cmd, log_command=False)
-                    except (subprocess.CalledProcessError, OSError):
-                        pass
-            
+
             time.sleep(delay)
         else:
-            log.error(f"All {max_retries} attempts failed to create partition table on {device_path}")
+            log.error(
+                f"All {max_retries} attempts failed to create partition table on {device_path}"
+            )
             return False
-    
+
     return False
 
 
@@ -158,25 +167,27 @@ def _create_partition(device_path: str) -> bool:
         log.debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
         run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
-        
+
         # Aggressively notify kernel of partition changes
-        for cmd in (["sync"], ["partprobe", device_path], ["udevadm", "settle", "--timeout=10"]):
+        for cmd in (
+            ["sync"],
+            ["partprobe", device_path],
+            ["udevadm", "settle", "--timeout=10"],
+        ):
             if shutil.which(cmd[0]):
-                try:
+                with contextlib.suppress(subprocess.CalledProcessError, OSError):
                     run_command(cmd, log_command=False)
-                except (subprocess.CalledProcessError, OSError):
-                    pass
-                    
+
         # Wait for partition device node to appear (up to 5 seconds)
         partition_suffix = "p" if device_path[-1].isdigit() else ""
         partition_path = f"{device_path}{partition_suffix}1"
-        
-        for i in range(10):
-            if os.path.exists(partition_path):
+
+        for _ in range(10):
+            if os.path.exists(partition_path):  # noqa: PTH110
                 log.debug(f"Partition node found: {partition_path}")
                 return True
             time.sleep(0.5)
-            
+
         log.error(f"Partition node {partition_path} did not appear after creation")
         return False
     except subprocess.CalledProcessError as error:
@@ -285,7 +296,9 @@ def _format_filesystem(
         returncode = process.wait()
 
         if returncode != 0:
-            stderr_output = process.stderr.read() if process.stderr else "no error message"
+            stderr_output = (
+                process.stderr.read() if process.stderr else "no error message"
+            )
             log.error(f"Format command failed with code {returncode}")
             log.error(f"Command: {' '.join(command)}")
             log.error(f"Error output: {stderr_output.strip()}")
@@ -455,15 +468,31 @@ def format_device(
         try:
             log.debug(f"Telling udisks2 to unmount {device_path} and all partitions")
             # Unmount the base device (will fail if not mounted, which is fine)
-            run_command(["udisksctl", "unmount", "-b", device_path, "--no-user-interaction"], check=False, log_command=False)
+            run_command(
+                ["udisksctl", "unmount", "-b", device_path, "--no-user-interaction"],
+                check=False,
+                log_command=False,
+            )
             # Unmount all potential partitions
             partition_suffix = "p" if device_name[-1].isdigit() else ""
             for i in range(1, 9):  # Check up to 8 partitions
                 potential_partition = f"{device_path}{partition_suffix}{i}"
-                run_command(["udisksctl", "unmount", "-b", potential_partition, "--no-user-interaction"], check=False, log_command=False)
+                run_command(
+                    [
+                        "udisksctl",
+                        "unmount",
+                        "-b",
+                        potential_partition,
+                        "--no-user-interaction",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
             time.sleep(1)
         except Exception as error:
-            log.debug(f"udisksctl unmount operations failed (continuing anyway): {error}")
+            log.debug(
+                f"udisksctl unmount operations failed (continuing anyway): {error}"
+            )
 
     # Aggressively release device from any processes holding it open
     # First, check and unmount any partitions that might have been re-mounted
@@ -474,30 +503,34 @@ def format_device(
         partition_suffixes = ["1", "2", "3", "4", ""]
     for partition_suffix in partition_suffixes:
         candidate_partition_path = f"{device_pattern}{partition_suffix}"
-        try:
+        with contextlib.suppress(Exception):
             # Try to unmount each potential partition
             result = run_command(
                 ["umount", candidate_partition_path], check=False, log_command=False
             )
             if result.returncode == 0:
                 log.debug(f"Unmounted {candidate_partition_path}")
-        except Exception:
-            pass
-    
+
     # Kill any processes using the device or its partitions
     if shutil.which("fuser"):
         # First check what's using the device
         try:
-            result = run_command(["fuser", "-m", device_path], check=False, log_command=False)
+            result = run_command(
+                ["fuser", "-m", device_path], check=False, log_command=False
+            )
             if result.stdout.strip():
-                log.warning(f"Device {device_path} is being held by process(es): {result.stdout.strip()}")
+                log.warning(
+                    f"Device {device_path} is being held by process(es): {result.stdout.strip()}"
+                )
                 # Now kill those processes
                 log.debug(f"Killing processes using {device_path}")
-                run_command(["fuser", "-km", device_path], check=False, log_command=False)
+                run_command(
+                    ["fuser", "-km", device_path], check=False, log_command=False
+                )
                 time.sleep(1)  # Give processes time to die
         except Exception as error:
             log.debug(f"fuser check/kill failed: {error}")
-    
+
     # Try to remove any device-mapper mappings (can hold devices open)
     if shutil.which("dmsetup"):
         try:
@@ -506,17 +539,17 @@ def format_device(
             if result.stdout.strip() and "No devices found" not in result.stdout:
                 log.debug("Checking device-mapper for stale mappings")
                 # Try to remove all dm devices (safe - only removes those we can)
-                run_command(["dmsetup", "remove_all", "--force"], check=False, log_command=False)
+                run_command(
+                    ["dmsetup", "remove_all", "--force"], check=False, log_command=False
+                )
         except Exception as error:
             log.debug(f"dmsetup cleanup failed: {error}")
-    
+
     # Final sync and settle before continuing
     for cmd in (["sync"], ["udevadm", "settle", "--timeout=5"]):
         if shutil.which(cmd[0]):
-            try:
+            with contextlib.suppress(subprocess.CalledProcessError, OSError):
                 run_command(cmd, log_command=False)
-            except (subprocess.CalledProcessError, OSError):
-                pass
     time.sleep(1)
 
     # CRITICAL FIX: Delete all existing partitions to release kernel's hold
@@ -524,46 +557,64 @@ def format_device(
     try:
         # IMPORTANT: Unmount again right before deletion since auto-mount may have re-mounted
         log.debug(f"Final unmount before partition deletion from {device_path}")
-        
+
         # Use udisksctl to tell automount to leave us alone
         if shutil.which("udisksctl"):
             for i in range(1, 9):
                 partition_suffix_local = "p" if device_name[-1].isdigit() else ""
                 potential_partition = f"{device_path}{partition_suffix_local}{i}"
-                run_command(["udisksctl", "unmount", "-b", potential_partition, "--no-user-interaction"], check=False, log_command=False)
-        
+                run_command(
+                    [
+                        "udisksctl",
+                        "unmount",
+                        "-b",
+                        potential_partition,
+                        "--no-user-interaction",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
+
         # Also use regular umount
         for i in range(1, 9):
             partition_suffix_local = "p" if device_name[-1].isdigit() else ""
             potential_partition = f"{device_path}{partition_suffix_local}{i}"
             run_command(["umount", potential_partition], check=False, log_command=False)
-        
+
         time.sleep(1)
-        
+
         log.debug(f"Deleting all existing partitions from {device_path}")
         # First, get the current partition table type and partition list
-        result = run_command(["parted", "-s", device_path, "print"], check=False, log_command=False)
-        
+        result = run_command(
+            ["parted", "-s", device_path, "print"], check=False, log_command=False
+        )
+
         # Parse partition numbers and delete them in reverse order
         # Look for lines like " 1      1049kB  15.5GB  15.5GB  ext4"
         if result.returncode == 0:
-            for line in result.stdout.split('\n'):
+            for line in result.stdout.split("\n"):
                 line = line.strip()
                 if line and line[0].isdigit():
                     # Extract partition number (first field)
                     parts = line.split()
                     if parts:
                         partition_num = parts[0]
-                        log.debug(f"Deleting partition {partition_num} from {device_path}")
-                        run_command(["parted", "-s", device_path, "rm", partition_num], check=False)
-            
+                        log.debug(
+                            f"Deleting partition {partition_num} from {device_path}"
+                        )
+                        run_command(
+                            ["parted", "-s", device_path, "rm", partition_num],
+                            check=False,
+                        )
+
             # Force kernel to re-read the (now empty) partition table
-            for cmd in (["partprobe", device_path], ["blockdev", "--rereadpt", device_path]):
+            for cmd in (
+                ["partprobe", device_path],
+                ["blockdev", "--rereadpt", device_path],
+            ):
                 if shutil.which(cmd[0]):
-                    try:
+                    with contextlib.suppress(subprocess.CalledProcessError, OSError):
                         run_command(cmd, check=False, log_command=False)
-                    except:
-                        pass
             time.sleep(2)  # Give kernel time to process
     except Exception as error:
         log.debug(f"Partition deletion failed (continuing anyway): {error}")
@@ -645,14 +696,14 @@ def format_device(
     # Wait an extra moment and verify partition exists again before formatting
     # Sometimes it flickers during creation
     time.sleep(1)
-    if not os.path.exists(partition_path):
+    if not os.path.exists(partition_path):  # noqa: PTH110
         log.error(f"Partition path {partition_path} is missing just before format")
         # Try one last partprobe
         if shutil.which("partprobe"):
             run_command(["partprobe", device_path], check=False)
             time.sleep(1)
-            
-    if not os.path.exists(partition_path):
+
+    if not os.path.exists(partition_path):  # noqa: PTH110
         log.warning(f"Format aborted: partition {partition_path} not found")
         return False
 

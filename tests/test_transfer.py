@@ -4,7 +4,7 @@ This module tests image transfer functionality for USB-to-USB transfers.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
