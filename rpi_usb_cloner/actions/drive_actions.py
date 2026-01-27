@@ -1226,9 +1226,10 @@ def format_drive(
         )
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     else:
-        formatted_label = label or target_name
-        log_operation.info(
-            f"Format completed successfully for {formatted_label}",
+        formatted_label = format_device_label(target)
+        log_operation.debug(
+            "Format completed (action) for {}",
+            formatted_label,
             device=target_name,
             filesystem=filesystem,
             mode=format_type,
