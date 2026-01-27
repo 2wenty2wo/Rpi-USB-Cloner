@@ -107,3 +107,38 @@ def test_selection_toggles_when_moving_right(mocker):
     ]
     render_mock.assert_has_calls(expected_calls)
     assert result is True
+
+
+def test_cancel_with_a_returns_false_even_with_default_yes(mocker):
+    """Pressing the cancel button should return False regardless of default."""
+    render_mock = mocker.patch(
+        "rpi_usb_cloner.ui.screens.confirmation.render_confirmation_screen"
+    )
+    mocker.patch(
+        "rpi_usb_cloner.ui.screens.confirmation.menus.wait_for_buttons_release"
+    )
+    mocker.patch("rpi_usb_cloner.ui.screens.confirmation.time.sleep")
+    sequences = {
+        gpio.PIN_L: [False, False],
+        gpio.PIN_R: [False, False],
+        gpio.PIN_A: [True, False],
+        gpio.PIN_B: [False, False],
+    }
+    mocker.patch(
+        "rpi_usb_cloner.ui.screens.confirmation.gpio.is_pressed",
+        side_effect=_make_is_pressed(sequences),
+    )
+
+    result = confirmation.render_confirmation(
+        Mock(),
+        "CONFIRM",
+        "Proceed?",
+        default=True,
+    )
+
+    render_mock.assert_called_with(
+        "CONFIRM",
+        ["Proceed?"],
+        selected_index=app_state.CONFIRM_YES,
+    )
+    assert result is False
