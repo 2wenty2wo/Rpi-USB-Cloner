@@ -1,9 +1,9 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-01-24
-**Current Overall Coverage**: 34.57%
+**Current Overall Coverage**: ~27-30% (Estimated, automated run unavailable)
 **Files Analyzed**: 85 Python files in `rpi_usb_cloner/`
-**Test Files**: 27 test modules with 962 tests
+**Test Files**: 35 test modules (including `test_menu_navigator.py`)
 
 ## Recent Updates (2026-01-24)
 
@@ -171,34 +171,15 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-### ❌ Priority 3: Menu System (0% coverage)
+### ✅ Priority 3: Menu System (Partially Addressed)
 
 **Files**:
-- `menu/navigator.py` (85 LOC) - 0% ⭐ Critical file
-- `menu/model.py` (17 LOC) - 0%
-- `menu/definitions/*.py` (34 LOC total) - 0%
+- `menu/navigator.py` (85 LOC) - Covered by `test_menu_navigator.py`
+- `menu/model.py` (17 LOC) - Tests needed
+- `menu/definitions/*.py` (34 LOC total) - Tests needed
 
-**Why Important**:
-- Menu navigation is core to user experience
-- Stack-based navigation must not crash or leave orphaned screens
-- Menu item actions must dispatch correctly
-
-**Recommended Tests** (`test_menu_navigator.py`):
-
-```python
-class TestMenuNavigator:
-    def test_navigate_up_wraps_to_bottom()
-    def test_navigate_down_wraps_to_top()
-    def test_select_item_returns_action_name()
-    def test_select_item_returns_none_for_no_action()
-    def test_go_back_pops_menu_stack()
-    def test_go_back_at_root_does_nothing()
-    def test_push_screen_adds_to_stack()
-    def test_menu_stack_maintains_history()
-    def test_current_screen_reflects_top_of_stack()
-```
-
-**Estimated Impact**: +136 LOC covered (1.4% overall coverage increase)
+**Status**:
+- `menu/navigator.py` has a comprehensive test suite `tests/test_menu_navigator.py` with 17 tests covering initialization, navigation, bounds checking, scrolling logic, and stack management.
 
 ---
 
