@@ -2,12 +2,14 @@
 
 import struct
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
 from rpi_usb_cloner.storage.clonezilla.models import DiskLayoutOp
 from rpi_usb_cloner.storage.clonezilla.partition_table import (
+    apply_disk_layout_op,
+    build_partition_mode_layout_ops,
     build_sfdisk_script_from_parted,
     collect_disk_layout_ops,
     estimate_last_lba_from_sgdisk_backup,
@@ -216,6 +218,22 @@ class TestEstimateRequiredSizeBytes:
         size = estimate_required_size_bytes([])
         assert size is None
 
+    def test_estimate_from_sgdisk_backup(self, tmp_path):
+        """Test estimating size from binary sgdisk backup (GPT)."""
+        path = tmp_path / "sda-pt.sgdisk"
+        gpt_header = bytearray(512)
+        gpt_header[0:8] = b"EFI PART"
+        struct.pack_into("<Q", gpt_header, 24, 100)
+        struct.pack_into("<Q", gpt_header, 32, 200)
+        struct.pack_into("<Q", gpt_header, 48, 150)
+        path.write_bytes(bytes(gpt_header))
+
+        op = DiskLayoutOp(kind="pt.sgdisk", path=path, contents=None, size_bytes=512)
+
+        size = estimate_required_size_bytes([op])
+
+        assert size == (200 + 1) * 512
+
 
 class TestEstimateLastLbaFromSgdiskBackup:
     def test_estimate_last_lba_valid_gpt(self, tmp_path):
@@ -279,6 +297,54 @@ class TestNormalizePartitionMode:
     def test_normalize_partition_mode_empty(self):
         """Test normalizing empty string."""
         assert normalize_partition_mode("") == "k0"
+
+
+class TestBuildPartitionModeLayoutOps:
+    def test_build_partition_mode_layout_ops_invalid(self):
+        """Test invalid partition mode raises."""
+        with pytest.raises(RuntimeError, match="Unsupported partition mode"):
+            build_partition_mode_layout_ops([], partition_mode="k3", target_size=None)
+
+    def test_build_partition_mode_layout_ops_k2(self):
+        """Test k2 returns no layout ops."""
+        op = DiskLayoutOp(
+            kind="sfdisk", path=Path("/test"), contents="data", size_bytes=1
+        )
+
+        result = build_partition_mode_layout_ops(
+            [op], partition_mode="k2", target_size=10
+        )
+
+        assert result == []
+
+    def test_build_partition_mode_layout_ops_k0(self):
+        """Test k0 retains original layout ops."""
+        op = DiskLayoutOp(
+            kind="sfdisk", path=Path("/test"), contents="data", size_bytes=1
+        )
+
+        result = build_partition_mode_layout_ops(
+            [op], partition_mode="k0", target_size=10
+        )
+
+        assert result == [op]
+
+    def test_build_partition_mode_layout_ops_k1_scaling(self):
+        """Test k1 uses scaled layout when available."""
+        op = DiskLayoutOp(
+            kind="sfdisk",
+            path=Path("/test"),
+            contents="label: dos\nsector-size: 512\n/dev/sda1 : start=2048, size=10000",
+            size_bytes=100,
+        )
+
+        result = build_partition_mode_layout_ops(
+            [op], partition_mode="k1", target_size=50000 * 512
+        )
+
+        assert len(result) == 1
+        assert result[0].kind == "sfdisk"
+        assert "start=" in result[0].contents
 
 
 class TestParseSfdiskFields:
@@ -412,6 +478,24 @@ class TestScalePartitionGeometry:
         )
 
         assert result is None
+
+
+class TestApplyDiskLayoutOp:
+    @patch("shutil.which")
+    @patch("subprocess.run")
+    def test_apply_disk_layout_op_mbr_failure(self, mock_run, mock_which, tmp_path):
+        """Test mbr apply surfaces dd failure."""
+        mock_which.return_value = "/usr/bin/dd"
+        mock_run.return_value = Mock(
+            returncode=1, stderr="dd error", stdout="", args=["dd", "if=/dev/sda"]
+        )
+
+        path = tmp_path / "sda-mbr"
+        path.write_bytes(b"\x00" * 512)
+        op = DiskLayoutOp(kind="mbr", path=path, contents=None, size_bytes=512)
+
+        with pytest.raises(RuntimeError, match="dd failed"):
+            apply_disk_layout_op(op, "/dev/sdb")
 
 
 class TestParsePartedSector:
