@@ -112,12 +112,13 @@ class FakeDateTime:
 
 
 class FakeTime:
-    def __init__(self, start=0.0, gpio=None, max_sleeps=1):
+    def __init__(self, start=0.0, gpio=None, max_sleeps=1, time_step_multiplier=1.0):
         self.current = start
         self.sleep_calls = []
         self.sleep_count = 0
         self.gpio = gpio
         self.max_sleeps = max_sleeps
+        self.time_step_multiplier = time_step_multiplier
 
     def time(self):
         return self.current
@@ -127,7 +128,7 @@ class FakeTime:
 
     def sleep(self, duration):
         self.sleep_calls.append(duration)
-        self.current += duration
+        self.current += duration * self.time_step_multiplier
         if self.gpio is not None:
             self.gpio.advance()
         self.sleep_count += 1
@@ -358,7 +359,9 @@ class TestMainLoopIntegration:
 
     def test_usb_refresh_interval_triggers(self, monkeypatch):
         fake_gpio = FakeGPIO([{}])
-        fake_time = FakeTime(start=0.0, gpio=fake_gpio, max_sleeps=4)
+        fake_time = FakeTime(
+            start=0.0, gpio=fake_gpio, max_sleeps=2, time_step_multiplier=100.0
+        )
         drive_calls = setup_main_mocks(
             monkeypatch,
             fake_time=fake_time,
@@ -371,7 +374,7 @@ class TestMainLoopIntegration:
         monkeypatch.setattr(
             main.app_state, "AppState", build_fake_state(FakeDateTime.now())
         )
-        monkeypatch.setattr(main.app_state, "USB_REFRESH_INTERVAL", 0.03)
+        monkeypatch.setattr(main.app_state, "USB_REFRESH_INTERVAL", 2.0)
 
         main.main([])
 
@@ -397,6 +400,7 @@ class TestMainLoopIntegration:
             "AppState",
             build_fake_state(FakeDateTime.now() - timedelta(seconds=5)),
         )
+        monkeypatch.setattr(main.app_state, "ENABLE_SLEEP", True)
         monkeypatch.setattr(main.app_state, "SLEEP_TIMEOUT", 0.1)
         screensaver_calls = []
 
