@@ -3,22 +3,31 @@
 **Date**: 2026-01-27
 **Current Overall Coverage**: 39.77% (pytest --cov=rpi_usb_cloner on 2026-01-27)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 39 test modules (including `test_menu_navigator.py`)
+**Test Files**: 43 test modules (including `test_menu_navigator.py`)
 
 ## Recent Updates (2026-01-27)
 
 ✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
 - **1066 tests passed**, 5 skipped (async + clonezilla tooling skips)
 - Overall coverage is now **39.77%** with **11,008 statements** tracked
-- Test inventory confirmed at **39 test modules** (see `tests/test_*.py`)
+- Test inventory confirmed at **43 test modules** (see `tests/test_*.py`)
 
 ✅ **Test inventory highlights** (current module names):
 - `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
-  `tests/test_actions_settings.py`
+  `tests/test_actions_settings.py`, `tests/test_actions_import.py`
+- `tests/test_clone.py`, `tests/test_clone_models.py`,
+  `tests/test_clone_operations.py`, `tests/test_clone_progress.py`,
+  `tests/test_clone_safety.py`
+- `tests/test_clonezilla_backup.py`, `tests/test_clonezilla_restore.py`,
+  `tests/test_clonezilla_verification.py`, `tests/test_clonezilla_models.py`,
+  `tests/test_clonezilla_file_utils.py`, `tests/test_clonezilla_partition_table.py`,
+  `tests/test_clonezilla_image_discovery.py`
 - `tests/test_logging.py`, `tests/test_wifi.py`
 - `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
-  `tests/test_ui_confirmation.py`
-- `tests/test_web_server.py`, `tests/test_main.py`, `tests/test_menu_navigator.py`
+  `tests/test_ui_confirmation.py`, `tests/test_ui_display.py`,
+  `tests/test_ui_keyboard.py`
+- `tests/test_web_server.py`, `tests/test_main.py`, `tests/test_menu_navigator.py`,
+  `tests/test_system_health.py`
 
 ✅ **New coverage improvements**:
 - Added targeted helper tests for action handler selection/validation logic
