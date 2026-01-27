@@ -55,7 +55,7 @@ from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_device_by_name,
     run_command,
-    unmount_device,
+    unmount_device_with_retry,
 )
 from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
@@ -300,6 +300,18 @@ def _format_filesystem(
         return False
 
 
+def _collect_mountpoints(device: dict) -> list[str]:
+    mountpoints: list[str] = []
+    for child in device.get("children", []) or []:
+        mountpoint = child.get("mountpoint")
+        if mountpoint:
+            mountpoints.append(mountpoint)
+    mountpoint = device.get("mountpoint")
+    if mountpoint:
+        mountpoints.append(mountpoint)
+    return mountpoints
+
+
 def format_device(
     device: dict,
     filesystem: str,
@@ -367,19 +379,35 @@ def format_device(
     try:
         if progress_callback:
             progress_callback(["Unmounting..."], 0.0)
-        if not unmount_device(device):
-            log.debug("Failed to unmount device; aborting format")
-            log.warning("Format aborted: failed to unmount %s", device_label)
-            if progress_callback:
-                progress_callback(["Unmount failed"], None)
-            return False
+        unmount_success, used_lazy_unmount = unmount_device_with_retry(
+            device, log_debug=log.debug
+        )
     except Exception as error:
         log.debug(f"Failed to unmount device: {error}")
         log.error("Format aborted: unmount failed for %s: %s", device_label, error)
         return False
 
+    refreshed_device = get_device_by_name(device_name) or device
+
+    if not unmount_success:
+        mountpoints = _collect_mountpoints(refreshed_device)
+        mountpoints_label = ", ".join(mountpoints) if mountpoints else "none"
+        log.debug(
+            "Failed to unmount %s (lazy used=%s). Active mountpoints: %s",
+            device_label,
+            used_lazy_unmount,
+            mountpoints_label,
+        )
+        log.warning(
+            "Format aborted: device still mounted for %s (mountpoints: %s)",
+            device_label,
+            mountpoints_label,
+        )
+        if progress_callback:
+            progress_callback(["Device still mounted"], None)
+        return False
+
     try:
-        refreshed_device = get_device_by_name(device_name) or device
         validate_device_unmounted(refreshed_device)
     except (DeviceBusyError, MountVerificationError) as error:
         log.debug(f"Format aborted: {error}")
