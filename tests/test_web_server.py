@@ -1,9 +1,9 @@
 """Tests for web server module."""
 
+import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 from aiohttp import web
 
 from rpi_usb_cloner.app.context import LogEntry
@@ -105,28 +105,26 @@ class TestLogSerialization:
 class TestRequestHandlers:
     """Test basic HTTP request handlers."""
 
-    @pytest.mark.asyncio
-    async def test_handle_root(self):
+    def test_handle_root(self):
         """Test root endpoint returns HTML template."""
         request = Mock()
         # Mock template loading
         with patch(
             "rpi_usb_cloner.web.server._load_template", return_value="<html></html>"
         ):
-            response = await server.handle_root(request)
+            response = asyncio.run(server.handle_root(request))
             assert response.status == 200
             assert response.content_type == "text/html"
             assert response.text == "<html></html>"
             assert "Cache-Control" in response.headers
 
-    @pytest.mark.asyncio
-    async def test_handle_screen_png(self):
+    def test_handle_screen_png(self):
         """Test PNG endpoint returns image bytes."""
         request = Mock()
         with patch(
             "rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"pngdata"
         ):
-            response = await server.handle_screen_png(request)
+            response = asyncio.run(server.handle_screen_png(request))
             assert response.status == 200
             assert response.content_type == "image/png"
             assert response.body == b"pngdata"
@@ -135,8 +133,7 @@ class TestRequestHandlers:
 class TestSocketHandlers:
     """Test WebSocket handlers."""
 
-    @pytest.mark.asyncio
-    async def test_control_ws_handles_valid_buttons(self):
+    def test_control_ws_handles_valid_buttons(self):
         """Test control WS accepts valid button commands."""
         # Setup mock request and websocket
         request = Mock()
@@ -152,11 +149,6 @@ class TestSocketHandlers:
         msg1 = Mock()
         msg1.type = web.WSMsgType.TEXT
         msg1.data = '{"button": "UP"}'
-
-        # Make the mock iterable (async for message in ws)
-        # Using a side effect to yield messages then stop
-        async def message_generator():
-            yield msg1
 
         # We can't easily mock async iteration of the object itself if it's not designed for it
         # But we can assume the handler calls `async for msg in ws`
