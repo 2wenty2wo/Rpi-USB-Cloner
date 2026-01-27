@@ -129,7 +129,10 @@ class TestVerifyRestoredImage:
         mock_which.return_value = "/usr/bin/sha256sum"
         mock_get_device.return_value = {"name": "sdb"}
         mock_unmount.return_value = True
-        mock_get_children.return_value = [{"name": "sdb1", "type": "part"}]
+        mock_get_children.return_value = [
+            {"name": "sdb1", "type": "part"},
+            {"name": "sdb2", "type": "part"},
+        ]
         mock_image_hash.return_value = "abc123"
         mock_partition_hash.return_value = "deadbeef"
 
