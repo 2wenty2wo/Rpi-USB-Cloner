@@ -470,7 +470,6 @@ def format_device(
                 log.debug("Checking device-mapper for stale mappings")
                 # Try to remove all dm devices (safe - only removes those we can)
                 run_command(["dmsetup", "remove_all", "--force"], check=False, log_command=False)
-                time.sleep(1)
         except Exception as error:
             log.debug(f"dmsetup cleanup failed: {error}")
     
@@ -482,6 +481,37 @@ def format_device(
             except (subprocess.CalledProcessError, OSError):
                 pass
     time.sleep(1)
+
+    # CRITICAL FIX: Delete all existing partitions to release kernel's hold
+    # This is THE KEY - parted can't create a new table if old partitions are registered
+    try:
+        log.debug(f"Deleting all existing partitions from {device_path}")
+        # First, get the current partition table type and partition list
+        result = run_command(["parted", "-s", device_path, "print"], check=False, log_command=False)
+        
+        # Parse partition numbers and delete them in reverse order
+        # Look for lines like " 1      1049kB  15.5GB  15.5GB  ext4"
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                line = line.strip()
+                if line and line[0].isdigit():
+                    # Extract partition number (first field)
+                    parts = line.split()
+                    if parts:
+                        partition_num = parts[0]
+                        log.debug(f"Deleting partition {partition_num} from {device_path}")
+                        run_command(["parted", "-s", device_path, "rm", partition_num], check=False)
+            
+            # Force kernel to re-read the (now empty) partition table
+            for cmd in (["partprobe", device_path], ["blockdev", "--rereadpt", device_path]):
+                if shutil.which(cmd[0]):
+                    try:
+                        run_command(cmd, check=False, log_command=False)
+                    except:
+                        pass
+            time.sleep(2)  # Give kernel time to process
+    except Exception as error:
+        log.debug(f"Partition deletion failed (continuing anyway): {error}")
 
     # Wipe filesystem signatures to prevent parted confusion
     # This is critical - old signatures can cause parted to fail
