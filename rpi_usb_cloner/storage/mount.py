@@ -239,9 +239,7 @@ def unmount_block_device(partition: str) -> None:
             ["umount", partition], check=True, capture_output=True, text=True
         )
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Failed to unmount {partition}: {e.stderr.strip()}"
-        ) from e
+        raise RuntimeError(f"Failed to unmount {partition}: {e.stderr.strip()}") from e
 
 
 def mount(device: str, name: Optional[str] = None) -> None:
