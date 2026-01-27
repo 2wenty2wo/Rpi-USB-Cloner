@@ -221,7 +221,9 @@ class DiscoveryService:
 
             device_id = txt_records.get("device_id", "unknown")
             server_name = info.server or ""
-            hostname = txt_records.get("hostname") or server_name.rstrip(".") or "unknown"
+            hostname = (
+                txt_records.get("hostname") or server_name.rstrip(".") or "unknown"
+            )
             port = info.port or SERVICE_PORT
 
             return PeerDevice(

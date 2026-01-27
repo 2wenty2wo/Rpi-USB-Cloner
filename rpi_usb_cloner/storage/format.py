@@ -722,7 +722,7 @@ def format_device(
 
     if post_partition_mountpoint:
         log.info(
-            "Detected post-partition auto-mount for %s at %s; unmounting",
+            "Detected post-partition auto-mount for {} at {}; unmounting",
             partition_path,
             post_partition_mountpoint,
         )
