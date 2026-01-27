@@ -42,6 +42,7 @@ Example:
     >>> success = format_device(device, "vfat", "quick", label="BACKUP")
 """
 
+import os
 import re
 import select
 import shutil
@@ -122,7 +123,7 @@ def _create_partition_table(device_path: str) -> bool:
             log.debug(f"Retrying in {delay} seconds...")
             
             # Try to settle the device before retry
-            for cmd in (["sync"], ["udevadm", "settle", "--timeout=5"]):
+            for cmd in (["sync"], ["partprobe", device_path], ["udevadm", "settle", "--timeout=5"]):
                 if shutil.which(cmd[0]):
                     try:
                         run_command(cmd, log_command=False)
@@ -150,9 +151,27 @@ def _create_partition(device_path: str) -> bool:
         log.debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
         run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
-        # Wait for partition device node to appear
-        time.sleep(1)
-        return True
+        
+        # Aggressively notify kernel of partition changes
+        for cmd in (["sync"], ["partprobe", device_path], ["udevadm", "settle", "--timeout=10"]):
+            if shutil.which(cmd[0]):
+                try:
+                    run_command(cmd, log_command=False)
+                except (subprocess.CalledProcessError, OSError):
+                    pass
+                    
+        # Wait for partition device node to appear (up to 5 seconds)
+        partition_suffix = "p" if device_path[-1].isdigit() else ""
+        partition_path = f"{device_path}{partition_suffix}1"
+        
+        for i in range(10):
+            if os.path.exists(partition_path):
+                log.debug(f"Partition node found: {partition_path}")
+                return True
+            time.sleep(0.5)
+            
+        log.error(f"Partition node {partition_path} did not appear after creation")
+        return False
     except subprocess.CalledProcessError as error:
         log.debug(f"Failed to create partition: {error}")
         return False
@@ -259,8 +278,10 @@ def _format_filesystem(
         returncode = process.wait()
 
         if returncode != 0:
-            stderr_output = process.stderr.read() if process.stderr else ""
-            log.debug(f"Format failed: {stderr_output}")
+            stderr_output = process.stderr.read() if process.stderr else "no error message"
+            log.error(f"Format command failed with code {returncode}")
+            log.error(f"Command: {' '.join(command)}")
+            log.error(f"Error output: {stderr_output.strip()}")
             return False
 
         log.debug(f"Successfully formatted {partition_path} as {filesystem}")
@@ -463,7 +484,7 @@ def format_device(
 
     if not _create_partition_table(device_path):
         log.warning(
-            "Format aborted: failed to create partition table on {}", device_label
+            f"Format aborted: failed to create partition table on {device_label}"
         )
         return False
 
@@ -472,7 +493,21 @@ def format_device(
         progress_callback(["Creating partition..."], 0.3)
 
     if not _create_partition(device_path):
-        log.warning("Format aborted: failed to create partition on %s", device_label)
+        log.warning(f"Format aborted: failed to create partition on {device_label}")
+        return False
+
+    # Wait an extra moment and verify partition exists again before formatting
+    # Sometimes it flickers during creation
+    time.sleep(1)
+    if not os.path.exists(partition_path):
+        log.error(f"Partition path {partition_path} is missing just before format")
+        # Try one last partprobe
+        if shutil.which("partprobe"):
+            run_command(["partprobe", device_path], check=False)
+            time.sleep(1)
+            
+    if not os.path.exists(partition_path):
+        log.warning(f"Format aborted: partition {partition_path} not found")
         return False
 
     # Format filesystem
@@ -480,9 +515,7 @@ def format_device(
         partition_path, filesystem, mode, label, progress_callback
     ):
         log.warning(
-            "Format aborted: filesystem format failed on %s (%s)",
-            device_label,
-            filesystem,
+            f"Format aborted: filesystem format failed on {device_label} ({filesystem})"
         )
         return False
 
