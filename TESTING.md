@@ -232,7 +232,6 @@ tests/
 ├── test_actions_image.py    # Image action tests
 ├── test_actions_import.py   # Import action tests
 ├── test_actions_settings.py # Settings action tests
-├── test_devices.py          # Device detection and management tests
 ├── test_clone.py            # Clone operation tests
 ├── test_clone_models.py     # Clone domain model tests
 ├── test_clone_operations.py # Clone operations tests
@@ -244,7 +243,9 @@ tests/
 ├── test_clonezilla_models.py # Clonezilla model tests
 ├── test_clonezilla_partition_table.py # Clonezilla partition table tests
 ├── test_clonezilla_restore.py # Clonezilla restore tests
+├── test_clonezilla_verification.py # Clonezilla verification tests
 ├── test_command_runners.py  # Command runner tests
+├── test_devices.py          # Device detection and management tests
 ├── test_domain_models.py    # Domain model tests
 ├── test_erase.py            # Device erase tests
 ├── test_exceptions.py       # Custom exception tests
@@ -260,9 +261,11 @@ tests/
 ├── test_services_drives.py  # Drive service tests
 ├── test_settings.py         # Settings management tests
 ├── test_system_health.py    # System health monitoring tests
+├── test_ui_confirmation.py  # Confirmation dialog tests
+├── test_ui_display.py       # Display UI tests
+├── test_ui_keyboard.py      # Keyboard UI tests
 ├── test_ui_renderer.py      # UI renderer tests
 ├── test_ui_progress.py      # Progress screen tests
-├── test_ui_confirmation.py  # Confirmation dialog tests
 ├── test_validation.py       # Validation helper tests
 ├── test_verification.py     # Verification workflow tests
 ├── test_wifi.py             # Wi-Fi service tests
