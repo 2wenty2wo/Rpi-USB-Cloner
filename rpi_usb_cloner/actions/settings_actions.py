@@ -64,6 +64,10 @@ _EXPORTS = {
         "rpi_usb_cloner.actions.settings.ui_actions",
         "preview_title_font",
     ),
+    "preview_screensaver": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "preview_screensaver",
+    ),
     "toggle_screenshots": (
         "rpi_usb_cloner.actions.settings.ui_actions",
         "toggle_screenshots",
