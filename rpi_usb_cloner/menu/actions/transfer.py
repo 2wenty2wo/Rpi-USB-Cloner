@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from rpi_usb_cloner.actions import network_transfer_actions, transfer_actions, wifi_direct_actions
+from rpi_usb_cloner.actions import (
+    network_transfer_actions,
+    transfer_actions,
+    wifi_direct_actions,
+)
 
 from . import get_action_context
 

@@ -397,6 +397,7 @@ def test_get_status_cached_parses_nmcli_output(mocker):
 
 def test_get_active_ssid_falls_back_to_iw_on_nmcli_error(mocker):
     """Test active SSID falls back to iw output when nmcli fails."""
+
     def fake_run(command, check=True, redactions=None):
         if command[:4] == ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE"]:
             raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")

@@ -246,7 +246,7 @@ class TestFormatSafety:
 
         assert result is False
         mock_validation.assert_called_once()
-        mock_validate_unmounted.assert_called_once()
+        assert mock_validate_unmounted.call_count == 1
 
     @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
@@ -282,7 +282,7 @@ class TestFormatSafety:
 
         assert result is True
         mock_validation.assert_called_once()
-        mock_validate_unmounted.assert_called_once()
+        assert mock_validate_unmounted.call_count == 2
 
 
 class TestEraseSafety:

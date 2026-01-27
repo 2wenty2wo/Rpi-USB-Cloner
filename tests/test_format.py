@@ -70,10 +70,7 @@ class TestCreatePartitionTable:
         format_module._create_partition_table("/dev/sda")
 
         # Verify error was logged via LoggerFactory at ERROR level
-        assert any(
-            "parted failed" in str(call)
-            for call in mock_log.call_args_list
-        )
+        assert any("parted failed" in str(call) for call in mock_log.call_args_list)
 
 
 class TestCreatePartition:
@@ -83,7 +80,9 @@ class TestCreatePartition:
     @patch("rpi_usb_cloner.storage.format.shutil.which")
     @patch("rpi_usb_cloner.storage.format.time.sleep")
     @patch("rpi_usb_cloner.storage.format.run_command")
-    def test_create_partition_success(self, mock_run, mock_sleep, mock_which, mock_exists):
+    def test_create_partition_success(
+        self, mock_run, mock_sleep, mock_which, mock_exists
+    ):
         """Test successful partition creation."""
         mock_run.return_value = Mock(returncode=0)
         mock_which.return_value = "/usr/bin/sync"  # Pretend all commands exist
@@ -93,7 +92,9 @@ class TestCreatePartition:
 
         assert result is True
         # Verify the parted mkpart command was called first
-        assert mock_run.call_args_list[0] == ((["parted", "-s", "/dev/sda", "mkpart", "primary", "1MiB", "100%"],),)
+        assert mock_run.call_args_list[0] == (
+            (["parted", "-s", "/dev/sda", "mkpart", "primary", "1MiB", "100%"],),
+        )
 
     @patch("rpi_usb_cloner.storage.format.time.sleep")
     @patch("rpi_usb_cloner.storage.format.run_command")
@@ -370,7 +371,7 @@ class TestFormatDevice:
         # Verify workflow steps
         mock_validate_format.assert_called_once()
         mock_unmount.assert_called_once()
-        mock_validate_unmounted.assert_called_once()
+        assert mock_validate_unmounted.call_count == 2
         mock_create_table.assert_called_once_with("/dev/sda")
         mock_create_part.assert_called_once_with("/dev/sda")
         mock_format_fs.assert_called_once()
@@ -550,6 +551,7 @@ class TestFormatDevice:
         )
 
         assert result is True
+        assert mock_validate_unmounted.call_count == 2
         # Verify progress was reported at multiple stages
         assert (
             len(progress_calls) >= 3
@@ -587,6 +589,7 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
+        assert mock_validate_unmounted.call_count == 2
         # Verify partition path includes 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]
@@ -624,6 +627,7 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
+        assert mock_validate_unmounted.call_count == 2
         # Verify partition path has no 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]

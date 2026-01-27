@@ -5,7 +5,6 @@ Provides authentication and file upload capabilities.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable
 
 import aiohttp
@@ -15,19 +14,16 @@ from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.services.discovery import PeerDevice
 from rpi_usb_cloner.storage import image_repo
 
+
 log = get_logger(source=__name__)
 
 
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
 
-    pass
-
 
 class TransferError(Exception):
     """Raised when transfer fails."""
-
-    pass
 
 
 class TransferClient:
@@ -59,27 +55,33 @@ class TransferClient:
         """
         async with aiohttp.ClientSession(timeout=self.timeout) as session:
             try:
-                async with session.post(f"{self.base_url}/auth", json={"pin": pin}) as resp:
+                async with session.post(
+                    f"{self.base_url}/auth", json={"pin": pin}
+                ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        self.session_token = data["token"]
+                        token = data["token"]
+                        self.session_token = token
                         log.info(f"Authenticated with {self.peer.hostname}")
-                        return self.session_token
+                        return token
 
-                    elif resp.status == 401:
+                    if resp.status == 401:
                         raise AuthenticationError("Invalid PIN")
 
-                    elif resp.status == 429:
+                    if resp.status == 429:
                         data = await resp.json()
                         retry_after = data.get("retry_after", 30)
-                        raise AuthenticationError(f"Too many failed attempts. Retry after {retry_after}s")
+                        raise AuthenticationError(
+                            f"Too many failed attempts. Retry after {retry_after}s"
+                        )
 
-                    else:
-                        raise AuthenticationError(f"Authentication failed with status {resp.status}")
+                    raise AuthenticationError(
+                        f"Authentication failed with status {resp.status}"
+                    )
 
             except aiohttp.ClientError as e:
                 log.error(f"Network error during authentication: {e}")
-                raise AuthenticationError(f"Network error: {e}")
+                raise AuthenticationError(f"Network error: {e}") from e
 
     async def send_images(
         self,
@@ -106,7 +108,13 @@ class TransferClient:
         images_meta = []
         for img in images:
             size_bytes = image_repo.get_image_size_bytes(img) or 0
-            images_meta.append({"name": img.name, "type": img.image_type.name.lower(), "size_bytes": size_bytes})
+            images_meta.append(
+                {
+                    "name": img.name,
+                    "type": img.image_type.name.lower(),
+                    "size_bytes": size_bytes,
+                }
+            )
 
         # Initialize transfer
         headers = {"Authorization": f"Bearer {self.session_token}"}
@@ -115,7 +123,9 @@ class TransferClient:
             try:
                 # POST /transfer to initialize
                 async with session.post(
-                    f"{self.base_url}/transfer", json={"images": images_meta}, headers=headers
+                    f"{self.base_url}/transfer",
+                    json={"images": images_meta},
+                    headers=headers,
                 ) as resp:
                     if resp.status == 507:
                         data = await resp.json()
@@ -125,9 +135,11 @@ class TransferClient:
                             f"have {data.get('available', 0)} bytes"
                         )
 
-                    elif resp.status != 200:
+                    if resp.status != 200:
                         error_data = await resp.json()
-                        raise TransferError(f"Transfer init failed: {error_data.get('error', 'Unknown error')}")
+                        raise TransferError(
+                            f"Transfer init failed: {error_data.get('error', 'Unknown error')}"
+                        )
 
                     data = await resp.json()
                     transfer_id = data["transfer_id"]
@@ -135,7 +147,7 @@ class TransferClient:
 
             except aiohttp.ClientError as e:
                 log.error(f"Network error during transfer init: {e}")
-                raise TransferError(f"Network error: {e}")
+                raise TransferError(f"Network error: {e}") from e
 
             # Upload each image
             success_count = 0
@@ -143,7 +155,9 @@ class TransferClient:
 
             for img in images:
                 try:
-                    await self._upload_single_image(session, img, headers, progress_callback)
+                    await self._upload_single_image(
+                        session, img, headers, progress_callback
+                    )
                     success_count += 1
                     log.info(f"Successfully sent image: {img.name}")
 
@@ -179,9 +193,13 @@ class TransferClient:
 
         # Choose upload method based on image type
         if image.image_type == ImageType.CLONEZILLA_DIR:
-            await self._upload_directory(session, url, image, upload_headers, progress_callback)
+            await self._upload_directory(
+                session, url, image, upload_headers, progress_callback
+            )
         else:
-            await self._upload_file(session, url, image, upload_headers, progress_callback)
+            await self._upload_file(
+                session, url, image, upload_headers, progress_callback
+            )
 
         if progress_callback:
             progress_callback(image.name, 1.0)
@@ -228,7 +246,9 @@ class TransferClient:
         async with session.post(url, data=file_sender(), headers=headers) as resp:
             if resp.status != 200:
                 error_data = await resp.json()
-                raise TransferError(f"Upload failed: {error_data.get('error', 'Unknown error')}")
+                raise TransferError(
+                    f"Upload failed: {error_data.get('error', 'Unknown error')}"
+                )
 
     async def _upload_directory(
         self,
@@ -289,13 +309,17 @@ class TransferClient:
 
                 # Add to multipart with streaming payload
                 part = mpwriter.append(file_sender())
-                part.set_content_disposition("form-data", name="file", filename=str(rel_path))
+                part.set_content_disposition(
+                    "form-data", name="file", filename=str(rel_path)
+                )
 
         # Send multipart request
         async with session.post(url, data=mpwriter, headers=headers) as resp:
             if resp.status != 200:
                 error_data = await resp.json()
-                raise TransferError(f"Upload failed: {error_data.get('error', 'Unknown error')}")
+                raise TransferError(
+                    f"Upload failed: {error_data.get('error', 'Unknown error')}"
+                )
 
     async def check_status(self) -> dict:
         """Check server status.
@@ -308,8 +332,7 @@ class TransferClient:
                 async with session.get(f"{self.base_url}/status") as resp:
                     if resp.status == 200:
                         return await resp.json()
-                    else:
-                        return {"status": "error", "code": resp.status}
+                    return {"status": "error", "code": resp.status}
 
             except aiohttp.ClientError as e:
                 log.error(f"Status check error: {e}")

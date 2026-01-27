@@ -6,9 +6,9 @@ then reuses HTTP transfers from network_transfer_actions.
 
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
-from typing import Optional
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.hardware import gpio
@@ -19,7 +19,12 @@ from rpi_usb_cloner.storage import image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON, FOLDER_ICON, WIFI_ICON
 
-from .network_transfer_actions import _enter_pin, _execute_network_transfer, _select_images_checklist
+from .network_transfer_actions import (
+    _enter_pin,
+    _execute_network_transfer,
+    _select_images_checklist,
+)
+
 
 log = get_logger(source=__name__)
 
@@ -119,7 +124,9 @@ def wifi_direct_host(*, app_context: AppContext) -> None:
             server_loop.run_forever()
             server_loop.close()
 
-        server_thread = threading.Thread(target=_run_server_loop, name="wifi-direct-server", daemon=True)
+        server_thread = threading.Thread(
+            target=_run_server_loop, name="wifi-direct-server", daemon=True
+        )
         server_thread.start()
 
         try:
@@ -145,28 +152,28 @@ def wifi_direct_host(*, app_context: AppContext) -> None:
 
     finally:
         # Cleanup
-        try:
+        with contextlib.suppress(Exception):
             import asyncio
 
             if "server_loop" in locals() and server_loop.is_running():
-                stop_future = asyncio.run_coroutine_threadsafe(server.stop(), server_loop)
+                stop_future = asyncio.run_coroutine_threadsafe(
+                    server.stop(), server_loop
+                )
                 stop_future.result(timeout=5)
                 server_loop.call_soon_threadsafe(server_loop.stop)
             if "server_thread" in locals():
                 server_thread.join(timeout=2)
-        except Exception:
-            pass
 
-        try:
+        with contextlib.suppress(Exception):
             disc.shutdown()
-        except Exception:
-            pass
 
         wd.stop_group_owner()
         log.info("WiFi Direct host session ended")
 
 
-def _host_waiting_screen(group_name: str, pin: str, wd: wifi_direct.WiFiDirectService, server: TransferServer) -> None:
+def _host_waiting_screen(
+    group_name: str, pin: str, wd: wifi_direct.WiFiDirectService, server: TransferServer
+) -> None:
     """Display waiting screen while hosting.
 
     Shows group name and PIN, waits for connection or cancel.
@@ -195,7 +202,7 @@ def _host_waiting_screen(group_name: str, pin: str, wd: wifi_direct.WiFiDirectSe
             lines = [
                 "WIFI DIRECT HOST",
                 "",
-                f"Network:",
+                "Network:",
                 f"  {group_name[:20]}",
                 "",
                 f"PIN: {pin}",
@@ -360,10 +367,10 @@ def wifi_direct_join(*, app_context: AppContext) -> None:
         )
 
         disc = discovery.DiscoveryService()
-        mDNS_peers = disc.browse_peers(timeout_seconds=5.0)
+        mdns_peers = disc.browse_peers(timeout_seconds=5.0)
         disc.shutdown()
 
-        if not mDNS_peers:
+        if not mdns_peers:
             screens.render_error_screen(
                 "WIFI DIRECT",
                 message="Peer not found\\nCheck host is ready",
@@ -376,7 +383,7 @@ def wifi_direct_join(*, app_context: AppContext) -> None:
             return
 
         # Use first peer (should be the GO)
-        peer = mDNS_peers[0]
+        peer = mdns_peers[0]
 
         # Step 7: Enter PIN + send
         pin = _enter_pin()

@@ -5,7 +5,6 @@ Provides endpoints for PIN authentication and chunked file uploads.
 
 from __future__ import annotations
 
-import asyncio
 import random
 import secrets
 import time
@@ -17,6 +16,7 @@ from aiohttp import web
 from rpi_usb_cloner.domain import ImageRepo, ImageType
 from rpi_usb_cloner.logging import get_logger
 from rpi_usb_cloner.storage import image_repo
+
 
 log = get_logger(source=__name__)
 
@@ -50,7 +50,9 @@ class TransferServer:
         self._on_progress_callback: Callable[[str, float], None] | None = None
 
     async def start(
-        self, pin_callback: Callable[[], str] | None = None, on_progress: Callable[[str, float], None] | None = None
+        self,
+        pin_callback: Callable[[], str] | None = None,
+        on_progress: Callable[[str, float], None] | None = None,
     ) -> None:
         """Start HTTP server.
 
@@ -61,10 +63,7 @@ class TransferServer:
         global _current_pin
 
         # Generate PIN if not provided
-        if pin_callback:
-            _current_pin = pin_callback()
-        else:
-            _current_pin = self._generate_pin()
+        _current_pin = pin_callback() if pin_callback else self._generate_pin()
 
         self._on_progress_callback = on_progress
 
@@ -116,13 +115,14 @@ class TransferServer:
         """
         global _current_pin
 
-        client_ip = request.remote
-        
+        client_ip = request.remote or "unknown"
+
         # Check rate limiting
         if not self._check_rate_limit(client_ip):
             log.warning(f"Rate limit exceeded for {client_ip}")
             return web.json_response(
-                {"error": "Too many failed attempts", "retry_after": RATE_LIMIT_WINDOW}, status=429
+                {"error": "Too many failed attempts", "retry_after": RATE_LIMIT_WINDOW},
+                status=429,
             )
 
         try:
@@ -143,11 +143,10 @@ class TransferServer:
                 _failed_attempts.pop(client_ip, None)
 
                 return web.json_response({"token": token})
-            else:
-                # Record failed attempt
-                self._record_failed_attempt(client_ip)
-                log.warning(f"Failed auth attempt from {client_ip}")
-                return web.json_response({"error": "Invalid PIN"}, status=401)
+            # Record failed attempt
+            self._record_failed_attempt(client_ip)
+            log.warning(f"Failed auth attempt from {client_ip}")
+            return web.json_response({"error": "Invalid PIN"}, status=401)
 
         except Exception as e:
             log.error(f"Auth error: {e}")
@@ -187,13 +186,20 @@ class TransferServer:
             if total_size > available:
                 log.warning(f"Insufficient space: need {total_size}, have {available}")
                 return web.json_response(
-                    {"error": "Insufficient space", "required": total_size, "available": available}, status=507
+                    {
+                        "error": "Insufficient space",
+                        "required": total_size,
+                        "available": available,
+                    },
+                    status=507,
                 )
 
             # Generate transfer ID
             transfer_id = secrets.token_hex(16)
 
-            log.info(f"Transfer initialized: {len(images)} images, {total_size} bytes (ID: {transfer_id})")
+            log.info(
+                f"Transfer initialized: {len(images)} images, {total_size} bytes (ID: {transfer_id})"
+            )
             return web.json_response({"transfer_id": transfer_id, "accepted": True})
 
         except Exception as e:
@@ -219,7 +225,9 @@ class TransferServer:
 
         try:
             # Parse image type
-            image_type = ImageType[image_type_str.upper().replace("CLONEZILLA_DIR", "CLONEZILLA_DIR")]
+            image_type = ImageType[
+                image_type_str.upper().replace("CLONEZILLA_DIR", "CLONEZILLA_DIR")
+            ]
 
             # Determine destination path
             if image_type == ImageType.CLONEZILLA_DIR:
@@ -233,19 +241,27 @@ class TransferServer:
             content_type = request.headers.get("Content-Type", "")
 
             if "multipart/form-data" in content_type:
-                received_bytes = await self._handle_multipart_upload(request, dest_path, image_name)
+                received_bytes = await self._handle_multipart_upload(
+                    request, dest_path, image_name
+                )
             else:
-                received_bytes = await self._handle_binary_upload(request, dest_path, image_name)
+                received_bytes = await self._handle_binary_upload(
+                    request, dest_path, image_name
+                )
 
             log.info(f"Upload complete: {image_name} ({received_bytes} bytes)")
 
-            return web.json_response({"received_bytes": received_bytes, "status": "complete"})
+            return web.json_response(
+                {"received_bytes": received_bytes, "status": "complete"}
+            )
 
         except Exception as e:
             log.error(f"Upload error for {image_name}: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
-    async def _handle_binary_upload(self, request: web.Request, dest_path: Path, image_name: str) -> int:
+    async def _handle_binary_upload(
+        self, request: web.Request, dest_path: Path, image_name: str
+    ) -> int:
         """Handle binary file upload (for ISOs and .BIN files)."""
         received_bytes = 0
         chunk_size = 1024 * 1024  # 1MB chunks
@@ -263,7 +279,9 @@ class TransferServer:
 
         return received_bytes
 
-    async def _handle_multipart_upload(self, request: web.Request, dest_dir: Path, image_name: str) -> int:
+    async def _handle_multipart_upload(
+        self, request: web.Request, dest_dir: Path, image_name: str
+    ) -> int:
         """Handle multipart upload (for Clonezilla directories)."""
         received_bytes = 0
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -294,7 +312,11 @@ class TransferServer:
     async def _handle_status(self, request: web.Request) -> web.Response:
         """Handle GET /status - Server status check."""
         return web.json_response(
-            {"status": "ready", "pin_required": True, "destination": str(self.destination_repo.path)}
+            {
+                "status": "ready",
+                "pin_required": True,
+                "destination": str(self.destination_repo.path),
+            }
         )
 
     def _verify_token(self, request: web.Request) -> bool:
