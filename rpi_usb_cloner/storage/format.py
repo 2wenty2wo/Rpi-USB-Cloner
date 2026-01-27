@@ -62,6 +62,7 @@ from rpi_usb_cloner.storage.exceptions import (
     DeviceBusyError,
     MountVerificationError,
 )
+from rpi_usb_cloner.storage.mount import unmount_block_device
 from rpi_usb_cloner.storage.validation import (
     validate_device_unmounted,
     validate_format_operation,
@@ -709,6 +710,76 @@ def format_device(
 
     if not os.path.exists(partition_path):  # noqa: PTH110
         log.warning(f"Format aborted: partition {partition_path} not found")
+        return False
+
+    refreshed_device = get_device_by_name(device_name) or device
+    post_partition_mountpoint = None
+    partition_name = f"{device_name}{partition_suffix}1"
+    for child in refreshed_device.get("children", []) or []:
+        if child.get("name") == partition_name and child.get("mountpoint"):
+            post_partition_mountpoint = child.get("mountpoint")
+            break
+
+    if post_partition_mountpoint:
+        log.info(
+            "Detected post-partition auto-mount for %s at %s; unmounting",
+            partition_path,
+            post_partition_mountpoint,
+        )
+        if progress_callback:
+            progress_callback(
+                ["Auto-mounted partition detected", "Unmounting..."], 0.45
+            )
+        unmount_success = False
+        if shutil.which("udisksctl"):
+            result = run_command(
+                [
+                    "udisksctl",
+                    "unmount",
+                    "-b",
+                    partition_path,
+                    "--no-user-interaction",
+                ],
+                check=False,
+                log_command=False,
+            )
+            unmount_success = result.returncode == 0
+        if not unmount_success:
+            try:
+                unmount_block_device(partition_path)
+                unmount_success = True
+            except (ValueError, RuntimeError) as error:
+                log.debug("Fallback umount failed for %s: %s", partition_path, error)
+        if not unmount_success:
+            log.warning(
+                "Format aborted: device busy after auto-mount on %s",
+                device_label,
+            )
+            if progress_callback:
+                progress_callback(["Device busy", "Aborting format"], None)
+            return False
+        time.sleep(1)
+        refreshed_device = get_device_by_name(device_name) or refreshed_device
+
+    try:
+        validate_device_unmounted(refreshed_device)
+    except (DeviceBusyError, MountVerificationError) as error:
+        log.warning(
+            "Format aborted: device busy after partitioning for %s: %s",
+            device_label,
+            error,
+        )
+        if progress_callback:
+            progress_callback(["Device busy", "Aborting format"], None)
+        return False
+    except Exception as error:
+        log.error(
+            "Format aborted: mount verification failed after partitioning for %s: %s",
+            device_label,
+            error,
+        )
+        if progress_callback:
+            progress_callback(["Device busy", "Aborting format"], None)
         return False
 
     # Format filesystem

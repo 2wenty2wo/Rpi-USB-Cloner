@@ -282,7 +282,7 @@ class TestFormatSafety:
 
         assert result is True
         mock_validation.assert_called_once()
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
 
 
 class TestEraseSafety:
