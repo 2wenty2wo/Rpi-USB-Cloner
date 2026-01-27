@@ -43,6 +43,7 @@ from .drives import (  # noqa: E402
     format_drive,
     unmount_drive,
 )
+from .transfer import copy_images  # noqa: E402
 from .images import (  # noqa: E402
     backup_image,
     images_coming_soon,
@@ -91,6 +92,7 @@ __all__ = [
     "get_action_context",
     # Drive actions
     "copy_drive",
+    "copy_images",
     "create_repo_drive",
     "drive_info",
     "format_drive",
