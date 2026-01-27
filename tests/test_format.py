@@ -370,7 +370,7 @@ class TestFormatDevice:
         # Verify workflow steps
         mock_validate_format.assert_called_once()
         mock_unmount.assert_called_once()
-        mock_validate_unmounted.assert_called_once()
+        assert mock_validate_unmounted.call_count == 2
         mock_create_table.assert_called_once_with("/dev/sda")
         mock_create_part.assert_called_once_with("/dev/sda")
         mock_format_fs.assert_called_once()

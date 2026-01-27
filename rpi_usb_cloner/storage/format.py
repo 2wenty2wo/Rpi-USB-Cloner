@@ -78,6 +78,13 @@ def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) 
     """
 
 
+def unmount_device(
+    device: dict, log_debug: Optional[Callable[[str], None]] = None
+) -> tuple[bool, bool]:
+    """Unmount device with retry (compatibility wrapper)."""
+    return unmount_device_with_retry(device, log_debug=log_debug)
+
+
 def _validate_device_path(device_path: str) -> bool:
     """Validate that device path starts with /dev/."""
     return device_path.startswith("/dev/")
@@ -379,9 +386,11 @@ def format_device(
     try:
         if progress_callback:
             progress_callback(["Unmounting..."], 0.0)
-        unmount_success, used_lazy_unmount = unmount_device_with_retry(
-            device, log_debug=log.debug
-        )
+        unmount_result = unmount_device(device, log_debug=log.debug)
+        if isinstance(unmount_result, tuple):
+            unmount_success, used_lazy_unmount = unmount_result
+        else:
+            unmount_success, used_lazy_unmount = bool(unmount_result), False
     except Exception as error:
         log.debug(f"Failed to unmount device: {error}")
         log.error("Format aborted: unmount failed for %s: %s", device_label, error)
