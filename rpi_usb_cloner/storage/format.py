@@ -98,32 +98,41 @@ def _create_partition_table(device_path: str) -> bool:
     retry_delays = [2, 4, 6]  # Increasing delays between retries
 
     for attempt in range(max_retries):
-        try:
-            log.debug(f"Creating MBR partition table on {device_path} (attempt {attempt + 1}/{max_retries})")
-            run_command(["parted", "-s", device_path, "mklabel", "msdos"])
+        log.debug(f"Creating MBR partition table on {device_path} (attempt {attempt + 1}/{max_retries})")
+        
+        # Use check=False to capture stderr without raising exception immediately
+        result = run_command(
+            ["parted", "-s", device_path, "mklabel", "msdos"],
+            check=False,
+            log_command=False,  # We're logging it ourselves
+        )
+        
+        if result.returncode == 0:
+            log.debug("Partition table created successfully")
             return True
-        except subprocess.CalledProcessError as error:
-            stderr_msg = error.stderr.strip() if error.stderr else "no error message"
-            log.debug(f"Failed to create partition table (attempt {attempt + 1}): {stderr_msg}")
+        
+        # Log the actual error from parted
+        stderr_msg = result.stderr.strip() if result.stderr else "no error message"
+        stdout_msg = result.stdout.strip() if result.stdout else ""
+        log.error(f"parted failed (attempt {attempt + 1}/{max_retries}): stderr='{stderr_msg}' stdout='{stdout_msg}' rc={result.returncode}")
+        
+        if attempt < max_retries - 1:
+            # Device might still be busy, wait and retry
+            delay = retry_delays[attempt]
+            log.debug(f"Retrying in {delay} seconds...")
             
-            if attempt < max_retries - 1:
-                # Device might still be busy, wait and retry
-                delay = retry_delays[attempt]
-                log.debug(f"Retrying in {delay} seconds...")
-                
-                # Try to settle the device before retry
-                for command in ([["sync"]], [["udevadm", "settle", "--timeout=5"]]):
-                    cmd = command[0]
-                    if shutil.which(cmd[0]):
-                        try:
-                            run_command(cmd, log_command=False)
-                        except (subprocess.CalledProcessError, OSError):
-                            pass
-                
-                time.sleep(delay)
-            else:
-                log.debug(f"All {max_retries} attempts failed to create partition table")
-                return False
+            # Try to settle the device before retry
+            for cmd in (["sync"], ["udevadm", "settle", "--timeout=5"]):
+                if shutil.which(cmd[0]):
+                    try:
+                        run_command(cmd, log_command=False)
+                    except (subprocess.CalledProcessError, OSError):
+                        pass
+            
+            time.sleep(delay)
+        else:
+            log.error(f"All {max_retries} attempts failed to create partition table on {device_path}")
+            return False
     
     return False
 
@@ -382,13 +391,33 @@ def format_device(
             log.debug("Best-effort command failed (%s): %s", command[0], error)
     time.sleep(2)  # Additional wait for device to fully release
 
+    # Check if device is held by any process
+    if shutil.which("fuser"):
+        try:
+            result = run_command(["fuser", device_path], check=False, log_command=False)
+            if result.stdout.strip():
+                log.warning(f"Device {device_path} is being held by process(es): {result.stdout.strip()}")
+        except Exception as error:
+            log.debug(f"fuser check failed: {error}")
+
+    # Wipe filesystem signatures to prevent parted confusion
+    # This is critical - old signatures can cause parted to fail
+    if shutil.which("wipefs"):
+        try:
+            log.debug(f"Wiping filesystem signatures from {device_path}")
+            run_command(["wipefs", "-a", device_path])
+            time.sleep(1)  # Let kernel process the wipe
+        except subprocess.CalledProcessError as error:
+            # Don't fail on wipefs errors, but log them
+            log.debug(f"wipefs failed (continuing anyway): {error}")
+
     # Create partition table
     if progress_callback:
         progress_callback(["Creating partition table..."], 0.1)
 
     if not _create_partition_table(device_path):
         log.warning(
-            "Format aborted: failed to create partition table on %s", device_label
+            "Format aborted: failed to create partition table on {}", device_label
         )
         return False
 

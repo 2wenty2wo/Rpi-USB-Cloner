@@ -41,39 +41,37 @@ class TestCreatePartitionTable:
     @patch("rpi_usb_cloner.storage.format.run_command")
     def test_create_mbr_partition_table_success(self, mock_run):
         """Test successful MBR partition table creation."""
-        mock_run.return_value = Mock(returncode=0)
+        mock_run.return_value = Mock(returncode=0, stderr="", stdout="")
 
         result = format_module._create_partition_table("/dev/sda")
 
         assert result is True
-        mock_run.assert_called_once_with(
-            ["parted", "-s", "/dev/sda", "mklabel", "msdos"]
+        mock_run.assert_called_with(
+            ["parted", "-s", "/dev/sda", "mklabel", "msdos"],
+            check=False,
+            log_command=False,
         )
 
     @patch("rpi_usb_cloner.storage.format.run_command")
     def test_create_partition_table_failure(self, mock_run):
         """Test partition table creation failure."""
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, "parted", stderr="parted: Error"
-        )
+        mock_run.return_value = Mock(returncode=1, stderr="parted: Error", stdout="")
 
         result = format_module._create_partition_table("/dev/sda")
 
         assert result is False
 
-    @patch("rpi_usb_cloner.storage.format.log.debug")
+    @patch("rpi_usb_cloner.storage.format.log.error")
     @patch("rpi_usb_cloner.storage.format.run_command")
     def test_create_partition_table_logs_error(self, mock_run, mock_log):
         """Test that partition table errors are logged via LoggerFactory."""
-        mock_run.side_effect = subprocess.CalledProcessError(
-            1, "parted", stderr="Device busy"
-        )
+        mock_run.return_value = Mock(returncode=1, stderr="Device busy", stdout="")
 
         format_module._create_partition_table("/dev/sda")
 
-        # Verify error was logged via LoggerFactory
+        # Verify error was logged via LoggerFactory at ERROR level
         assert any(
-            "Failed to create partition table" in str(call)
+            "parted failed" in str(call)
             for call in mock_log.call_args_list
         )
 
