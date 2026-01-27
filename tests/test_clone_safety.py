@@ -227,11 +227,12 @@ class TestCloneDeviceSmartSafety:
 class TestFormatSafety:
     """Test safety checks in format operations."""
 
+    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     def test_mounted_device_rejected_format(
-        self, mock_unmount, mock_validate_unmounted, mock_validation
+        self, mock_unmount, mock_validate_unmounted, mock_validation, mock_get_device
     ):
         """Test that format rejects mounted device."""
         from rpi_usb_cloner.storage.format import format_device
@@ -240,6 +241,7 @@ class TestFormatSafety:
 
         mock_validation.return_value = None
         mock_unmount.return_value = True
+        mock_get_device.return_value = device
         mock_validate_unmounted.side_effect = MountVerificationError("sda", "/mnt/usb")
 
         result = format_device(device, "ext4", "quick")
@@ -251,6 +253,7 @@ class TestFormatSafety:
     @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
+    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
     @patch("rpi_usb_cloner.storage.format._create_partition")
@@ -261,6 +264,7 @@ class TestFormatSafety:
         mock_create_part,
         mock_create_table,
         mock_unmount,
+        mock_get_device,
         mock_validate_unmounted,
         mock_validation,
         mock_exists,
@@ -272,6 +276,7 @@ class TestFormatSafety:
 
         mock_validation.return_value = None
         mock_unmount.return_value = True
+        mock_get_device.return_value = device
         mock_validate_unmounted.return_value = None
         mock_create_table.return_value = True
         mock_create_part.return_value = True
@@ -282,7 +287,7 @@ class TestFormatSafety:
 
         assert result is True
         mock_validation.assert_called_once()
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
 
 
 class TestEraseSafety:

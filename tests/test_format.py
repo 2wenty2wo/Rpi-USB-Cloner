@@ -371,7 +371,7 @@ class TestFormatDevice:
         # Verify workflow steps
         mock_validate_format.assert_called_once()
         mock_unmount.assert_called_once()
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
         mock_create_table.assert_called_once_with("/dev/sda")
         mock_create_part.assert_called_once_with("/dev/sda")
         mock_format_fs.assert_called_once()
@@ -551,7 +551,7 @@ class TestFormatDevice:
         )
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
         # Verify progress was reported at multiple stages
         assert (
             len(progress_calls) >= 3
@@ -589,7 +589,7 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
         # Verify partition path includes 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]
@@ -627,7 +627,7 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 2
+        assert mock_validate_unmounted.call_count == 3
         # Verify partition path has no 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]

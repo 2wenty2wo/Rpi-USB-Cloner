@@ -228,6 +228,22 @@ def unmount_partition(name: str = "usb") -> None:
             raise RuntimeError(f"Failed to unmount {path}: {e.stderr.strip()}") from e
 
 
+def unmount_block_device(partition: str) -> None:
+    """Unmount a block device node (e.g., /dev/sda1)."""
+    if not isinstance(partition, str) or not partition.startswith("/dev/"):
+        raise ValueError(f"Invalid partition path: {partition}")
+    if any(char in partition for char in [";", "&", "|", "$", "`", "\n", "\r", " "]):
+        raise ValueError(f"Partition path contains invalid characters: {partition}")
+    try:
+        subprocess.run(
+            ["umount", partition], check=True, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Failed to unmount {partition}: {e.stderr.strip()}"
+        ) from e
+
+
 def mount(device: str, name: Optional[str] = None) -> None:
     """Mount a device's first partition to /media/<name>.
 
