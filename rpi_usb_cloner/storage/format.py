@@ -485,6 +485,24 @@ def format_device(
     # CRITICAL FIX: Delete all existing partitions to release kernel's hold
     # This is THE KEY - parted can't create a new table if old partitions are registered
     try:
+        # IMPORTANT: Unmount again right before deletion since auto-mount may have re-mounted
+        log.debug(f"Final unmount before partition deletion from {device_path}")
+        
+        # Use udisksctl to tell automount to leave us alone
+        if shutil.which("udisksctl"):
+            for i in range(1, 9):
+                partition_suffix_local = "p" if device_name[-1].isdigit() else ""
+                potential_partition = f"{device_path}{partition_suffix_local}{i}"
+                run_command(["udisksctl", "unmount", "-b", potential_partition, "--no-user-interaction"], check=False, log_command=False)
+        
+        # Also use regular umount
+        for i in range(1, 9):
+            partition_suffix_local = "p" if device_name[-1].isdigit() else ""
+            potential_partition = f"{device_path}{partition_suffix_local}{i}"
+            run_command(["umount", potential_partition], check=False, log_command=False)
+        
+        time.sleep(1)
+        
         log.debug(f"Deleting all existing partitions from {device_path}")
         # First, get the current partition table type and partition list
         result = run_command(["parted", "-s", device_path, "print"], check=False, log_command=False)
