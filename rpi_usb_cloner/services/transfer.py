@@ -6,6 +6,7 @@ image repositories, primarily for USB-to-USB transfers.
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Callable
@@ -214,9 +215,10 @@ def _copy_directory_with_progress(
     total_size = 0
     file_list = []
     
-    for root, _, files in src.walk():
+    for root, _, files in os.walk(src):
+        root_path = Path(root)
         for file in files:
-            file_path = root / file
+            file_path = root_path / file
             try:
                 size = file_path.stat().st_size
                 total_size += size
