@@ -622,23 +622,115 @@ def format_device(
 
     # Final safety gate: ensure device is still unmounted before wipefs/partitioning
     final_device = get_device_by_name(device_name) or refreshed_device or device
-    try:
-        validate_device_unmounted(final_device)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.warning(
-            "Format aborted: device busy before wipefs for %s: %s",
-            device_label,
-            error,
+    final_check_error: Optional[Exception] = None
+    last_mountpoints: list[str] = []
+    for attempt in range(1, 4):
+        final_device = (
+            get_device_by_name(device_name, force_refresh=True)
+            or refreshed_device
+            or device
         )
-        if progress_callback:
-            progress_callback(["Device busy", "Aborting format"], None)
-        return False
-    except Exception as error:
-        log.error(
-            "Format aborted: final mount verification failed for %s: %s",
-            device_label,
-            error,
+        detected_mountpoints = (
+            _collect_mountpoints(final_device) if final_device else []
         )
+        if detected_mountpoints:
+            last_mountpoints = detected_mountpoints
+            log.debug(
+                "Final unmount retry %s/3 for %s (mountpoints: %s)",
+                attempt,
+                device_label,
+                ", ".join(detected_mountpoints),
+            )
+
+            if shutil.which("udisksctl"):
+                run_command(
+                    [
+                        "udisksctl",
+                        "unmount",
+                        "-b",
+                        device_path,
+                        "--no-user-interaction",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
+                for i in range(1, 9):
+                    partition_suffix_local = "p" if device_name[-1].isdigit() else ""
+                    potential_partition = f"{device_path}{partition_suffix_local}{i}"
+                    run_command(
+                        [
+                            "udisksctl",
+                            "unmount",
+                            "-b",
+                            potential_partition,
+                            "--no-user-interaction",
+                        ],
+                        check=False,
+                        log_command=False,
+                    )
+
+            run_command(["umount", device_path], check=False, log_command=False)
+            for i in range(1, 9):
+                partition_suffix_local = "p" if device_name[-1].isdigit() else ""
+                potential_partition = f"{device_path}{partition_suffix_local}{i}"
+                run_command(
+                    ["umount", potential_partition], check=False, log_command=False
+                )
+
+        if shutil.which("udevadm"):
+            run_command(
+                ["udevadm", "settle", "--timeout=5"],
+                check=False,
+                log_command=False,
+            )
+        time.sleep(1)
+
+        try:
+            validate_device_unmounted(final_device)
+            final_check_error = None
+            break
+        except (DeviceBusyError, MountVerificationError) as error:
+            final_check_error = error
+            if isinstance(error, MountVerificationError):
+                last_mountpoints = [error.mountpoint]
+            if attempt < 3:
+                log.debug(
+                    "Final mount verification retry %s/3 for %s: %s",
+                    attempt,
+                    device_label,
+                    error,
+                )
+                continue
+        except Exception as error:
+            final_check_error = error
+            if attempt < 3:
+                log.debug(
+                    "Final mount verification retry %s/3 for %s: %s",
+                    attempt,
+                    device_label,
+                    error,
+                )
+                continue
+        break
+
+    if final_check_error:
+        mountpoint_note = ""
+        if last_mountpoints:
+            mountpoint_note = f" (mountpoint: {', '.join(last_mountpoints)})"
+        if isinstance(final_check_error, (DeviceBusyError, MountVerificationError)):
+            log.warning(
+                "Format aborted: device busy before wipefs for %s: %s%s",
+                device_label,
+                final_check_error,
+                mountpoint_note,
+            )
+        else:
+            log.error(
+                "Format aborted: final mount verification failed for %s: %s%s",
+                device_label,
+                final_check_error,
+                mountpoint_note,
+            )
         if progress_callback:
             progress_callback(["Device busy", "Aborting format"], None)
         return False
