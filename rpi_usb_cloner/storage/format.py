@@ -85,19 +85,47 @@ def _validate_device_path(device_path: str) -> bool:
 def _create_partition_table(device_path: str) -> bool:
     """Create MBR partition table on device.
 
+    Uses retry logic to handle intermittent device busy errors that can occur
+    when the device hasn't fully settled after unmounting.
+
     Args:
         device_path: Device path (e.g., /dev/sda)
 
     Returns:
         True on success, False on failure
     """
-    try:
-        log.debug(f"Creating MBR partition table on {device_path}")
-        run_command(["parted", "-s", device_path, "mklabel", "msdos"])
-        return True
-    except subprocess.CalledProcessError as error:
-        log.debug(f"Failed to create partition table: {error}")
-        return False
+    max_retries = 3
+    retry_delays = [2, 4, 6]  # Increasing delays between retries
+
+    for attempt in range(max_retries):
+        try:
+            log.debug(f"Creating MBR partition table on {device_path} (attempt {attempt + 1}/{max_retries})")
+            run_command(["parted", "-s", device_path, "mklabel", "msdos"])
+            return True
+        except subprocess.CalledProcessError as error:
+            stderr_msg = error.stderr.strip() if error.stderr else "no error message"
+            log.debug(f"Failed to create partition table (attempt {attempt + 1}): {stderr_msg}")
+            
+            if attempt < max_retries - 1:
+                # Device might still be busy, wait and retry
+                delay = retry_delays[attempt]
+                log.debug(f"Retrying in {delay} seconds...")
+                
+                # Try to settle the device before retry
+                for command in ([["sync"]], [["udevadm", "settle", "--timeout=5"]]):
+                    cmd = command[0]
+                    if shutil.which(cmd[0]):
+                        try:
+                            run_command(cmd, log_command=False)
+                        except (subprocess.CalledProcessError, OSError):
+                            pass
+                
+                time.sleep(delay)
+            else:
+                log.debug(f"All {max_retries} attempts failed to create partition table")
+                return False
+    
+    return False
 
 
 def _create_partition(device_path: str) -> bool:
