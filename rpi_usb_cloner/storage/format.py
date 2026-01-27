@@ -342,7 +342,13 @@ def format_device(
         return False
 
     # Allow device to settle after unmount (prevents intermittent parted failures)
-    time.sleep(1)
+    # Sync to flush any pending writes and udevadm settle to wait for udev processing
+    try:
+        run_command(["sync"])
+        run_command(["udevadm", "settle", "--timeout=5"])
+    except subprocess.CalledProcessError:
+        pass  # Best effort - continue even if these fail
+    time.sleep(2)  # Additional wait for device to fully release
 
     # Create partition table
     if progress_callback:
