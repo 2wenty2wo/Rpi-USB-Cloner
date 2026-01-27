@@ -234,6 +234,25 @@ def build_update_info_lines(
     return [_truncate_oled_line(line) for line in lines]
 
 
+def build_update_confirmation_prompt(dirty_tree: bool) -> str:
+    """Build the confirmation prompt for updates."""
+    if dirty_tree:
+        return "Continue with update?"
+    return "Are you sure you want to update?"
+
+
+def confirm_update_action(
+    title: str,
+    *,
+    dirty_tree: bool,
+    confirm_callback: Callable[..., bool] = confirm_action,
+    title_icon: Optional[str] = None,
+) -> bool:
+    """Confirm the update action before running side effects."""
+    prompt = build_update_confirmation_prompt(dirty_tree)
+    return confirm_callback(title, prompt, title_icon=title_icon)
+
+
 def run_update_flow(
     title: str,
     *,
@@ -255,10 +274,12 @@ def run_update_flow(
     dirty_tree = has_dirty_working_tree(repo_root)
     if dirty_tree:
         log.debug("Dirty working tree detected", component="update_manager")
-        prompt = "Continue with update?"
-    else:
-        prompt = "Are you sure you want to update?"
-    if not confirm_action(title, prompt, title_icon=title_icon):
+    if not confirm_update_action(
+        title,
+        dirty_tree=dirty_tree,
+        confirm_callback=confirm_action,
+        title_icon=title_icon,
+    ):
         log.debug("Update canceled by confirmation prompt", component="update_manager")
         return
 

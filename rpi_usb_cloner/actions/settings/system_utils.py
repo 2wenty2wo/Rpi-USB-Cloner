@@ -27,12 +27,19 @@ def _escape_braces(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
 
 
+def validate_command_args(args: list[str]) -> None:
+    """Validate command arguments before executing."""
+    if not args or not all(isinstance(arg, str) and arg for arg in args):
+        raise ValueError("Command args must be a non-empty list of strings.")
+
+
 def run_command(
     args: list[str],
     *,
     cwd: Optional[Path] = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run a command and capture output."""
+    validate_command_args(args)
     cwd_display = str(cwd) if cwd else None
     log.debug(
         f"Running command: {_escape_braces(repr(args))} cwd={cwd_display}",
