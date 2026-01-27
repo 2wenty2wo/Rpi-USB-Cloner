@@ -22,6 +22,8 @@ def reset_wifi_cache():
     """Reset global Wi-Fi status cache between tests."""
     wifi._STATUS_CACHE = {"connected": False, "ssid": None, "ip": None}
     wifi._STATUS_CACHE_TIME = None
+    wifi._error_handler = None
+    wifi._command_runner = None
     yield
 
 
@@ -50,6 +52,73 @@ def test_list_networks_parses_nmcli_output(mocker):
     assert networks[1].secured is False
 
 
+def test_list_networks_marks_open_vs_secured(mocker):
+    """Test nmcli parsing distinguishes open from secured networks."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:2] == ["rfkill", "unblock"]:
+            return _completed_process()
+        if command[:3] == ["ip", "link", "set"]:
+            return _completed_process()
+        if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
+            return _completed_process(
+                "SecuredNet:65:WPA2:*\n"
+                "OpenNet:55:--:\n"
+                "Hidden:::\n"
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+
+    networks = wifi.list_networks()
+
+    assert [network.ssid for network in networks] == [
+        "SecuredNet",
+        "OpenNet",
+        "Hidden",
+    ]
+    assert networks[0].secured is True
+    assert networks[1].secured is False
+    assert networks[2].secured is False
+
+
+def test_list_networks_falls_back_to_iw_scan(mocker):
+    """Test list_networks uses iw scan fallback when nmcli fails."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:2] == ["rfkill", "unblock"]:
+            return _completed_process()
+        if command[:3] == ["ip", "link", "set"]:
+            return _completed_process()
+        if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
+            raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")
+        if command[:2] == ["iwlist", "wlan0"]:
+            return _completed_process(
+                "Cell 01 - Address: AA:BB:CC:DD:EE:FF\n"
+                "          ESSID:\"FallbackNet\"\n"
+                "          Quality=70/70  Signal level=-40 dBm\n"
+                "          Encryption key:on\n"
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi.subprocess.run",
+        return_value=_completed_process(""),
+    )
+
+    networks = wifi.list_networks()
+
+    assert [network.ssid for network in networks] == ["FallbackNet"]
+    assert networks[0].secured is True
+
+
 def test_connect_rejects_invalid_ssid(mocker):
     """Test connect rejects blank or whitespace SSIDs."""
     errors: list[list[str]] = []
@@ -65,6 +134,25 @@ def test_connect_rejects_invalid_ssid(mocker):
     assert wifi.connect("   ") is False
     assert errors
     assert "SSID is required" in errors[0][1]
+
+
+def test_connect_rejects_invalid_ssid_length_and_chars(mocker):
+    """Test connect rejects SSIDs with invalid length or characters."""
+    errors: list[list[str]] = []
+
+    def error_handler(lines):
+        errors.append(list(lines))
+
+    wifi.configure_wifi_helpers(error_handler=error_handler)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+    run_mock = mocker.patch("rpi_usb_cloner.services.wifi._run_command")
+
+    assert wifi.connect("A" * 33) is False
+    assert wifi.connect("Bad\x00Name") is False
+    assert len(errors) == 2
+    run_mock.assert_not_called()
 
 
 def test_connect_handles_subprocess_failure(mocker):
@@ -88,6 +176,76 @@ def test_connect_handles_subprocess_failure(mocker):
     assert wifi.connect("MyWifi") is False
     assert errors
     assert "Wi-Fi connect failed" in errors[0][1]
+
+
+def test_connect_open_network_runs_nmcli(mocker):
+    """Test connect uses open-network command when password omitted."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+    mocker.patch("rpi_usb_cloner.services.wifi.get_active_ssid", return_value=None)
+    run_mock = mocker.patch(
+        "rpi_usb_cloner.services.wifi._run_command", return_value=_completed_process()
+    )
+
+    assert wifi.connect("OpenNet") is True
+
+    run_mock.assert_called_once_with(
+        ["nmcli", "dev", "wifi", "connect", "OpenNet", "ifname", "wlan0"]
+    )
+
+
+def test_connect_secure_network_updates_connection(mocker):
+    """Test connect updates secured network configuration."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+    mocker.patch("rpi_usb_cloner.services.wifi.get_active_ssid", return_value=None)
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:4] == ["nmcli", "-t", "-f", "NAME"]:
+            return _completed_process("SecureNet\n")
+        return _completed_process()
+
+    run_mock = mocker.patch(
+        "rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run
+    )
+
+    assert wifi.connect("SecureNet", password="secret") is True
+
+    assert run_mock.call_args_list[1][0][0][:3] == ["nmcli", "connection", "modify"]
+    assert run_mock.call_args_list[-1][0][0] == ["nmcli", "connection", "up", "SecureNet"]
+
+
+def test_list_networks_handles_iw_timeout(mocker):
+    """Test iw scan timeout notifies error and returns empty list."""
+    errors: list[list[str]] = []
+
+    def error_handler(lines):
+        errors.append(list(lines))
+
+    wifi.configure_wifi_helpers(error_handler=error_handler)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:2] == ["rfkill", "unblock"]:
+            return _completed_process()
+        if command[:3] == ["ip", "link", "set"]:
+            return _completed_process()
+        if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
+            raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd=["iw"], timeout=10),
+    )
+
+    assert wifi.list_networks() == []
+    assert errors
 
 
 def test_get_status_cached_parses_nmcli_output(mocker):
