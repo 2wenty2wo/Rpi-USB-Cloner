@@ -559,6 +559,51 @@ def format_device(
     except Exception as error:
         log.debug(f"Partition deletion failed (continuing anyway): {error}")
 
+    # Final safety gate: ensure device is still unmounted before wipefs/partitioning
+    final_device = get_device_by_name(device_name) or refreshed_device or device
+    try:
+        validate_device_unmounted(final_device)
+    except (DeviceBusyError, MountVerificationError) as error:
+        log.warning(
+            "Format aborted: device busy before wipefs for %s: %s",
+            device_label,
+            error,
+        )
+        if progress_callback:
+            progress_callback(["Device busy", "Aborting format"], None)
+        return False
+    except Exception as error:
+        log.error(
+            "Format aborted: final mount verification failed for %s: %s",
+            device_label,
+            error,
+        )
+        if progress_callback:
+            progress_callback(["Device busy", "Aborting format"], None)
+        return False
+
+    if shutil.which("fuser"):
+        try:
+            result = run_command(
+                ["fuser", "-m", device_path], check=False, log_command=False
+            )
+            fuser_output = " ".join(
+                output.strip()
+                for output in (result.stdout, result.stderr)
+                if output and output.strip()
+            )
+            if fuser_output:
+                log.warning(
+                    "Format aborted: device busy (holders: %s) for %s",
+                    fuser_output,
+                    device_label,
+                )
+                if progress_callback:
+                    progress_callback(["Device busy", "Aborting format"], None)
+                return False
+        except Exception as error:
+            log.debug(f"fuser check failed (continuing anyway): {error}")
+
     # Wipe filesystem signatures to prevent parted confusion
     # This is critical - old signatures can cause parted to fail
     if shutil.which("wipefs"):
