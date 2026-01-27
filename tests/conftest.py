@@ -8,10 +8,12 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Awaitable, Callable, Dict, List, Tuple
 from unittest.mock import MagicMock, Mock
 
 import pytest
+import pytest_asyncio
+from aiohttp import ClientSession, web
 
 
 # Mock hardware dependencies before other imports
@@ -25,6 +27,42 @@ sys.modules["luma.core.interface.serial"] = MagicMock()
 sys.modules["luma.core.render"] = MagicMock()
 sys.modules["luma.oled"] = MagicMock()
 sys.modules["luma.oled.device"] = MagicMock()
+
+
+# ==============================================================================
+# aiohttp Test Fixtures
+# ==============================================================================
+
+
+@pytest_asyncio.fixture
+async def aiohttp_client() -> Callable[[web.Application], Awaitable[Tuple[ClientSession, str]]]:
+    """
+    Fixture providing an aiohttp test client factory.
+
+    Returns:
+        Callable that accepts an aiohttp application and returns a session and base URL.
+    """
+    sessions: List[ClientSession] = []
+    runners: List[web.AppRunner] = []
+
+    async def factory(app: web.Application) -> Tuple[ClientSession, str]:
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        port = site._server.sockets[0].getsockname()[1]
+        session = ClientSession()
+        sessions.append(session)
+        runners.append(runner)
+        return session, f"http://127.0.0.1:{port}"
+
+    yield factory
+
+    for session in sessions:
+        await session.close()
+
+    for runner in runners:
+        await runner.cleanup()
 
 
 # ==============================================================================
