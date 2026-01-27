@@ -50,6 +50,10 @@ def select_screensaver_gif() -> None:
     settings_actions.select_screensaver_gif()
 
 
+def preview_screensaver() -> None:
+    settings_actions.preview_screensaver()
+
+
 def keyboard_test() -> None:
     settings_actions.keyboard_test()
 
