@@ -647,20 +647,24 @@ def format_device(
             result = run_command(
                 ["fuser", "-m", device_path], check=False, log_command=False
             )
-            fuser_output = " ".join(
-                output.strip()
-                for output in (result.stdout, result.stderr)
-                if output and output.strip()
-            )
-            if fuser_output:
-                log.warning(
-                    "Format aborted: device busy (holders: %s) for %s",
-                    fuser_output,
+            if result.returncode == 0:
+                fuser_output = (result.stdout or "").strip()
+                if fuser_output:
+                    log.warning(
+                        "Format aborted: device busy (holders: %s) for %s",
+                        fuser_output,
+                        device_label,
+                    )
+                    if progress_callback:
+                        progress_callback(["Device busy", "Aborting format"], None)
+                    return False
+            else:
+                log.debug(
+                    "fuser check failed for %s (rc=%s, stderr=%s)",
                     device_label,
+                    result.returncode,
+                    (result.stderr or "").strip(),
                 )
-                if progress_callback:
-                    progress_callback(["Device busy", "Aborting format"], None)
-                return False
         except Exception as error:
             log.debug(f"fuser check failed (continuing anyway): {error}")
 
