@@ -204,7 +204,8 @@ tests/
 ├── test_devices.py          # Device detection and management tests
 ├── test_clone.py            # Clone operation tests
 ├── test_settings.py         # Settings management tests
-└── test_mount_security.py   # Mount security tests (existing)
+├── test_mount_security.py   # Mount security tests (existing)
+└── test_menu_navigator.py   # Menu navigation logic tests
 ```
 
 ### Test File Naming
