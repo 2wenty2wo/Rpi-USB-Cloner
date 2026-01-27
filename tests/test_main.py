@@ -1,5 +1,6 @@
 """Tests for main application module."""
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -245,7 +246,9 @@ def setup_main_mocks(
 
     monkeypatch.setattr(main, "setup_logging", lambda *args, **kwargs: None)
     monkeypatch.setattr(main, "get_logger", lambda *args, **kwargs: FakeLogger())
-    monkeypatch.setattr(main.menu_actions, "set_action_context", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        main.menu_actions, "set_action_context", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(main, "gpio", fake_gpio)
     monkeypatch.setattr(main, "time", fake_time)
     monkeypatch.setattr(main, "datetime", FakeDateTime)
@@ -260,9 +263,15 @@ def setup_main_mocks(
 
     monkeypatch.setattr(main.renderer, "calculate_visible_rows", lambda **kwargs: 3)
     monkeypatch.setattr(main.renderer, "render_menu_screen", lambda **kwargs: None)
-    monkeypatch.setattr(main.renderer, "render_menu_image", lambda **kwargs: context.image)
-    monkeypatch.setattr(main.renderer, "calculate_footer_bounds", lambda **kwargs: (0, 0))
-    monkeypatch.setattr(main.transitions, "render_slide_transition", lambda **kwargs: None)
+    monkeypatch.setattr(
+        main.renderer, "render_menu_image", lambda **kwargs: context.image
+    )
+    monkeypatch.setattr(
+        main.renderer, "calculate_footer_bounds", lambda **kwargs: (0, 0)
+    )
+    monkeypatch.setattr(
+        main.transitions, "render_slide_transition", lambda **kwargs: None
+    )
 
     def fake_get_setting(key, default=None):
         return settings.get(key, default)
@@ -272,16 +281,26 @@ def setup_main_mocks(
 
     monkeypatch.setattr(main.settings_store, "get_setting", fake_get_setting)
     monkeypatch.setattr(main.settings_store, "get_bool", fake_get_bool)
-    monkeypatch.setattr(main.settings_store, "set_setting", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        main.settings_store, "set_setting", lambda *args, **kwargs: None
+    )
 
     monkeypatch.setattr(main.web_server, "start_server", lambda *args, **kwargs: None)
-    monkeypatch.setattr(main.devices, "configure_device_helpers", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        main.devices, "configure_device_helpers", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(main, "configure_format_helpers", lambda *args, **kwargs: None)
-    monkeypatch.setattr(main.wifi, "configure_wifi_helpers", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        main.wifi, "configure_wifi_helpers", lambda *args, **kwargs: None
+    )
 
     drive_calls = {"media": 0, "raw": 0, "invalidate": 0}
 
-    if isinstance(drives_list, list) and drives_list and isinstance(drives_list[0], list):
+    if (
+        isinstance(drives_list, list)
+        and drives_list
+        and isinstance(drives_list[0], list)
+    ):
         drive_sequence = iter(drives_list)
         last_drive_snapshot = drives_list[-1]
     else:
@@ -292,10 +311,8 @@ def setup_main_mocks(
         drive_calls["media"] += 1
         nonlocal last_drive_snapshot
         if drive_sequence is not None:
-            try:
+            with suppress(StopIteration):
                 last_drive_snapshot = next(drive_sequence)
-            except StopIteration:
-                pass
         return list(last_drive_snapshot)
 
     def list_raw_usb_disk_names():
@@ -330,7 +347,9 @@ class TestMainLoopIntegration:
             fake_gpio=fake_gpio,
             settings={"screensaver_enabled": False, "web_server_enabled": False},
         )
-        monkeypatch.setattr(main.app_state, "AppState", build_fake_state(FakeDateTime.now()))
+        monkeypatch.setattr(
+            main.app_state, "AppState", build_fake_state(FakeDateTime.now())
+        )
         monkeypatch.setattr(main.app_state, "USB_REFRESH_INTERVAL", 99.0)
 
         main.main([])
@@ -349,7 +368,9 @@ class TestMainLoopIntegration:
             raw_list=["sda"],
             mounts=[{"name": "sda", "mountpoint": "/media/usb"}],
         )
-        monkeypatch.setattr(main.app_state, "AppState", build_fake_state(FakeDateTime.now()))
+        monkeypatch.setattr(
+            main.app_state, "AppState", build_fake_state(FakeDateTime.now())
+        )
         monkeypatch.setattr(main.app_state, "USB_REFRESH_INTERVAL", 0.03)
 
         main.main([])

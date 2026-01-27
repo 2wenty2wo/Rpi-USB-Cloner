@@ -495,6 +495,65 @@ class TestRunRestorePipeline:
         call_kwargs = mock_run_checked.call_args[1]
         assert call_kwargs["progress_callback"] == progress_callback
 
+    @patch(
+        "rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress"
+    )
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_compression_type")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen")
+    def test_run_restore_pipeline_detects_corrupt_stream(
+        self, mock_popen, mock_get_comp, mock_run_checked, tmp_path
+    ):
+        """Test corrupt image stream detection when cat fails."""
+        mock_get_comp.return_value = None
+
+        mock_cat_proc = Mock()
+        mock_cat_proc.returncode = 1
+        mock_cat_proc.stdout = Mock()
+        mock_popen.return_value = mock_cat_proc
+
+        image_files = [tmp_path / "sda1.img"]
+        image_files[0].write_bytes(b"data")
+
+        with pytest.raises(RuntimeError, match="Image stream failed"):
+            restore.run_restore_pipeline(
+                image_files,
+                ["dd", "of=/dev/sdb1"],
+                title="Restoring",
+            )
+
+    @patch(
+        "rpi_usb_cloner.storage.clonezilla.restore.clone.run_checked_with_streaming_progress"
+    )
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.get_compression_type")
+    @patch("rpi_usb_cloner.storage.clonezilla.restore.subprocess.Popen")
+    @patch("shutil.which")
+    def test_run_restore_pipeline_detects_decompression_failure(
+        self, mock_which, mock_popen, mock_get_comp, mock_run_checked, tmp_path
+    ):
+        """Test decompression failure surfaces as corruption."""
+        mock_get_comp.return_value = "gzip"
+        mock_which.return_value = "/usr/bin/gzip"
+
+        mock_cat_proc = Mock()
+        mock_cat_proc.returncode = 0
+        mock_cat_proc.stdout = Mock()
+
+        mock_gzip_proc = Mock()
+        mock_gzip_proc.returncode = 1
+        mock_gzip_proc.stdout = Mock()
+
+        mock_popen.side_effect = [mock_cat_proc, mock_gzip_proc]
+
+        image_files = [tmp_path / "sda1.img.gz"]
+        image_files[0].write_bytes(b"data")
+
+        with pytest.raises(RuntimeError, match="Image decompression failed"):
+            restore.run_restore_pipeline(
+                image_files,
+                ["dd", "of=/dev/sdb1"],
+                title="Restoring",
+            )
+
 
 class TestRestoreClonezillaImage:
     """Tests for restore_clonezilla_image() main function."""
