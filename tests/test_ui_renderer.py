@@ -347,9 +347,7 @@ class TestMenuRendering:
             clear=True,
         )
         scrollbar_rects = [
-            coords
-            for coords in rectangle_calls
-            if coords[0] >= context.width - 2
+            coords for coords in rectangle_calls if coords[0] >= context.width - 2
         ]
         assert scrollbar_rects == []
 
@@ -366,9 +364,7 @@ class TestMenuRendering:
             clear=True,
         )
         scrollbar_rects = [
-            coords
-            for coords in rectangle_calls
-            if coords[0] >= context.width - 2
+            coords for coords in rectangle_calls if coords[0] >= context.width - 2
         ]
         assert scrollbar_rects
 

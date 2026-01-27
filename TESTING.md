@@ -252,6 +252,7 @@ tests/
 ├── test_image_repo.py       # Image repository tests
 ├── test_imageusb.py         # ImageUSB tests
 ├── test_integration_clone_workflows.py # Integration clone workflows
+├── test_logging.py          # Logging setup and filtering tests
 ├── test_main.py             # Main entry point tests
 ├── test_menu_navigator.py   # Menu navigation logic tests
 ├── test_mount.py            # Mount utility tests
@@ -264,6 +265,7 @@ tests/
 ├── test_ui_confirmation.py  # Confirmation dialog tests
 ├── test_validation.py       # Validation helper tests
 ├── test_verification.py     # Verification workflow tests
+├── test_wifi.py             # Wi-Fi service tests
 └── test_web_server.py       # Web server + WebSocket tests
 ```
 

@@ -5,12 +5,14 @@ which handle backup/restore operations for Clonezilla images and other image for
 """
 
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
 from rpi_usb_cloner.actions import image_actions
 from rpi_usb_cloner.app import state as app_state
+from rpi_usb_cloner.domain import ImageRepo
 
 
 # ==============================================================================
@@ -74,6 +76,61 @@ class TestFormatElapsedDuration:
         # 59.5 rounds to 60 which is 1m 0s
         result = image_actions._format_elapsed_duration(59.5)
         assert result == "1m 0s"
+
+
+class TestImageNameValidation:
+    """Test image name validation helper."""
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("backup_01", True),
+            ("backup-01", True),
+            ("backup 01", False),
+            ("", False),
+            ("invalid!", False),
+        ],
+    )
+    def test_is_valid_image_name(self, name, expected):
+        """Test image name validation rules."""
+        assert image_actions._is_valid_image_name(name) is expected
+
+
+class TestRepoDeviceFiltering:
+    """Test filtering out repo devices based on mountpoints."""
+
+    def test_detects_repo_devices(self, mock_usb_device):
+        """Test repo device detection from mountpoints."""
+        repo = ImageRepo(path=Path("/media/usb/repo"), drive_name="sda")
+        device = mock_usb_device.copy()
+        device["name"] = "sda"
+        device["children"] = [
+            {"name": "sda1", "mountpoint": "/media/usb"},
+        ]
+
+        repo_devices = image_actions._find_repo_device_names([device], [repo])
+
+        assert repo_devices == {"sda"}
+
+    def test_filters_non_repo_devices(self, mock_usb_device):
+        """Test filtering returns only non-repo devices."""
+        repo = ImageRepo(path=Path("/media/usb/repo"), drive_name="sda")
+        repo_device = mock_usb_device.copy()
+        repo_device["name"] = "sda"
+        repo_device["children"] = [
+            {"name": "sda1", "mountpoint": "/media/usb"},
+        ]
+        other_device = mock_usb_device.copy()
+        other_device["name"] = "sdb"
+        other_device["children"] = [
+            {"name": "sdb1", "mountpoint": "/media/other"},
+        ]
+
+        filtered = image_actions._filter_non_repo_devices(
+            [repo_device, other_device], [repo]
+        )
+
+        assert [device["name"] for device in filtered] == ["sdb"]
 
 
 class TestCollectMountpoints:

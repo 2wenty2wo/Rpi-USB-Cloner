@@ -27,8 +27,42 @@ def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None
         log_debug(message)
 
 
+IMAGE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
 def coming_soon() -> None:
     screens.show_coming_soon(title="IMAGES")
+
+
+def _is_valid_image_name(image_name: str) -> bool:
+    if not image_name:
+        return False
+    return bool(IMAGE_NAME_PATTERN.match(image_name))
+
+
+def _find_repo_device_names(
+    usb_devices: Iterable[dict],
+    repos: Iterable[image_repo.ImageRepo],
+) -> set[str]:
+    repo_devices = set()
+    for device in usb_devices:
+        mountpoints = _collect_mountpoints(device)
+        if not any(
+            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
+        ):
+            continue
+        device_name = device.get("name")
+        if device_name:
+            repo_devices.add(device_name)
+    return repo_devices
+
+
+def _filter_non_repo_devices(
+    usb_devices: Iterable[dict],
+    repos: Iterable[image_repo.ImageRepo],
+) -> list[dict]:
+    repo_devices = _find_repo_device_names(usb_devices, repos)
+    return [device for device in usb_devices if device.get("name") not in repo_devices]
 
 
 def backup_image(
@@ -69,17 +103,7 @@ def backup_image(
 
     # Find repos to filter them out as source candidates
     repos = image_repo.find_image_repos(image_repo.REPO_FLAG_FILENAME)
-    repo_devices = set()
-    for device in usb_devices:
-        mountpoints = _collect_mountpoints(device)
-        if any(
-            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
-        ):
-            repo_devices.add(device.get("name"))
-
-    source_candidates = [
-        device for device in usb_devices if device.get("name") not in repo_devices
-    ]
+    source_candidates = _filter_non_repo_devices(usb_devices, repos)
     if not source_candidates:
         display.display_lines(["NO SOURCE", "AVAILABLE"])
         time.sleep(1)
@@ -188,7 +212,7 @@ def backup_image(
     _log_debug(log_debug, f"Image name entered: {image_name}")
 
     # Validate image name (alphanumeric, dash, underscore only)
-    if not re.match(r"^[a-zA-Z0-9_-]+$", image_name):
+    if not _is_valid_image_name(image_name):
         display.display_lines(["INVALID NAME", "Use A-Z 0-9 - _"])
         time.sleep(1)
         return
@@ -518,16 +542,7 @@ def write_image(
         display.display_lines(["NO USB", "DRIVES"])
         time.sleep(1)
         return
-    repo_devices = set()
-    for device in usb_devices:
-        mountpoints = _collect_mountpoints(device)
-        if any(
-            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
-        ):
-            repo_devices.add(device.get("name"))
-    target_candidates = [
-        device for device in usb_devices if device.get("name") not in repo_devices
-    ]
+    target_candidates = _filter_non_repo_devices(usb_devices, repos)
     if not target_candidates:
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
@@ -1430,17 +1445,7 @@ def verify_clone(
         return
 
     # Filter out repository devices
-    repo_devices = set()
-    for device in usb_devices:
-        mountpoints = _collect_mountpoints(device)
-        if any(
-            str(repo.path).startswith(mount) for mount in mountpoints for repo in repos
-        ):
-            repo_devices.add(device.get("name"))
-
-    target_candidates = [
-        device for device in usb_devices if device.get("name") not in repo_devices
-    ]
+    target_candidates = _filter_non_repo_devices(usb_devices, repos)
     if not target_candidates:
         display.display_lines(["NO TARGET", "AVAILABLE"])
         time.sleep(1)
