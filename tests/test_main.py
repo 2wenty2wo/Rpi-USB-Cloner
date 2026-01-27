@@ -1,11 +1,12 @@
 """Tests for main application module."""
 
-import pytest
 from rpi_usb_cloner import main
+
 
 # ==============================================================================
 # Helper Function Tests
 # ==============================================================================
+
 
 class TestMainHelpers:
     """Test helper functions in main.py."""

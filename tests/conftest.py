@@ -472,7 +472,10 @@ def mock_display_context(request, mocker):
     Skipped for pure domain model tests that don't need UI/hardware mocking.
     """
     # Skip for pure logic tests (no UI/hardware dependencies)
-    if "test_domain_models" in request.node.nodeid or "test_menu_navigator" in request.node.nodeid:
+    if (
+        "test_domain_models" in request.node.nodeid
+        or "test_menu_navigator" in request.node.nodeid
+    ):
         return None
 
     mock_context = Mock()
