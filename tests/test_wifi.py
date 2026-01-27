@@ -47,6 +47,7 @@ def test_list_networks_parses_nmcli_output(mocker):
     networks = wifi.list_networks()
 
     assert [network.ssid for network in networks] == ["Cafe:Net", "OpenNet"]
+    assert [network.signal for network in networks] == [70, 55]
     assert networks[0].secured is True
     assert networks[0].in_use is True
     assert networks[1].secured is False
@@ -115,6 +116,74 @@ def test_list_networks_falls_back_to_iw_scan(mocker):
 
     assert [network.ssid for network in networks] == ["FallbackNet"]
     assert networks[0].secured is True
+    assert networks[0].signal == 100
+
+
+def test_list_networks_iw_scan_parses_negative_signal(mocker):
+    """Test iw scan parsing normalizes negative signal values."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:2] == ["rfkill", "unblock"]:
+            return _completed_process()
+        if command[:3] == ["ip", "link", "set"]:
+            return _completed_process()
+        if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
+            raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi.subprocess.run",
+        return_value=_completed_process(
+            "BSS 01:00:00:00:00:00(on wlan0)\n"
+            "\tSSID:SignalNet\n"
+            "\tsignal: -80.00 dBm\n"
+            "\tRSN:\n"
+        ),
+    )
+
+    networks = wifi.list_networks()
+
+    assert [network.ssid for network in networks] == ["SignalNet"]
+    assert networks[0].signal == 40
+    assert networks[0].secured is True
+
+
+def test_list_networks_iwlist_quality_parsing(mocker):
+    """Test iwlist quality parsing returns computed signal percentage."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def fake_run(command, check=True, redactions=None):
+        if command[:2] == ["rfkill", "unblock"]:
+            return _completed_process()
+        if command[:3] == ["ip", "link", "set"]:
+            return _completed_process()
+        if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
+            raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")
+        if command[:2] == ["iwlist", "wlan0"]:
+            return _completed_process(
+                "Cell 01 - Address: AA:BB:CC:DD:EE:FF\n"
+                '          ESSID:"QualityNet"\n'
+                "          Quality=35/70\n"
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi.subprocess.run",
+        return_value=_completed_process(""),
+    )
+
+    networks = wifi.list_networks()
+
+    assert [network.ssid for network in networks] == ["QualityNet"]
+    assert networks[0].signal == 50
+    assert networks[0].secured is False
 
 
 def test_connect_rejects_invalid_ssid(mocker):
@@ -220,6 +289,54 @@ def test_connect_secure_network_updates_connection(mocker):
     ]
 
 
+def test_connect_returns_true_when_already_connected(mocker):
+    """Test connect short-circuits when already connected."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+    mocker.patch("rpi_usb_cloner.services.wifi.get_active_ssid", return_value="Cafe")
+    run_mock = mocker.patch("rpi_usb_cloner.services.wifi._run_command")
+
+    assert wifi.connect("Cafe") is True
+
+    run_mock.assert_not_called()
+
+
+def test_disconnect_success(mocker):
+    """Test disconnect returns True on success."""
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+    run_mock = mocker.patch(
+        "rpi_usb_cloner.services.wifi._run_command", return_value=_completed_process()
+    )
+
+    assert wifi.disconnect() is True
+    run_mock.assert_called_once_with(["nmcli", "dev", "disconnect", "wlan0"])
+
+
+def test_disconnect_failure_notifies_error(mocker):
+    """Test disconnect returns False and notifies error on failure."""
+    errors: list[list[str]] = []
+
+    def error_handler(lines):
+        errors.append(list(lines))
+
+    wifi.configure_wifi_helpers(error_handler=error_handler)
+    mocker.patch(
+        "rpi_usb_cloner.services.wifi._select_active_interface", return_value="wlan0"
+    )
+
+    def failing_run(*_args, **_kwargs):
+        raise subprocess.CalledProcessError(1, ["nmcli"], stderr="boom")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=failing_run)
+
+    assert wifi.disconnect() is False
+    assert errors
+    assert "Wi-Fi disconnect failed" in errors[0][1]
+
+
 def test_list_networks_handles_iw_timeout(mocker):
     """Test iw scan timeout notifies error and returns empty list."""
     errors: list[list[str]] = []
@@ -276,3 +393,22 @@ def test_get_status_cached_parses_nmcli_output(mocker):
     assert status["connected"] is True
     assert status["ssid"] == "HomeNet"
     assert status["ip"] == "192.168.1.10"
+
+
+def test_get_active_ssid_falls_back_to_iw_on_nmcli_error(mocker):
+    """Test active SSID falls back to iw output when nmcli fails."""
+    def fake_run(command, check=True, redactions=None):
+        if command[:4] == ["nmcli", "-t", "-f", "ACTIVE,SSID,DEVICE"]:
+            raise subprocess.CalledProcessError(1, command, stderr="nmcli boom")
+        if command[:2] == ["iw", "dev"]:
+            return _completed_process(
+                "phy#0\n"
+                "\tInterface wlan0\n"
+                "\t\ttype managed\n"
+                "\t\tssid BackupNet\n"
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    mocker.patch("rpi_usb_cloner.services.wifi._run_command", side_effect=fake_run)
+
+    assert wifi.get_active_ssid(interface="wlan0") == "BackupNet"
