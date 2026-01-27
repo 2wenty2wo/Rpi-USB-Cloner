@@ -213,6 +213,84 @@ class TestPickSourceTarget:
         assert target == device1  # sda is target
 
 
+class TestExecuteCloneJob:
+    """Test clone job execution helper."""
+
+    def test_returns_invalid_params_for_bad_mode(self, mocker, mock_usb_device):
+        """Test invalid mode triggers invalid params result."""
+        source = mock_usb_device.copy()
+        source["name"] = "sda"
+        target = mock_usb_device.copy()
+        target["name"] = "sdb"
+
+        clone_mock = mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.clone_device_v2"
+        )
+        mock_logger = Mock()
+        mock_logger.info = Mock()
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.get_logger",
+            return_value=mock_logger,
+        )
+
+        success, status = drive_actions._execute_clone_job(
+            source, target, "invalid", job_id="clone-test"
+        )
+
+        assert success is False
+        assert status == "Invalid params"
+        clone_mock.assert_not_called()
+
+    def test_returns_success_when_clone_completes(self, mocker, mock_usb_device):
+        """Test successful clone returns complete status."""
+        source = mock_usb_device.copy()
+        source["name"] = "sda"
+        target = mock_usb_device.copy()
+        target["name"] = "sdb"
+
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.clone_device_v2", return_value=True
+        )
+        mock_logger = Mock()
+        mock_logger.info = Mock()
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.get_logger",
+            return_value=mock_logger,
+        )
+
+        success, status = drive_actions._execute_clone_job(
+            source, target, "smart", job_id="clone-test"
+        )
+
+        assert success is True
+        assert status == "Complete."
+
+    def test_returns_failed_status_when_clone_fails(self, mocker, mock_usb_device):
+        """Test failed clone returns check logs status."""
+        source = mock_usb_device.copy()
+        source["name"] = "sda"
+        target = mock_usb_device.copy()
+        target["name"] = "sdb"
+
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.clone_device_v2",
+            return_value=False,
+        )
+        mock_logger = Mock()
+        mock_logger.info = Mock()
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.get_logger",
+            return_value=mock_logger,
+        )
+
+        success, status = drive_actions._execute_clone_job(
+            source, target, "smart", job_id="clone-test"
+        )
+
+        assert success is False
+        assert status == "Check logs."
+
+
 class TestSelectTargetDevice:
     """Test selection logic for target devices."""
 
