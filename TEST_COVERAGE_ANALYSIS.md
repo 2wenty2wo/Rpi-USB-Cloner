@@ -2,20 +2,22 @@
 
 **Date**: 2026-01-27
 **Current Overall Coverage**: 37.99% (pytest --cov=rpi_usb_cloner on 2026-01-27)
-**Files Analyzed**: 85 Python files in `rpi_usb_cloner/`
+**Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
 **Test Files**: 37 test modules (including `test_menu_navigator.py`)
 
 ## Recent Updates (2026-01-27)
 
-✅ **Added Web/UI/Main Loop Tests** (new async + UI suites):
-- `tests/test_web_server.py` - aiohttp endpoints, WebSocket handlers, log diffing
-- `tests/test_ui_renderer.py` - menu rendering helpers and truncation logic
-- `tests/test_ui_progress.py` - progress bar and ETA formatting logic
-- `tests/test_ui_confirmation.py` - dialog defaults and selection handling
-- `tests/test_main.py` - main loop helper logic and dispatch behavior
+✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
+- **1043 tests passed**, 5 skipped (async + clonezilla tooling skips)
+- Overall coverage remains **37.99%** with **10,989 statements** tracked
+- Test inventory confirmed at **37 test modules** (see `tests/test_*.py`)
 
-**Coverage impact**: Web/UI coverage improved from a 0% baseline; overall
-coverage now 37.99% after running `pytest --cov=rpi_usb_cloner`.
+✅ **Test inventory highlights** (current module names):
+- `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
+  `tests/test_actions_settings.py`
+- `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
+  `tests/test_ui_confirmation.py`
+- `tests/test_web_server.py`, `tests/test_main.py`, `tests/test_menu_navigator.py`
 
 ## Recent Updates (2026-01-24)
 
@@ -25,9 +27,9 @@ coverage now 37.99% after running `pytest --cov=rpi_usb_cloner`.
 - `tests/test_actions_settings.py` - 1 placeholder test (functions need refactoring)
 
 **Coverage improvements**:
-- `actions/drive_actions.py`: 0% → 15% (helper functions tested)
-- `actions/image_actions.py`: 0% → 10% (helper functions tested)
-- `actions/settings/*.py`: 0% → 5% (minimal imports tested)
+- `actions/drive_actions.py`: 0% → 20.16% (helper functions tested)
+- `actions/image_actions.py`: 0% → 8.94% (helper functions tested)
+- `actions/settings/*.py`: 0% → 5-16% (imports + small helpers tested)
 
 **Key findings**: Many action functions have complex GPIO polling loops that are difficult to unit test. Functions would benefit from refactoring to separate business logic from UI/GPIO concerns.
 
@@ -35,11 +37,11 @@ coverage now 37.99% after running `pytest --cov=rpi_usb_cloner`.
 
 ## Executive Summary
 
-The codebase has **strong test coverage** (≥80%) for core storage and cloning operations but **lacks coverage** for UI, actions, menu system, web server, and main application logic. Out of 85 files:
+The codebase has **strong test coverage** (≥80%) for core storage and cloning operations but **lacks coverage** for UI, actions, menu system, web server, and main application logic. Out of 93 files:
 
-- ✅ **30 files** (35%) have ≥80% coverage (excellent)
-- ⚠️ **6 files** (7%) have <50% coverage (needs improvement)
-- ❌ **49 files** (58%) have 0% coverage (critical gap)
+- ✅ **48 files** (52%) have ≥80% coverage (excellent)
+- ⚠️ **35 files** (38%) have <50% coverage (needs improvement)
+- ❌ **2 files** (2%) have 0% coverage (critical gap)
 
 **Priority Areas for Improvement** (by impact):
 1. **Critical Safety**: Action handlers (data loss prevention)
@@ -58,20 +60,20 @@ These areas have excellent test coverage and should serve as models:
 | Component | Coverage | Test File | Notes |
 |-----------|----------|-----------|-------|
 | **Config/Settings** | 100% | `test_settings.py` (472 LOC) | Comprehensive settings tests |
-| **Domain Models** | 100% | `test_domain_models.py` (482 LOC) | All data classes tested |
+| **Domain Models** | 99.0% | `test_domain_models.py` (482 LOC) | All data classes tested |
 | **Storage Validation** | 97.4% | `test_validation.py` (424 LOC) | Input validation well-covered |
-| **Clone Progress** | 96.0% | `test_clone_progress.py` (446 LOC) | Progress tracking solid |
-| **Clone Verification** | 93.4% | `test_verification.py` (407 LOC) | SHA256 verification tested |
-| **Services/Drives** | 92.7% | `test_services_drives.py` (439 LOC) | Drive service layer good |
-| **Devices** | 92.1% | `test_devices.py` (672 LOC) | USB detection well-tested |
+| **Clone Progress** | 95.8% | `test_clone_progress.py` (446 LOC) | Progress tracking solid |
+| **Clone Verification** | 92.4% | `test_verification.py` (407 LOC) | SHA256 verification tested |
+| **Services/Drives** | 88.3% | `test_services_drives.py` (439 LOC) | Drive service layer good |
+| **Devices** | 91.8% | `test_devices.py` (672 LOC) | USB detection well-tested |
 | **Command Runners** | 90.5% | `test_command_runners.py` (410 LOC) | Command execution covered |
-| **Clone Operations** | 86.6% | `test_clone_operations.py` (620 LOC) | Core cloning logic tested |
-| **Format** | 86.3% | `test_format.py` (629 LOC) | Formatting operations good |
-| **Mount** | 85.2% | `test_mount.py` (476 LOC) | Mount/unmount tested |
+| **Clone Operations** | 83.8% | `test_clone_operations.py` (620 LOC) | Core cloning logic tested |
+| **Format** | 84.5% | `test_format.py` (629 LOC) | Formatting operations good |
+| **Mount** | 86.6% | `test_mount.py` (476 LOC) | Mount/unmount tested |
 
 **Key Takeaways**:
-- Storage layer has excellent coverage (85-100%)
-- Clonezilla operations are well-tested (backup, restore, partition table)
+- Storage layer has excellent coverage (83-100%)
+- Clonezilla utilities have mixed coverage (partition table ~62%, restore ~49%)
 - Safety validations are comprehensive
 - Mock fixtures in `conftest.py` are robust
 
@@ -79,18 +81,18 @@ These areas have excellent test coverage and should serve as models:
 
 ## Critical Coverage Gaps
 
-### ⚠️ Priority 1: Action Handlers (10-15% coverage, PARTIALLY ADDRESSED)
+### ⚠️ Priority 1: Action Handlers (5-20% coverage, PARTIALLY ADDRESSED)
 
 **Risk Level**: 🟡 MEDIUM - Helper functions tested, main operations still need work
 
 | File | LOC | Coverage | Status | Risk |
 |------|-----|----------|--------|------|
-| `actions/drive_actions.py` | 641 | ~15% | ⚠️ Helpers tested | 🔴 Data loss risk |
-| `actions/image_actions.py` | 682 | ~10% | ⚠️ Helpers tested | 🔴 Data loss risk |
-| `actions/settings/update_manager.py` | 257 | 0% | ❌ Not tested | 🟡 System stability |
-| `actions/settings/system_utils.py` | 136 | 0% | ❌ Not tested | 🟡 System stability |
-| `actions/settings/ui_actions.py` | 129 | 0% | ❌ Not tested | 🟢 Low risk |
-| `actions/settings/system_power.py` | 88 | 0% | ❌ Not tested | 🟡 System stability |
+| `actions/drive_actions.py` | 739 | 20.16% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/image_actions.py` | 816 | 8.94% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/settings/update_manager.py` | 328 | 5.20% | ❌ Not tested | 🟡 System stability |
+| `actions/settings/system_utils.py` | 137 | 14.75% | ❌ Not tested | 🟡 System stability |
+| `actions/settings/ui_actions.py` | 153 | 15.64% | ❌ Not tested | 🟢 Low risk |
+| `actions/settings/system_power.py` | 90 | 16.36% | ❌ Not tested | 🟡 System stability |
 
 **Recent Progress** (2026-01-24):
 - ✅ Added tests for helper functions (_log_debug, _collect_mountpoints, etc.)
@@ -104,7 +106,7 @@ These areas have excellent test coverage and should serve as models:
 - User confirmation dialogs embedded in GPIO loops
 - Threading and progress tracking adds complexity
 
-**Completed Tests** (`test_drive_actions.py` - 17 tests):
+**Completed Tests** (`test_actions_drive.py` - 17 tests):
    ```python
    ✅ test_log_debug_helper()
    ✅ test_handle_screenshot()
@@ -116,7 +118,7 @@ These areas have excellent test coverage and should serve as models:
    ✅ test_unmount_drive_error_handling() (2 tests)
    ```
 
-**Completed Tests** (`test_image_actions.py` - 10 tests):
+**Completed Tests** (`test_actions_image.py` - 10 tests):
    ```python
    ✅ test_log_debug_helper()
    ✅ test_format_elapsed_duration() (4 tests)
@@ -137,7 +139,7 @@ These areas have excellent test coverage and should serve as models:
    - Create end-to-end tests with simulated GPIO sequences
    - Test full workflows (select → confirm → execute → verify)
 
-3. **Settings Actions** (`test_settings_actions.py`):
+3. **Settings Actions** (`test_actions_settings.py`):
    ```python
    - test_update_system_requires_confirmation()
    - test_shutdown_requires_confirmation()
@@ -146,14 +148,14 @@ These areas have excellent test coverage and should serve as models:
    - test_screensaver_settings_persistence()
    ```
 
-**Estimated Impact**: +1,976 LOC covered (20% overall coverage increase)
+**Estimated Impact**: +1,976 LOC covered (~18% overall coverage increase)
 
 ---
 
-### ❌ Priority 2: Main Application Loop (0% coverage)
+### ⚠️ Priority 2: Main Application Loop (6.49% coverage)
 
-**File**: `main.py` (358 LOC)
-**Coverage**: 0%
+**File**: `main.py` (391 LOC)
+**Coverage**: 6.49%
 **Risk Level**: 🟡 MEDIUM - Logic errors could cause UI freezes
 
 **Why Important**:
@@ -183,12 +185,12 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-### ✅ Priority 3: Menu System (Partially Addressed)
+### ✅ Priority 3: Menu System (Covered for navigation/model)
 
 **Files**:
-- `menu/navigator.py` (85 LOC) - Covered by `test_menu_navigator.py`
-- `menu/model.py` (17 LOC) - Tests needed
-- `menu/definitions/*.py` (34 LOC total) - Tests needed
+- `menu/navigator.py` (96 LOC) - Covered by `test_menu_navigator.py` (84.13%)
+- `menu/model.py` (17 LOC) - Covered at 94.12%
+- `menu/definitions/*.py` (33 LOC total) - 100% coverage
 
 **Status**:
 - `menu/navigator.py` has a comprehensive test suite `tests/test_menu_navigator.py` with 17 tests covering initialization, navigation, bounds checking, scrolling logic, and stack management.
@@ -198,14 +200,14 @@ These areas have excellent test coverage and should serve as models:
 ### ✅ Priority 4: UI Rendering (tests added; coverage improving)
 
 **Files**:
-- `ui/renderer.py` (192 LOC) - 73.81% ⭐ Critical file
-- `ui/menus.py` (462 LOC) - 8.67%
+- `ui/renderer.py` (220 LOC) - 73.81% ⭐ Critical file
+- `ui/menus.py` (532 LOC) - 8.67%
 - `ui/screens/progress.py` (121 LOC) - 70.81%
-- `ui/screens/confirmation.py` (290 LOC) - 13.24%
-- `ui/screens/error.py` (40 LOC) - 6.12%
-- `ui/screens/status.py` (23 LOC) - 28.12%
-- `ui/keyboard.py` (303 LOC) - 6.76%
-- `ui/display.py` (380 LOC) - 15.34% (LOW)
+- `ui/screens/confirmation.py` (282 LOC) - 13.24%
+- `ui/screens/error.py` (41 LOC) - 6.12%
+- `ui/screens/status.py` (24 LOC) - 28.12%
+- `ui/keyboard.py` (298 LOC) - 6.76%
+- `ui/display.py` (533 LOC) - 15.34% (LOW)
 
 **Why Important**:
 - User feedback depends on correct rendering
@@ -258,7 +260,7 @@ These areas have excellent test coverage and should serve as models:
 
 ### ✅ Priority 5: Web Server (tests added; coverage improving)
 
-**File**: `web/server.py` (340 LOC)
+**File**: `web/server.py` (402 LOC)
 **Coverage**: 28.26% (after new async tests)
 **Risk Level**: 🟡 MEDIUM - Security and stability
 
@@ -324,7 +326,7 @@ These areas have excellent test coverage and should serve as models:
 
 ### ⚠️ Priority 7: Logging System (39.44% coverage)
 
-**File**: `logging.py` (147 LOC)
+**File**: `logging.py` (144 LOC)
 **Current Coverage**: 39.44%
 **Risk Level**: 🟢 LOW - Debugging aid
 
@@ -354,10 +356,10 @@ These areas have excellent test coverage and should serve as models:
 
 | Component | LOC | Coverage | Missing Tests |
 |-----------|-----|----------|---------------|
-| `clonezilla/partition_table.py` | 499 | 62.3% | Complex partition operations |
-| `clonezilla/backup.py` | 325 | 53.4% | Edge cases, compression |
-| `clonezilla/restore.py` | 308 | 49.1% | Partition mode validation |
-| `clonezilla/verification.py` | 162 | 6.0% | Image integrity checks |
+| `clonezilla/partition_table.py` | 497 | 62.12% | Complex partition operations |
+| `clonezilla/backup.py` | 321 | 53.47% | Edge cases, compression |
+| `clonezilla/restore.py` | 313 | 49.46% | Partition mode validation |
+| `clonezilla/verification.py` | 162 | 6.00% | Image integrity checks |
 
 **Recommended Improvements**:
 - Add tests for partition table edge cases (GPT, MBR, hybrid)
@@ -373,9 +375,9 @@ These areas have excellent test coverage and should serve as models:
 
 | Component | LOC | Coverage | Gap |
 |-----------|-----|----------|-----|
-| `storage/erase.py` | 126 | 70.4% | Full erase mode |
-| `storage/format.py` | 160 | 86.3% | Filesystem-specific tests |
-| `storage/image_repo.py` | 77 | 8.6% | Image repository management |
+| `storage/erase.py` | 127 | 70.52% | Full erase mode |
+| `storage/format.py` | 172 | 84.45% | Filesystem-specific tests |
+| `storage/image_repo.py` | 164 | 86.67% | Image repository management |
 
 **Recommended Improvements**:
 - Test full device erase vs quick erase
@@ -386,20 +388,19 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-## Low Priority Gaps (0% coverage, non-critical)
+## Low Priority Gaps (low coverage, non-critical)
 
-These have 0% coverage but are lower risk:
+These have low coverage but are lower risk:
 
 | File | LOC | Priority | Reason |
 |------|-----|----------|--------|
-| `ui/screensaver.py` | 77 | LOW | Visual feature, not critical |
-| `ui/screens/demos.py` | 309 | LOW | Demo/test screens only |
-| `ui/screens/file_browser.py` | 196 | LOW | UI component |
-| `ui/screens/wifi.py` | 129 | LOW | UI component |
-| `ui/icons.py` | 26 | LOW | Static data |
-| `storage/iso.py` | 43 | LOW | ISO operations not core |
-| `hardware/gpio.py` | 43 | LOW | Hardware-specific |
-| `hardware/virtual_gpio.py` | 33 | LOW | Test utility |
+| `ui/screensaver.py` | 77 | LOW | Visual feature, not critical (16.51%) |
+| `ui/screens/demos.py` | 309 | LOW | Demo/test screens only (2.95%) |
+| `ui/screens/file_browser.py` | 190 | LOW | UI component (7.14%) |
+| `ui/screens/wifi.py` | 128 | LOW | UI component (6.71%) |
+| `storage/iso.py` | 44 | LOW | ISO operations not core (16.13%) |
+| `hardware/gpio.py` | 43 | LOW | Hardware-specific (33.96%) |
+| `hardware/virtual_gpio.py` | 33 | LOW | Test utility (34.15%) |
 
 **Recommendation**: Address these after Priority 1-7 are complete.
 
@@ -409,13 +410,13 @@ These have 0% coverage but are lower risk:
 
 ### Immediate Actions (Priority 1-3)
 
-1. ✅ **Created `test_drive_actions.py`** - Test destructive drive operations
-2. ✅ **Created `test_image_actions.py`** - Test image backup/restore actions
-3. ✅ **Created `test_settings_actions.py`** - Test system settings changes
+1. ✅ **Created `test_actions_drive.py`** - Test destructive drive operations
+2. ✅ **Created `test_actions_image.py`** - Test image backup/restore actions
+3. ✅ **Created `test_actions_settings.py`** - Test system settings changes
 4. ✅ **Created `test_main.py`** - Test main event loop (integration tests)
 5. ✅ **Created `test_menu_navigator.py`** - Test menu navigation logic
 
-**Expected Outcome**: Coverage increased to 37.99% overall after `pytest --cov`
+**Expected Outcome**: Coverage confirmed at 37.99% overall after `pytest --cov`
 
 ### Short-Term Actions (Priority 4-5)
 
@@ -425,7 +426,7 @@ These have 0% coverage but are lower risk:
 9. 🔜 **Expand `test_ui_display.py`** - Improve display initialization tests
 10. ✅ **Created `test_web_server.py`** - Test web server and WebSocket
 
-**Expected Outcome**: Coverage increased to 37.99% overall after `pytest --cov`
+**Expected Outcome**: Coverage confirmed at 37.99% overall after `pytest --cov`
 
 ### Long-Term Actions (Priority 6-7)
 
@@ -434,7 +435,7 @@ These have 0% coverage but are lower risk:
 13. **Improve Clonezilla tests** - Fill gaps in partition table, backup, restore
 14. **Improve storage tests** - Complete erase, format, image_repo tests
 
-**Expected Outcome**: Increase coverage from 70% → 80% (+860 LOC)
+**Expected Outcome**: Progress toward the 50% coverage target (Q1 2026).
 
 ---
 
@@ -510,7 +511,7 @@ def test_clone_handles_permission_denied(mocker):
 - **Total Statements**: 10,989
 - **Covered Statements**: 4,372
 - **Overall Coverage**: 37.99%
-- **Branch Coverage**: Tracked (3,740 branches, 237 partial)
+- **Branch Coverage**: Tracked (3,740 branches, 1,223 covered, 237 partial)
 
 ### Immediate Goal (Q1 2026)
 - **Target Coverage**: 50%
@@ -557,13 +558,13 @@ def test_clone_handles_permission_denied(mocker):
 
 ## Conclusion
 
-The codebase has **excellent foundational coverage** for core storage operations (85-100%) but **lacks coverage for application logic and UI layers** (0-30%). By prioritizing action handlers, main loop, and menu system tests, we can achieve **50% overall coverage** with high confidence in data safety. Adding UI and web server tests will reach **70% coverage** and ensure user-facing features work correctly.
+The codebase has **excellent foundational coverage** for core storage operations (83-100%) but **lacks coverage for application logic and UI layers** (6-30%). By prioritizing action handlers, main loop, and menu system tests, we can achieve **50% overall coverage** with high confidence in data safety. Adding UI and web server tests will reach **70% coverage** and ensure user-facing features work correctly.
 
 **Next Steps**:
 1. Review this analysis with the team
 2. Create GitHub issues for each recommended test file
 3. Assign priority labels (P0=Critical, P1=High, P2=Medium)
-4. Begin with `test_drive_actions.py` (highest risk, highest impact)
+4. Begin with `test_actions_drive.py` (highest risk, highest impact)
 5. Track coverage progress in CI/CD pipeline
 
-**Estimated Total Impact**: 27% → 80% coverage (+5,481 LOC covered)
+**Estimated Total Impact**: 38% → 80% coverage (+5,481 LOC covered)
