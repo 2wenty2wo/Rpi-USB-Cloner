@@ -44,6 +44,7 @@ Example:
 
 import re
 import select
+import shutil
 import subprocess
 import time
 from typing import Callable, List, Optional
@@ -342,7 +343,16 @@ def format_device(
         return False
 
     # Allow device to settle after unmount (prevents intermittent parted failures)
-    time.sleep(1)
+    # Sync to flush any pending writes and udevadm settle to wait for udev processing
+    for command in (["sync"], ["udevadm", "settle", "--timeout=5"]):
+        if not shutil.which(command[0]):
+            log.debug("Skipping %s: command not found", command[0])
+            continue
+        try:
+            run_command(command)
+        except (subprocess.CalledProcessError, OSError) as error:
+            log.debug("Best-effort command failed (%s): %s", command[0], error)
+    time.sleep(2)  # Additional wait for device to fully release
 
     # Create partition table
     if progress_callback:
