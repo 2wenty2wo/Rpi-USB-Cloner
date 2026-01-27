@@ -9,13 +9,7 @@ from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 from rpi_usb_cloner.ui import display, menus
-from rpi_usb_cloner.ui.icons import (
-    ARCHIVE_ICON,
-    FILE_ICON,
-    FOLDER_ICON,
-    IMAGE_FILE_ICON,
-    TEXT_FILE_ICON,
-)
+from rpi_usb_cloner.ui.icons import FILE_ICON, FOLDER_ICON
 
 
 class FileItem:
@@ -27,23 +21,11 @@ class FileItem:
         self.path = path
         self.is_dir = is_dir
         self.display_name = display_name or path.name
-        self.icon = self._get_icon()
-
-    def _get_icon(self) -> str:
-        if self.is_dir:
-            return FOLDER_ICON
-        
-        ext = self.path.suffix.lower()
-        if ext in (".img", ".iso", ".bin"):
-            return IMAGE_FILE_ICON
-        if ext in (".zip", ".gz", ".tar", ".tgz", ".7z"):
-            return ARCHIVE_ICON
-        if ext in (".txt", ".log", ".md", ".py", ".yaml", ".yml"):
-            return TEXT_FILE_ICON
-        return FILE_ICON
 
     def __str__(self) -> str:
-        return f"{self.icon} {self.display_name}"
+        if self.is_dir:
+            return f"{FOLDER_ICON} {self.display_name}"
+        return f"{FILE_ICON} {self.display_name}"
 
 
 def _get_line_height(font, min_height=8):
@@ -137,7 +119,6 @@ def _render_browser_screen(
     selected_index: int,
     current_path: Optional[Path] = None,
     title_icon: Optional[str] = None,
-    scroll_tick: int = 0,
 ) -> None:
     """Render the file browser screen with selectable items."""
     ctx = display.get_display_context()
@@ -150,31 +131,26 @@ def _render_browser_screen(
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
     # Draw title with icon
-    # If we have a current path, show the last part of it in the title area
-    display_title = title
-    if current_path:
-        display_title = f"/{current_path.name}" if current_path.name else str(current_path)
-
-    layout = display.draw_title_with_icon(display_title, icon=title_icon)
+    layout = display.draw_title_with_icon(title, icon=title_icon)
     content_top = layout.content_top
 
     # Calculate available space for items
     items_font = fonts.get("items")
-    footer_font = fonts.get("footer", items_font)
     line_height = _get_line_height(items_font)
-    footer_height = _get_line_height(footer_font) + 2
-    
-    available_height = height - content_top - footer_height
+    available_height = height - content_top - 2
     max_visible_items = max(1, available_height // line_height)
 
     # Calculate scroll offset to keep selected item visible
-    start_index = max(
-        0,
-        min(
-            selected_index - max_visible_items // 2,
-            max(0, len(items) - max_visible_items),
-        ),
-    )
+    if len(items) <= max_visible_items:
+        start_index = 0
+    else:
+        # Keep selected item in middle when possible
+        start_index = max(
+            0,
+            min(
+                selected_index - max_visible_items // 2, len(items) - max_visible_items
+            ),
+        )
 
     # Render visible items
     for i in range(max_visible_items):
@@ -187,80 +163,29 @@ def _render_browser_screen(
 
         y_pos = content_top + (i * line_height)
 
-        # Draw item background if selected
+        # Draw selection indicator
         if is_selected:
-            draw.rectangle(
-                (0, y_pos, width, y_pos + line_height - 1), outline=0, fill=255
-            )
+            draw.text((2, y_pos), ">", font=items_font, fill=255)
 
         # Draw item text (with icon)
         item_text = str(item)
-        text_fill = 0 if is_selected else 255
-        
-        # Determine if we need to scroll the text
-        text_width = display._measure_text_width(draw, item_text, items_font)
-        max_text_width = width - 4
-        
-        if is_selected and text_width > max_text_width:
-            # Marquee effect
-            overflow = text_width - max_text_width
-            # Cycle through scroll positions: wait at start, scroll, wait at end, reset
-            wait_ticks = 10
-            scroll_range = overflow + 10 # Extra gap
-            total_cycle = wait_ticks * 2 + scroll_range
-            
-            cycle_pos = scroll_tick % total_cycle
-            if cycle_pos < wait_ticks:
-                offset = 0
-            elif cycle_pos < wait_ticks + scroll_range:
-                offset = cycle_pos - wait_ticks
-            else:
-                offset = scroll_range
-                
-            draw.text((2 - offset, y_pos), item_text, font=items_font, fill=text_fill)
-        else:
-            # Truncate if not selected or fits
-            if text_width > max_text_width:
-                item_text = display._truncate_text(draw, item_text, items_font, max_text_width)
-            draw.text((2, y_pos), item_text, font=items_font, fill=text_fill)
+        # Truncate if too long (rough estimate for 128px width)
+        max_chars = 18
+        if len(item_text) > max_chars:
+            item_text = item_text[: max_chars - 1] + "…"
 
-    # Show vertical scrollbar if needed
+        draw.text((12, y_pos), item_text, font=items_font, fill=255)
+
+    # Show scroll indicator if needed
     if len(items) > max_visible_items:
-        bar_height = max(4, int(available_height * (max_visible_items / len(items))))
-        bar_y_start = content_top + int(
-            (available_height - bar_height) * (start_index / (len(items) - max_visible_items))
-        )
-        draw.rectangle(
-            (width - 2, bar_y_start, width - 1, bar_y_start + bar_height),
-            outline=255,
-            fill=255,
-        )
+        # Show which page we're on
+        total_pages = (len(items) + max_visible_items - 1) // max_visible_items
+        current_page = start_index // max_visible_items + 1
+        indicator = f"{current_page}/{total_pages}"
 
-    # Render Footer
-    footer_y = height - footer_height
-    draw.rectangle((0, footer_y, width, height), outline=255, fill=255)
-    
-    # Left side: Button help
-    help_text = "A:EXIT L:BACK R:GO"
-    draw.text((2, footer_y + 1), help_text, font=footer_font, fill=0)
-    
-    # Right side: File/Item info
-    if 0 <= selected_index < len(items):
-        item = items[selected_index]
-        info_text = ""
-        if not item.is_dir:
-            try:
-                size = item.path.stat().st_size
-                if size < 1024: info_text = f"{size}B"
-                elif size < 1024*1024: info_text = f"{size/1024:.0f}K"
-                elif size < 1024*1024*1024: info_text = f"{size/(1024*1024):.1f}M"
-                else: info_text = f"{size/(1024*1024*1024):.1f}G"
-            except (OSError, PermissionError):
-                info_text = "???"
-        
-        if info_text:
-            info_width = display._measure_text_width(draw, info_text, footer_font)
-            draw.text((width - info_width - 2, footer_y + 1), info_text, font=footer_font, fill=0)
+        # Draw in bottom right corner
+        indicator_font = fonts.get("footer")
+        draw.text((width - 30, height - 12), indicator, font=indicator_font, fill=255)
 
     # Display the rendered screen
     ctx.disp.display(ctx.image)
@@ -287,21 +212,14 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
         time.sleep(2)
         return
 
-    # Marquee state
-    scroll_tick = 0
-    last_render_time = 0
-
     def render() -> None:
-        nonlocal last_render_time
         _render_browser_screen(
             title,
             current_items,
             selected_index,
             current_path=current_path,
             title_icon=title_icon,
-            scroll_tick=scroll_tick,
         )
-        last_render_time = time.time()
 
     # Initial render
     render()
@@ -422,21 +340,7 @@ def show_file_browser(app_context, *, title: str = "FILE BROWSER") -> None:
                     time.sleep(1)
                     render()
 
-        # Continuous render for marquee effect
-        current_time = time.time()
-        if (current_time - last_render_time) > 0.1:
-            scroll_tick += 1
-            render()
-
         # Update button states
-        if (
-            not prev_states["U"] and current_u or
-            not prev_states["D"] and current_d or
-            not prev_states["L"] and current_l or
-            not prev_states["R"] and current_r or
-            not prev_states["B"] and current_b
-        ):
-            scroll_tick = 0
         prev_states["A"] = current_a
         prev_states["B"] = current_b
         prev_states["L"] = current_l
