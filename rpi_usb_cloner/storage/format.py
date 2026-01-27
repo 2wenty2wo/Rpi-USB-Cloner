@@ -391,14 +391,54 @@ def format_device(
             log.debug("Best-effort command failed (%s): %s", command[0], error)
     time.sleep(2)  # Additional wait for device to fully release
 
-    # Check if device is held by any process
-    if shutil.which("fuser"):
+    # Aggressively release device from any processes holding it open
+    # First, check and unmount any partitions that might have been re-mounted
+    device_pattern = f"/dev/{device_name}"
+    for partition_suffix in ["1", "2", "3", "4", "p1", "p2", "p3", "p4", ""]:
+        partition_path = f"{device_pattern}{partition_suffix}"
         try:
-            result = run_command(["fuser", device_path], check=False, log_command=False)
+            # Try to unmount each potential partition
+            result = run_command(["umount", partition_path], check=False, log_command=False)
+            if result.returncode == 0:
+                log.debug(f"Unmounted {partition_path}")
+        except Exception:
+            pass
+    
+    # Kill any processes using the device or its partitions
+    if shutil.which("fuser"):
+        # First check what's using the device
+        try:
+            result = run_command(["fuser", "-m", device_path], check=False, log_command=False)
             if result.stdout.strip():
                 log.warning(f"Device {device_path} is being held by process(es): {result.stdout.strip()}")
+                # Now kill those processes
+                log.debug(f"Killing processes using {device_path}")
+                run_command(["fuser", "-km", device_path], check=False, log_command=False)
+                time.sleep(1)  # Give processes time to die
         except Exception as error:
-            log.debug(f"fuser check failed: {error}")
+            log.debug(f"fuser check/kill failed: {error}")
+    
+    # Try to remove any device-mapper mappings (can hold devices open)
+    if shutil.which("dmsetup"):
+        try:
+            # Get list of dm devices
+            result = run_command(["dmsetup", "ls"], check=False, log_command=False)
+            if result.stdout.strip() and "No devices found" not in result.stdout:
+                log.debug("Checking device-mapper for stale mappings")
+                # Try to remove all dm devices (safe - only removes those we can)
+                run_command(["dmsetup", "remove_all", "--force"], check=False, log_command=False)
+                time.sleep(1)
+        except Exception as error:
+            log.debug(f"dmsetup cleanup failed: {error}")
+    
+    # Final sync and settle before continuing
+    for cmd in (["sync"], ["udevadm", "settle", "--timeout=5"]):
+        if shutil.which(cmd[0]):
+            try:
+                run_command(cmd, log_command=False)
+            except (subprocess.CalledProcessError, OSError):
+                pass
+    time.sleep(1)
 
     # Wipe filesystem signatures to prevent parted confusion
     # This is critical - old signatures can cause parted to fail
