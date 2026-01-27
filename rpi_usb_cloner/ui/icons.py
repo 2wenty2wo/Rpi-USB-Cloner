@@ -51,6 +51,9 @@ ARROW_RIGHT = chr(57417)  # arrow-right - for backup/copy operations
 # File browser icons
 FILE_ICON = chr(58099)  # file icon - regular files
 FOLDER_ICON = chr(58174)  # folder icon - directories
+ARCHIVE_ICON = chr(57493)  # package/archive icon (inventory)
+IMAGE_FILE_ICON = chr(57581)  # hard-drive icon for disk images
+TEXT_FILE_ICON = chr(58102)  # file-text icon
 
 # Keyboard mode icons
 UPPERCASE_ICON = chr(58330)  # uppercase mode selector
