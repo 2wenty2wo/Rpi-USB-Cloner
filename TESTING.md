@@ -61,6 +61,8 @@ xdg-open htmlcov/index.html  # Linux
 
 - **pytest** (>=7.4.0) - Test framework
 - **pytest-cov** (>=4.1.0) - Coverage plugin
+- **pytest-aiohttp** - aiohttp test client fixtures (e.g., `aiohttp_client`)
+- **pytest-asyncio** (>=0.23.8) - Async test support/markers
 - **pytest-mock** (>=3.12.0) - Mocking helpers
 - **pytest-timeout** (>=2.2.0) - Test timeout management
 - **coverage[toml]** (>=7.3.0) - Code coverage measurement
@@ -78,6 +80,10 @@ pytest tests/test_settings.py
 
 # Run clone tests only
 pytest tests/test_clone.py
+
+# Run web server/UI tests
+pytest tests/test_web_server.py
+pytest tests/test_ui_renderer.py tests/test_ui_progress.py tests/test_ui_confirmation.py
 ```
 
 ### Run Specific Test Classes or Methods
@@ -96,6 +102,9 @@ pytest -k "unmount"
 ### Run Tests by Markers
 
 ```bash
+# Run async tests (pytest-asyncio)
+pytest -m asyncio
+
 # Run only unit tests
 pytest -m unit
 
@@ -108,6 +117,15 @@ pytest -m "not slow"
 # Run hardware tests (requires actual hardware)
 pytest -m hardware
 ```
+
+### Async & Web/UI Tests
+
+- **Async tests** use `pytest-asyncio` with `@pytest.mark.asyncio` and
+  `pytest_asyncio.fixture` for coroutine fixtures.
+- **aiohttp tests** rely on the `aiohttp_client` fixture from `pytest-aiohttp`
+  to spin up test servers for web endpoints and WebSocket handlers.
+- **UI tests** are logic-focused and use mocked display contexts (Pillow images
+  and `unittest.mock`), so they do not require physical OLED hardware.
 
 ### Parallel Test Execution
 
@@ -205,7 +223,11 @@ tests/
 ├── test_clone.py            # Clone operation tests
 ├── test_settings.py         # Settings management tests
 ├── test_mount_security.py   # Mount security tests (existing)
-└── test_menu_navigator.py   # Menu navigation logic tests
+├── test_menu_navigator.py   # Menu navigation logic tests
+├── test_web_server.py       # Web server + WebSocket tests
+├── test_ui_renderer.py      # UI renderer tests
+├── test_ui_progress.py      # Progress screen tests
+└── test_ui_confirmation.py  # Confirmation dialog tests
 ```
 
 ### Test File Naming
@@ -472,6 +494,6 @@ When contributing new code:
 
 ---
 
-**Last Updated**: 2026-01-24
-**Test Count**: 962 tests (38 new action handler tests)
-**Coverage**: 34.57% overall (up from 27.10%)
+**Last Updated**: 2026-01-27
+**Test Count**: 1048 tests (includes new UI/web suites)
+**Coverage**: 37.99% overall (from `pytest --cov=rpi_usb_cloner`)
