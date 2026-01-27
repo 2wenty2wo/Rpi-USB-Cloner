@@ -133,6 +133,39 @@ class TestRepoDeviceFiltering:
         assert [device["name"] for device in filtered] == ["sdb"]
 
 
+class TestRepoDriveDetection:
+    """Test repo drive safety checks."""
+
+    def test_detects_repo_drive_by_mountpoint(self, mock_usb_device):
+        """Test repo drive detection when mountpoint matches repo path."""
+        repo_path = Path("/media/usb/repo")
+        device = mock_usb_device.copy()
+        device["children"] = [
+            {"name": "sda1", "mountpoint": "/media/usb"},
+        ]
+
+        assert image_actions._is_repo_drive(device, repo_path) is True
+
+    def test_returns_false_for_non_repo_mountpoints(self, mock_usb_device):
+        """Test repo drive detection returns False for unrelated mountpoints."""
+        repo_path = Path("/media/other/repo")
+        device = mock_usb_device.copy()
+        device["children"] = [
+            {"name": "sda1", "mountpoint": "/media/usb"},
+        ]
+
+        assert image_actions._is_repo_drive(device, repo_path) is False
+
+    def test_returns_false_when_unmounted(self, mock_usb_device):
+        """Test repo drive detection returns False for unmounted devices."""
+        repo_path = Path("/media/usb/repo")
+        device = mock_usb_device.copy()
+        device["mountpoint"] = None
+        device["children"] = []
+
+        assert image_actions._is_repo_drive(device, repo_path) is False
+
+
 class TestCollectMountpoints:
     """Test the _collect_mountpoints helper function."""
 

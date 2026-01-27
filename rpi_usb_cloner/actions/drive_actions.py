@@ -127,52 +127,15 @@ def copy_drive(
                         progress_line=f"Mode {mode.upper()}",
                         title_icon=COPY_DRIVE_ICON,
                     )
-
-                    # Use type-safe CloneJob API (Step 4 refactoring)
-                    try:
-                        source_drive = Drive.from_lsblk_dict(source)
-                        target_drive = Drive.from_lsblk_dict(target)
-                        clone_mode_enum = CloneMode(mode)
-                        job = CloneJob(
-                            source_drive, target_drive, clone_mode_enum, job_id
-                        )
-
-                        # CloneJob.validate() is called inside clone_device_v2
-                        # This automatically prevents source==destination bug!
-                        if clone_device_v2(job):
-                            screens.render_status_template(
-                                "COPY",
-                                "Done",
-                                progress_line="Complete.",
-                                title_icon=COPY_DRIVE_ICON,
-                            )
-                        else:
-                            log_operation.error(
-                                "Copy failed",
-                                source=source_name,
-                                target=target_name,
-                                mode=mode,
-                            )
-                            screens.render_status_template(
-                                "COPY",
-                                "Failed",
-                                progress_line="Check logs.",
-                                title_icon=COPY_DRIVE_ICON,
-                            )
-                    except (KeyError, ValueError) as error:
-                        # Handle Drive conversion or CloneMode errors
-                        log_operation.error(
-                            "Copy failed",
-                            source=source_name,
-                            target=target_name,
-                            error=str(error),
-                        )
-                        screens.render_status_template(
-                            "COPY",
-                            "Failed",
-                            progress_line="Invalid params",
-                            title_icon=COPY_DRIVE_ICON,
-                        )
+                    success, status_line = _execute_clone_job(
+                        source, target, mode, job_id=job_id
+                    )
+                    screens.render_status_template(
+                        "COPY",
+                        "Done" if success else "Failed",
+                        progress_line=status_line,
+                        title_icon=COPY_DRIVE_ICON,
+                    )
 
                     time.sleep(1)
                     return
@@ -402,6 +365,58 @@ def _collect_mountpoints(device: dict) -> set[str]:
             mountpoints.add(mountpoint)
         stack.extend(get_children(current))
     return mountpoints
+
+
+def _prepare_clone_job(
+    source: dict,
+    target: dict,
+    mode: str,
+    job_id: str,
+) -> CloneJob:
+    """Build a CloneJob from device metadata."""
+    source_drive = Drive.from_lsblk_dict(source)
+    target_drive = Drive.from_lsblk_dict(target)
+    clone_mode_enum = CloneMode(mode)
+    return CloneJob(source_drive, target_drive, clone_mode_enum, job_id)
+
+
+def _execute_clone_job(
+    source: dict,
+    target: dict,
+    mode: str,
+    *,
+    job_id: str,
+) -> tuple[bool, str]:
+    """Run clone operation and return (success, status_line)."""
+    source_name = source.get("name")
+    target_name = target.get("name")
+    op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
+    op_log.info(
+        f"Starting clone: {source_name} -> {target_name} (mode {mode})"
+    )
+    try:
+        job = _prepare_clone_job(source, target, mode, job_id)
+    except (KeyError, ValueError) as error:
+        log_operation.error(
+            "Copy failed",
+            source=source_name,
+            target=target_name,
+            error=str(error),
+        )
+        return False, "Invalid params"
+
+    # CloneJob.validate() is called inside clone_device_v2
+    # This automatically prevents source==destination bug!
+    if clone_device_v2(job):
+        return True, "Complete."
+
+    log_operation.error(
+        "Copy failed",
+        source=source_name,
+        target=target_name,
+        mode=mode,
+    )
+    return False, "Check logs."
 
 
 def _pick_source_target(

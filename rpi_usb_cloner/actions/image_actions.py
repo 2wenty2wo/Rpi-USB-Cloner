@@ -2,6 +2,7 @@ import os
 import re
 import threading
 import time
+from pathlib import Path
 from typing import Callable, Iterable, Optional
 from uuid import uuid4
 
@@ -63,6 +64,11 @@ def _filter_non_repo_devices(
 ) -> list[dict]:
     repo_devices = _find_repo_device_names(usb_devices, repos)
     return [device for device in usb_devices if device.get("name") not in repo_devices]
+
+
+def _is_repo_drive(device: dict, repo_path: Path) -> bool:
+    mountpoints = _collect_mountpoints(device)
+    return any(str(repo_path).startswith(mount) for mount in mountpoints)
 
 
 def backup_image(
@@ -191,8 +197,7 @@ def backup_image(
     _log_debug(log_debug, f"Repository selected: {repo_path}")
 
     # Verify source is not the repo drive
-    source_mounts = _collect_mountpoints(source)
-    if any(str(repo_path).startswith(mount) for mount in source_mounts):
+    if _is_repo_drive(source, repo_path):
         display.display_lines(["CANNOT BACKUP", "REPO DRIVE"])
         time.sleep(1)
         return
@@ -570,8 +575,7 @@ def write_image(
             break
     if refreshed_target is not None:
         target = refreshed_target
-    target_mounts = _collect_mountpoints(target)
-    if any(str(repo_path).startswith(mount) for mount in target_mounts):
+    if _is_repo_drive(target, repo_path):
         display.display_lines(["TARGET IS", "REPO DRIVE"])
         time.sleep(1)
         return
