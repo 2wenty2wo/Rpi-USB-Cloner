@@ -113,10 +113,10 @@ def preview_screensaver() -> None:
     time.sleep(0.5)  # Short delay to show status and avoid immediate keypress detection
 
     context = display.get_display_context()
-    
+
     # We need to manually check input to break the loop, but play_screensaver
     # handles the loop internally and returns when input is detected.
-    # We just need to ensure we don't return immediately if the button 
+    # We just need to ensure we don't return immediately if the button
     # used to select the menu item is still pressed.
     # However, standard practice in this codebase seems to be just calling the function.
     # Let's trust play_screensaver's input check or the delay we added.
@@ -126,7 +126,6 @@ def preview_screensaver() -> None:
         selected_gif=selected_gif,
         screensaver_mode=mode,
     )
-
 
 
 def keyboard_test() -> None:
