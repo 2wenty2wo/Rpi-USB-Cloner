@@ -1,13 +1,59 @@
 """Tests for web server module."""
 
 import asyncio
+import contextlib
+import threading
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from dataclasses import dataclass
+from pathlib import Path
 
-from aiohttp import web
+import pytest
+import pytest_asyncio
+from aiohttp import ClientSession, WSMsgType, web
 
 from rpi_usb_cloner.app.context import LogEntry
 from rpi_usb_cloner.web import server
+from rpi_usb_cloner.web.system_health import SystemHealth
+
+
+# ==============================================================================
+# Test Fixtures
+# ==============================================================================
+
+
+@dataclass
+class WebClient:
+    session: ClientSession
+    base_url: str
+    app: web.Application
+
+
+def _ws_url(client: WebClient, path: str) -> str:
+    return f"{client.base_url.replace('http', 'ws', 1)}{path}"
+
+
+@pytest_asyncio.fixture
+async def web_client(aiohttp_client) -> WebClient:
+    app = web.Application()
+    app[server.DISPLAY_NOTIFIER_KEY] = server.DisplayUpdateNotifier(
+        asyncio.get_running_loop()
+    )
+    app[server.DISPLAY_STOP_EVENT_KEY] = threading.Event()
+    app[server.APP_CONTEXT_KEY] = None
+    app.router.add_get("/", server.handle_root)
+    app.router.add_get("/health", server.handle_health)
+    app.router.add_get("/screen.png", server.handle_screen_png)
+    app.router.add_get("/ws/screen", server.handle_screen_ws)
+    app.router.add_get("/ws/control", server.handle_control_ws)
+    app.router.add_get("/ws/logs", server.handle_logs_ws)
+    app.router.add_get("/ws/health", server.handle_health_ws)
+    app.router.add_get("/ws/devices", server.handle_devices_ws)
+    app.router.add_get("/ws/images", server.handle_images_ws)
+
+    static_dir = Path(server.__file__).resolve().parent / "static"
+    app.router.add_static("/static/", str(static_dir))
+    session, base_url = await aiohttp_client(app)
+    return WebClient(session=session, base_url=base_url, app=app)
 
 
 # ==============================================================================
@@ -98,65 +144,131 @@ class TestLogSerialization:
 
 
 # ==============================================================================
-# Request Handler Tests
+# HTTP Request Tests
 # ==============================================================================
 
 
-class TestRequestHandlers:
-    """Test basic HTTP request handlers."""
-
-    def test_handle_root(self):
-        """Test root endpoint returns HTML template."""
-        request = Mock()
-        # Mock template loading
-        with patch(
-            "rpi_usb_cloner.web.server._load_template", return_value="<html></html>"
-        ):
-            response = asyncio.run(server.handle_root(request))
-            assert response.status == 200
-            assert response.content_type == "text/html"
-            assert response.text == "<html></html>"
-            assert "Cache-Control" in response.headers
-
-    def test_handle_screen_png(self):
-        """Test PNG endpoint returns image bytes."""
-        request = Mock()
-        with patch(
-            "rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"pngdata"
-        ):
-            response = asyncio.run(server.handle_screen_png(request))
-            assert response.status == 200
-            assert response.content_type == "image/png"
-            assert response.body == b"pngdata"
+@pytest.mark.asyncio
+async def test_index_route_loads(web_client, mocker):
+    """Test root endpoint returns HTML template."""
+    mocker.patch("rpi_usb_cloner.web.server._load_template", return_value="<html></html>")
+    async with web_client.session.get(f"{web_client.base_url}/") as response:
+        assert response.status == 200
+        assert response.content_type == "text/html"
+        assert "<html></html>" in await response.text()
 
 
-class TestSocketHandlers:
-    """Test WebSocket handlers."""
+@pytest.mark.asyncio
+async def test_static_asset_route(web_client):
+    """Test static asset routing returns expected file."""
+    async with web_client.session.get(
+        f"{web_client.base_url}/static/tabler/tabler.min.css"
+    ) as response:
+        assert response.status == 200
+        assert response.content_type == "text/css"
+        assert await response.text()
 
-    def test_control_ws_handles_valid_buttons(self):
-        """Test control WS accepts valid button commands."""
-        # Setup mock request and websocket
-        request = Mock()
-        request.remote = "127.0.0.1"
 
-        # Mock WebSocketResponse
-        ws_mock = AsyncMock(spec=web.WebSocketResponse)
-        ws_mock.prepare = AsyncMock()
-        ws_mock.close = AsyncMock()
+@pytest.mark.asyncio
+async def test_health_endpoint_returns_stats(web_client, mocker):
+    """Test health endpoint returns expected system stats shape."""
+    mocker.patch(
+        "rpi_usb_cloner.web.server.get_system_health",
+        return_value=SystemHealth(
+            cpu_percent=50.2,
+            memory_percent=41.7,
+            memory_used_mb=512,
+            memory_total_mb=1024,
+            disk_percent=60.4,
+            disk_used_gb=12.3,
+            disk_total_gb=64.0,
+            temperature_celsius=55.1,
+        ),
+    )
 
-        # Simulate incoming messages
-        # text messages with json payload
-        msg1 = Mock()
-        msg1.type = web.WSMsgType.TEXT
-        msg1.data = '{"button": "UP"}'
+    async with web_client.session.get(f"{web_client.base_url}/health") as response:
+        assert response.status == 200
+        payload = await response.json()
 
-        # We can't easily mock async iteration of the object itself if it's not designed for it
-        # But we can assume the handler calls `async for msg in ws`
-        # Let's try to mock the class behavior or use a real aiohttp test client if possible.
-        # Since we don't have aiohttp test client setup without extra dependencies,
-        # we'll skip deep async integration testing and test logic isolation if needed.
-        # Or rely on integration tests later.
+    assert payload["cpu"] == {"percent": 50.2, "status": "success"}
+    assert payload["memory"] == {
+        "percent": 41.7,
+        "used_mb": 512,
+        "total_mb": 1024,
+        "status": "success",
+    }
+    assert payload["disk"] == {
+        "percent": 60.4,
+        "used_gb": 12.3,
+        "total_gb": 64.0,
+        "status": "success",
+    }
+    assert payload["temperature"] == {"celsius": 55.1, "status": "success"}
 
-    # Note: Full WebSocket testing usually requires aiohttp.test_utils.TestClient
-    # or similar scaffolding which might is complex to mock purely with unittest.mock
-    # We will defer complex WS tests to integration phase.
+
+# ==============================================================================
+# WebSocket Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_screen_ws_initial_frame_delivery(web_client, mocker):
+    """Test screen WebSocket sends initial frame on connection."""
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
+
+    ws = await asyncio.wait_for(
+        web_client.session.ws_connect(_ws_url(web_client, "/ws/screen")), timeout=1
+    )
+    message = await asyncio.wait_for(ws.receive(), timeout=1)
+
+    assert message.type == WSMsgType.BINARY
+    assert message.data == b"frame"
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(ws.close(), timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_screen_ws_disconnect_handled(web_client, mocker):
+    """Test screen WebSocket disconnects cleanly."""
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
+
+    ws = await asyncio.wait_for(
+        web_client.session.ws_connect(_ws_url(web_client, "/ws/screen")), timeout=1
+    )
+    await asyncio.wait_for(ws.receive(), timeout=1)
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(ws.close(), timeout=1)
+    assert ws.closed
+
+
+@pytest.mark.asyncio
+async def test_screen_ws_broadcasts_to_multiple_clients(web_client, mocker):
+    """Test screen WebSocket broadcasts frames to multiple clients."""
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
+
+    ws_one = await asyncio.wait_for(
+        web_client.session.ws_connect(_ws_url(web_client, "/ws/screen")), timeout=1
+    )
+    ws_two = await asyncio.wait_for(
+        web_client.session.ws_connect(_ws_url(web_client, "/ws/screen")), timeout=1
+    )
+
+    await asyncio.wait_for(ws_one.receive(), timeout=1)
+    await asyncio.wait_for(ws_two.receive(), timeout=1)
+
+    notifier = web_client.app[server.DISPLAY_NOTIFIER_KEY]
+    notifier.mark_update_threadsafe()
+
+    message_one = await asyncio.wait_for(ws_one.receive(), timeout=1)
+    message_two = await asyncio.wait_for(ws_two.receive(), timeout=1)
+
+    assert message_one.type == WSMsgType.BINARY
+    assert message_two.type == WSMsgType.BINARY
+
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(ws_one.close(), timeout=1)
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(ws_two.close(), timeout=1)

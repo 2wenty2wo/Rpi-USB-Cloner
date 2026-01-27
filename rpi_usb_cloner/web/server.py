@@ -20,6 +20,7 @@ from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage import image_repo
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.web.system_health import (
+    SystemHealth,
     get_system_health,
     get_temperature_status,
     get_usage_status,
@@ -79,6 +80,11 @@ class DisplayUpdateNotifier:
         self._loop.call_soon_threadsafe(
             lambda: asyncio.create_task(self._mark_update())
         )
+
+
+DISPLAY_NOTIFIER_KEY = web.AppKey("display_notifier", DisplayUpdateNotifier)
+DISPLAY_STOP_EVENT_KEY = web.AppKey("display_stop_event", threading.Event)
+APP_CONTEXT_KEY = web.AppKey("app_context", AppContext | None)
 
 
 TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "index.html"
@@ -143,6 +149,35 @@ def _serialize_log_entries(entries: Sequence[LogEntryLike]) -> list[object]:
     return serialized
 
 
+def _build_health_payload(health: SystemHealth) -> dict[str, object]:
+    response: dict[str, object] = {
+        "cpu": {
+            "percent": round(health.cpu_percent, 1),
+            "status": get_usage_status(health.cpu_percent),
+        },
+        "memory": {
+            "percent": round(health.memory_percent, 1),
+            "used_mb": health.memory_used_mb,
+            "total_mb": health.memory_total_mb,
+            "status": get_usage_status(health.memory_percent),
+        },
+        "disk": {
+            "percent": round(health.disk_percent, 1),
+            "used_gb": round(health.disk_used_gb, 1),
+            "total_gb": round(health.disk_total_gb, 1),
+            "status": get_usage_status(health.disk_percent),
+        },
+        "temperature": None,
+    }
+
+    if health.temperature_celsius is not None:
+        response["temperature"] = {
+            "celsius": round(health.temperature_celsius, 1),
+            "status": get_temperature_status(health.temperature_celsius),
+        }
+    return response
+
+
 async def handle_root(request: web.Request) -> web.Response:
     return web.Response(
         text=_load_template(), content_type="text/html", headers=_build_headers()
@@ -156,13 +191,18 @@ async def handle_screen_png(request: web.Request) -> web.Response:
     )
 
 
+async def handle_health(request: web.Request) -> web.Response:
+    health = get_system_health()
+    return web.json_response(_build_health_payload(health), headers=_build_headers())
+
+
 async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     """WebSocket handler that streams OLED display updates.
 
     This handler waits for display updates (dirty flag) before sending frames,
     which prevents flickering caused by capturing partial renders.
     """
-    notifier = request.app["display_notifier"]
+    notifier = request.app[DISPLAY_NOTIFIER_KEY]
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
@@ -274,7 +314,7 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
 async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     """WebSocket handler that streams application log buffer updates."""
     log = LoggerFactory.for_web()
-    app_context: AppContext | None = request.app.get("app_context")
+    app_context: AppContext | None = request.app.get(APP_CONTEXT_KEY)
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
     if not app_context:
@@ -336,35 +376,7 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
         while not ws.closed:
             health = get_system_health()
 
-            # Build response with status colors
-            response = {
-                "cpu": {
-                    "percent": round(health.cpu_percent, 1),
-                    "status": get_usage_status(health.cpu_percent),
-                },
-                "memory": {
-                    "percent": round(health.memory_percent, 1),
-                    "used_mb": health.memory_used_mb,
-                    "total_mb": health.memory_total_mb,
-                    "status": get_usage_status(health.memory_percent),
-                },
-                "disk": {
-                    "percent": round(health.disk_percent, 1),
-                    "used_gb": round(health.disk_used_gb, 1),
-                    "total_gb": round(health.disk_total_gb, 1),
-                    "status": get_usage_status(health.disk_percent),
-                },
-                "temperature": None,
-            }
-
-            # Add temperature if available
-            if health.temperature_celsius is not None:
-                response["temperature"] = {
-                    "celsius": round(health.temperature_celsius, 1),
-                    "status": get_temperature_status(health.temperature_celsius),
-                }
-
-            await ws.send_json(response)
+            await ws.send_json(_build_health_payload(health))
             await asyncio.sleep(2.0)  # Update every 2 seconds
 
     except asyncio.CancelledError:
@@ -623,10 +635,11 @@ def start_server(
         app = web.Application()
         notifier = DisplayUpdateNotifier(loop)
         stop_event = threading.Event()
-        app["display_notifier"] = notifier
-        app["display_stop_event"] = stop_event
-        app["app_context"] = app_context
+        app[DISPLAY_NOTIFIER_KEY] = notifier
+        app[DISPLAY_STOP_EVENT_KEY] = stop_event
+        app[APP_CONTEXT_KEY] = app_context
         app.router.add_get("/", handle_root)
+        app.router.add_get("/health", handle_health)
         app.router.add_get("/screen.png", handle_screen_png)
         app.router.add_get("/ws/screen", handle_screen_ws)
         app.router.add_get("/ws/control", handle_control_ws)
