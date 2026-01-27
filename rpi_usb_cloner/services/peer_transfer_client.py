@@ -268,19 +268,28 @@ class TransferClient:
                 # Calculate relative path for file hierarchy
                 rel_path = file_path.relative_to(image.path)
 
-                # Read file content
-                with open(file_path, "rb") as f:
-                    content = f.read()
+                async def file_sender(path=file_path, size=file_size):
+                    """Generator for streaming file content."""
+                    nonlocal bytes_sent
+                    chunk_size = 1024 * 1024  # 1MB chunks
 
-                # Add to multipart
-                part = mpwriter.append(content)
+                    with open(path, "rb") as f:
+                        while True:
+                            chunk = f.read(chunk_size)
+                            if not chunk:
+                                break
+
+                            bytes_sent += len(chunk)
+
+                            if progress_callback and total_size > 0:
+                                progress = bytes_sent / total_size
+                                progress_callback(image.name, progress)
+
+                            yield chunk
+
+                # Add to multipart with streaming payload
+                part = mpwriter.append(file_sender())
                 part.set_content_disposition("form-data", name="file", filename=str(rel_path))
-
-                bytes_sent += file_size
-
-                if progress_callback and total_size > 0:
-                    progress = bytes_sent / total_size
-                    progress_callback(image.name, progress)
 
         # Send multipart request
         async with session.post(url, data=mpwriter, headers=headers) as resp:

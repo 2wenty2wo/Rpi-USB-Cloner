@@ -112,12 +112,33 @@ def wifi_direct_host(*, app_context: AppContext) -> None:
         import asyncio
 
         pin = server._generate_pin()
+        server_loop = asyncio.new_event_loop()
 
-        async def start_services():
+        def _run_server_loop() -> None:
+            asyncio.set_event_loop(server_loop)
+            server_loop.run_forever()
+            server_loop.close()
+
+        server_thread = threading.Thread(target=_run_server_loop, name="wifi-direct-server", daemon=True)
+        server_thread.start()
+
+        try:
             disc.start_publishing(lambda: pin)
-            await server.start(pin_callback=lambda: pin)
-
-        asyncio.run(start_services())
+            start_future = asyncio.run_coroutine_threadsafe(
+                server.start(pin_callback=lambda: pin),
+                server_loop,
+            )
+            start_future.result()
+        except Exception as exc:
+            log.error(f"Failed to start transfer services: {exc}")
+            screens.render_error_screen(
+                "WIFI DIRECT",
+                message="Failed to start\\ntransfer services",
+                title_icon=WIFI_ICON,
+                message_icon=ALERT_ICON,
+                message_icon_size=24,
+            )
+            return
 
         # Display info and wait
         _host_waiting_screen(group_name, pin, wd, server)
@@ -127,7 +148,12 @@ def wifi_direct_host(*, app_context: AppContext) -> None:
         try:
             import asyncio
 
-            asyncio.run(server.stop())
+            if "server_loop" in locals() and server_loop.is_running():
+                stop_future = asyncio.run_coroutine_threadsafe(server.stop(), server_loop)
+                stop_future.result(timeout=5)
+                server_loop.call_soon_threadsafe(server_loop.stop)
+            if "server_thread" in locals():
+                server_thread.join(timeout=2)
         except Exception:
             pass
 
