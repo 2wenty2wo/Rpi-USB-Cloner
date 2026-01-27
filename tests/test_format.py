@@ -79,20 +79,21 @@ class TestCreatePartitionTable:
 class TestCreatePartition:
     """Tests for _create_partition() function."""
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
+    @patch("rpi_usb_cloner.storage.format.shutil.which")
     @patch("rpi_usb_cloner.storage.format.time.sleep")
     @patch("rpi_usb_cloner.storage.format.run_command")
-    def test_create_partition_success(self, mock_run, mock_sleep):
+    def test_create_partition_success(self, mock_run, mock_sleep, mock_which, mock_exists):
         """Test successful partition creation."""
         mock_run.return_value = Mock(returncode=0)
+        mock_which.return_value = "/usr/bin/sync"  # Pretend all commands exist
+        mock_exists.return_value = True  # Partition appears immediately
 
         result = format_module._create_partition("/dev/sda")
 
         assert result is True
-        mock_run.assert_called_once_with(
-            ["parted", "-s", "/dev/sda", "mkpart", "primary", "1MiB", "100%"]
-        )
-        # Verify sleep was called to wait for device node
-        mock_sleep.assert_called_once_with(1)
+        # Verify the parted mkpart command was called first
+        assert mock_run.call_args_list[0] == ((["parted", "-s", "/dev/sda", "mkpart", "primary", "1MiB", "100%"],),)
 
     @patch("rpi_usb_cloner.storage.format.time.sleep")
     @patch("rpi_usb_cloner.storage.format.run_command")
@@ -333,6 +334,7 @@ class TestFormatFilesystem:
 class TestFormatDevice:
     """Tests for format_device() main function."""
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
@@ -349,6 +351,7 @@ class TestFormatDevice:
         mock_create_table,
         mock_create_part,
         mock_format_fs,
+        mock_exists,
     ):
         """Test complete format workflow."""
         device = {"name": "sda", "size": "16106127360"}
@@ -358,6 +361,7 @@ class TestFormatDevice:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
+        mock_exists.return_value = True  # Partition exists
 
         result = format_module.format_device(device, "ext4", "quick", label="TEST")
 
@@ -474,6 +478,7 @@ class TestFormatDevice:
 
         assert result is False
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
@@ -490,6 +495,7 @@ class TestFormatDevice:
         mock_create_table,
         mock_create_part,
         mock_format_fs,
+        mock_exists,
     ):
         """Test format failure when filesystem creation fails."""
         device = {"name": "sda", "size": "16106127360"}
@@ -499,11 +505,13 @@ class TestFormatDevice:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = False
+        mock_exists.return_value = True  # Partition exists
 
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is False
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
@@ -520,6 +528,7 @@ class TestFormatDevice:
         mock_create_table,
         mock_create_part,
         mock_format_fs,
+        mock_exists,
     ):
         """Test that progress callback is passed through."""
         device = {"name": "sda", "size": "16106127360"}
@@ -529,6 +538,7 @@ class TestFormatDevice:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
+        mock_exists.return_value = True  # Partition exists
 
         progress_calls = []
 
@@ -545,6 +555,7 @@ class TestFormatDevice:
             len(progress_calls) >= 3
         )  # Unmount, partition table, partition (format reports 2 calls)
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
@@ -561,6 +572,7 @@ class TestFormatDevice:
         mock_create_table,
         mock_create_part,
         mock_format_fs,
+        mock_exists,
     ):
         """Test partition suffix 'p' for devices ending in digit (e.g., mmcblk0p1)."""
         device = {"name": "mmcblk0", "size": "16106127360", "rm": "1"}
@@ -570,6 +582,7 @@ class TestFormatDevice:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
+        mock_exists.return_value = True  # Partition exists
 
         result = format_module.format_device(device, "ext4", "quick")
 
@@ -579,6 +592,7 @@ class TestFormatDevice:
         partition_path = format_fs_call[0]
         assert partition_path == "/dev/mmcblk0p1"
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
@@ -595,6 +609,7 @@ class TestFormatDevice:
         mock_create_table,
         mock_create_part,
         mock_format_fs,
+        mock_exists,
     ):
         """Test no partition suffix for devices ending in letter (e.g., sda1)."""
         device = {"name": "sda", "size": "16106127360"}
@@ -604,6 +619,7 @@ class TestFormatDevice:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
+        mock_exists.return_value = True  # Partition exists
 
         result = format_module.format_device(device, "ext4", "quick")
 

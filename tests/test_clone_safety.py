@@ -248,6 +248,7 @@ class TestFormatSafety:
         mock_validation.assert_called_once()
         mock_validate_unmounted.assert_called_once()
 
+    @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
@@ -262,6 +263,7 @@ class TestFormatSafety:
         mock_unmount,
         mock_validate_unmounted,
         mock_validation,
+        mock_exists,
     ):
         """Test that valid format operation proceeds."""
         from rpi_usb_cloner.storage.format import format_device
@@ -274,6 +276,7 @@ class TestFormatSafety:
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
+        mock_exists.return_value = True  # Partition exists
 
         result = format_device(device, "ext4", "quick")
 
