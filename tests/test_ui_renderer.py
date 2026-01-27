@@ -1,10 +1,33 @@
 """Tests for UI renderer module."""
 
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.ui import renderer
+
+
+def _build_display_context(width: int = 128, height: int = 64) -> SimpleNamespace:
+    image = Image.new("1", (width, height), 0)
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.load_default()
+    return SimpleNamespace(
+        disp=Mock(),
+        draw=draw,
+        image=image,
+        fonts={"title": font, "items": font, "footer": font},
+        width=width,
+        height=height,
+        x=0,
+        top=0,
+        bottom=height - 1,
+        fontcopy=font,
+        fontinsert=font,
+        fontdisks=font,
+        fontmain=font,
+    )
 
 
 # ==============================================================================
@@ -253,3 +276,127 @@ class TestLayoutCalculations:
         assert start < end
         assert end == 64
         assert start == 53
+
+
+class TestMenuRendering:
+    """Test menu rendering logic without pixel-perfect assertions."""
+
+    def test_selection_highlight_moves_with_index(self, mocker):
+        """Ensure selector position updates when selection changes."""
+        items = ["Alpha", "Beta", "Gamma"]
+        context = _build_display_context()
+        mocker.patch(
+            "rpi_usb_cloner.ui.display.get_display_context", return_value=context
+        )
+
+        def render_and_get_selector_y(selected_index: int) -> int:
+            text_calls = []
+            original_text = context.draw.text
+
+            def spy_text(position, text, *args, **kwargs):
+                text_calls.append((position, text))
+                return original_text(position, text, *args, **kwargs)
+
+            mocker.patch.object(context.draw, "text", side_effect=spy_text)
+            renderer._render_menu(
+                draw=context.draw,
+                image=context.image,
+                title="",
+                items=items,
+                selected_index=selected_index,
+                scroll_offset=0,
+                status_line=None,
+                visible_rows=3,
+                clear=True,
+            )
+            selector_positions = [
+                position for position, text in text_calls if text == "> "
+            ]
+            assert len(selector_positions) == 1
+            return selector_positions[0][1]
+
+        first_y = render_and_get_selector_y(0)
+        second_y = render_and_get_selector_y(1)
+
+        assert second_y > first_y
+
+    def test_scrollbar_visibility_when_list_exceeds_capacity(self, mocker):
+        """Scrollbar should only render when items exceed visible rows."""
+        context = _build_display_context()
+        mocker.patch(
+            "rpi_usb_cloner.ui.display.get_display_context", return_value=context
+        )
+
+        rectangle_calls = []
+        original_rectangle = context.draw.rectangle
+
+        def spy_rectangle(coords, *args, **kwargs):
+            rectangle_calls.append(coords)
+            return original_rectangle(coords, *args, **kwargs)
+
+        mocker.patch.object(context.draw, "rectangle", side_effect=spy_rectangle)
+        renderer._render_menu(
+            draw=context.draw,
+            image=context.image,
+            title="",
+            items=["One", "Two"],
+            selected_index=0,
+            scroll_offset=0,
+            status_line=None,
+            visible_rows=2,
+            clear=True,
+        )
+        scrollbar_rects = [
+            coords
+            for coords in rectangle_calls
+            if coords[0] >= context.width - 2
+        ]
+        assert scrollbar_rects == []
+
+        rectangle_calls.clear()
+        renderer._render_menu(
+            draw=context.draw,
+            image=context.image,
+            title="",
+            items=["One", "Two", "Three"],
+            selected_index=0,
+            scroll_offset=0,
+            status_line=None,
+            visible_rows=2,
+            clear=True,
+        )
+        scrollbar_rects = [
+            coords
+            for coords in rectangle_calls
+            if coords[0] >= context.width - 2
+        ]
+        assert scrollbar_rects
+
+    def test_long_labels_are_truncated(self, mocker):
+        """Long menu labels should be truncated with ellipsis."""
+        context = _build_display_context(width=60, height=64)
+        mocker.patch(
+            "rpi_usb_cloner.ui.display.get_display_context", return_value=context
+        )
+
+        text_calls = []
+        original_text = context.draw.text
+
+        def spy_text(position, text, *args, **kwargs):
+            text_calls.append(text)
+            return original_text(position, text, *args, **kwargs)
+
+        mocker.patch.object(context.draw, "text", side_effect=spy_text)
+        renderer._render_menu(
+            draw=context.draw,
+            image=context.image,
+            title="",
+            items=["This is a very long label"],
+            selected_index=0,
+            scroll_offset=0,
+            status_line=None,
+            visible_rows=1,
+            clear=True,
+        )
+        rendered_labels = [text for text in text_calls if text != "> "]
+        assert any(label.endswith("…") for label in rendered_labels)
