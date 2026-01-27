@@ -341,6 +341,9 @@ def format_device(
             progress_callback(["Validation failed"], None)
         return False
 
+    # Allow device to settle after unmount (prevents intermittent parted failures)
+    time.sleep(1)
+
     # Create partition table
     if progress_callback:
         progress_callback(["Creating partition table..."], 0.1)
