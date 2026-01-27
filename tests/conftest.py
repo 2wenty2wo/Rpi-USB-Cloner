@@ -35,7 +35,9 @@ sys.modules["luma.oled.device"] = MagicMock()
 
 
 @pytest_asyncio.fixture
-async def aiohttp_client() -> Callable[[web.Application], Awaitable[Tuple[ClientSession, str]]]:
+async def aiohttp_client() -> (
+    Callable[[web.Application], Awaitable[Tuple[ClientSession, str]]]
+):
     """
     Fixture providing an aiohttp test client factory.
 

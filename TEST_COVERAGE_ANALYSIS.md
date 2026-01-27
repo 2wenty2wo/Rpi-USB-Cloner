@@ -1,23 +1,29 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-01-27
-**Current Overall Coverage**: 37.99% (pytest --cov=rpi_usb_cloner on 2026-01-27)
+**Current Overall Coverage**: 39.77% (pytest --cov=rpi_usb_cloner on 2026-01-27)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 37 test modules (including `test_menu_navigator.py`)
+**Test Files**: 39 test modules (including `test_menu_navigator.py`)
 
 ## Recent Updates (2026-01-27)
 
 ✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
-- **1043 tests passed**, 5 skipped (async + clonezilla tooling skips)
-- Overall coverage remains **37.99%** with **10,989 statements** tracked
-- Test inventory confirmed at **37 test modules** (see `tests/test_*.py`)
+- **1066 tests passed**, 5 skipped (async + clonezilla tooling skips)
+- Overall coverage is now **39.77%** with **11,008 statements** tracked
+- Test inventory confirmed at **39 test modules** (see `tests/test_*.py`)
 
 ✅ **Test inventory highlights** (current module names):
 - `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
   `tests/test_actions_settings.py`
+- `tests/test_logging.py`, `tests/test_wifi.py`
 - `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
   `tests/test_ui_confirmation.py`
 - `tests/test_web_server.py`, `tests/test_main.py`, `tests/test_menu_navigator.py`
+
+✅ **New coverage improvements**:
+- Added targeted helper tests for action handler selection/validation logic
+- Added logging setup/context filtering tests (`tests/test_logging.py`)
+- Added Wi-Fi nmcli parsing and error handling tests (`tests/test_wifi.py`)
 
 ## Recent Updates (2026-01-24)
 
@@ -87,8 +93,8 @@ These areas have excellent test coverage and should serve as models:
 
 | File | LOC | Coverage | Status | Risk |
 |------|-----|----------|--------|------|
-| `actions/drive_actions.py` | 739 | 20.16% | ⚠️ Helpers tested | 🔴 Data loss risk |
-| `actions/image_actions.py` | 816 | 8.94% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/drive_actions.py` | 745 | 22.43% | ⚠️ Helpers tested | 🔴 Data loss risk |
+| `actions/image_actions.py` | 819 | 11.20% | ⚠️ Helpers tested | 🔴 Data loss risk |
 | `actions/settings/update_manager.py` | 328 | 5.20% | ❌ Not tested | 🟡 System stability |
 | `actions/settings/system_utils.py` | 137 | 14.75% | ❌ Not tested | 🟡 System stability |
 | `actions/settings/ui_actions.py` | 153 | 15.64% | ❌ Not tested | 🟢 Low risk |

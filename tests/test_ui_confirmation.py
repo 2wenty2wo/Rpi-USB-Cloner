@@ -29,12 +29,16 @@ def _make_is_pressed(sequences: Dict[int, Iterable[bool]]):
         (True, app_state.CONFIRM_YES, True),
     ],
 )
-def test_default_confirmation_selection(default, expected_index, expected_result, mocker):
+def test_default_confirmation_selection(
+    default, expected_index, expected_result, mocker
+):
     """Default selection should map to the expected button."""
     render_mock = mocker.patch(
         "rpi_usb_cloner.ui.screens.confirmation.render_confirmation_screen"
     )
-    mocker.patch("rpi_usb_cloner.ui.screens.confirmation.menus.wait_for_buttons_release")
+    mocker.patch(
+        "rpi_usb_cloner.ui.screens.confirmation.menus.wait_for_buttons_release"
+    )
     mocker.patch("rpi_usb_cloner.ui.screens.confirmation.time.sleep")
     sequences = {
         gpio.PIN_L: [False, False],
@@ -67,7 +71,9 @@ def test_selection_toggles_when_moving_right(mocker):
     render_mock = mocker.patch(
         "rpi_usb_cloner.ui.screens.confirmation.render_confirmation_screen"
     )
-    mocker.patch("rpi_usb_cloner.ui.screens.confirmation.menus.wait_for_buttons_release")
+    mocker.patch(
+        "rpi_usb_cloner.ui.screens.confirmation.menus.wait_for_buttons_release"
+    )
     mocker.patch("rpi_usb_cloner.ui.screens.confirmation.time.sleep")
     sequences = {
         gpio.PIN_L: [False, False, False, False],

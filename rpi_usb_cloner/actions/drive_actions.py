@@ -293,23 +293,14 @@ def erase_drive(
         display.display_lines(["ERASE", "No USB found"])
         time.sleep(1)
         return
-    target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
     selected_name = get_selected_usb_name()
-    target = None
-    if selected_name:
-        for device in target_devices:
-            if device.get("name") == selected_name:
-                target = device
-                break
-    if not target:
-        target = target_devices[-1]
+    target_devices, target = _select_target_device(target_devices, selected_name)
+    if target is None:
+        display.display_lines(["ERASE", "No USB found"])
+        time.sleep(1)
+        return
     target_name = target.get("name")
-    target_names = {device.get("name") for device in target_devices}
-    status_line = (
-        drives.get_active_drive_label(selected_name)
-        if selected_name in target_names
-        else None
-    ) or format_device_label(target)
+    status_line = _build_status_line(target_devices, target, selected_name)
     mode = menus.select_erase_mode(status_line=status_line)
     if not mode:
         return
@@ -444,6 +435,37 @@ def _pick_source_target(
         source = devices_list[0]
         target = devices_list[1]
     return source, target
+
+
+def _select_target_device(
+    target_devices: Iterable[dict],
+    selected_name: str | None,
+) -> tuple[list[dict], dict | None]:
+    sorted_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
+    if not sorted_devices:
+        return sorted_devices, None
+    target = None
+    if selected_name:
+        for device in sorted_devices:
+            if device.get("name") == selected_name:
+                target = device
+                break
+    if not target:
+        target = sorted_devices[-1]
+    return sorted_devices, target
+
+
+def _build_status_line(
+    target_devices: Iterable[dict],
+    target: dict,
+    selected_name: str | None,
+) -> str:
+    target_names = {device.get("name") for device in target_devices}
+    return (
+        drives.get_active_drive_label(selected_name)
+        if selected_name in target_names
+        else None
+    ) or format_device_label(target)
 
 
 def _ensure_root_for_erase() -> bool:
@@ -945,26 +967,17 @@ def format_drive(
         time.sleep(1)
         return
 
-    target_devices = sorted(target_devices, key=lambda d: d.get("name", ""))
     selected_name = get_selected_usb_name()
-    target = None
-    if selected_name:
-        for device in target_devices:
-            if device.get("name") == selected_name:
-                target = device
-                break
-    if not target:
-        target = target_devices[-1]
+    target_devices, target = _select_target_device(target_devices, selected_name)
+    if target is None:
+        display.display_lines(["FORMAT", "No USB found"])
+        time.sleep(1)
+        return
 
     target_name = target.get("name")
     target_size = target.get("size", 0)
 
-    target_names = {device.get("name") for device in target_devices}
-    status_line = (
-        drives.get_active_drive_label(selected_name)
-        if selected_name in target_names
-        else None
-    ) or format_device_label(target)
+    status_line = _build_status_line(target_devices, target, selected_name)
 
     # Select filesystem type (size-based default)
     filesystem = menus.select_filesystem_type(target_size, status_line=status_line)

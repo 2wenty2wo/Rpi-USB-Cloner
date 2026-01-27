@@ -87,6 +87,18 @@ def _nmcli_unescape(value: str) -> str:
     return "".join(unescaped)
 
 
+def _normalize_ssid(ssid: str) -> str:
+    return ssid.strip()
+
+
+def _is_valid_ssid(ssid: str) -> bool:
+    if not ssid:
+        return False
+    if "\x00" in ssid:
+        return False
+    return len(ssid) <= 32
+
+
 def _split_nmcli_line(line: str, separator: str = ":", maxsplit: int = 3) -> list[str]:
     parts: list[str] = []
     current: list[str] = []
@@ -492,9 +504,11 @@ def connect(ssid: str, password: str | None = None) -> bool:
     interface = _select_active_interface()
     if not interface:
         return False
-    if not ssid:
+    normalized_ssid = _normalize_ssid(ssid)
+    if not _is_valid_ssid(normalized_ssid):
         _notify_error("Wi-Fi connect failed: SSID is required.")
         return False
+    ssid = normalized_ssid
 
     active_ssid = get_active_ssid()
     if active_ssid and active_ssid == ssid:

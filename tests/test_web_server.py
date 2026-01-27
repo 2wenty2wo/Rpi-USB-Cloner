@@ -3,8 +3,8 @@
 import asyncio
 import contextlib
 import threading
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -151,7 +151,9 @@ class TestLogSerialization:
 @pytest.mark.asyncio
 async def test_index_route_loads(web_client, mocker):
     """Test root endpoint returns HTML template."""
-    mocker.patch("rpi_usb_cloner.web.server._load_template", return_value="<html></html>")
+    mocker.patch(
+        "rpi_usb_cloner.web.server._load_template", return_value="<html></html>"
+    )
     async with web_client.session.get(f"{web_client.base_url}/") as response:
         assert response.status == 200
         assert response.content_type == "text/html"
@@ -214,7 +216,9 @@ async def test_health_endpoint_returns_stats(web_client, mocker):
 @pytest.mark.asyncio
 async def test_screen_ws_initial_frame_delivery(web_client, mocker):
     """Test screen WebSocket sends initial frame on connection."""
-    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch(
+        "rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame"
+    )
     mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
 
     ws = await asyncio.wait_for(
@@ -231,7 +235,9 @@ async def test_screen_ws_initial_frame_delivery(web_client, mocker):
 @pytest.mark.asyncio
 async def test_screen_ws_disconnect_handled(web_client, mocker):
     """Test screen WebSocket disconnects cleanly."""
-    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch(
+        "rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame"
+    )
     mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
 
     ws = await asyncio.wait_for(
@@ -246,7 +252,9 @@ async def test_screen_ws_disconnect_handled(web_client, mocker):
 @pytest.mark.asyncio
 async def test_screen_ws_broadcasts_to_multiple_clients(web_client, mocker):
     """Test screen WebSocket broadcasts frames to multiple clients."""
-    mocker.patch("rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame")
+    mocker.patch(
+        "rpi_usb_cloner.ui.display.get_display_png_bytes", return_value=b"frame"
+    )
     mocker.patch("rpi_usb_cloner.ui.display.clear_dirty_flag")
 
     ws_one = await asyncio.wait_for(

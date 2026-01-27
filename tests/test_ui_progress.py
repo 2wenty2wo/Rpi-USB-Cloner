@@ -33,9 +33,7 @@ def _build_display_context(width: int = 128, height: int = 64) -> SimpleNamespac
 def test_progress_percent_text_for_normal_ratio(mocker):
     """Percent text should reflect the progress ratio."""
     context = _build_display_context()
-    mocker.patch(
-        "rpi_usb_cloner.ui.display.get_display_context", return_value=context
-    )
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=context)
     text_calls = []
     original_text = context.draw.text
 
@@ -53,9 +51,7 @@ def test_progress_percent_text_for_normal_ratio(mocker):
 def test_progress_percent_text_for_zero_ratio(mocker):
     """Zero progress should render 0.0%."""
     context = _build_display_context()
-    mocker.patch(
-        "rpi_usb_cloner.ui.display.get_display_context", return_value=context
-    )
+    mocker.patch("rpi_usb_cloner.ui.display.get_display_context", return_value=context)
     text_calls = []
     original_text = context.draw.text
 

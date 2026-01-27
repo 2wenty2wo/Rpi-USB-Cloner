@@ -213,6 +213,80 @@ class TestPickSourceTarget:
         assert target == device1  # sda is target
 
 
+class TestSelectTargetDevice:
+    """Test selection logic for target devices."""
+
+    def test_selects_matching_device(self, mock_usb_device):
+        """Test selected device is returned when present."""
+        device1 = mock_usb_device.copy()
+        device1["name"] = "sda"
+        device2 = mock_usb_device.copy()
+        device2["name"] = "sdb"
+
+        devices, target = drive_actions._select_target_device(
+            [device2, device1], selected_name="sda"
+        )
+
+        assert devices[0]["name"] == "sda"
+        assert target == device1
+
+    def test_falls_back_to_last_device(self, mock_usb_device):
+        """Test fallback to last device when selection missing."""
+        device1 = mock_usb_device.copy()
+        device1["name"] = "sda"
+        device2 = mock_usb_device.copy()
+        device2["name"] = "sdb"
+
+        devices, target = drive_actions._select_target_device(
+            [device1, device2], selected_name="sdc"
+        )
+
+        assert target == devices[-1]
+        assert target["name"] == "sdb"
+
+
+class TestBuildStatusLine:
+    """Test status line formatting for selected devices."""
+
+    def test_prefers_active_drive_label(self, mocker, mock_usb_device):
+        """Test uses active drive label when selection matches."""
+        device = mock_usb_device.copy()
+        device["name"] = "sda"
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.drives.get_active_drive_label",
+            return_value="ACTIVE LABEL",
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.format_device_label",
+            return_value="FALLBACK LABEL",
+        )
+
+        status_line = drive_actions._build_status_line(
+            [device], device, selected_name="sda"
+        )
+
+        assert status_line == "ACTIVE LABEL"
+
+    def test_falls_back_to_device_label(self, mocker, mock_usb_device):
+        """Test falls back to formatted device label when selection differs."""
+        device = mock_usb_device.copy()
+        device["name"] = "sda"
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.drives.get_active_drive_label",
+            return_value=None,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.format_device_label",
+            return_value="FALLBACK LABEL",
+        )
+
+        status_line = drive_actions._build_status_line(
+            [device], device, selected_name="sdb"
+        )
+
+        assert status_line == "FALLBACK LABEL"
+
+
 class TestCollectMountpoints:
     """Test the _collect_mountpoints helper function."""
 
