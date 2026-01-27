@@ -31,6 +31,14 @@ def _log_debug(log_debug: Optional[Callable[[str], None]], message: str) -> None
 IMAGE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
+def _apply_confirmation_selection(selection: int, direction: str) -> int:
+    if direction == "right" and selection == app_state.CONFIRM_NO:
+        return app_state.CONFIRM_YES
+    if direction == "left" and selection == app_state.CONFIRM_YES:
+        return app_state.CONFIRM_NO
+    return selection
+
+
 def coming_soon() -> None:
     screens.show_coming_soon(title="IMAGES")
 
@@ -1077,12 +1085,24 @@ def _confirm_prompt(
     prompt_lines: Iterable[str],
     default: int,
     title_icon: Optional[str] = None,
+    poll_button_events: Optional[Callable[..., Optional[bool]]] = None,
+    wait_for_buttons_release: Optional[Callable[..., None]] = None,
+    render_confirmation_screen: Optional[Callable[..., None]] = None,
+    poll_interval: Optional[float] = None,
 ) -> bool:
     prompt_lines_list = list(prompt_lines)
     selection = [default]  # Use list for mutability in closures
+    if poll_button_events is None:
+        poll_button_events = gpio.poll_button_events
+    if wait_for_buttons_release is None:
+        wait_for_buttons_release = menus.wait_for_buttons_release
+    if render_confirmation_screen is None:
+        render_confirmation_screen = screens.render_confirmation_screen
+    if poll_interval is None:
+        poll_interval = menus.BUTTON_POLL_DELAY
 
     def render():
-        screens.render_confirmation_screen(
+        render_confirmation_screen(
             title,
             prompt_lines_list,
             selected_index=selection[0],
@@ -1090,26 +1110,28 @@ def _confirm_prompt(
         )
 
     render()
-    menus.wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
+    wait_for_buttons_release([gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B])
 
     def on_right():
-        if selection[0] == app_state.CONFIRM_NO:
-            selection[0] = app_state.CONFIRM_YES
+        updated = _apply_confirmation_selection(selection[0], "right")
+        if updated != selection[0]:
+            selection[0] = updated
             _log_debug(log_debug, f"Confirmation changed: {selection[0]}")
 
     def on_left():
-        if selection[0] == app_state.CONFIRM_YES:
-            selection[0] = app_state.CONFIRM_NO
+        updated = _apply_confirmation_selection(selection[0], "left")
+        if updated != selection[0]:
+            selection[0] = updated
             _log_debug(log_debug, f"Confirmation changed: {selection[0]}")
 
-    result = gpio.poll_button_events(
+    result = poll_button_events(
         {
             gpio.PIN_R: on_right,
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
         },
-        poll_interval=menus.BUTTON_POLL_DELAY,
+        poll_interval=poll_interval,
         loop_callback=render,
     )
 

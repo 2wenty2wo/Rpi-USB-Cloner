@@ -88,9 +88,7 @@ DISPLAY_NOTIFIER_KEY: web.AppKey[DisplayUpdateNotifier] = web.AppKey(
 DISPLAY_STOP_EVENT_KEY: web.AppKey[threading.Event] = web.AppKey(
     "display_stop_event", threading.Event
 )
-APP_CONTEXT_KEY: web.AppKey[AppContext | None] = web.AppKey(
-    "app_context", AppContext
-)
+APP_CONTEXT_KEY: web.AppKey[AppContext | None] = web.AppKey("app_context", AppContext)
 
 
 TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "index.html"

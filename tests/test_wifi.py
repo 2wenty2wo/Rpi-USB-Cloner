@@ -65,9 +65,7 @@ def test_list_networks_marks_open_vs_secured(mocker):
             return _completed_process()
         if command[:4] == ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,IN-USE"]:
             return _completed_process(
-                "SecuredNet:65:WPA2:*\n"
-                "OpenNet:55:--:\n"
-                "Hidden:::\n"
+                "SecuredNet:65:WPA2:*\n" "OpenNet:55:--:\n" "Hidden:::\n"
             )
         raise AssertionError(f"Unexpected command: {command}")
 
@@ -101,7 +99,7 @@ def test_list_networks_falls_back_to_iw_scan(mocker):
         if command[:2] == ["iwlist", "wlan0"]:
             return _completed_process(
                 "Cell 01 - Address: AA:BB:CC:DD:EE:FF\n"
-                "          ESSID:\"FallbackNet\"\n"
+                '          ESSID:"FallbackNet"\n'
                 "          Quality=70/70  Signal level=-40 dBm\n"
                 "          Encryption key:on\n"
             )
@@ -214,7 +212,12 @@ def test_connect_secure_network_updates_connection(mocker):
     assert wifi.connect("SecureNet", password="secret") is True
 
     assert run_mock.call_args_list[1][0][0][:3] == ["nmcli", "connection", "modify"]
-    assert run_mock.call_args_list[-1][0][0] == ["nmcli", "connection", "up", "SecureNet"]
+    assert run_mock.call_args_list[-1][0][0] == [
+        "nmcli",
+        "connection",
+        "up",
+        "SecureNet",
+    ]
 
 
 def test_list_networks_handles_iw_timeout(mocker):
