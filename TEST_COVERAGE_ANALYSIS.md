@@ -1,9 +1,21 @@
 # Test Coverage Analysis & Improvement Plan
 
-**Date**: 2026-01-24
-**Current Overall Coverage**: ~27-30% (Estimated, automated run unavailable)
+**Date**: 2026-01-27
+**Current Overall Coverage**: 37.99% (pytest --cov=rpi_usb_cloner on 2026-01-27)
 **Files Analyzed**: 85 Python files in `rpi_usb_cloner/`
-**Test Files**: 35 test modules (including `test_menu_navigator.py`)
+**Test Files**: 37 test modules (including `test_menu_navigator.py`)
+
+## Recent Updates (2026-01-27)
+
+✅ **Added Web/UI/Main Loop Tests** (new async + UI suites):
+- `tests/test_web_server.py` - aiohttp endpoints, WebSocket handlers, log diffing
+- `tests/test_ui_renderer.py` - menu rendering helpers and truncation logic
+- `tests/test_ui_progress.py` - progress bar and ETA formatting logic
+- `tests/test_ui_confirmation.py` - dialog defaults and selection handling
+- `tests/test_main.py` - main loop helper logic and dispatch behavior
+
+**Coverage impact**: Web/UI coverage improved from a 0% baseline; overall
+coverage now 37.99% after running `pytest --cov=rpi_usb_cloner`.
 
 ## Recent Updates (2026-01-24)
 
@@ -183,17 +195,17 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-### ❌ Priority 4: UI Rendering (0% coverage)
+### ✅ Priority 4: UI Rendering (tests added; coverage improving)
 
 **Files**:
-- `ui/renderer.py` (192 LOC) - 0% ⭐ Critical file
-- `ui/menus.py` (462 LOC) - 0%
-- `ui/screens/progress.py` (121 LOC) - 0%
-- `ui/screens/confirmation.py` (290 LOC) - 0%
-- `ui/screens/error.py` (40 LOC) - 0%
-- `ui/screens/status.py` (23 LOC) - 0%
-- `ui/keyboard.py` (303 LOC) - 0%
-- `ui/display.py` (380 LOC) - 14.6% (LOW)
+- `ui/renderer.py` (192 LOC) - 73.81% ⭐ Critical file
+- `ui/menus.py` (462 LOC) - 8.67%
+- `ui/screens/progress.py` (121 LOC) - 70.81%
+- `ui/screens/confirmation.py` (290 LOC) - 13.24%
+- `ui/screens/error.py` (40 LOC) - 6.12%
+- `ui/screens/status.py` (23 LOC) - 28.12%
+- `ui/keyboard.py` (303 LOC) - 6.76%
+- `ui/display.py` (380 LOC) - 15.34% (LOW)
 
 **Why Important**:
 - User feedback depends on correct rendering
@@ -201,9 +213,9 @@ These areas have excellent test coverage and should serve as models:
 - Error messages must be visible
 - Confirmation dialogs prevent accidental data loss
 
-**Recommended Tests** (`test_ui_*.py`):
+**Added Tests** (`test_ui_*.py`):
 
-1. **Renderer** (`test_ui_renderer.py`):
+1. **Renderer** (`test_ui_renderer.py`) ✅:
    ```python
    - test_render_menu_displays_all_items()
    - test_render_menu_highlights_selected_item()
@@ -211,7 +223,7 @@ These areas have excellent test coverage and should serve as models:
    - test_render_menu_truncates_long_text()
    ```
 
-2. **Progress Screen** (`test_ui_progress.py`):
+2. **Progress Screen** (`test_ui_progress.py`) ✅:
    ```python
    - test_progress_bar_renders_correctly()
    - test_progress_shows_percentage()
@@ -219,7 +231,7 @@ These areas have excellent test coverage and should serve as models:
    - test_progress_handles_zero_total_gracefully()
    ```
 
-3. **Confirmation Screen** (`test_ui_confirmation.py`):
+3. **Confirmation Screen** (`test_ui_confirmation.py`) ✅:
    ```python
    - test_confirmation_dialog_defaults_to_no()
    - test_confirmation_dialog_accepts_yes()
@@ -227,7 +239,7 @@ These areas have excellent test coverage and should serve as models:
    - test_confirmation_multiline_text_wraps()
    ```
 
-4. **Display** (`test_ui_display.py`):
+4. **Display** (`test_ui_display.py`) (still recommended):
    ```python
    - test_display_initialization_detects_i2c_address()
    - test_display_initialization_falls_back_to_virtual()
@@ -235,7 +247,7 @@ These areas have excellent test coverage and should serve as models:
    - test_display_context_loads_icons()
    ```
 
-**Estimated Impact**: +1,811 LOC covered (18.4% overall coverage increase)
+**Estimated Impact**: Reflected in latest coverage run (overall 37.99%)
 
 **Note**: UI tests may require:
 - Mocking `luma.oled` device (already done in `conftest.py`)
@@ -244,10 +256,10 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-### ❌ Priority 5: Web Server (0% coverage)
+### ✅ Priority 5: Web Server (tests added; coverage improving)
 
 **File**: `web/server.py` (340 LOC)
-**Coverage**: 0%
+**Coverage**: 28.26% (after new async tests)
 **Risk Level**: 🟡 MEDIUM - Security and stability
 
 **Why Important**:
@@ -256,7 +268,7 @@ These areas have excellent test coverage and should serve as models:
 - System health monitoring exposed via API
 - Potential security risks (CORS, input validation)
 
-**Recommended Tests** (`test_web_server.py`):
+**Added Tests** (`test_web_server.py`) ✅:
 
 ```python
 # HTTP endpoints
@@ -279,14 +291,14 @@ These areas have excellent test coverage and should serve as models:
 - test_websocket_rejects_invalid_messages()
 ```
 
-**Estimated Impact**: +340 LOC covered (3.5% overall coverage increase)
+**Estimated Impact**: Reflected in latest coverage run (overall 37.99%)
 
 ---
 
-### ⚠️ Priority 6: WiFi Services (6.3% coverage)
+### ⚠️ Priority 6: WiFi Services (6.66% coverage)
 
 **File**: `services/wifi.py` (451 LOC)
-**Current Coverage**: 6.3%
+**Current Coverage**: 6.66%
 **Risk Level**: 🟢 LOW - Feature quality
 
 **Why Improve**:
@@ -310,10 +322,10 @@ These areas have excellent test coverage and should serve as models:
 
 ---
 
-### ⚠️ Priority 7: Logging System (32.1% coverage)
+### ⚠️ Priority 7: Logging System (39.44% coverage)
 
 **File**: `logging.py` (147 LOC)
-**Current Coverage**: 32.1%
+**Current Coverage**: 39.44%
 **Risk Level**: 🟢 LOW - Debugging aid
 
 **Why Improve**:
@@ -397,23 +409,23 @@ These have 0% coverage but are lower risk:
 
 ### Immediate Actions (Priority 1-3)
 
-1. **Create `test_drive_actions.py`** - Test destructive drive operations
-2. **Create `test_image_actions.py`** - Test image backup/restore actions
-3. **Create `test_settings_actions.py`** - Test system settings changes
-4. **Create `test_main.py`** - Test main event loop (integration tests)
-5. **Create `test_menu_navigator.py`** - Test menu navigation logic
+1. ✅ **Created `test_drive_actions.py`** - Test destructive drive operations
+2. ✅ **Created `test_image_actions.py`** - Test image backup/restore actions
+3. ✅ **Created `test_settings_actions.py`** - Test system settings changes
+4. ✅ **Created `test_main.py`** - Test main event loop (integration tests)
+5. ✅ **Created `test_menu_navigator.py`** - Test menu navigation logic
 
-**Expected Outcome**: Increase coverage from 27% → 50% (+2,470 LOC)
+**Expected Outcome**: Coverage increased to 37.99% overall after `pytest --cov`
 
 ### Short-Term Actions (Priority 4-5)
 
-6. **Create `test_ui_renderer.py`** - Test OLED rendering
-7. **Create `test_ui_progress.py`** - Test progress bars
-8. **Create `test_ui_confirmation.py`** - Test confirmation dialogs
-9. **Expand `test_ui_display.py`** - Improve display initialization tests
-10. **Create `test_web_server.py`** - Test web server and WebSocket
+6. ✅ **Created `test_ui_renderer.py`** - Test OLED rendering
+7. ✅ **Created `test_ui_progress.py`** - Test progress bars
+8. ✅ **Created `test_ui_confirmation.py`** - Test confirmation dialogs
+9. 🔜 **Expand `test_ui_display.py`** - Improve display initialization tests
+10. ✅ **Created `test_web_server.py`** - Test web server and WebSocket
 
-**Expected Outcome**: Increase coverage from 50% → 70% (+2,151 LOC)
+**Expected Outcome**: Coverage increased to 37.99% overall after `pytest --cov`
 
 ### Long-Term Actions (Priority 6-7)
 
@@ -494,11 +506,11 @@ def test_clone_handles_permission_denied(mocker):
 
 ## Metrics & Goals
 
-### Current State (2026-01-23)
-- **Total Statements**: 9,851
-- **Covered Statements**: 2,681
-- **Overall Coverage**: 27.10%
-- **Branch Coverage**: Tracked (3,442 branches, 144 partial)
+### Current State (2026-01-27)
+- **Total Statements**: 10,989
+- **Covered Statements**: 4,372
+- **Overall Coverage**: 37.99%
+- **Branch Coverage**: Tracked (3,740 branches, 237 partial)
 
 ### Immediate Goal (Q1 2026)
 - **Target Coverage**: 50%
