@@ -93,7 +93,7 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
     mode_label = "RANDOM" if mode == "random" else "SELECTED"
     selected_gif = settings_store.get_setting("screensaver_gif")
     selected_label = selected_gif if selected_gif else "NONE"
-    return [
+    items = [
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
             action=menu_actions.toggle_screensaver_enabled,
@@ -102,11 +102,24 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
             label=f"MODE: {mode_label}",
             action=menu_actions.toggle_screensaver_mode,
         ),
-        MenuItem(
-            label=f"SELECT GIF: {selected_label}",
-            action=menu_actions.select_screensaver_gif,
-        ),
     ]
+
+    if mode != "random":
+        items.append(
+            MenuItem(
+                label=f"SELECT GIF: {selected_label}",
+                action=menu_actions.select_screensaver_gif,
+            )
+        )
+
+    items.append(
+        MenuItem(
+            label="PREVIEW",
+            action=menu_actions.preview_screensaver,
+        )
+    )
+
+    return items
 
 
 def build_develop_items(settings_store, menu_actions):
