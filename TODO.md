@@ -25,10 +25,15 @@
 - [ ] Add SMART status monitoring for drive health
 
 ### Advanced
+- [x] **Image Transfer between Pis** - Transfer disk images between devices:
+  - USB-to-USB (plugging destination drive into source Pi)
+  - Ethernet Direct (mDNS discovery + HTTP transfer)
+  - WiFi Direct (P2P wireless without router)
 - [ ] Network share mounting (SMB/NFS) for image repositories
 - [ ] Batch operation queue system
 - [ ] Scheduled automated backups
 - [ ] Parallel multi-drive cloning
+
 
 ## 🎨 Polish
 

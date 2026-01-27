@@ -35,6 +35,12 @@ A hardware-based USB imaging and cloning solution using a Raspberry Pi Zero/Zero
 - **Formatting** - Format devices with various filesystems (FAT32, ext4, NTFS, exFAT)
 - **Secure Erasure** - Quick or full device erasure with verification
 
+### Image Transfer
+- **USB-to-USB** - Copy images directly between USB drives on the same Pi
+- **Ethernet Direct** - Transfer images between Pis via direct Ethernet (mDNS discovery + HTTP)
+- **WiFi Direct** - Peer-to-peer wireless transfer without a router (P2P via `wpa_supplicant`)
+
+
 
 ## 📸 Screenshots
 
