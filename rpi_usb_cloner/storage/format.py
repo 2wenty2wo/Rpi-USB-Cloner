@@ -42,6 +42,7 @@ Example:
     >>> success = format_device(device, "vfat", "quick", label="BACKUP")
 """
 
+import os
 import re
 import select
 import shutil
