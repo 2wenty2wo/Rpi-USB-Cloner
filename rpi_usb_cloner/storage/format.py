@@ -399,12 +399,14 @@ def format_device(
     else:
         partition_suffixes = ["1", "2", "3", "4", ""]
     for partition_suffix in partition_suffixes:
-        partition_path = f"{device_pattern}{partition_suffix}"
+        candidate_partition_path = f"{device_pattern}{partition_suffix}"
         try:
             # Try to unmount each potential partition
-            result = run_command(["umount", partition_path], check=False, log_command=False)
+            result = run_command(
+                ["umount", candidate_partition_path], check=False, log_command=False
+            )
             if result.returncode == 0:
-                log.debug(f"Unmounted {partition_path}")
+                log.debug(f"Unmounted {candidate_partition_path}")
         except Exception:
             pass
     
