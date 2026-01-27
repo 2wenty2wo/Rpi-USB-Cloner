@@ -24,3 +24,6 @@ loguru==0.7.2
 
 # Typing helpers for runtime (Python 3.8)
 typing_extensions==4.12.2
+
+# mDNS service discovery for peer-to-peer transfers
+zeroconf==0.132.2
