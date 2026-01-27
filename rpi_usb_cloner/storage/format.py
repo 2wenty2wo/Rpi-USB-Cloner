@@ -394,7 +394,11 @@ def format_device(
     # Aggressively release device from any processes holding it open
     # First, check and unmount any partitions that might have been re-mounted
     device_pattern = f"/dev/{device_name}"
-    for partition_suffix in ["1", "2", "3", "4", "p1", "p2", "p3", "p4", ""]:
+    if device_name and device_name[-1].isdigit():
+        partition_suffixes = ["p1", "p2", "p3", "p4", ""]
+    else:
+        partition_suffixes = ["1", "2", "3", "4", ""]
+    for partition_suffix in partition_suffixes:
         partition_path = f"{device_pattern}{partition_suffix}"
         try:
             # Try to unmount each potential partition
