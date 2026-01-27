@@ -412,6 +412,22 @@ def format_device(
             log.debug("Best-effort command failed (%s): %s", command[0], error)
     time.sleep(2)  # Additional wait for device to fully release
 
+    # CRITICAL: Tell udisks2/automount to stop managing this device
+    # This prevents the system from auto-remounting partitions during format
+    if shutil.which("udisksctl"):
+        try:
+            log.debug(f"Telling udisks2 to unmount {device_path} and all partitions")
+            # Unmount the base device (will fail if not mounted, which is fine)
+            run_command(["udisksctl", "unmount", "-b", device_path, "--no-user-interaction"], check=False, log_command=False)
+            # Unmount all potential partitions
+            partition_suffix = "p" if device_name[-1].isdigit() else ""
+            for i in range(1, 9):  # Check up to 8 partitions
+                potential_partition = f"{device_path}{partition_suffix}{i}"
+                run_command(["udisksctl", "unmount", "-b", potential_partition, "--no-user-interaction"], check=False, log_command=False)
+            time.sleep(1)
+        except Exception as error:
+            log.debug(f"udisksctl unmount operations failed (continuing anyway): {error}")
+
     # Aggressively release device from any processes holding it open
     # First, check and unmount any partitions that might have been re-mounted
     device_pattern = f"/dev/{device_name}"
