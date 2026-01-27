@@ -1,15 +1,15 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-01-27
-**Current Overall Coverage**: 39.77% (pytest --cov=rpi_usb_cloner on 2026-01-27)
+**Current Overall Coverage**: 43.92% (pytest --cov=rpi_usb_cloner on 2026-01-27)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
 **Test Files**: 43 test modules (including `test_menu_navigator.py`)
 
 ## Recent Updates (2026-01-27)
 
 ✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
-- **1066 tests passed**, 5 skipped (async + clonezilla tooling skips)
-- Overall coverage is now **39.77%** with **11,008 statements** tracked
+- **1090 tests passed**, 5 skipped (async + clonezilla tooling skips)
+- Overall coverage is now **43.92%** with **11,019 statements** tracked
 - Test inventory confirmed at **43 test modules** (see `tests/test_*.py`)
 
 ✅ **Test inventory highlights** (current module names):
@@ -264,7 +264,7 @@ These areas have excellent test coverage and should serve as models:
    - test_display_context_loads_icons()
    ```
 
-**Estimated Impact**: Reflected in latest coverage run (overall 37.99%)
+**Estimated Impact**: Reflected in latest coverage run (overall 43.92%)
 
 **Note**: UI tests may require:
 - Mocking `luma.oled` device (already done in `conftest.py`)
@@ -308,7 +308,7 @@ These areas have excellent test coverage and should serve as models:
 - test_websocket_rejects_invalid_messages()
 ```
 
-**Estimated Impact**: Reflected in latest coverage run (overall 37.99%)
+**Estimated Impact**: Reflected in latest coverage run (overall 43.92%)
 
 ---
 
@@ -431,7 +431,7 @@ These have low coverage but are lower risk:
 4. ✅ **Created `test_main.py`** - Test main event loop (integration tests)
 5. ✅ **Created `test_menu_navigator.py`** - Test menu navigation logic
 
-**Expected Outcome**: Coverage confirmed at 37.99% overall after `pytest --cov`
+**Expected Outcome**: Coverage confirmed at 43.92% overall after `pytest --cov`
 
 ### Short-Term Actions (Priority 4-5)
 
@@ -441,7 +441,7 @@ These have low coverage but are lower risk:
 9. 🔜 **Expand `test_ui_display.py`** - Improve display initialization tests
 10. ✅ **Created `test_web_server.py`** - Test web server and WebSocket
 
-**Expected Outcome**: Coverage confirmed at 37.99% overall after `pytest --cov`
+**Expected Outcome**: Coverage confirmed at 43.92% overall after `pytest --cov`
 
 ### Long-Term Actions (Priority 6-7)
 
@@ -523,10 +523,10 @@ def test_clone_handles_permission_denied(mocker):
 ## Metrics & Goals
 
 ### Current State (2026-01-27)
-- **Total Statements**: 10,989
-- **Covered Statements**: 4,372
-- **Overall Coverage**: 37.99%
-- **Branch Coverage**: Tracked (3,740 branches, 1,223 covered, 237 partial)
+- **Total Statements**: 11,019
+- **Covered Statements**: 5,051
+- **Overall Coverage**: 43.92%
+- **Branch Coverage**: Tracked (3,738 branches, 1,430 covered, 342 partial)
 
 ### Immediate Goal (Q1 2026)
 - **Target Coverage**: 50%
@@ -582,4 +582,4 @@ The codebase has **excellent foundational coverage** for core storage operations
 4. Begin with `test_actions_drive.py` (highest risk, highest impact)
 5. Track coverage progress in CI/CD pipeline
 
-**Estimated Total Impact**: 38% → 80% coverage (+5,481 LOC covered)
+**Estimated Total Impact**: 43.92% → 80% coverage (+5,481 LOC covered)
