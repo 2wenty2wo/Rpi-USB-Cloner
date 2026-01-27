@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime
 from typing import Callable, Iterable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
@@ -38,13 +38,129 @@ log_operation = LoggerFactory.for_clone()  # For format/erase/copy operations
 log_system = LoggerFactory.for_system()  # For unmount/repo operations
 
 
+def _apply_confirmation_selection(selection: int, direction: str) -> int:
+    if direction == "right" and selection == app_state.CONFIRM_NO:
+        return app_state.CONFIRM_YES
+    if direction == "left" and selection == app_state.CONFIRM_YES:
+        return app_state.CONFIRM_NO
+    return selection
+
+
+def prepare_copy_operation(
+    get_selected_usb_name: Callable[[], str | None],
+    *,
+    list_usb_disks_func: Callable[[], list[dict]] | None = None,
+    is_root_device_func: Callable[[dict], bool] | None = None,
+    repo_device_names_func: Callable[[], set[str]] | None = None,
+) -> tuple[dict | None, dict | None]:
+    if list_usb_disks_func is None:
+        list_usb_disks_func = list_usb_disks
+    if is_root_device_func is None:
+        is_root_device_func = devices.is_root_device
+    if repo_device_names_func is None:
+        repo_device_names_func = drives._get_repo_device_names
+    return _pick_source_target(
+        get_selected_usb_name,
+        list_usb_disks_func=list_usb_disks_func,
+        is_root_device_func=is_root_device_func,
+        repo_device_names_func=repo_device_names_func,
+    )
+
+
+def execute_copy_operation(
+    source: dict,
+    target: dict,
+    clone_mode: str,
+    *,
+    select_clone_mode: Callable[[str], str | None],
+    execute_clone_job: Callable[..., tuple[bool, str]],
+    job_id_factory: Callable[[], UUID] = uuid4,
+) -> tuple[bool, str]:
+    mode = select_clone_mode(clone_mode)
+    if not mode:
+        return False, "Cancelled"
+    job_id = f"clone-{job_id_factory().hex}"
+    return execute_clone_job(source, target, mode, job_id=job_id)
+
+
+def _confirm_copy_prompt(
+    *,
+    state: app_state.AppState,
+    title: str,
+    prompt: str,
+    poll_button_events: Callable[..., bool | None] | None = None,
+    wait_for_buttons_release: Callable[..., None] | None = None,
+    render_confirmation_screen: Callable[..., None] | None = None,
+    handle_screenshot: Callable[[], bool] | None = None,
+    poll_interval: float | None = None,
+) -> bool:
+    selection = [app_state.CONFIRM_NO]
+    if poll_button_events is None:
+        poll_button_events = gpio.poll_button_events
+    if wait_for_buttons_release is None:
+        wait_for_buttons_release = menus.wait_for_buttons_release
+    if render_confirmation_screen is None:
+        render_confirmation_screen = screens.render_confirmation_screen
+    if poll_interval is None:
+        poll_interval = menus.BUTTON_POLL_DELAY
+    if handle_screenshot is None:
+        handle_screenshot = _handle_screenshot
+
+    def render():
+        render_confirmation_screen(
+            title,
+            [prompt],
+            selected_index=selection[0],
+            title_icon=COPY_DRIVE_ICON,
+        )
+
+    render()
+    wait_for_buttons_release(
+        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    )
+
+    def on_right():
+        updated = _apply_confirmation_selection(selection[0], "right")
+        if updated != selection[0]:
+            selection[0] = updated
+            log_menu.debug("Copy menu selection changed: YES")
+            state.run_once = 0
+            state.lcdstart = datetime.now()
+
+    def on_left():
+        updated = _apply_confirmation_selection(selection[0], "left")
+        if updated != selection[0]:
+            selection[0] = updated
+            log_menu.debug("Copy menu selection changed: NO")
+            state.run_once = 0
+            state.lcdstart = datetime.now()
+
+    result = poll_button_events(
+        {
+            gpio.PIN_R: on_right,
+            gpio.PIN_L: on_left,
+            gpio.PIN_A: lambda: False,  # Cancel
+            gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,
+            gpio.PIN_C: lambda: (handle_screenshot(), None)[1],
+        },
+        poll_interval=poll_interval,
+        loop_callback=render,
+    )
+
+    return result if result is not None else False
+
+
 def copy_drive(
     *,
     state: app_state.AppState,
     clone_mode: str,
     get_selected_usb_name: Callable[[], str | None],
+    confirm_prompt: Callable[..., bool] = _confirm_copy_prompt,
+    select_clone_mode: Callable[[str], str | None] = menus.select_clone_mode,
+    execute_clone_job: Callable[..., tuple[bool, str]] | None = None,
 ) -> None:
-    source, target = _pick_source_target(get_selected_usb_name)
+    execute_clone_job = execute_clone_job or _execute_clone_job
+    source, target = prepare_copy_operation(get_selected_usb_name)
     if not source or not target:
         screens.render_error_screen(
             title="COPY DRIVES",
@@ -59,111 +175,31 @@ def copy_drive(
     target_name = target.get("name")
     title = "COPY"
     prompt = f"Clone {source_name} to {target_name}?"
-    confirm_selection = app_state.CONFIRM_NO
-    screens.render_confirmation_screen(
-        title,
-        [prompt],
-        selected_index=confirm_selection,
+    confirmed = confirm_prompt(state=state, title=title, prompt=prompt)
+    if not confirmed:
+        return
+    screens.render_status_template(
+        "COPY",
+        "Running...",
+        progress_line="Starting...",
         title_icon=COPY_DRIVE_ICON,
     )
-    menus.wait_for_buttons_release(
-        [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+    success, status_line = execute_copy_operation(
+        source,
+        target,
+        clone_mode,
+        select_clone_mode=select_clone_mode,
+        execute_clone_job=execute_clone_job,
     )
-    prev_states = {
-        "L": gpio.is_pressed(gpio.PIN_L),
-        "R": gpio.is_pressed(gpio.PIN_R),
-        "A": gpio.is_pressed(gpio.PIN_A),
-        "B": gpio.is_pressed(gpio.PIN_B),
-        "C": gpio.is_pressed(gpio.PIN_C),
-    }
-    try:
-        while True:
-            current_r = gpio.is_pressed(gpio.PIN_R)
-            if prev_states["R"] and not current_r:
-                if confirm_selection == app_state.CONFIRM_NO:
-                    confirm_selection = app_state.CONFIRM_YES
-                    log_menu.debug("Copy menu selection changed: YES")
-                    state.run_once = 0
-                elif confirm_selection == app_state.CONFIRM_YES:
-                    confirm_selection = app_state.CONFIRM_YES
-                    log_menu.debug("Copy menu selection changed: YES")
-                    state.lcdstart = datetime.now()
-                    state.run_once = 0
-            current_l = gpio.is_pressed(gpio.PIN_L)
-            if (
-                prev_states["L"]
-                and not current_l
-                and confirm_selection == app_state.CONFIRM_YES
-            ):
-                confirm_selection = app_state.CONFIRM_NO
-                log_menu.debug("Copy menu selection changed: NO")
-                state.lcdstart = datetime.now()
-                state.run_once = 0
-            current_a = gpio.is_pressed(gpio.PIN_A)
-            if prev_states["A"] and not current_a:
-                log_menu.debug("Copy menu: Button A pressed (cancel)")
-                return
-            current_b = gpio.is_pressed(gpio.PIN_B)
-            if prev_states["B"] and not current_b:
-                log_menu.debug("Copy menu: Button B pressed (confirm)")
-                if confirm_selection == app_state.CONFIRM_YES:
-                    screens.render_status_template(
-                        "COPY",
-                        "Running...",
-                        progress_line="Starting...",
-                        title_icon=COPY_DRIVE_ICON,
-                    )
-                    mode = menus.select_clone_mode(clone_mode)
-                    if not mode:
-                        return
-                    job_id = f"clone-{uuid4().hex}"
-                    op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
-                    op_log.info(
-                        f"Starting clone: {source_name} -> {target_name} (mode {mode})"
-                    )
-                    screens.render_status_template(
-                        "COPY",
-                        "Running...",
-                        progress_line=f"Mode {mode.upper()}",
-                        title_icon=COPY_DRIVE_ICON,
-                    )
-                    success, status_line = _execute_clone_job(
-                        source, target, mode, job_id=job_id
-                    )
-                    screens.render_status_template(
-                        "COPY",
-                        "Done" if success else "Failed",
-                        progress_line=status_line,
-                        title_icon=COPY_DRIVE_ICON,
-                    )
-
-                    time.sleep(1)
-                    return
-                if confirm_selection == app_state.CONFIRM_NO:
-                    return
-            current_c = gpio.is_pressed(gpio.PIN_C)
-            if prev_states["C"] and not current_c:
-                log_menu.trace("Copy menu: Button C pressed (screenshot)")
-                if _handle_screenshot():
-                    screens.render_confirmation_screen(
-                        title,
-                        [prompt],
-                        selected_index=confirm_selection,
-                        title_icon=COPY_DRIVE_ICON,
-                    )
-            prev_states["R"] = current_r
-            prev_states["L"] = current_l
-            prev_states["B"] = current_b
-            prev_states["A"] = current_a
-            prev_states["C"] = current_c
-            screens.render_confirmation_screen(
-                title,
-                [prompt],
-                selected_index=confirm_selection,
-                title_icon=COPY_DRIVE_ICON,
-            )
-    except KeyboardInterrupt:
-        raise
+    if status_line == "Cancelled":
+        return
+    screens.render_status_template(
+        "COPY",
+        "Done" if success else "Failed",
+        progress_line=status_line,
+        title_icon=COPY_DRIVE_ICON,
+    )
+    time.sleep(1)
 
 
 def drive_info(
@@ -391,9 +427,7 @@ def _execute_clone_job(
     source_name = source.get("name")
     target_name = target.get("name")
     op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
-    op_log.info(
-        f"Starting clone: {source_name} -> {target_name} (mode {mode})"
-    )
+    op_log.info(f"Starting clone: {source_name} -> {target_name} (mode {mode})")
     try:
         job = _prepare_clone_job(source, target, mode, job_id)
     except (KeyError, ValueError) as error:
@@ -421,12 +455,22 @@ def _execute_clone_job(
 
 def _pick_source_target(
     get_selected_usb_name: Callable[[], str | None],
+    *,
+    list_usb_disks_func: Callable[[], list[dict]] | None = None,
+    is_root_device_func: Callable[[dict], bool] | None = None,
+    repo_device_names_func: Callable[[], set[str]] | None = None,
 ) -> tuple[dict | None, dict | None]:
-    repo_devices = drives._get_repo_device_names()
+    if list_usb_disks_func is None:
+        list_usb_disks_func = list_usb_disks
+    if is_root_device_func is None:
+        is_root_device_func = devices.is_root_device
+    if repo_device_names_func is None:
+        repo_device_names_func = drives._get_repo_device_names
+    repo_devices = repo_device_names_func()
     devices_list = [
         device
-        for device in list_usb_disks()
-        if not devices.is_root_device(device) and device.get("name") not in repo_devices
+        for device in list_usb_disks_func()
+        if not is_root_device_func(device) and device.get("name") not in repo_devices
     ]
     if len(devices_list) < 2:
         return None, None
@@ -495,13 +539,28 @@ def _confirm_destructive_action(
     *,
     state: app_state.AppState,
     prompt_lines: Iterable[str],
+    poll_button_events: Callable[..., bool | None] | None = None,
+    wait_for_buttons_release: Callable[..., None] | None = None,
+    render_confirmation_screen: Callable[..., None] | None = None,
+    handle_screenshot: Callable[[], bool] | None = None,
+    poll_interval: float | None = None,
 ) -> bool:
     title = "DATA LOSS"
     prompt = " ".join(prompt_lines)
     selection = [app_state.CONFIRM_NO]  # Use list for mutability in closures
+    if poll_button_events is None:
+        poll_button_events = gpio.poll_button_events
+    if wait_for_buttons_release is None:
+        wait_for_buttons_release = menus.wait_for_buttons_release
+    if render_confirmation_screen is None:
+        render_confirmation_screen = screens.render_confirmation_screen
+    if poll_interval is None:
+        poll_interval = menus.BUTTON_POLL_DELAY
+    if handle_screenshot is None:
+        handle_screenshot = _handle_screenshot
 
     def render():
-        screens.render_confirmation_screen(
+        render_confirmation_screen(
             title,
             [prompt],
             selected_index=selection[0],
@@ -509,33 +568,35 @@ def _confirm_destructive_action(
         )
 
     render()
-    menus.wait_for_buttons_release(
+    wait_for_buttons_release(
         [gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
     )
 
     def on_right():
-        if selection[0] == app_state.CONFIRM_NO:
-            selection[0] = app_state.CONFIRM_YES
+        updated = _apply_confirmation_selection(selection[0], "right")
+        if updated != selection[0]:
+            selection[0] = updated
             log_menu.debug("Destructive action confirmation changed: YES")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
     def on_left():
-        if selection[0] == app_state.CONFIRM_YES:
-            selection[0] = app_state.CONFIRM_NO
+        updated = _apply_confirmation_selection(selection[0], "left")
+        if updated != selection[0]:
+            selection[0] = updated
             log_menu.debug("Destructive action confirmation changed: NO")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
-    result = gpio.poll_button_events(
+    result = poll_button_events(
         {
             gpio.PIN_R: on_right,
             gpio.PIN_L: on_left,
             gpio.PIN_A: lambda: False,  # Cancel
             gpio.PIN_B: lambda: selection[0] == app_state.CONFIRM_YES,  # Confirm
-            gpio.PIN_C: lambda: (_handle_screenshot(), None)[1],
+            gpio.PIN_C: lambda: (handle_screenshot(), None)[1],
         },
-        poll_interval=menus.BUTTON_POLL_DELAY,
+        poll_interval=poll_interval,
         loop_callback=render,
     )
 

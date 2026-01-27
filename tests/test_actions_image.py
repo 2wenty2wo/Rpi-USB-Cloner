@@ -29,6 +29,17 @@ def mock_app_state():
     return state
 
 
+@pytest.fixture
+def mock_gpio(mocker):
+    """Fixture providing mocked GPIO module."""
+    gpio_mock = mocker.patch("rpi_usb_cloner.actions.image_actions.gpio")
+    gpio_mock.PIN_L = 27
+    gpio_mock.PIN_R = 23
+    gpio_mock.PIN_A = 5
+    gpio_mock.PIN_B = 6
+    return gpio_mock
+
+
 # ==============================================================================
 # Helper Functions Tests
 # ==============================================================================
@@ -94,6 +105,83 @@ class TestImageNameValidation:
     def test_is_valid_image_name(self, name, expected):
         """Test image name validation rules."""
         assert image_actions._is_valid_image_name(name) is expected
+
+
+class TestApplyConfirmationSelection:
+    """Test confirmation selection logic."""
+
+    def test_switches_to_yes(self):
+        """Test selecting right changes to YES."""
+        assert (
+            image_actions._apply_confirmation_selection(app_state.CONFIRM_NO, "right")
+            == app_state.CONFIRM_YES
+        )
+
+    def test_switches_to_no(self):
+        """Test selecting left changes to NO."""
+        assert (
+            image_actions._apply_confirmation_selection(app_state.CONFIRM_YES, "left")
+            == app_state.CONFIRM_NO
+        )
+
+    def test_ignores_invalid_direction(self):
+        """Test invalid moves keep selection unchanged."""
+        assert (
+            image_actions._apply_confirmation_selection(app_state.CONFIRM_NO, "left")
+            == app_state.CONFIRM_NO
+        )
+
+
+class TestConfirmPrompt:
+    """Test confirmation prompt with injected poller."""
+
+    def test_confirm_returns_true(
+        self,
+        mock_gpio,
+    ):
+        """Test confirmation returns True when selecting YES."""
+        mock_wait = Mock()
+        mock_render = Mock()
+
+        def poll_button_events(callbacks, poll_interval, loop_callback):
+            loop_callback()
+            callbacks[mock_gpio.PIN_R]()
+            return callbacks[mock_gpio.PIN_B]()
+
+        result = image_actions._confirm_prompt(
+            log_debug=None,
+            title="CONFIRM",
+            prompt_lines=["Line 1"],
+            default=app_state.CONFIRM_NO,
+            poll_button_events=poll_button_events,
+            wait_for_buttons_release=mock_wait,
+            render_confirmation_screen=mock_render,
+        )
+
+        assert result is True
+        mock_wait.assert_called_once()
+
+    def test_cancel_returns_false(self, mock_gpio):
+        """Test cancellation returns False."""
+        mock_wait = Mock()
+        mock_render = Mock()
+
+        def poll_button_events(callbacks, poll_interval, loop_callback):
+            loop_callback()
+            return callbacks[mock_gpio.PIN_A]()
+
+        result = image_actions._confirm_prompt(
+            log_debug=None,
+            title="CONFIRM",
+            prompt_lines=["Line 1"],
+            default=app_state.CONFIRM_NO,
+            poll_button_events=poll_button_events,
+            wait_for_buttons_release=mock_wait,
+            render_confirmation_screen=mock_render,
+        )
+
+        assert result is False
+        mock_wait.assert_called_once()
 
 
 class TestRepoDeviceFiltering:

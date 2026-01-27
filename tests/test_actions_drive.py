@@ -130,6 +130,104 @@ class TestHandleScreenshot:
         mock_display.capture_screenshot.assert_called_once()
 
 
+class TestApplyConfirmationSelection:
+    """Test confirmation selection toggling."""
+
+    def test_selects_yes_on_right(self):
+        """Test moving right switches to YES."""
+        result = drive_actions._apply_confirmation_selection(
+            app_state.CONFIRM_NO, "right"
+        )
+        assert result == app_state.CONFIRM_YES
+
+    def test_selects_no_on_left(self):
+        """Test moving left switches to NO."""
+        result = drive_actions._apply_confirmation_selection(
+            app_state.CONFIRM_YES, "left"
+        )
+        assert result == app_state.CONFIRM_NO
+
+    def test_ignores_redundant_moves(self):
+        """Test redundant directions leave selection unchanged."""
+        assert (
+            drive_actions._apply_confirmation_selection(app_state.CONFIRM_NO, "left")
+            == app_state.CONFIRM_NO
+        )
+        assert (
+            drive_actions._apply_confirmation_selection(app_state.CONFIRM_YES, "right")
+            == app_state.CONFIRM_YES
+        )
+
+
+class TestConfirmCopyPrompt:
+    """Test confirmation prompt flow for copy drive."""
+
+    def test_confirms_yes_after_right_and_b(
+        self, mock_app_state, mock_gpio, mock_screens
+    ):
+        """Test confirmation returns True when selecting YES and confirming."""
+        mock_wait = Mock()
+
+        def poll_button_events(callbacks, poll_interval, loop_callback):
+            loop_callback()
+            callbacks[mock_gpio.PIN_R]()
+            return callbacks[mock_gpio.PIN_B]()
+
+        result = drive_actions._confirm_copy_prompt(
+            state=mock_app_state,
+            title="COPY",
+            prompt="Clone sda to sdb?",
+            poll_button_events=poll_button_events,
+            wait_for_buttons_release=mock_wait,
+            render_confirmation_screen=mock_screens.render_confirmation_screen,
+        )
+
+        assert result is True
+        mock_wait.assert_called_once()
+
+    def test_cancel_returns_false(self, mock_app_state, mock_gpio, mock_screens):
+        """Test cancellation returns False."""
+        mock_wait = Mock()
+
+        def poll_button_events(callbacks, poll_interval, loop_callback):
+            loop_callback()
+            return callbacks[mock_gpio.PIN_A]()
+
+        result = drive_actions._confirm_copy_prompt(
+            state=mock_app_state,
+            title="COPY",
+            prompt="Clone sda to sdb?",
+            poll_button_events=poll_button_events,
+            wait_for_buttons_release=mock_wait,
+            render_confirmation_screen=mock_screens.render_confirmation_screen,
+        )
+
+        assert result is False
+        mock_wait.assert_called_once()
+
+
+class TestExecuteCopyOperation:
+    """Test executing copy operations with injected dependencies."""
+
+    def test_returns_cancelled_when_mode_not_selected(self, mock_usb_device):
+        """Test cancelled flow returns Cancelled and avoids execution."""
+        source = mock_usb_device.copy()
+        target = mock_usb_device.copy()
+        execute_clone_job = Mock()
+
+        success, status = drive_actions.execute_copy_operation(
+            source,
+            target,
+            "smart",
+            select_clone_mode=Mock(return_value=None),
+            execute_clone_job=execute_clone_job,
+        )
+
+        assert success is False
+        assert status == "Cancelled"
+        execute_clone_job.assert_not_called()
+
+
 class TestPickSourceTarget:
     """Test the _pick_source_target helper function."""
 
@@ -486,9 +584,87 @@ class TestCopyDrive:
         # Should sleep after error
         mock_time_sleep.assert_called_once_with(1)
 
-    # Note: copy_drive has complex GPIO polling loops that are difficult to mock
-    # The function would benefit from refactoring to make it more testable
-    # For now, we test the error case above and rely on integration tests
+    def test_runs_copy_when_confirmed(
+        self,
+        mock_app_state,
+        mock_gpio,
+        mock_screens,
+        mock_time_sleep,
+        mocker,
+        mock_usb_device,
+    ):
+        """Test confirms and executes clone operation when confirmed."""
+        device1 = mock_usb_device.copy()
+        device1["name"] = "sda"
+        device2 = mock_usb_device.copy()
+        device2["name"] = "sdb"
+
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.list_usb_disks",
+            return_value=[device1, device2],
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.devices.is_root_device",
+            return_value=False,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.drives._get_repo_device_names",
+            return_value=[],
+        )
+
+        execute_clone_job = Mock(return_value=(True, "Complete."))
+
+        drive_actions.copy_drive(
+            state=mock_app_state,
+            clone_mode="smart",
+            get_selected_usb_name=Mock(return_value=None),
+            confirm_prompt=Mock(return_value=True),
+            select_clone_mode=Mock(return_value="smart"),
+            execute_clone_job=execute_clone_job,
+        )
+
+        execute_clone_job.assert_called_once()
+        mock_screens.render_status_template.assert_called()
+
+    def test_skips_copy_when_cancelled(
+        self,
+        mock_app_state,
+        mock_gpio,
+        mock_screens,
+        mocker,
+        mock_usb_device,
+    ):
+        """Test cancellation avoids clone execution."""
+        device1 = mock_usb_device.copy()
+        device1["name"] = "sda"
+        device2 = mock_usb_device.copy()
+        device2["name"] = "sdb"
+
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.list_usb_disks",
+            return_value=[device1, device2],
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.devices.is_root_device",
+            return_value=False,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drive_actions.drives._get_repo_device_names",
+            return_value=[],
+        )
+
+        execute_clone_job = Mock()
+
+        drive_actions.copy_drive(
+            state=mock_app_state,
+            clone_mode="smart",
+            get_selected_usb_name=Mock(return_value=None),
+            confirm_prompt=Mock(return_value=False),
+            select_clone_mode=Mock(return_value="smart"),
+            execute_clone_job=execute_clone_job,
+        )
+
+        execute_clone_job.assert_not_called()
 
 
 # ==============================================================================
