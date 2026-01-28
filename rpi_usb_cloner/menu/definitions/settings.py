@@ -57,15 +57,49 @@ SCREENSAVER_MENU = MenuScreen(
     title="SCREENSAVER",
 )
 
+CONNECTIVITY_MENU = MenuScreen(
+    screen_id="connectivity",
+    title="CONNECTIVITY",
+    items=[
+        menu_entry("WIFI", action=menu_actions.wifi_settings),
+        menu_entry("WEB SERVER", action=menu_actions.toggle_web_server),
+    ],
+)
+
+DISPLAY_MENU = MenuScreen(
+    screen_id="display",
+    title="DISPLAY",
+    items=[
+        menu_entry("SCREENSAVER", submenu=SCREENSAVER_MENU),
+    ],
+)
+
+SYSTEM_MENU = MenuScreen(
+    screen_id="system",
+    title="SYSTEM",
+    items=[
+        menu_entry("SYSTEM INFO", action=menu_actions.system_info),
+        menu_entry("UPDATE", action=menu_actions.update_version),
+        menu_entry("ABOUT", action=menu_actions.show_about_credits),
+        menu_entry("POWER", submenu=POWER_MENU),
+    ],
+)
+
+ADVANCED_MENU = MenuScreen(
+    screen_id="advanced",
+    title="ADVANCED",
+    items=[
+        menu_entry("DEVELOP", submenu=DEVELOP_MENU),
+    ],
+)
+
 SETTINGS_MENU = MenuScreen(
     screen_id="settings",
     title="SETTINGS",
     items=[
-        menu_entry("WIFI", action=menu_actions.wifi_settings),
-        menu_entry("WEB SERVER", action=menu_actions.toggle_web_server),
-        menu_entry("SYSTEM INFO", action=menu_actions.system_info),
-        menu_entry("SCREENSAVER", submenu=SCREENSAVER_MENU),
-        menu_entry("DEVELOP", submenu=DEVELOP_MENU),
-        menu_entry("POWER", submenu=POWER_MENU),
+        menu_entry("CONNECTIVITY", submenu=CONNECTIVITY_MENU),
+        menu_entry("DISPLAY", submenu=DISPLAY_MENU),
+        menu_entry("SYSTEM", submenu=SYSTEM_MENU),
+        menu_entry("ADVANCED", submenu=ADVANCED_MENU),
     ],
 )

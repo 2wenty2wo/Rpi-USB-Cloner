@@ -29,6 +29,10 @@ WIFI_ICON = chr(57774)  # wifi - wifi screens
 POWER_ICON = chr(57664)  # power - power screens
 DEVELOP_ICON = chr(57729)  # terminal - develop screen
 LOGS_ICON = chr(58868)  # logs icon - logs screen
+CONNECTIVITY_ICON = chr(57576)  # globe - connectivity settings
+DISPLAY_ICON = chr(57859)  # tv-minimal - display settings
+SYSTEM_ICON = chr(57684)  # settings - system settings
+ADVANCED_ICON = chr(57990)  # rocket - advanced settings
 
 # Action icons (used in operations and confirmations)
 ALERT_ICON = chr(57639)  # octagon-alert - warnings and errors
@@ -61,6 +65,10 @@ SYMBOLS_ICON = chr(57422)  # symbols mode selector
 SCREEN_ICONS = {
     "main": MAIN_ICON,
     "settings": SETTINGS_ICON,
+    "connectivity": CONNECTIVITY_ICON,
+    "display": DISPLAY_ICON,
+    "system": SYSTEM_ICON,
+    "advanced": ADVANCED_ICON,
     "develop": DEVELOP_ICON,
     "update": UPDATE_ICON,
     "power": POWER_ICON,
