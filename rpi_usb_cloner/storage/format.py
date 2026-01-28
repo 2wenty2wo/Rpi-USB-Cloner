@@ -49,6 +49,7 @@ import select
 import shutil
 import subprocess
 import time
+from pathlib import Path
 from typing import Callable, Generator, List, Optional
 
 from rpi_usb_cloner.logging import LoggerFactory
@@ -88,30 +89,30 @@ def inhibit_automount(device_path: str) -> Generator[bool, None, None]:
         True if automount was inhibited successfully, False otherwise.
     """
     # Extract device name from path (e.g., "sdc" from "/dev/sdc")
-    device_name = os.path.basename(device_path)
-    rule_path = f"/run/udev/rules.d/99-format-inhibit-{device_name}.rules"
+    device_name = Path(device_path).name
+    rule_path = Path(f"/run/udev/rules.d/99-format-inhibit-{device_name}.rules")
     inhibited = False
 
     try:
         # Create a temporary udev rule to ignore this device
         # UDISKS_IGNORE=1 tells udisks2 to completely ignore the device
         rule_content = (
-            f'# Temporary rule to prevent automounting during format\\n'
-            f'KERNEL=="{device_name}", ENV{{UDISKS_IGNORE}}="1"\\n'
-            f'KERNEL=="{device_name}[0-9]*", ENV{{UDISKS_IGNORE}}="1"\\n'
-            f'KERNEL=="{device_name}p[0-9]*", ENV{{UDISKS_IGNORE}}="1"\\n'
+            f"# Temporary rule to prevent automounting during format\n"
+            f'KERNEL=="{device_name}", ENV{{UDISKS_IGNORE}}="1"\n'
+            f'KERNEL=="{device_name}[0-9]*", ENV{{UDISKS_IGNORE}}="1"\n'
+            f'KERNEL=="{device_name}p[0-9]*", ENV{{UDISKS_IGNORE}}="1"\n'
         )
 
         # Ensure the rules directory exists
-        rules_dir = os.path.dirname(rule_path)
+        rules_dir = rule_path.parent
         try:
-            os.makedirs(rules_dir, exist_ok=True)
+            rules_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             log.debug(f"Could not create udev rules dir {rules_dir}: {e}")
 
         # Write the rule
         try:
-            with open(rule_path, "w") as f:
+            with rule_path.open("w") as f:
                 f.write(rule_content)
             log.debug(f"Created temporary udev rule: {rule_path}")
             inhibited = True
@@ -123,9 +124,21 @@ def inhibit_automount(device_path: str) -> Generator[bool, None, None]:
         # Reload udev rules
         if shutil.which("udevadm"):
             try:
-                run_command(["udevadm", "control", "--reload-rules"], check=False, log_command=False)
-                run_command(["udevadm", "trigger", "--subsystem-match=block", f"--name-match={device_path}"],
-                           check=False, log_command=False)
+                run_command(
+                    ["udevadm", "control", "--reload-rules"],
+                    check=False,
+                    log_command=False,
+                )
+                run_command(
+                    [
+                        "udevadm",
+                        "trigger",
+                        "--subsystem-match=block",
+                        f"--name-match={device_path}",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
                 log.debug(f"Reloaded udev rules for {device_path}")
             except Exception as e:
                 log.debug(f"udevadm reload failed (continuing): {e}")
@@ -137,7 +150,7 @@ def inhibit_automount(device_path: str) -> Generator[bool, None, None]:
         # Remove the temporary rule and reload
         if inhibited:
             try:
-                os.remove(rule_path)
+                rule_path.unlink()
                 log.debug(f"Removed temporary udev rule: {rule_path}")
             except OSError as e:
                 log.warning(f"Could not remove udev rule {rule_path}: {e}")
@@ -145,13 +158,23 @@ def inhibit_automount(device_path: str) -> Generator[bool, None, None]:
             # Reload udev rules to restore normal behavior
             if shutil.which("udevadm"):
                 try:
-                    run_command(["udevadm", "control", "--reload-rules"], check=False, log_command=False)
-                    run_command(["udevadm", "trigger", "--subsystem-match=block", f"--name-match={device_path}"],
-                               check=False, log_command=False)
+                    run_command(
+                        ["udevadm", "control", "--reload-rules"],
+                        check=False,
+                        log_command=False,
+                    )
+                    run_command(
+                        [
+                            "udevadm",
+                            "trigger",
+                            "--subsystem-match=block",
+                            f"--name-match={device_path}",
+                        ],
+                        check=False,
+                        log_command=False,
+                    )
                 except Exception as e:
                     log.debug(f"udevadm reload on cleanup failed: {e}")
-
-
 
 
 def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
