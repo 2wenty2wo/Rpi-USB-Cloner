@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 from rpi_usb_cloner.domain import CloneJob
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     get_children,
     get_device_by_name,
@@ -303,37 +304,42 @@ def clone_device(
         )
         display_lines(["FAILED", "Target missing"])
         return False
-    if not unmount_device(target_device):
-        log.error(
-            "Clone aborted: failed to unmount target device",
-            target=target_device.get("name"),
-            tags=["clone", "unmount", "error"],
-        )
-        display_lines(["FAILED", "Unmount target"])
-        return False
-    try:
-        validate_device_unmounted(target_device)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.error(
-            "Clone aborted: target still mounted after unmount attempt",
-            target=target_device.get("name"),
-            error=str(error),
-            tags=["clone", "busy", "error"],
-        )
-        display_lines(["FAILED", "Device busy"])
-        return False
-    try:
-        total_bytes = source.get("size") if isinstance(source, dict) else None
-        clone_dd(source, target, total_bytes=total_bytes, title="CLONING")
-    except RuntimeError as error:
-        log.error(
-            "Clone failed during dd operation",
-            error=str(error),
-            tags=["clone", "dd", "error"],
-        )
-        display_lines(["FAILED", str(error)[:20]])
-        return False
-    return True
+
+    target_name = target_device.get("name", "unknown")
+
+    # Use device operation lock to pause web UI scanning
+    with device_operation(target_name):
+        if not unmount_device(target_device):
+            log.error(
+                "Clone aborted: failed to unmount target device",
+                target=target_device.get("name"),
+                tags=["clone", "unmount", "error"],
+            )
+            display_lines(["FAILED", "Unmount target"])
+            return False
+        try:
+            validate_device_unmounted(target_device)
+        except (DeviceBusyError, MountVerificationError) as error:
+            log.error(
+                "Clone aborted: target still mounted after unmount attempt",
+                target=target_device.get("name"),
+                error=str(error),
+                tags=["clone", "busy", "error"],
+            )
+            display_lines(["FAILED", "Device busy"])
+            return False
+        try:
+            total_bytes = source.get("size") if isinstance(source, dict) else None
+            clone_dd(source, target, total_bytes=total_bytes, title="CLONING")
+        except RuntimeError as error:
+            log.error(
+                "Clone failed during dd operation",
+                error=str(error),
+                tags=["clone", "dd", "error"],
+            )
+            display_lines(["FAILED", str(error)[:20]])
+            return False
+        return True
 
 
 def clone_device_smart(
@@ -403,58 +409,62 @@ def clone_device_smart(
         return False
     source_node = f"/dev/{source_device.get('name')}"
     target_node = f"/dev/{target_device.get('name')}"
-    if not unmount_device(target_device):
-        log.error(
-            "Smart clone aborted: failed to unmount target",
-            target=target_node,
-            tags=["clone", "smart", "unmount", "error"],
-        )
-        display_lines(["FAILED", "Unmount target"])
-        return False
-    try:
-        validate_device_unmounted(target_device)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.error(
-            "Smart clone aborted: target still mounted after unmount",
-            target=target_node,
-            error=str(error),
-            tags=["clone", "smart", "busy", "error"],
-        )
-        display_lines(["FAILED", "Device busy"])
-        return False
-    try:
-        display_lines(["CLONING", "Copy table"])
-        copy_partition_table(source, target)
-    except RuntimeError as error:
-        log.error(
-            "Partition table copy failed during smart clone",
+    target_name = target_device.get("name", "unknown")
+
+    # Use device operation lock to pause web UI scanning
+    with device_operation(target_name):
+        if not unmount_device(target_device):
+            log.error(
+                "Smart clone aborted: failed to unmount target",
+                target=target_node,
+                tags=["clone", "smart", "unmount", "error"],
+            )
+            display_lines(["FAILED", "Unmount target"])
+            return False
+        try:
+            validate_device_unmounted(target_device)
+        except (DeviceBusyError, MountVerificationError) as error:
+            log.error(
+                "Smart clone aborted: target still mounted after unmount",
+                target=target_node,
+                error=str(error),
+                tags=["clone", "smart", "busy", "error"],
+            )
+            display_lines(["FAILED", "Device busy"])
+            return False
+        try:
+            display_lines(["CLONING", "Copy table"])
+            copy_partition_table(source, target)
+        except RuntimeError as error:
+            log.error(
+                "Partition table copy failed during smart clone",
+                source=source_node,
+                target=target_node,
+                error=str(error),
+                tags=["clone", "smart", "partition", "error"],
+            )
+            display_lines(["FAILED", "Partition tbl"])
+            return False
+        try:
+            clone_partclone(source, target)
+        except RuntimeError as error:
+            log.error(
+                f"Smart clone failed: {source_node} -> {target_node}",
+                source=source_node,
+                target=target_node,
+                error=str(error),
+                tags=["clone", "smart", "partclone", "error"],
+            )
+            display_lines(["FAILED", str(error)[:20]])
+            return False
+        log.success(
+            f"Smart clone completed: {source_node} -> {target_node}",
             source=source_node,
             target=target_node,
-            error=str(error),
-            tags=["clone", "smart", "partition", "error"],
+            tags=["clone", "smart", "success"],
         )
-        display_lines(["FAILED", "Partition tbl"])
-        return False
-    try:
-        clone_partclone(source, target)
-    except RuntimeError as error:
-        log.error(
-            f"Smart clone failed: {source_node} -> {target_node}",
-            source=source_node,
-            target=target_node,
-            error=str(error),
-            tags=["clone", "smart", "partclone", "error"],
-        )
-        display_lines(["FAILED", str(error)[:20]])
-        return False
-    log.success(
-        f"Smart clone completed: {source_node} -> {target_node}",
-        source=source_node,
-        target=target_node,
-        tags=["clone", "smart", "success"],
-    )
-    display_lines(["CLONING", "Complete"])
-    return True
+        display_lines(["CLONING", "Complete"])
+        return True
 
 
 def clone_device_v2(job: CloneJob) -> bool:

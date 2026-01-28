@@ -18,6 +18,7 @@ from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
 from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage import image_repo
+from rpi_usb_cloner.storage.device_lock import is_operation_active
 from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.web.system_health import (
     SystemHealth,
@@ -411,7 +412,17 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
     )
 
     try:
+        # Cache for when operations are in progress
+        cached_device_list: list[dict] = []
+
         while not ws.closed:
+            # Skip filesystem scanning if a device operation is in progress
+            if is_operation_active():
+                # Send cached data to keep connection alive
+                await ws.send_json({"devices": cached_device_list, "operation_active": True})
+                await asyncio.sleep(2.0)
+                continue
+
             from rpi_usb_cloner.services.drives import list_usb_disks_filtered
             from rpi_usb_cloner.storage.devices import get_children, human_size
 
@@ -464,6 +475,9 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
                     }
                 )
 
+            # Update cache for when operations are in progress
+            cached_device_list = device_list
+
             await ws.send_json({"devices": device_list})
             await asyncio.sleep(2.0)  # Update every 2 seconds
 
@@ -503,7 +517,18 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
         image_sizes_task: asyncio.Task[dict[str, int | None]] | None = None
         next_image_sizes_refresh = 0.0
 
+        # Cache for when operations are in progress
+        cached_payload: dict = {"images": [], "repo_stats": {}}
+
         while not ws.closed:
+            # Skip filesystem scanning if a device operation is in progress
+            if is_operation_active():
+                # Send cached data to keep connection alive
+                cached_payload["operation_active"] = True
+                await ws.send_json(cached_payload)
+                await asyncio.sleep(2.0)
+                continue
+
             repos = image_repo.find_image_repos()
             image_list = []
             repo_images: dict[Path, list[image_repo.DiskImage]] = {}
@@ -562,7 +587,10 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                         }
                     )
 
-            await ws.send_json({"images": image_list, "repo_stats": repo_stats})
+            # Update cache for when operations are in progress
+            cached_payload = {"images": image_list, "repo_stats": repo_stats}
+
+            await ws.send_json(cached_payload)
             await asyncio.sleep(2.0)
 
     except asyncio.CancelledError:
