@@ -196,6 +196,87 @@ def _create_partition(device_path: str) -> bool:
         return False
 
 
+def _get_partition_mountpoint(partition_path: str) -> Optional[str]:
+    if shutil.which("findmnt"):
+        result = run_command(
+            ["findmnt", "-n", "-o", "TARGET", "-S", partition_path],
+            check=False,
+            log_command=False,
+            log_output=False,
+        )
+        if result.returncode == 0:
+            mountpoint = result.stdout.strip()
+            if mountpoint:
+                return mountpoint
+    if shutil.which("lsblk"):
+        result = run_command(
+            ["lsblk", "-no", "MOUNTPOINT", partition_path],
+            check=False,
+            log_command=False,
+            log_output=False,
+        )
+        if result.returncode == 0:
+            mountpoint = result.stdout.strip()
+            if mountpoint:
+                return mountpoint
+    try:
+        with open("/proc/mounts") as mounts_file:
+            for line in mounts_file:
+                parts = line.split()
+                if len(parts) >= 2 and parts[0] == partition_path:
+                    return parts[1]
+    except OSError as error:
+        log.debug("Failed to read /proc/mounts: {}", error)
+    return None
+
+
+def _ensure_partition_unmounted(partition_path: str, retries: int = 3) -> bool:
+    for attempt in range(1, retries + 1):
+        mountpoint = _get_partition_mountpoint(partition_path)
+        if not mountpoint:
+            return True
+
+        log.warning(
+            "Partition {} is mounted at {} (attempt {}/{})",
+            partition_path,
+            mountpoint,
+            attempt,
+            retries,
+        )
+
+        unmounted = False
+        if shutil.which("udisksctl"):
+            result = run_command(
+                ["udisksctl", "unmount", "-b", partition_path, "--no-user-interaction"],
+                check=False,
+                log_command=False,
+            )
+            unmounted = result.returncode == 0
+        if not unmounted:
+            result = run_command(
+                ["umount", partition_path], check=False, log_command=False
+            )
+            unmounted = result.returncode == 0
+
+        if shutil.which("udevadm"):
+            run_command(
+                ["udevadm", "settle", "--timeout=5"],
+                check=False,
+                log_command=False,
+            )
+        time.sleep(1)
+
+        if unmounted and not _get_partition_mountpoint(partition_path):
+            return True
+
+    log.warning(
+        "Format aborted: partition {} still mounted after {} attempts",
+        partition_path,
+        retries,
+    )
+    return False
+
+
 def _format_filesystem(
     partition_path: str,
     filesystem: str,
@@ -215,6 +296,15 @@ def _format_filesystem(
     Returns:
         True on success, False on failure
     """
+    if not _ensure_partition_unmounted(partition_path):
+        log.warning(
+            "Format aborted: auto-mount detected for {} before mkfs",
+            partition_path,
+        )
+        if progress_callback:
+            progress_callback(["Device busy", "Aborting format"], None)
+        return False
+
     filesystem = filesystem.lower()
     mode = mode.lower()
 
