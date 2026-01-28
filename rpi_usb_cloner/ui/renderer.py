@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 from typing import Iterable
 
@@ -94,6 +95,11 @@ def _render_menu(
     scroll_start_delay: float = 0.0,
     target_cycle_seconds: float = 6.0,
     scroll_gap: int = 20,
+    now: float | None = None,
+    last_activity_time: float | None = None,
+    selector_idle_delay: float = 1.0,
+    selector_bounce_amplitude: int = 2,
+    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
 ) -> None:
@@ -164,6 +170,18 @@ def _render_menu(
             items_list.append(_truncate_text(item, list_font, max_item_width))
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
+    idle_seconds = None
+    if now is not None and last_activity_time is not None:
+        idle_seconds = max(0.0, now - last_activity_time)
+    selector_offset = 0
+    if (
+        idle_seconds is not None
+        and idle_seconds >= selector_idle_delay
+        and selector_bounce_amplitude
+    ):
+        safe_period = max(selector_bounce_period, 0.01)
+        phase = ((idle_seconds - selector_idle_delay) / safe_period) * 2 * math.pi
+        selector_offset = int(round(math.sin(phase) * selector_bounce_amplitude))
     for row_index, item_index in enumerate(range(start_index, end_index)):
         row_top = current_y + row_index * row_height
         text_y = row_top + max(0, (row_height - line_height) // 2)
@@ -172,7 +190,7 @@ def _render_menu(
         x_offset = 0
         if enable_horizontal_scroll and is_selected and screen_id == "images":
             x_offset = calculate_horizontal_scroll_offset(
-                now=time.monotonic(),
+                now=now if now is not None else time.monotonic(),
                 scroll_start_time=scroll_start_time,
                 text_width=item_widths[item_index],
                 max_width=max_item_width,
@@ -200,7 +218,10 @@ def _render_menu(
             )
         # Draw selector for selected item
         if is_selected:
-            draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
+            selector_x = left_margin
+            if selector_offset:
+                selector_x = max(0, left_margin + selector_offset)
+            draw.text((selector_x, text_y), selector, font=list_font, fill=text_color)
 
     footer_font = None
     footer_height = 0
@@ -351,6 +372,11 @@ def render_menu_screen(
     scroll_start_delay: float = 0.0,
     target_cycle_seconds: float = 6.0,
     scroll_gap: int = 20,
+    now: float | None = None,
+    last_activity_time: float | None = None,
+    selector_idle_delay: float = 1.0,
+    selector_bounce_amplitude: int = 2,
+    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
 ) -> None:
@@ -382,6 +408,11 @@ def render_menu_screen(
             scroll_start_delay=scroll_start_delay,
             target_cycle_seconds=target_cycle_seconds,
             scroll_gap=scroll_gap,
+            now=now,
+            last_activity_time=last_activity_time,
+            selector_idle_delay=selector_idle_delay,
+            selector_bounce_amplitude=selector_bounce_amplitude,
+            selector_bounce_period=selector_bounce_period,
             screen_id=screen_id,
             clear=clear,
         )
@@ -412,6 +443,11 @@ def render_menu_image(
     scroll_start_delay: float = 0.0,
     target_cycle_seconds: float = 6.0,
     scroll_gap: int = 20,
+    now: float | None = None,
+    last_activity_time: float | None = None,
+    selector_idle_delay: float = 1.0,
+    selector_bounce_amplitude: int = 2,
+    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
 ) -> Image.Image:
@@ -442,6 +478,11 @@ def render_menu_image(
         scroll_start_delay=scroll_start_delay,
         target_cycle_seconds=target_cycle_seconds,
         scroll_gap=scroll_gap,
+        now=now,
+        last_activity_time=last_activity_time,
+        selector_idle_delay=selector_idle_delay,
+        selector_bounce_amplitude=selector_bounce_amplitude,
+        selector_bounce_period=selector_bounce_period,
         screen_id=screen_id,
         clear=clear,
     )

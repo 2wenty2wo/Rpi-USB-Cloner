@@ -534,6 +534,12 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     last_render_state: dict[str, Optional[tuple[object, ...]]] = {"key": None}
     last_screen_id: dict[str, Optional[str]] = {"value": None}
+    last_menu_state: dict[str, Optional[tuple[object, ...]]] = {"value": None}
+    last_menu_activity_time = time.monotonic()
+    last_idle_animation_time = last_menu_activity_time
+    selector_idle_delay = 1.0
+    selector_bounce_period = 0.4
+    idle_animation_interval = max(0.05, selector_bounce_period / 8)
 
     def calculate_transition_frames() -> int:
         context = display.get_display_context()
@@ -553,7 +559,14 @@ def main(argv: Optional[list[str]] = None) -> None:
             return 0.005
         return max(0.0, delay)
 
-    def render_current_screen(force: bool = False) -> None:
+    def render_current_screen(
+        *,
+        force: bool = False,
+        now: float | None = None,
+    ) -> None:
+        nonlocal last_menu_activity_time, last_idle_animation_time
+        if now is None:
+            now = time.monotonic()
         current_screen = menu_navigator.current_screen()
         previous_screen_id = last_screen_id["value"]
         screen_changed = current_screen.screen_id != previous_screen_id
@@ -572,11 +585,21 @@ def main(argv: Optional[list[str]] = None) -> None:
         status_line = get_screen_status_line(current_screen)
         dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
         menu_navigator.sync_visible_rows(dynamic_visible_rows)
+        current_state = menu_navigator.current_state()
+        current_menu_state = (
+            current_screen.screen_id,
+            current_state.selected_index,
+            current_state.scroll_offset,
+        )
+        if current_menu_state != last_menu_state["value"]:
+            last_menu_state["value"] = current_menu_state
+            last_menu_activity_time = now
+            last_idle_animation_time = now
         render_key = (
             current_screen.screen_id,
             tuple(items),
-            menu_navigator.current_state().selected_index,
-            menu_navigator.current_state().scroll_offset,
+            current_state.selected_index,
+            current_state.scroll_offset,
             status_line,
             dynamic_visible_rows,
         )
@@ -586,16 +609,21 @@ def main(argv: Optional[list[str]] = None) -> None:
                 if screen_changed
                 else None
             )
+            if navigation_action is not None:
+                last_menu_activity_time = now
+                last_idle_animation_time = now
             if screen_changed and navigation_action in {"forward", "back"}:
                 from_image = display.get_display_context().image.copy()
                 to_image = renderer.render_menu_image(
                     title=current_screen.title,
                     items=items,
-                    selected_index=menu_navigator.current_state().selected_index,
-                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    selected_index=current_state.selected_index,
+                    scroll_offset=current_state.scroll_offset,
                     status_line=status_line,
                     visible_rows=dynamic_visible_rows,
                     title_icon=get_screen_icon(current_screen.screen_id),
+                    now=now,
+                    last_activity_time=last_menu_activity_time,
                 )
                 context = display.get_display_context()
                 footer_start, _ = renderer.calculate_footer_bounds(
@@ -619,13 +647,16 @@ def main(argv: Optional[list[str]] = None) -> None:
                 renderer.render_menu_screen(
                     title=current_screen.title,
                     items=items,
-                    selected_index=menu_navigator.current_state().selected_index,
-                    scroll_offset=menu_navigator.current_state().scroll_offset,
+                    selected_index=current_state.selected_index,
+                    scroll_offset=current_state.scroll_offset,
                     status_line=status_line,
                     visible_rows=dynamic_visible_rows,
                     title_icon=get_screen_icon(current_screen.screen_id),
+                    now=now,
+                    last_activity_time=last_menu_activity_time,
                 )
             last_render_state["key"] = render_key
+            last_idle_animation_time = now
 
     def handle_back() -> None:
         if app_context.operation_active and not app_context.allow_back_interrupt:
@@ -644,7 +675,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         app_context.discovered_drives,
         state.usb_list_index,
     )
-    render_current_screen(force=True)
+    render_current_screen(force=True, now=time.monotonic())
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
     state.last_seen_raw_devices = get_raw_usb_snapshot()
@@ -756,7 +787,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                         "B": gpio.is_pressed(gpio.PIN_B),
                         "C": gpio.is_pressed(gpio.PIN_C),
                     }
-                    render_current_screen(force=True)
+                    render_current_screen(force=True, now=time.monotonic())
                     screensaver_active = False
                     continue
 
@@ -869,12 +900,21 @@ def main(argv: Optional[list[str]] = None) -> None:
                     render_requested = True
 
             if button_pressed:
+                last_menu_activity_time = now
+                last_idle_animation_time = now
                 state.lcdstart = datetime.now()
                 state.run_once = 0
 
             prev_states = current_states
+            if not render_requested and not force_render:
+                idle_seconds = max(0.0, now - last_menu_activity_time)
+                if (
+                    idle_seconds >= selector_idle_delay
+                    and now - last_idle_animation_time >= idle_animation_interval
+                ):
+                    render_requested = True
             if render_requested:
-                render_current_screen(force=force_render)
+                render_current_screen(force=force_render, now=now)
 
             # Sleep at end of loop to minimize latency for next button press
             time.sleep(input_poll_interval)
