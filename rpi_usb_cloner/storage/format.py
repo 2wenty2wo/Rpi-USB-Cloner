@@ -116,7 +116,7 @@ def exclusive_device_lock(device_path: str) -> Generator[bool, None, None]:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             locked = True
             log.debug(f"Acquired exclusive lock on {device_path}")
-        except (OSError, IOError) as e:
+        except OSError as e:
             # Lock failed - device might be in use by another process
             log.warning(f"Could not acquire exclusive lock on {device_path}: {e}")
             # Still yield, just without the lock - operations may still succeed
@@ -133,12 +133,10 @@ def exclusive_device_lock(device_path: str) -> Generator[bool, None, None]:
                 try:
                     fcntl.flock(fd, fcntl.LOCK_UN)
                     log.debug(f"Released exclusive lock on {device_path}")
-                except (OSError, IOError) as e:
+                except OSError as e:
                     log.warning(f"Error releasing lock on {device_path}: {e}")
-            try:
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
 
 
 def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
@@ -394,9 +392,7 @@ def _unmount_partition_aggressive(partition_path: str) -> bool:
             log.debug(f"udisksctl unmounted {partition_path}")
 
     # Try regular umount
-    result = run_command(
-        ["umount", partition_path], check=False, log_command=False
-    )
+    result = run_command(["umount", partition_path], check=False, log_command=False)
     if result.returncode == 0:
         log.debug(f"umount unmounted {partition_path}")
 
@@ -517,12 +513,20 @@ def _format_filesystem(
             progress_callback([f"Formatting {filesystem}..."], 0.5)
 
         # Run format command
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        try:
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except (FileNotFoundError, PermissionError, OSError) as error:
+            last_error = str(error)
+            log.error(f"Format command failed to start: {error}")
+            log.error(f"Command: {' '.join(command)}")
+            if progress_callback:
+                progress_callback(["Format failed", last_error], None)
+            return False
 
         # Monitor progress for ext4 (shows percentage)
         if filesystem == "ext4":
@@ -560,9 +564,7 @@ def _format_filesystem(
             return True
 
         # Format failed - check if it's a "device busy" error
-        stderr_output = (
-            process.stderr.read() if process.stderr else "no error message"
-        )
+        stderr_output = process.stderr.read() if process.stderr else "no error message"
         last_error = stderr_output.strip()
         log.error(f"Format command failed with code {returncode}")
         log.error(f"Command: {' '.join(command)}")
@@ -581,13 +583,10 @@ def _format_filesystem(
             # Wait a bit and try again
             time.sleep(2)
             continue
-        else:
-            # Non-retryable error or final attempt
-            break
+        # Non-retryable error or final attempt
+        break
 
-    log.warning(
-        f"Format failed after {max_format_attempts} attempts: {last_error}"
-    )
+    log.warning(f"Format failed after {max_format_attempts} attempts: {last_error}")
     return False
 
 
@@ -1187,7 +1186,9 @@ def format_device(
                     unmount_block_device(partition_path)
                     unmount_success = True
                 except (ValueError, RuntimeError) as error:
-                    log.debug("Fallback umount failed for {}: {}", partition_path, error)
+                    log.debug(
+                        "Fallback umount failed for {}: {}", partition_path, error
+                    )
             if not unmount_success:
                 log.warning(
                     "Format aborted: device busy after auto-mount on {}",
