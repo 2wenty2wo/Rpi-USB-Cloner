@@ -407,7 +407,7 @@ def format_device(
             unmount_success, used_lazy_unmount = bool(unmount_result), False
     except Exception as error:
         log.debug(f"Failed to unmount device: {error}")
-        log.error("Format aborted: unmount failed for %s: %s", device_label, error)
+        log.error("Format aborted: unmount failed for {}: {}", device_label, error)
         return False
 
     refreshed_device = get_device_by_name(device_name) or device
@@ -416,13 +416,13 @@ def format_device(
         mountpoints = _collect_mountpoints(refreshed_device)
         mountpoints_label = ", ".join(mountpoints) if mountpoints else "none"
         log.debug(
-            "Failed to unmount %s (lazy used=%s). Active mountpoints: %s",
+            "Failed to unmount {} (lazy used={}). Active mountpoints: {}",
             device_label,
             used_lazy_unmount,
             mountpoints_label,
         )
         log.warning(
-            "Format aborted: device still mounted for %s (mountpoints: %s)",
+            "Format aborted: device still mounted for {} (mountpoints: {})",
             device_label,
             mountpoints_label,
         )
@@ -435,7 +435,7 @@ def format_device(
     except (DeviceBusyError, MountVerificationError) as error:
         log.debug(f"Format aborted: {error}")
         log.warning(
-            "Format aborted: device still mounted for %s: %s", device_label, error
+            "Format aborted: device still mounted for {}: {}", device_label, error
         )
         if progress_callback:
             progress_callback(["Device busy"], None)
@@ -443,7 +443,7 @@ def format_device(
     except Exception as error:
         log.debug(f"Format aborted: mount verification failed: {error}")
         log.error(
-            "Format aborted: mount verification failed for %s: %s",
+            "Format aborted: mount verification failed for {}: {}",
             device_label,
             error,
         )
@@ -455,12 +455,12 @@ def format_device(
     # Sync to flush any pending writes and udevadm settle to wait for udev processing
     for command in (["sync"], ["udevadm", "settle", "--timeout=5"]):
         if not shutil.which(command[0]):
-            log.debug("Skipping %s: command not found", command[0])
+            log.debug("Skipping {}: command not found", command[0])
             continue
         try:
             run_command(command)
         except (subprocess.CalledProcessError, OSError) as error:
-            log.debug("Best-effort command failed (%s): %s", command[0], error)
+            log.debug("Best-effort command failed ({}): {}", command[0], error)
     time.sleep(2)  # Additional wait for device to fully release
 
     # CRITICAL: Tell udisks2/automount to stop managing this device
@@ -636,7 +636,7 @@ def format_device(
         if detected_mountpoints:
             last_mountpoints = detected_mountpoints
             log.debug(
-                "Final unmount retry %s/3 for %s (mountpoints: %s)",
+                "Final unmount retry {}/3 for {} (mountpoints: {})",
                 attempt,
                 device_label,
                 ", ".join(detected_mountpoints),
@@ -705,7 +705,7 @@ def format_device(
                 last_mountpoints = [error.mountpoint]
             if attempt < 3:
                 log.debug(
-                    "Final mount verification retry %s/3 for %s: %s",
+                    "Final mount verification retry {}/3 for {}: {}",
                     attempt,
                     device_label,
                     error,
@@ -715,7 +715,7 @@ def format_device(
             final_check_error = error
             if attempt < 3:
                 log.debug(
-                    "Final mount verification retry %s/3 for %s: %s",
+                    "Final mount verification retry {}/3 for {}: {}",
                     attempt,
                     device_label,
                     error,
@@ -729,14 +729,14 @@ def format_device(
             mountpoint_note = f" (mountpoint: {', '.join(last_mountpoints)})"
         if isinstance(final_check_error, (DeviceBusyError, MountVerificationError)):
             log.warning(
-                "Format aborted: device busy before wipefs for %s: %s%s",
+                "Format aborted: device busy before wipefs for {}: {}{}",
                 device_label,
                 final_check_error,
                 mountpoint_note,
             )
         else:
             log.error(
-                "Format aborted: final mount verification failed for %s: %s%s",
+                "Format aborted: final mount verification failed for {}: {}{}",
                 device_label,
                 final_check_error,
                 mountpoint_note,
@@ -754,7 +754,7 @@ def format_device(
                 fuser_output = (result.stdout or "").strip()
                 if fuser_output:
                     log.warning(
-                        "Format aborted: device busy (holders: %s) for %s",
+                        "Format aborted: device busy (holders: {}) for {}",
                         fuser_output,
                         device_label,
                     )
@@ -763,7 +763,7 @@ def format_device(
                     return False
             else:
                 log.debug(
-                    "fuser check failed for %s (rc=%s, stderr=%s)",
+                    "fuser check failed for {} (rc={}, stderr={})",
                     device_label,
                     result.returncode,
                     (result.stderr or "").strip(),
@@ -851,10 +851,10 @@ def format_device(
                 unmount_block_device(partition_path)
                 unmount_success = True
             except (ValueError, RuntimeError) as error:
-                log.debug("Fallback umount failed for %s: %s", partition_path, error)
+                log.debug("Fallback umount failed for {}: {}", partition_path, error)
         if not unmount_success:
             log.warning(
-                "Format aborted: device busy after auto-mount on %s",
+                "Format aborted: device busy after auto-mount on {}",
                 device_label,
             )
             if progress_callback:
@@ -867,7 +867,7 @@ def format_device(
         validate_device_unmounted(refreshed_device)
     except (DeviceBusyError, MountVerificationError) as error:
         log.warning(
-            "Format aborted: device busy after partitioning for %s: %s",
+            "Format aborted: device busy after partitioning for {}: {}",
             device_label,
             error,
         )
@@ -876,7 +876,7 @@ def format_device(
         return False
     except Exception as error:
         log.error(
-            "Format aborted: mount verification failed after partitioning for %s: %s",
+            "Format aborted: mount verification failed after partitioning for {}: {}",
             device_label,
             error,
         )
