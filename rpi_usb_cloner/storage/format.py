@@ -1143,6 +1143,45 @@ def format_device(
                 "automount may still occur, proceeding anyway"
             )
 
+        # CRITICAL: Now that automount is inhibited, aggressively unmount
+        # any existing mounts and kill any processes using the device.
+        # This must happen AFTER the udev rule is in place to prevent re-mounting.
+        log.debug(f"Aggressively releasing {device_path} after inhibiting automount")
+
+        # Unmount all partitions using multiple methods
+        partition_suffix = "p" if device_name[-1].isdigit() else ""
+        for i in range(1, 9):
+            part_path = f"{device_path}{partition_suffix}{i}"
+            # Try udisksctl first (cleaner)
+            if shutil.which("udisksctl"):
+                run_command(
+                    ["udisksctl", "unmount", "-b", part_path, "--no-user-interaction"],
+                    check=False,
+                    log_command=False,
+                )
+            # Then regular unmount
+            run_command(["umount", part_path], check=False, log_command=False)
+            # Finally lazy unmount as last resort
+            run_command(["umount", "-l", part_path], check=False, log_command=False)
+
+        # Also unmount the base device just in case
+        run_command(["umount", device_path], check=False, log_command=False)
+        run_command(["umount", "-l", device_path], check=False, log_command=False)
+
+        # Kill any processes still holding the device
+        if shutil.which("fuser"):
+            run_command(["fuser", "-km", device_path], check=False, log_command=False)
+            time.sleep(0.5)
+
+        # Let everything settle
+        if shutil.which("udevadm"):
+            run_command(
+                ["udevadm", "settle", "--timeout=3"],
+                check=False,
+                log_command=False,
+            )
+        time.sleep(1)
+
         # Wipe filesystem signatures to prevent parted confusion
         # This is critical - old signatures can cause parted to fail
         if shutil.which("wipefs"):
