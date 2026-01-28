@@ -752,7 +752,7 @@ def _render_scrollable_key_value_lines(
         _get_line_height(items_font),
         _get_line_height(label_font),
     )
-    line_step = line_height + 2
+    line_step = line_height + 0
     available_height = context.height - current_y - 2
     visible_rows = max(1, available_height // line_step)
 
