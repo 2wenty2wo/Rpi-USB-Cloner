@@ -1309,7 +1309,42 @@ def unmount_device_with_retry(device: dict, log_debug: Optional[Callable] = None
     """Returns (success, used_lazy_unmount) with automatic retry logic."""
 ```
 
+#### 2026-01-28: Web UI Device Lock (CRITICAL) ✅
+**Problem**: Disk operations (format, erase, clone) failed with "device busy" errors when the web UI was running.
+
+**Root Cause**: The web UI has two WebSocket handlers that scan USB filesystems every 2 seconds:
+- `handle_devices_ws` → calls `find_image_repos()` → `flag_path.exists()` on mounted USB
+- `handle_images_ws` → calls `list_clonezilla_images()` → `glob("*.iso")`, `glob("*.bin")` on USB
+
+These filesystem operations keep devices "in use" from the kernel's perspective. When `parted` tries to rewrite the partition table, the kernel says "device busy".
+
+**Solution**: Added `storage/device_lock.py` module with a `device_operation()` context manager:
+```python
+from rpi_usb_cloner.storage.device_lock import device_operation, is_operation_active
+
+# In disk operation code:
+with device_operation("sdb"):
+    # Perform format/erase/clone - web UI scanning is paused
+    ...
+
+# In web UI polling code:
+if is_operation_active():
+    # Skip filesystem scanning, use cached data
+    ...
+```
+
+**Files Modified**:
+- `storage/device_lock.py` (NEW) - Thread-safe lock module
+- `storage/format.py` - Wraps `format_device()` with lock
+- `storage/clone/erase.py` - Wraps `erase_device()` with lock
+- `storage/clone/operations.py` - Wraps `clone_device()` and `clone_device_smart()` with lock
+- `web/server.py` - Modified handlers to check `is_operation_active()` and use cached data
+
+> [!IMPORTANT]
+> **Future Web UI Development**: When adding new filesystem scanning to the web UI, always check `is_operation_active()` first. Any code that accesses USB filesystems (glob, exists, stat, open, etc.) can cause "device busy" errors during disk operations.
+
 ### Current Issues (from TODO.md)
+
 
 #### 1. UI/UX Issues
 
