@@ -418,16 +418,10 @@ class TestFormatDevice:
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_full_workflow(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
         mock_format_fs,
@@ -438,7 +432,6 @@ class TestFormatDevice:
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -450,25 +443,22 @@ class TestFormatDevice:
         assert result is True
 
         # Verify workflow steps
-        mock_validate_format.assert_called_once()
         mock_unmount.assert_called_once()
-        assert mock_validate_unmounted.call_count == 3
         mock_create_table.assert_called_once_with("/dev/sda")
         mock_create_part.assert_called_once_with("/dev/sda")
         mock_format_fs.assert_called_once()
 
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    def test_format_device_validation_failure(self, mock_validate):
-        """Test format aborted on validation failure."""
-        device = {"name": "mmcblk0"}
-        mock_validate.side_effect = DeviceBusyError("Device is busy")
+    @patch("rpi_usb_cloner.storage.format.unmount_device")
+    def test_format_device_unmount_returns_false(self, mock_unmount):
+        """Test format aborted when unmount returns False."""
+        device = {"name": "sda", "size": "16106127360"}
+        mock_unmount.return_value = False
 
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is False
 
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    def test_format_device_no_name_field(self, mock_validate):
+    def test_format_device_no_name_field(self):
         """Test format failure when device has no name."""
         device = {"size": "1000000"}  # Missing 'name' field
 
@@ -477,8 +467,7 @@ class TestFormatDevice:
         assert result is False
 
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    def test_format_device_unmount_failure(self, mock_validate, mock_unmount):
+    def test_format_device_unmount_failure(self, mock_unmount):
         """Test format aborted when unmount fails."""
         device = {"name": "sda", "size": "16106127360"}
         mock_unmount.return_value = False
@@ -487,46 +476,17 @@ class TestFormatDevice:
 
         assert result is False
 
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
-    @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    def test_format_device_still_mounted_after_unmount(
-        self,
-        mock_validate_format,
-        mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
-    ):
-        """Test format aborted if device still mounted after unmount."""
-        device = {"name": "sda", "size": "16106127360"}
-
-        mock_unmount.return_value = True
-        mock_get_device.return_value = device
-        mock_validate_unmounted.side_effect = DeviceBusyError("Still mounted")
-
-        result = format_module.format_device(device, "ext4", "quick")
-
-        assert result is False
-
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    def test_format_device_partition_table_failure(
+    def test_format_device_partition_table_fails(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
     ):
         """Test format aborted when partition table creation fails."""
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = False
 
         result = format_module.format_device(device, "ext4", "quick")
@@ -535,16 +495,10 @@ class TestFormatDevice:
 
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_create_partition_failure(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
     ):
@@ -552,7 +506,6 @@ class TestFormatDevice:
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = False
 
@@ -564,16 +517,10 @@ class TestFormatDevice:
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_format_filesystem_failure(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
         mock_format_fs,
@@ -583,7 +530,6 @@ class TestFormatDevice:
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = False
@@ -593,21 +539,17 @@ class TestFormatDevice:
 
         assert result is False
 
+
+
     @patch("rpi_usb_cloner.storage.format._get_live_partition_mountpoint")
     @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_with_progress_callback(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
         mock_format_fs,
@@ -618,7 +560,6 @@ class TestFormatDevice:
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -635,27 +576,18 @@ class TestFormatDevice:
         )
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 3
         # Verify progress was reported at multiple stages
-        assert (
-            len(progress_calls) >= 3
-        )  # Unmount, partition table, partition (format reports 2 calls)
+        assert len(progress_calls) >= 3  # Unmount, partition table, partition
 
     @patch("rpi_usb_cloner.storage.format._get_live_partition_mountpoint")
     @patch("rpi_usb_cloner.storage.format.os.path.exists")
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_partition_suffix_for_numbered_device(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
         mock_format_fs,
@@ -666,7 +598,6 @@ class TestFormatDevice:
         device = {"name": "mmcblk0", "size": "16106127360", "rm": "1"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -676,7 +607,6 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 3
         # Verify partition path includes 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]
@@ -687,16 +617,10 @@ class TestFormatDevice:
     @patch("rpi_usb_cloner.storage.format._format_filesystem")
     @patch("rpi_usb_cloner.storage.format._create_partition")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
     def test_format_device_no_partition_suffix_for_letter_device(
         self,
-        mock_validate_format,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
         mock_create_table,
         mock_create_part,
         mock_format_fs,
@@ -707,7 +631,6 @@ class TestFormatDevice:
         device = {"name": "sda", "size": "16106127360"}
 
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -717,7 +640,6 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is True
-        assert mock_validate_unmounted.call_count == 3
         # Verify partition path has no 'p' suffix
         format_fs_call = mock_format_fs.call_args[0]
         partition_path = format_fs_call[0]

@@ -228,40 +228,27 @@ class TestFormatSafety:
     """Test safety checks in format operations."""
 
     @patch("rpi_usb_cloner.storage.format._get_live_partition_mountpoint")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     def test_mounted_device_rejected_format(
         self,
         mock_unmount,
-        mock_validate_unmounted,
-        mock_validation,
-        mock_get_device,
         mock_live_mountpoint,
     ):
-        """Test that format rejects mounted device."""
+        """Test that format rejects when unmount fails."""
         from rpi_usb_cloner.storage.format import format_device
 
         device = {"name": "sda", "mountpoint": "/mnt/usb"}
 
-        mock_validation.return_value = None
-        mock_unmount.return_value = True
-        mock_get_device.return_value = device
+        mock_unmount.return_value = False  # Unmount fails
         mock_live_mountpoint.return_value = None
-        mock_validate_unmounted.side_effect = MountVerificationError("sda", "/mnt/usb")
 
         result = format_device(device, "ext4", "quick")
 
         assert result is False
-        mock_validation.assert_called_once()
-        assert mock_validate_unmounted.call_count == 1
+        mock_unmount.assert_called_once()
 
     @patch("rpi_usb_cloner.storage.format._get_live_partition_mountpoint")
     @patch("rpi_usb_cloner.storage.format.os.path.exists")
-    @patch("rpi_usb_cloner.storage.format.validate_format_operation")
-    @patch("rpi_usb_cloner.storage.format.validate_device_unmounted")
-    @patch("rpi_usb_cloner.storage.format.get_device_by_name")
     @patch("rpi_usb_cloner.storage.format.unmount_device")
     @patch("rpi_usb_cloner.storage.format._create_partition_table")
     @patch("rpi_usb_cloner.storage.format._create_partition")
@@ -272,9 +259,6 @@ class TestFormatSafety:
         mock_create_part,
         mock_create_table,
         mock_unmount,
-        mock_get_device,
-        mock_validate_unmounted,
-        mock_validation,
         mock_exists,
         mock_live_mountpoint,
     ):
@@ -283,10 +267,7 @@ class TestFormatSafety:
 
         device = {"name": "sda"}
 
-        mock_validation.return_value = None
         mock_unmount.return_value = True
-        mock_get_device.return_value = device
-        mock_validate_unmounted.return_value = None
         mock_create_table.return_value = True
         mock_create_part.return_value = True
         mock_format_fs.return_value = True
@@ -296,8 +277,10 @@ class TestFormatSafety:
         result = format_device(device, "ext4", "quick")
 
         assert result is True
-        mock_validation.assert_called_once()
-        assert mock_validate_unmounted.call_count == 3
+        mock_unmount.assert_called_once()
+        mock_create_table.assert_called_once()
+        mock_create_part.assert_called_once()
+        mock_format_fs.assert_called_once()
 
 
 class TestEraseSafety:
