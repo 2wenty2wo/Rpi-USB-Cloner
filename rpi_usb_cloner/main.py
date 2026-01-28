@@ -595,6 +595,12 @@ def main(argv: Optional[list[str]] = None) -> None:
             last_menu_state["value"] = current_menu_state
             last_menu_activity_time = now
             last_idle_animation_time = now
+        idle_seconds = max(0.0, now - last_menu_activity_time)
+        selector_animation_tick = 0
+        if idle_seconds >= selector_idle_delay:
+            selector_animation_tick = int(
+                (idle_seconds - selector_idle_delay) / idle_animation_interval
+            )
         render_key = (
             current_screen.screen_id,
             tuple(items),
@@ -602,6 +608,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             current_state.scroll_offset,
             status_line,
             dynamic_visible_rows,
+            selector_animation_tick,
         )
         if force or render_key != last_render_state["key"]:
             navigation_action = (
