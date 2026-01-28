@@ -150,6 +150,56 @@ def format_device_label(device: Union[dict[str, Any], str]) -> str:
     return name
 
 
+def get_human_device_label(
+    device: Union[dict[str, Any], str], max_length: int = 20
+) -> str:
+    """Generate a human-readable device label for UI display.
+
+    Returns a label like "16GB SANDISK" or "8GB KINGSTON" that helps users
+    identify their physical drives without needing to understand device names.
+
+    Args:
+        device: Device dict from lsblk or device name string
+        max_length: Maximum label length (for OLED display constraints)
+
+    Returns:
+        Human-readable label like "16GB SANDISK" or "32GB USB"
+    """
+    if isinstance(device, str):
+        return device.upper()
+
+    # Get size in compact format (e.g., "16GB")
+    size_bytes = device.get("size", 0)
+    size_str = human_size(size_bytes)
+    # Remove decimal for whole numbers: "16.0GB" -> "16GB"
+    size_str = re.sub(r"\.0([A-Z])", r"\1", size_str)
+
+    # Try vendor/model for identification
+    vendor = (device.get("vendor") or "").strip().upper()
+    model = (device.get("model") or "").strip().upper()
+
+    # Combine vendor and model, preferring shorter/cleaner names
+    if vendor and model:
+        # If model contains vendor name, just use model
+        brand = model if vendor in model else f"{vendor} {model}"
+    elif model:
+        brand = model
+    elif vendor:
+        brand = vendor
+    else:
+        # Fallback to partition label or generic "USB"
+        label = get_partition_label(device)
+        brand = (label or "USB").strip().upper()
+
+    # Truncate brand if combined label would be too long
+    # Format: "16GB SANDISK" = size + space + brand
+    available_for_brand = max_length - len(size_str) - 1
+    if len(brand) > available_for_brand:
+        brand = brand[:available_for_brand]
+
+    return f"{size_str} {brand}".strip()
+
+
 def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
     """Return block device data from lsblk with a short-lived cache.
 
@@ -207,6 +257,17 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
 def get_children(device: dict[str, Any]) -> list[dict[str, Any]]:
     children = device.get("children", []) or []
     return children if isinstance(children, list) else []
+
+
+def get_partition_label(device: dict[str, Any]) -> str:
+    label = (device.get("label") or "").strip()
+    if label:
+        return label
+    for child in get_children(device):
+        label = (child.get("label") or "").strip()
+        if label:
+            return label
+    return ""
 
 
 def get_device_by_name(

@@ -18,6 +18,7 @@ from rpi_usb_cloner.storage.clone import clone_device_v2, erase_device
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_children,
+    get_human_device_label,
     human_size,
     list_usb_disks,
 )
@@ -171,10 +172,10 @@ def copy_drive(
         )
         time.sleep(1)
         return
-    source_name = source.get("name")
-    target_name = target.get("name")
+    source_label = get_human_device_label(source)
+    target_label = get_human_device_label(target)
     title = "COPY"
-    prompt = f"Clone {source_name} to {target_name}?"
+    prompt = f"{source_label} → {target_label}"
     confirmed = confirm_prompt(state=state, title=title, prompt=prompt)
     if not confirmed:
         return
@@ -303,7 +304,8 @@ def erase_drive(
     mode = menus.select_erase_mode(status_line=status_line)
     if not mode:
         return
-    prompt_lines = [f"ERASE {target_name}", f"MODE {mode.upper()}"]
+    target_label = get_human_device_label(target)
+    prompt_lines = [f"ERASE {target_label}", f"MODE {mode.upper()}"]
     if not _confirm_destructive_action(
         state=state,
         prompt_lines=prompt_lines,
@@ -1127,10 +1129,10 @@ def format_drive(
             label = None
 
     # Final confirmation with details
+    target_label = get_human_device_label(target)
     prompt_lines = [
-        f"FORMAT {target_name}",
-        f"TYPE {filesystem.upper()}",
-        f"MODE {format_type.upper()}",
+        f"FORMAT {target_label}",
+        f"{filesystem.upper()} {format_type.upper()}",
     ]
     if not _confirm_destructive_action(
         state=state,

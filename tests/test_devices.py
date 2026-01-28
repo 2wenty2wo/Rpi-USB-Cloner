@@ -78,6 +78,117 @@ class TestFormatDeviceLabel:
         assert "15GB" in label or "15.0GB" in label
 
 
+class TestGetHumanDeviceLabel:
+    """Tests for get_human_device_label() function."""
+
+    def test_with_vendor_and_model(self):
+        """Test device with vendor and model info."""
+        device = {
+            "name": "sda",
+            "size": 17179869184,  # 16GB
+            "vendor": "SanDisk",
+            "model": "Cruzer",
+        }
+        label = devices.get_human_device_label(device)
+        assert "16GB" in label
+        assert "SANDISK" in label or "CRUZER" in label
+
+    def test_with_model_only(self):
+        """Test device with only model info."""
+        device = {
+            "name": "sdb",
+            "size": 8589934592,  # 8GB
+            "vendor": None,
+            "model": "Kingston DataTraveler",
+        }
+        label = devices.get_human_device_label(device)
+        assert "8GB" in label
+        assert "KINGSTON" in label
+
+    def test_with_vendor_only(self):
+        """Test device with only vendor info."""
+        device = {
+            "name": "sdc",
+            "size": 32212254720,  # 30GB
+            "vendor": "Samsung",
+            "model": None,
+        }
+        label = devices.get_human_device_label(device)
+        assert "30GB" in label
+        assert "SAMSUNG" in label
+
+    def test_fallback_to_usb(self):
+        """Test fallback to 'USB' when no vendor/model info."""
+        device = {
+            "name": "sdd",
+            "size": 4294967296,  # 4GB
+            "vendor": None,
+            "model": None,
+            "label": None,
+        }
+        label = devices.get_human_device_label(device)
+        assert "4GB" in label
+        assert "USB" in label
+
+    def test_fallback_to_partition_label(self):
+        """Test fallback to partition label when no vendor/model."""
+        device = {
+            "name": "sde",
+            "size": 2147483648,  # 2GB
+            "vendor": "",
+            "model": "",
+            "label": "MyDrive",
+        }
+        label = devices.get_human_device_label(device)
+        assert "2GB" in label
+        assert "MYDRIVE" in label
+
+    def test_fallback_to_child_partition_label(self):
+        """Test fallback to child partition label when disk label is empty."""
+        device = {
+            "name": "sdf",
+            "size": 1073741824,  # 1GB
+            "vendor": None,
+            "model": None,
+            "label": "",
+            "children": [
+                {"name": "sdf1", "label": ""},
+                {"name": "sdf2", "label": "Backup"},
+            ],
+        }
+        label = devices.get_human_device_label(device)
+        assert "1GB" in label
+        assert "BACKUP" in label
+
+    def test_string_input(self):
+        """Test with string input instead of dict."""
+        label = devices.get_human_device_label("sda")
+        assert label == "SDA"
+
+    def test_max_length_truncation(self):
+        """Test that long labels are truncated."""
+        device = {
+            "name": "sda",
+            "size": 17179869184,  # 16GB
+            "vendor": "VeryLongVendorName",
+            "model": "ExtremelyLongModelNameThatWouldOverflow",
+        }
+        label = devices.get_human_device_label(device, max_length=20)
+        assert len(label) <= 20
+
+    def test_model_contains_vendor(self):
+        """Test when model string contains vendor name (avoid duplication)."""
+        device = {
+            "name": "sda",
+            "size": 17179869184,
+            "vendor": "SanDisk",
+            "model": "SanDisk Ultra",
+        }
+        label = devices.get_human_device_label(device)
+        # Should not have "SANDISK SANDISK ULTRA", just "SANDISK ULTRA"
+        assert label.count("SANDISK") == 1
+
+
 class TestGetBlockDevices:
     """Tests for get_block_devices() function."""
 

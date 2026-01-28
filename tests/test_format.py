@@ -15,9 +15,6 @@ import subprocess
 from unittest.mock import Mock, patch
 
 from rpi_usb_cloner.storage import format as format_module
-from rpi_usb_cloner.storage.exceptions import (
-    DeviceBusyError,
-)
 
 
 class TestValidateDevicePath:
@@ -538,8 +535,6 @@ class TestFormatDevice:
         result = format_module.format_device(device, "ext4", "quick")
 
         assert result is False
-
-
 
     @patch("rpi_usb_cloner.storage.format._get_live_partition_mountpoint")
     @patch("rpi_usb_cloner.storage.format.os.path.exists")

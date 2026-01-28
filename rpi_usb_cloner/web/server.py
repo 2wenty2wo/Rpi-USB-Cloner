@@ -419,7 +419,9 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
             # Skip filesystem scanning if a device operation is in progress
             if is_operation_active():
                 # Send cached data to keep connection alive
-                await ws.send_json({"devices": cached_device_list, "operation_active": True})
+                await ws.send_json(
+                    {"devices": cached_device_list, "operation_active": True}
+                )
                 await asyncio.sleep(2.0)
                 continue
 
