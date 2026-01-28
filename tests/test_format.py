@@ -112,11 +112,15 @@ class TestCreatePartition:
 class TestFormatFilesystem:
     """Tests for _format_filesystem() function."""
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_ext4_quick_mode(self, mock_popen, mock_unmount_check):
+    def test_format_ext4_quick_mode(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test quick ext4 format."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -136,11 +140,15 @@ class TestFormatFilesystem:
         assert "-L" in cmd
         assert "TEST" in cmd
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_ext4_full_mode(self, mock_popen, mock_unmount_check):
+    def test_format_ext4_full_mode(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test full ext4 format with bad block checking."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -156,11 +164,15 @@ class TestFormatFilesystem:
         cmd = mock_popen.call_args[0][0]
         assert "-c" in cmd
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_vfat_with_label(self, mock_popen, mock_unmount_check):
+    def test_format_vfat_with_label(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test FAT32 format with label."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -179,11 +191,15 @@ class TestFormatFilesystem:
         assert "-n" in cmd
         assert "USB_DRIVE" in cmd
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_exfat_with_label(self, mock_popen, mock_unmount_check):
+    def test_format_exfat_with_label(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test exFAT format with label."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -200,11 +216,15 @@ class TestFormatFilesystem:
         assert "-n" in cmd
         assert "BACKUP" in cmd
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_ntfs_quick_mode(self, mock_popen, mock_unmount_check):
+    def test_format_ntfs_quick_mode(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test quick NTFS format."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -222,11 +242,15 @@ class TestFormatFilesystem:
         assert "-L" in cmd
         assert "NTFS_DRIVE" in cmd
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_ntfs_full_mode(self, mock_popen, mock_unmount_check):
+    def test_format_ntfs_full_mode(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test full NTFS format (no fast flag)."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -241,10 +265,8 @@ class TestFormatFilesystem:
         cmd = mock_popen.call_args[0][0]
         assert "-f" not in cmd  # No fast flag in full mode
 
-    @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
-    def test_format_unsupported_filesystem(self, mock_unmount_check):
+    def test_format_unsupported_filesystem(self):
         """Test error handling for unsupported filesystem."""
-        mock_unmount_check.return_value = True
         result = format_module._format_filesystem(
             "/dev/sda1", "btrfs", "quick", label=None, progress_callback=None
         )
@@ -264,11 +286,15 @@ class TestFormatFilesystem:
         assert result is False
         mock_popen.assert_not_called()
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_with_progress_callback(self, mock_popen, mock_unmount_check):
+    def test_format_with_progress_callback(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test that progress callback is invoked."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 0
@@ -293,15 +319,22 @@ class TestFormatFilesystem:
         assert len(progress_calls) >= 2  # Start and complete
         assert progress_calls[-1][1] == 1.0  # Final progress is 100%
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.time.sleep")
     @patch("rpi_usb_cloner.storage.format.select.select")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
     def test_format_ext4_progress_parsing(
-        self, mock_popen, mock_select, mock_sleep, mock_unmount_check
+        self,
+        mock_popen,
+        mock_select,
+        mock_sleep,
+        mock_unmount_check,
+        mock_unmount_partition,
     ):
         """Test ext4 progress parsing from stderr."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.stderr = Mock()
 
@@ -337,11 +370,15 @@ class TestFormatFilesystem:
         # Verify progress was tracked
         assert len(progress_calls) > 0
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_failure_nonzero_return(self, mock_popen, mock_unmount_check):
+    def test_format_failure_nonzero_return(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test format failure with non-zero return code."""
         mock_unmount_check.return_value = True
+        mock_unmount_partition.return_value = True
         mock_proc = Mock()
         mock_proc.poll.return_value = 0
         mock_proc.wait.return_value = 1  # Non-zero return code
@@ -355,12 +392,16 @@ class TestFormatFilesystem:
 
         assert result is False
 
+    @patch("rpi_usb_cloner.storage.format._unmount_partition_aggressive")
     @patch("rpi_usb_cloner.storage.format._ensure_partition_unmounted")
     @patch("rpi_usb_cloner.storage.format.subprocess.Popen")
-    def test_format_exception_handling(self, mock_popen, mock_unmount_check):
+    def test_format_exception_handling(
+        self, mock_popen, mock_unmount_check, mock_unmount_partition
+    ):
         """Test exception handling during format."""
         mock_unmount_check.return_value = True
-        mock_popen.side_effect = Exception("Popen failed")
+        mock_unmount_partition.return_value = True
+        mock_popen.side_effect = FileNotFoundError("mkfs missing")
 
         result = format_module._format_filesystem(
             "/dev/sda1", "vfat", "quick", label=None, progress_callback=None
