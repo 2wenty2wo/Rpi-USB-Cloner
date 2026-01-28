@@ -143,6 +143,23 @@ class TestGetHumanDeviceLabel:
         assert "2GB" in label
         assert "MYDRIVE" in label
 
+    def test_fallback_to_child_partition_label(self):
+        """Test fallback to child partition label when disk label is empty."""
+        device = {
+            "name": "sdf",
+            "size": 1073741824,  # 1GB
+            "vendor": None,
+            "model": None,
+            "label": "",
+            "children": [
+                {"name": "sdf1", "label": ""},
+                {"name": "sdf2", "label": "Backup"},
+            ],
+        }
+        label = devices.get_human_device_label(device)
+        assert "1GB" in label
+        assert "BACKUP" in label
+
     def test_string_input(self):
         """Test with string input instead of dict."""
         label = devices.get_human_device_label("sda")

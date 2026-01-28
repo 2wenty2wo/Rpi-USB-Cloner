@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import threading
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator
 
 from rpi_usb_cloner.logging import LoggerFactory
+
 
 log = LoggerFactory.for_clone()
 
@@ -31,7 +32,7 @@ log = LoggerFactory.for_clone()
 _lock = threading.Lock()
 
 # Current operation state
-_active_device: Optional[str] = None
+_active_device: str | None = None
 _operation_count: int = 0
 
 
@@ -76,7 +77,7 @@ def is_operation_active() -> bool:
         return _operation_count > 0
 
 
-def get_active_device() -> Optional[str]:
+def get_active_device() -> str | None:
     """Get the name of the device currently being operated on.
 
     Returns:

@@ -150,7 +150,9 @@ def format_device_label(device: Union[dict[str, Any], str]) -> str:
     return name
 
 
-def get_human_device_label(device: Union[dict[str, Any], str], max_length: int = 20) -> str:
+def get_human_device_label(
+    device: Union[dict[str, Any], str], max_length: int = 20
+) -> str:
     """Generate a human-readable device label for UI display.
 
     Returns a label like "16GB SANDISK" or "8GB KINGSTON" that helps users
@@ -179,17 +181,15 @@ def get_human_device_label(device: Union[dict[str, Any], str], max_length: int =
     # Combine vendor and model, preferring shorter/cleaner names
     if vendor and model:
         # If model contains vendor name, just use model
-        if vendor in model:
-            brand = model
-        else:
-            brand = f"{vendor} {model}"
+        brand = model if vendor in model else f"{vendor} {model}"
     elif model:
         brand = model
     elif vendor:
         brand = vendor
     else:
         # Fallback to partition label or generic "USB"
-        brand = (device.get("label") or "USB").strip().upper()
+        label = get_partition_label(device)
+        brand = (label or "USB").strip().upper()
 
     # Truncate brand if combined label would be too long
     # Format: "16GB SANDISK" = size + space + brand
@@ -257,6 +257,17 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
 def get_children(device: dict[str, Any]) -> list[dict[str, Any]]:
     children = device.get("children", []) or []
     return children if isinstance(children, list) else []
+
+
+def get_partition_label(device: dict[str, Any]) -> str:
+    label = (device.get("label") or "").strip()
+    if label:
+        return label
+    for child in get_children(device):
+        label = (child.get("label") or "").strip()
+        if label:
+            return label
+    return ""
 
 
 def get_device_by_name(

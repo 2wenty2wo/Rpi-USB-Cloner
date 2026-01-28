@@ -54,14 +54,8 @@ from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
-    get_device_by_name,
     run_command,
     unmount_device,
-)
-from rpi_usb_cloner.storage.exceptions import DeviceBusyError, MountVerificationError
-from rpi_usb_cloner.storage.validation import (
-    validate_device_unmounted,
-    validate_format_operation,
 )
 
 
