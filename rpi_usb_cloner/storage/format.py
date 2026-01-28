@@ -43,13 +43,14 @@ Example:
 """
 
 import contextlib
+import fcntl
 import os
 import re
 import select
 import shutil
 import subprocess
 import time
-from typing import Callable, List, Optional
+from typing import Callable, Generator, List, Optional
 
 from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage.devices import (
@@ -71,6 +72,73 @@ from rpi_usb_cloner.storage.validation import (
 
 # Create logger for format operations
 log = LoggerFactory.for_clone()
+
+
+@contextlib.contextmanager
+def exclusive_device_lock(device_path: str) -> Generator[bool, None, None]:
+    """Acquire an exclusive BSD lock on a block device to prevent automounting.
+
+    This is the systemd-recommended approach for tools that modify block devices.
+    When an exclusive lock is held, systemd-udevd will not probe or trigger
+    automount rules for the device.
+
+    Args:
+        device_path: Path to the block device (e.g., /dev/sdc)
+
+    Yields:
+        True if lock was acquired successfully, False otherwise.
+        Operations should still proceed even if lock fails (best effort).
+
+    Usage:
+        with exclusive_device_lock("/dev/sdc") as locked:
+            if locked:
+                log.debug("Device locked, automount inhibited")
+            # Proceed with partitioning/formatting
+    """
+    fd = None
+    locked = False
+
+    try:
+        # Open the device for reading (doesn't require write permission just for locking)
+        # Use os.open to get a file descriptor without Python's buffering
+        try:
+            fd = os.open(device_path, os.O_RDONLY | os.O_NONBLOCK)
+            log.debug(f"Opened {device_path} for exclusive locking (fd={fd})")
+        except OSError as e:
+            log.warning(f"Could not open {device_path} for locking: {e}")
+            yield False
+            return
+
+        # Acquire exclusive, non-blocking lock
+        # LOCK_EX = exclusive lock (prevents shared locks too)
+        # LOCK_NB = non-blocking (return immediately if can't lock)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            locked = True
+            log.debug(f"Acquired exclusive lock on {device_path}")
+        except (OSError, IOError) as e:
+            # Lock failed - device might be in use by another process
+            log.warning(f"Could not acquire exclusive lock on {device_path}: {e}")
+            # Still yield, just without the lock - operations may still succeed
+            yield False
+            return
+
+        # Yield control to the caller while holding the lock
+        yield True
+
+    finally:
+        # Release lock and close file descriptor
+        if fd is not None:
+            if locked:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+                    log.debug(f"Released exclusive lock on {device_path}")
+                except (OSError, IOError) as e:
+                    log.warning(f"Error releasing lock on {device_path}: {e}")
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
@@ -303,6 +371,54 @@ def _ensure_partition_unmounted(partition_path: str, retries: int = 3) -> bool:
     return False
 
 
+def _unmount_partition_aggressive(partition_path: str) -> bool:
+    """Aggressively unmount a partition, trying multiple methods.
+
+    Returns True if partition is unmounted, False otherwise.
+    """
+    # First check if it's even mounted
+    mountpoint = _get_partition_mountpoint(partition_path)
+    if not mountpoint:
+        return True
+
+    log.debug(f"Aggressively unmounting {partition_path} (mounted at {mountpoint})")
+
+    # Try udisksctl first (preferred, avoids re-mount)
+    if shutil.which("udisksctl"):
+        result = run_command(
+            ["udisksctl", "unmount", "-b", partition_path, "--no-user-interaction"],
+            check=False,
+            log_command=False,
+        )
+        if result.returncode == 0:
+            log.debug(f"udisksctl unmounted {partition_path}")
+
+    # Try regular umount
+    result = run_command(
+        ["umount", partition_path], check=False, log_command=False
+    )
+    if result.returncode == 0:
+        log.debug(f"umount unmounted {partition_path}")
+
+    # Try lazy umount as last resort
+    result = run_command(
+        ["umount", "-l", partition_path], check=False, log_command=False
+    )
+    if result.returncode == 0:
+        log.debug(f"lazy umount on {partition_path}")
+
+    # Wait for udev to settle
+    if shutil.which("udevadm"):
+        run_command(
+            ["udevadm", "settle", "--timeout=2"],
+            check=False,
+            log_command=False,
+        )
+
+    # Verify it's unmounted
+    return _get_partition_mountpoint(partition_path) is None
+
+
 def _format_filesystem(
     partition_path: str,
     filesystem: str,
@@ -369,8 +485,32 @@ def _format_filesystem(
         log.debug(f"Unsupported filesystem type: {filesystem}")
         return False
 
-    try:
-        log.debug(f"Formatting {partition_path} as {filesystem} (mode: {mode})")
+    # Retry loop to handle race condition with auto-mount
+    max_format_attempts = 3
+    last_error = ""
+
+    for attempt in range(1, max_format_attempts + 1):
+        log.debug(
+            f"Format attempt {attempt}/{max_format_attempts} for {partition_path} as {filesystem}"
+        )
+
+        # CRITICAL: Unmount IMMEDIATELY before running mkfs to minimize race window
+        # This is the key fix - unmount right before the subprocess.Popen call
+        if not _unmount_partition_aggressive(partition_path):
+            log.warning(
+                f"Partition {partition_path} still mounted before mkfs (attempt {attempt})"
+            )
+            if attempt < max_format_attempts:
+                time.sleep(1)
+                continue
+            log.warning(
+                "Format aborted: partition {} still mounted after {} attempts",
+                partition_path,
+                max_format_attempts,
+            )
+            if progress_callback:
+                progress_callback(["Device busy", "Aborting format"], None)
+            return False
 
         # Update progress
         if progress_callback:
@@ -412,29 +552,43 @@ def _format_filesystem(
         # Wait for completion
         returncode = process.wait()
 
-        if returncode != 0:
-            stderr_output = (
-                process.stderr.read() if process.stderr else "no error message"
+        if returncode == 0:
+            log.debug(f"Successfully formatted {partition_path} as {filesystem}")
+            # Update progress to complete
+            if progress_callback:
+                progress_callback(["Format complete"], 1.0)
+            return True
+
+        # Format failed - check if it's a "device busy" error
+        stderr_output = (
+            process.stderr.read() if process.stderr else "no error message"
+        )
+        last_error = stderr_output.strip()
+        log.error(f"Format command failed with code {returncode}")
+        log.error(f"Command: {' '.join(command)}")
+        log.error(f"Error output: {last_error}")
+
+        # Check if this is a "device busy" error that we can retry
+        is_busy_error = any(
+            msg in last_error.lower()
+            for msg in ["device or resource busy", "busy", "in use"]
+        )
+
+        if is_busy_error and attempt < max_format_attempts:
+            log.warning(
+                f"Device busy error on attempt {attempt}, will retry after unmounting"
             )
-            log.error(f"Format command failed with code {returncode}")
-            log.error(f"Command: {' '.join(command)}")
-            log.error(f"Error output: {stderr_output.strip()}")
-            return False
+            # Wait a bit and try again
+            time.sleep(2)
+            continue
+        else:
+            # Non-retryable error or final attempt
+            break
 
-        log.debug(f"Successfully formatted {partition_path} as {filesystem}")
-
-        # Update progress to complete
-        if progress_callback:
-            progress_callback(["Format complete"], 1.0)
-
-        return True
-
-    except subprocess.CalledProcessError as error:
-        log.debug(f"Failed to format partition: {error}")
-        return False
-    except Exception as error:
-        log.debug(f"Unexpected error during format: {error}")
-        return False
+    log.warning(
+        f"Format failed after {max_format_attempts} attempts: {last_error}"
+    )
+    return False
 
 
 def _collect_mountpoints(device: dict) -> list[str]:
@@ -940,128 +1094,141 @@ def format_device(
         except Exception as error:
             log.debug(f"fuser check failed (continuing anyway): {error}")
 
-    # Wipe filesystem signatures to prevent parted confusion
-    # This is critical - old signatures can cause parted to fail
-    if shutil.which("wipefs"):
-        try:
-            log.debug(f"Wiping filesystem signatures from {device_path}")
-            run_command(["wipefs", "-a", device_path])
-            time.sleep(1)  # Let kernel process the wipe
-        except subprocess.CalledProcessError as error:
-            # Don't fail on wipefs errors, but log them
-            log.debug(f"wipefs failed (continuing anyway): {error}")
-
-    # Create partition table
-    if progress_callback:
-        progress_callback(["Creating partition table..."], 0.1)
-
-    if not _create_partition_table(device_path):
-        log.warning(
-            f"Format aborted: failed to create partition table on {device_label}"
-        )
-        return False
-
-    # Create partition
-    if progress_callback:
-        progress_callback(["Creating partition..."], 0.3)
-
-    if not _create_partition(device_path):
-        log.warning(f"Format aborted: failed to create partition on {device_label}")
-        return False
-
-    # Wait an extra moment and verify partition exists again before formatting
-    # Sometimes it flickers during creation
-    time.sleep(1)
-    if not os.path.exists(partition_path):  # noqa: PTH110
-        log.error(f"Partition path {partition_path} is missing just before format")
-        # Try one last partprobe
-        if shutil.which("partprobe"):
-            run_command(["partprobe", device_path], check=False)
-            time.sleep(1)
-
-    if not os.path.exists(partition_path):  # noqa: PTH110
-        log.warning(f"Format aborted: partition {partition_path} not found")
-        return False
-
-    refreshed_device = get_device_by_name(device_name) or device
-    post_partition_mountpoint = None
-    partition_name = f"{device_name}{partition_suffix}1"
-    for child in refreshed_device.get("children", []) or []:
-        if child.get("name") == partition_name and child.get("mountpoint"):
-            post_partition_mountpoint = child.get("mountpoint")
-            break
-
-    if post_partition_mountpoint:
-        log.info(
-            "Detected post-partition auto-mount for {} at {}; unmounting",
-            partition_path,
-            post_partition_mountpoint,
-        )
-        if progress_callback:
-            progress_callback(
-                ["Auto-mounted partition detected", "Unmounting..."], 0.45
-            )
-        unmount_success = False
-        if shutil.which("udisksctl"):
-            result = run_command(
-                [
-                    "udisksctl",
-                    "unmount",
-                    "-b",
-                    partition_path,
-                    "--no-user-interaction",
-                ],
-                check=False,
-                log_command=False,
-            )
-            unmount_success = result.returncode == 0
-        if not unmount_success:
-            try:
-                unmount_block_device(partition_path)
-                unmount_success = True
-            except (ValueError, RuntimeError) as error:
-                log.debug("Fallback umount failed for {}: {}", partition_path, error)
-        if not unmount_success:
+    # CRITICAL FIX: Acquire exclusive BSD lock on the device before any partitioning.
+    # This is the systemd-recommended approach to prevent automounting.
+    # When we hold LOCK_EX, systemd-udevd cannot acquire its LOCK_SH for probing,
+    # so it will NOT trigger automount rules. This is how GParted does it.
+    with exclusive_device_lock(device_path) as locked:
+        if locked:
+            log.info(f"Acquired exclusive lock on {device_path} - automount inhibited")
+        else:
             log.warning(
-                "Format aborted: device busy after auto-mount on {}",
+                f"Could not acquire exclusive lock on {device_path} - "
+                "automount may still occur, proceeding anyway"
+            )
+
+        # Wipe filesystem signatures to prevent parted confusion
+        # This is critical - old signatures can cause parted to fail
+        if shutil.which("wipefs"):
+            try:
+                log.debug(f"Wiping filesystem signatures from {device_path}")
+                run_command(["wipefs", "-a", device_path])
+                time.sleep(1)  # Let kernel process the wipe
+            except subprocess.CalledProcessError as error:
+                # Don't fail on wipefs errors, but log them
+                log.debug(f"wipefs failed (continuing anyway): {error}")
+
+        # Create partition table
+        if progress_callback:
+            progress_callback(["Creating partition table..."], 0.1)
+
+        if not _create_partition_table(device_path):
+            log.warning(
+                f"Format aborted: failed to create partition table on {device_label}"
+            )
+            return False
+
+        # Create partition
+        if progress_callback:
+            progress_callback(["Creating partition..."], 0.3)
+
+        if not _create_partition(device_path):
+            log.warning(f"Format aborted: failed to create partition on {device_label}")
+            return False
+
+        # Wait an extra moment and verify partition exists again before formatting
+        # Sometimes it flickers during creation
+        time.sleep(1)
+        if not os.path.exists(partition_path):  # noqa: PTH110
+            log.error(f"Partition path {partition_path} is missing just before format")
+            # Try one last partprobe
+            if shutil.which("partprobe"):
+                run_command(["partprobe", device_path], check=False)
+                time.sleep(1)
+
+        if not os.path.exists(partition_path):  # noqa: PTH110
+            log.warning(f"Format aborted: partition {partition_path} not found")
+            return False
+
+        refreshed_device = get_device_by_name(device_name) or device
+        post_partition_mountpoint = None
+        partition_name = f"{device_name}{partition_suffix}1"
+        for child in refreshed_device.get("children", []) or []:
+            if child.get("name") == partition_name and child.get("mountpoint"):
+                post_partition_mountpoint = child.get("mountpoint")
+                break
+
+        if post_partition_mountpoint:
+            log.info(
+                "Detected post-partition auto-mount for {} at {}; unmounting",
+                partition_path,
+                post_partition_mountpoint,
+            )
+            if progress_callback:
+                progress_callback(
+                    ["Auto-mounted partition detected", "Unmounting..."], 0.45
+                )
+            unmount_success = False
+            if shutil.which("udisksctl"):
+                result = run_command(
+                    [
+                        "udisksctl",
+                        "unmount",
+                        "-b",
+                        partition_path,
+                        "--no-user-interaction",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
+                unmount_success = result.returncode == 0
+            if not unmount_success:
+                try:
+                    unmount_block_device(partition_path)
+                    unmount_success = True
+                except (ValueError, RuntimeError) as error:
+                    log.debug("Fallback umount failed for {}: {}", partition_path, error)
+            if not unmount_success:
+                log.warning(
+                    "Format aborted: device busy after auto-mount on {}",
+                    device_label,
+                )
+                if progress_callback:
+                    progress_callback(["Device busy", "Aborting format"], None)
+                return False
+            time.sleep(1)
+            refreshed_device = get_device_by_name(device_name) or refreshed_device
+
+        try:
+            validate_device_unmounted(refreshed_device)
+        except (DeviceBusyError, MountVerificationError) as error:
+            log.warning(
+                "Format aborted: device busy after partitioning for {}: {}",
                 device_label,
+                error,
             )
             if progress_callback:
                 progress_callback(["Device busy", "Aborting format"], None)
             return False
-        time.sleep(1)
-        refreshed_device = get_device_by_name(device_name) or refreshed_device
+        except Exception as error:
+            log.error(
+                "Format aborted: mount verification failed after partitioning for {}: {}",
+                device_label,
+                error,
+            )
+            if progress_callback:
+                progress_callback(["Device busy", "Aborting format"], None)
+            return False
 
-    try:
-        validate_device_unmounted(refreshed_device)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.warning(
-            "Format aborted: device busy after partitioning for {}: {}",
-            device_label,
-            error,
-        )
-        if progress_callback:
-            progress_callback(["Device busy", "Aborting format"], None)
-        return False
-    except Exception as error:
-        log.error(
-            "Format aborted: mount verification failed after partitioning for {}: {}",
-            device_label,
-            error,
-        )
-        if progress_callback:
-            progress_callback(["Device busy", "Aborting format"], None)
-        return False
+        # Format filesystem
+        if not _format_filesystem(
+            partition_path, filesystem, mode, label, progress_callback
+        ):
+            log.warning(
+                f"Format aborted: filesystem format failed on {device_label} ({filesystem})"
+            )
+            return False
 
-    # Format filesystem
-    if not _format_filesystem(
-        partition_path, filesystem, mode, label, progress_callback
-    ):
-        log.warning(
-            f"Format aborted: filesystem format failed on {device_label} ({filesystem})"
-        )
-        return False
-
-    log.debug(f"Format completed successfully: {device_label}")
-    log.info("Format completed successfully for {}", device_label)
-    return True
+        log.debug(f"Format completed successfully: {device_label}")
+        log.info("Format completed successfully for {}", device_label)
+        return True
