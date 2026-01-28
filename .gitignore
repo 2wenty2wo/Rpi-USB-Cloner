@@ -15,3 +15,6 @@ coverage.json
 *.egg-info/
 build/
 dist/
+
+# Antigravity prompts
+prompts/
