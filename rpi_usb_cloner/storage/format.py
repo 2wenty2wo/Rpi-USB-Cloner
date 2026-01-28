@@ -618,8 +618,8 @@ def format_device(
         partition_suffixes = ["p1", "p2", "p3", "p4", ""]
     else:
         partition_suffixes = ["1", "2", "3", "4", ""]
-    for partition_suffix in partition_suffixes:
-        candidate_partition_path = f"{device_pattern}{partition_suffix}"
+    for candidate_suffix in partition_suffixes:
+        candidate_partition_path = f"{device_pattern}{candidate_suffix}"
         with contextlib.suppress(Exception):
             # Try to unmount each potential partition
             result = run_command(
