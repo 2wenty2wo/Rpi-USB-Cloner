@@ -1149,9 +1149,23 @@ def format_device(
         log.debug(f"Aggressively releasing {device_path} after inhibiting automount")
 
         # Unmount all partitions using multiple methods
-        partition_suffix = "p" if device_name[-1].isdigit() else ""
-        for i in range(1, 9):
-            part_path = f"{device_path}{partition_suffix}{i}"
+        partition_paths: set[str] = set()
+        partition_snapshot = (
+            get_device_by_name(device_name, force_refresh=True)
+            or refreshed_device
+            or device
+        )
+        for child in partition_snapshot.get("children", []) or []:
+            if child.get("type") != "part":
+                continue
+            child_name = child.get("name")
+            if child_name:
+                partition_paths.add(f"/dev/{child_name}")
+        if not partition_paths:
+            partition_suffix = "p" if device_name[-1].isdigit() else ""
+            partition_paths.add(f"{device_path}{partition_suffix}1")
+
+        for part_path in sorted(partition_paths):
             # Try udisksctl first (cleaner)
             if shutil.which("udisksctl"):
                 run_command(
