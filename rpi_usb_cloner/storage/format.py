@@ -350,12 +350,6 @@ def format_device(
     device_label = format_device_label(device)
     log.info(f"Starting format of {device_label} as {filesystem} ({mode})")
 
-    try:
-        validate_format_operation(device)
-        validate_device_unmounted(device)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.error(f"Format aborted: {error}")
-        return False
 
     # Unmount device and all partitions
     try:
@@ -371,13 +365,7 @@ def format_device(
         log.error(f"Failed to unmount device: {error}")
         return False
 
-    device_info = get_device_by_name(device_name) or device
 
-    try:
-        validate_device_unmounted(device_info)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.error(f"Format aborted: {error}")
-        return False
 
     # Create partition table
     if progress_callback:
@@ -397,11 +385,7 @@ def format_device(
         log.warning(f"Format aborted: failed to create partition on {device_label}")
         return False
 
-    try:
-        validate_device_unmounted(device_info)
-    except (DeviceBusyError, MountVerificationError) as error:
-        log.error(f"Format aborted: {error}")
-        return False
+
 
     if not os.path.exists(partition_path):  # noqa: PTH110
         log.warning(f"Format aborted: partition node missing for {device_label}")
