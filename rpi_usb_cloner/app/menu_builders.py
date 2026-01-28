@@ -48,6 +48,9 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
 
     return [
         MenuItem(
+            label="— CONNECTIVITY —",
+        ),
+        MenuItem(
             label="WIFI",
             action=menu_actions.wifi_settings,
         ),
@@ -56,20 +59,18 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
             action=menu_actions.toggle_web_server,
         ),
         MenuItem(
-            label="SYSTEM INFO",
-            action=menu_actions.system_info,
+            label="— SCREENSAVER —",
         ),
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
             submenu=definitions.SCREENSAVER_MENU,
         ),
         MenuItem(
-            label="POWER",
-            submenu=power_menu,
+            label="— SYSTEM —",
         ),
         MenuItem(
-            label="DEVELOP",
-            submenu=definitions.DEVELOP_MENU,
+            label="SYSTEM INFO",
+            action=menu_actions.system_info,
         ),
         MenuItem(
             label="UPDATE",
@@ -79,6 +80,17 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
         MenuItem(
             label="ABOUT",
             action=menu_actions.show_about_credits,
+        ),
+        MenuItem(
+            label="POWER",
+            submenu=power_menu,
+        ),
+        MenuItem(
+            label="— DEVELOP —",
+        ),
+        MenuItem(
+            label="DEVELOP",
+            submenu=definitions.DEVELOP_MENU,
         ),
     ]
 
