@@ -51,6 +51,7 @@ import time
 from typing import Callable, List, Optional
 
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_device_by_name,
@@ -350,53 +351,50 @@ def format_device(
     device_label = format_device_label(device)
     log.info(f"Starting format of {device_label} as {filesystem} ({mode})")
 
-
-    # Unmount device and all partitions
-    try:
-        if progress_callback:
-            progress_callback(["Unmounting..."], 0.0)
-        unmounted = unmount_device(device)
-        if not unmounted:
-            log.error(f"Failed to unmount device: {device_label}")
+    # Use device operation lock to pause web UI scanning
+    with device_operation(device_name):
+        # Unmount device and all partitions
+        try:
+            if progress_callback:
+                progress_callback(["Unmounting..."], 0.0)
+            unmounted = unmount_device(device)
+            if not unmounted:
+                log.error(f"Failed to unmount device: {device_label}")
+                return False
+            # Give the system a moment to release the device
+            time.sleep(1)
+        except Exception as error:
+            log.error(f"Failed to unmount device: {error}")
             return False
-        # Give the system a moment to release the device
-        time.sleep(1)
-    except Exception as error:
-        log.error(f"Failed to unmount device: {error}")
-        return False
 
+        # Create partition table
+        if progress_callback:
+            progress_callback(["Creating partition table..."], 0.1)
 
+        if not _create_partition_table(device_path):
+            log.warning(
+                f"Format aborted: failed to create partition table on {device_label}"
+            )
+            return False
 
-    # Create partition table
-    if progress_callback:
-        progress_callback(["Creating partition table..."], 0.1)
+        # Create partition
+        if progress_callback:
+            progress_callback(["Creating partition..."], 0.3)
 
-    if not _create_partition_table(device_path):
-        log.warning(
-            f"Format aborted: failed to create partition table on {device_label}"
-        )
-        return False
+        if not _create_partition(device_path):
+            log.warning(f"Format aborted: failed to create partition on {device_label}")
+            return False
 
-    # Create partition
-    if progress_callback:
-        progress_callback(["Creating partition..."], 0.3)
+        if not os.path.exists(partition_path):  # noqa: PTH110
+            log.warning(f"Format aborted: partition node missing for {device_label}")
+            return False
 
-    if not _create_partition(device_path):
-        log.warning(f"Format aborted: failed to create partition on {device_label}")
-        return False
+        # Format filesystem
+        if not _format_filesystem(
+            partition_path, filesystem, mode, label, progress_callback
+        ):
+            log.warning(f"Format aborted: filesystem format failed on {device_label}")
+            return False
 
-
-
-    if not os.path.exists(partition_path):  # noqa: PTH110
-        log.warning(f"Format aborted: partition node missing for {device_label}")
-        return False
-
-    # Format filesystem
-    if not _format_filesystem(
-        partition_path, filesystem, mode, label, progress_callback
-    ):
-        log.warning(f"Format aborted: filesystem format failed on {device_label}")
-        return False
-
-    log.info(f"Format completed successfully for {device_label}")
-    return True
+        log.info(f"Format completed successfully for {device_label}")
+        return True

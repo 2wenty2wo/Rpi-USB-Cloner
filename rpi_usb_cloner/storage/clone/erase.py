@@ -5,6 +5,7 @@ import shutil
 import rpi_usb_cloner.ui.display as display
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
     get_device_by_name,
@@ -65,166 +66,170 @@ def erase_device(target, mode, progress_callback=None):
         log.error(f"Erase aborted: validation failed: {error}")
         return False
 
-    target_node = f"/dev/{target.get('name')}"
-    if not unmount_device(target):
-        if progress_callback:
-            progress_callback(["ERROR", "Unmount failed"], None)
-        else:
-            display_lines(["ERROR", "Unmount failed"])
-        log.error("Erase aborted: target unmount failed")
-        return False
-    try:
-        refreshed_target = get_device_by_name(target.get("name")) or target
-        validate_device_unmounted(refreshed_target)
-    except (DeviceBusyError, MountVerificationError) as error:
-        if progress_callback:
-            progress_callback(["ERROR", "Device busy"], None)
-        else:
-            display_lines(["ERROR", "Device busy"])
-        log.error(f"Erase aborted: {error}")
-        return False
-    except Exception as error:
-        if progress_callback:
-            progress_callback(["ERROR", "Validation"], None)
-        else:
-            display_lines(["ERROR", "Validation"])
-        log.error(f"Erase aborted: validation failed: {error}")
-        return False
-    mode = (mode or "").lower()
-    device_label = format_device_label(target)
-    mode_label = mode.upper() if mode else None
+    target_name = target.get('name')
+    target_node = f"/dev/{target_name}"
 
-    # Build subtitle for progress display
-    subtitle_parts = []
-    if device_label:
-        subtitle_parts.append(device_label)
-    if mode_label:
-        subtitle_parts.append(f"Mode {mode_label}")
-    subtitle = " - ".join(subtitle_parts) if subtitle_parts else None
-
-    def emit_error(message):
-        if progress_callback:
-            progress_callback(["ERROR", message], None)
-        else:
-            display_lines(["ERROR", message])
-
-    def run_erase_command(command, total_bytes=None):
+    # Use device operation lock to pause web UI scanning
+    with device_operation(target_name):
+        if not unmount_device(target):
+            if progress_callback:
+                progress_callback(["ERROR", "Unmount failed"], None)
+            else:
+                display_lines(["ERROR", "Unmount failed"])
+            log.error("Erase aborted: target unmount failed")
+            return False
         try:
-            run_checked_with_streaming_progress(
-                command,
-                total_bytes=total_bytes,
-                title="ERASING",
-                progress_callback=progress_callback,
-                subtitle=subtitle,
+            refreshed_target = get_device_by_name(target.get("name")) or target
+            validate_device_unmounted(refreshed_target)
+        except (DeviceBusyError, MountVerificationError) as error:
+            if progress_callback:
+                progress_callback(["ERROR", "Device busy"], None)
+            else:
+                display_lines(["ERROR", "Device busy"])
+            log.error(f"Erase aborted: {error}")
+            return False
+        except Exception as error:
+            if progress_callback:
+                progress_callback(["ERROR", "Validation"], None)
+            else:
+                display_lines(["ERROR", "Validation"])
+            log.error(f"Erase aborted: validation failed: {error}")
+            return False
+        mode = (mode or "").lower()
+        device_label = format_device_label(target)
+        mode_label = mode.upper() if mode else None
+
+        # Build subtitle for progress display
+        subtitle_parts = []
+        if device_label:
+            subtitle_parts.append(device_label)
+        if mode_label:
+            subtitle_parts.append(f"Mode {mode_label}")
+        subtitle = " - ".join(subtitle_parts) if subtitle_parts else None
+
+        def emit_error(message):
+            if progress_callback:
+                progress_callback(["ERROR", message], None)
+            else:
+                display_lines(["ERROR", message])
+
+        def run_erase_command(command, total_bytes=None):
+            try:
+                run_checked_with_streaming_progress(
+                    command,
+                    total_bytes=total_bytes,
+                    title="ERASING",
+                    progress_callback=progress_callback,
+                    subtitle=subtitle,
+                )
+                return True
+            except Exception as e:
+                log.error(f"Erase command failed: {e}")
+                return False
+
+        if mode == "secure":
+            shred_path = shutil.which("shred")
+            if not shred_path:
+                emit_error("no shred tool")
+                log.error("Erase failed: shred not available")
+                return False
+            return run_erase_command(
+                [shred_path, "-v", "-n", "1", "-z", target_node],
+                total_bytes=target.get("size"),
             )
-            return True
-        except Exception as e:
-            log.error(f"Erase command failed: {e}")
+
+        if mode == "discard":
+            discard_path = shutil.which("blkdiscard")
+            if not discard_path:
+                emit_error("no discard")
+                log.error("Erase failed: blkdiscard not available")
+                return False
+            return run_erase_command([discard_path, target_node])
+
+        if mode == "zero":
+            dd_path = shutil.which("dd")
+            if not dd_path:
+                emit_error("no dd tool")
+                log.error("Erase failed: dd not available")
+                return False
+            return run_erase_command(
+                [
+                    dd_path,
+                    "if=/dev/zero",
+                    f"of={target_node}",
+                    "bs=4M",
+                    "status=progress",
+                    "conv=fsync",
+                ],
+                total_bytes=target.get("size"),
+            )
+
+        if mode != "quick":
+            emit_error("unknown mode")
+            log.error(f"Erase failed: unknown mode {mode}")
             return False
 
-    if mode == "secure":
-        shred_path = shutil.which("shred")
-        if not shred_path:
-            emit_error("no shred tool")
-            log.error("Erase failed: shred not available")
+        # Quick mode: wipefs + zero start and end
+        wipefs_path = shutil.which("wipefs")
+        if not wipefs_path:
+            emit_error("no wipefs")
+            log.error("Erase failed: wipefs not available")
             return False
-        return run_erase_command(
-            [shred_path, "-v", "-n", "1", "-z", target_node],
-            total_bytes=target.get("size"),
-        )
-
-    if mode == "discard":
-        discard_path = shutil.which("blkdiscard")
-        if not discard_path:
-            emit_error("no discard")
-            log.error("Erase failed: blkdiscard not available")
-            return False
-        return run_erase_command([discard_path, target_node])
-
-    if mode == "zero":
         dd_path = shutil.which("dd")
         if not dd_path:
             emit_error("no dd tool")
             log.error("Erase failed: dd not available")
             return False
-        return run_erase_command(
-            [
-                dd_path,
-                "if=/dev/zero",
-                f"of={target_node}",
-                "bs=4M",
-                "status=progress",
-                "conv=fsync",
-            ],
-            total_bytes=target.get("size"),
-        )
 
-    if mode != "quick":
-        emit_error("unknown mode")
-        log.error(f"Erase failed: unknown mode {mode}")
-        return False
+        if not run_erase_command([wipefs_path, "-a", target_node]):
+            return False
 
-    # Quick mode: wipefs + zero start and end
-    wipefs_path = shutil.which("wipefs")
-    if not wipefs_path:
-        emit_error("no wipefs")
-        log.error("Erase failed: wipefs not available")
-        return False
-    dd_path = shutil.which("dd")
-    if not dd_path:
-        emit_error("no dd tool")
-        log.error("Erase failed: dd not available")
-        return False
+        def coerce_int(value, default=0):
+            if isinstance(value, bool):
+                return int(value)
+            if isinstance(value, (int, float)):
+                return int(value)
+            try:
+                coerced = int(value)
+            except (TypeError, ValueError):
+                return default
+            return coerced if isinstance(coerced, int) else default
 
-    if not run_erase_command([wipefs_path, "-a", target_node]):
-        return False
+        size_bytes = coerce_int(target.get("size"))
+        bytes_per_mib = 1024 * 1024
+        size_mib = coerce_int(size_bytes // bytes_per_mib if size_bytes else 0)
+        quick_wipe_mib = coerce_int(app_state.QUICK_WIPE_MIB)
+        wipe_mib = coerce_int(min(quick_wipe_mib, size_mib) if size_mib else quick_wipe_mib)
+        wipe_bytes = wipe_mib * bytes_per_mib
 
-    def coerce_int(value, default=0):
-        if isinstance(value, bool):
-            return int(value)
-        if isinstance(value, (int, float)):
-            return int(value)
-        try:
-            coerced = int(value)
-        except (TypeError, ValueError):
-            return default
-        return coerced if isinstance(coerced, int) else default
-
-    size_bytes = coerce_int(target.get("size"))
-    bytes_per_mib = 1024 * 1024
-    size_mib = coerce_int(size_bytes // bytes_per_mib if size_bytes else 0)
-    quick_wipe_mib = coerce_int(app_state.QUICK_WIPE_MIB)
-    wipe_mib = coerce_int(min(quick_wipe_mib, size_mib) if size_mib else quick_wipe_mib)
-    wipe_bytes = wipe_mib * bytes_per_mib
-
-    if not run_erase_command(
-        [
-            dd_path,
-            "if=/dev/zero",
-            f"of={target_node}",
-            "bs=1M",
-            f"count={wipe_mib}",
-            "status=progress",
-            "conv=fsync",
-        ],
-        total_bytes=wipe_bytes,
-    ):
-        return False
-
-    if size_mib > wipe_mib:
-        seek_mib = size_mib - wipe_mib
-        return run_erase_command(
+        if not run_erase_command(
             [
                 dd_path,
                 "if=/dev/zero",
                 f"of={target_node}",
                 "bs=1M",
                 f"count={wipe_mib}",
-                f"seek={seek_mib}",
                 "status=progress",
                 "conv=fsync",
             ],
             total_bytes=wipe_bytes,
-        )
+        ):
+            return False
 
-    return True
+        if size_mib > wipe_mib:
+            seek_mib = size_mib - wipe_mib
+            return run_erase_command(
+                [
+                    dd_path,
+                    "if=/dev/zero",
+                    f"of={target_node}",
+                    "bs=1M",
+                    f"count={wipe_mib}",
+                    f"seek={seek_mib}",
+                    "status=progress",
+                    "conv=fsync",
+                ],
+                total_bytes=wipe_bytes,
+            )
+
+        return True
