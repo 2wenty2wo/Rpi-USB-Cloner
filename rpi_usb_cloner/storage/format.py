@@ -684,6 +684,16 @@ def format_device(
                 log_command=False,
             )
         time.sleep(1)
+        final_device = (
+            get_device_by_name(device_name, force_refresh=True)
+            or refreshed_device
+            or device
+        )
+        refreshed_mountpoints = (
+            _collect_mountpoints(final_device) if final_device else []
+        )
+        if refreshed_mountpoints:
+            last_mountpoints = refreshed_mountpoints
 
         try:
             validate_device_unmounted(final_device)
