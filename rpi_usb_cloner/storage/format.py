@@ -43,13 +43,13 @@ Example:
 """
 
 import contextlib
-import fcntl
 import os
 import re
 import select
 import shutil
 import subprocess
 import time
+from pathlib import Path
 from typing import Callable, Generator, List, Optional
 
 from rpi_usb_cloner.logging import LoggerFactory
@@ -75,68 +75,106 @@ log = LoggerFactory.for_clone()
 
 
 @contextlib.contextmanager
-def exclusive_device_lock(device_path: str) -> Generator[bool, None, None]:
-    """Acquire an exclusive BSD lock on a block device to prevent automounting.
+def inhibit_automount(device_path: str) -> Generator[bool, None, None]:
+    """Temporarily inhibit automounting on a device using a udev rule.
 
-    This is the systemd-recommended approach for tools that modify block devices.
-    When an exclusive lock is held, systemd-udevd will not probe or trigger
-    automount rules for the device.
+    This creates a temporary udev rule that sets UDISKS_IGNORE=1 for the
+    specific device, preventing udisks2 from automounting it. Unlike BSD locks,
+    this approach doesn't block parted or other tools that need device access.
 
     Args:
         device_path: Path to the block device (e.g., /dev/sdc)
 
     Yields:
-        True if lock was acquired successfully, False otherwise.
-        Operations should still proceed even if lock fails (best effort).
-
-    Usage:
-        with exclusive_device_lock("/dev/sdc") as locked:
-            if locked:
-                log.debug("Device locked, automount inhibited")
-            # Proceed with partitioning/formatting
+        True if automount was inhibited successfully, False otherwise.
     """
-    fd = None
-    locked = False
+    # Extract device name from path (e.g., "sdc" from "/dev/sdc")
+    device_name = Path(device_path).name
+    rule_path = Path(f"/run/udev/rules.d/99-format-inhibit-{device_name}.rules")
+    inhibited = False
 
     try:
-        # Open the device for reading (doesn't require write permission just for locking)
-        # Use os.open to get a file descriptor without Python's buffering
+        # Create a temporary udev rule to ignore this device
+        # UDISKS_IGNORE=1 tells udisks2 to completely ignore the device
+        rule_content = (
+            f"# Temporary rule to prevent automounting during format\n"
+            f'KERNEL=="{device_name}", ENV{{UDISKS_IGNORE}}="1"\n'
+            f'KERNEL=="{device_name}[0-9]*", ENV{{UDISKS_IGNORE}}="1"\n'
+            f'KERNEL=="{device_name}p[0-9]*", ENV{{UDISKS_IGNORE}}="1"\n'
+        )
+
+        # Ensure the rules directory exists
+        rules_dir = rule_path.parent
         try:
-            fd = os.open(device_path, os.O_RDONLY | os.O_NONBLOCK)
-            log.debug(f"Opened {device_path} for exclusive locking (fd={fd})")
+            rules_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            log.warning(f"Could not open {device_path} for locking: {e}")
+            log.debug(f"Could not create udev rules dir {rules_dir}: {e}")
+
+        # Write the rule
+        try:
+            with rule_path.open("w") as f:
+                f.write(rule_content)
+            log.debug(f"Created temporary udev rule: {rule_path}")
+            inhibited = True
+        except OSError as e:
+            log.warning(f"Could not create udev rule {rule_path}: {e}")
             yield False
             return
 
-        # Acquire exclusive, non-blocking lock
-        # LOCK_EX = exclusive lock (prevents shared locks too)
-        # LOCK_NB = non-blocking (return immediately if can't lock)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            locked = True
-            log.debug(f"Acquired exclusive lock on {device_path}")
-        except OSError as e:
-            # Lock failed - device might be in use by another process
-            log.warning(f"Could not acquire exclusive lock on {device_path}: {e}")
-            # Still yield, just without the lock - operations may still succeed
-            yield False
-            return
+        # Reload udev rules
+        if shutil.which("udevadm"):
+            try:
+                run_command(
+                    ["udevadm", "control", "--reload-rules"],
+                    check=False,
+                    log_command=False,
+                )
+                run_command(
+                    [
+                        "udevadm",
+                        "trigger",
+                        "--subsystem-match=block",
+                        f"--name-match={device_path}",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
+                log.debug(f"Reloaded udev rules for {device_path}")
+            except Exception as e:
+                log.debug(f"udevadm reload failed (continuing): {e}")
 
-        # Yield control to the caller while holding the lock
+        log.info(f"Automount inhibited for {device_path} via udev rule")
         yield True
 
     finally:
-        # Release lock and close file descriptor
-        if fd is not None:
-            if locked:
+        # Remove the temporary rule and reload
+        if inhibited:
+            try:
+                rule_path.unlink()
+                log.debug(f"Removed temporary udev rule: {rule_path}")
+            except OSError as e:
+                log.warning(f"Could not remove udev rule {rule_path}: {e}")
+
+            # Reload udev rules to restore normal behavior
+            if shutil.which("udevadm"):
                 try:
-                    fcntl.flock(fd, fcntl.LOCK_UN)
-                    log.debug(f"Released exclusive lock on {device_path}")
-                except OSError as e:
-                    log.warning(f"Error releasing lock on {device_path}: {e}")
-            with contextlib.suppress(OSError):
-                os.close(fd)
+                    run_command(
+                        ["udevadm", "control", "--reload-rules"],
+                        check=False,
+                        log_command=False,
+                    )
+                    run_command(
+                        [
+                            "udevadm",
+                            "trigger",
+                            "--subsystem-match=block",
+                            f"--name-match={device_path}",
+                        ],
+                        check=False,
+                        log_command=False,
+                    )
+                except Exception as e:
+                    log.debug(f"udevadm reload on cleanup failed: {e}")
 
 
 def configure_format_helpers(log_debug: Optional[Callable[[str], None]] = None) -> None:
@@ -1093,16 +1131,15 @@ def format_device(
         except Exception as error:
             log.debug(f"fuser check failed (continuing anyway): {error}")
 
-    # CRITICAL FIX: Acquire exclusive BSD lock on the device before any partitioning.
-    # This is the systemd-recommended approach to prevent automounting.
-    # When we hold LOCK_EX, systemd-udevd cannot acquire its LOCK_SH for probing,
-    # so it will NOT trigger automount rules. This is how GParted does it.
-    with exclusive_device_lock(device_path) as locked:
-        if locked:
-            log.info(f"Acquired exclusive lock on {device_path} - automount inhibited")
+    # CRITICAL FIX: Temporarily inhibit automounting via udev rule.
+    # This creates a rule that sets UDISKS_IGNORE=1 for the device, preventing
+    # udisks2 from automounting. Unlike BSD locks, this doesn't block parted.
+    with inhibit_automount(device_path) as inhibited:
+        if inhibited:
+            log.info(f"Automount inhibited for {device_path} via udev rule")
         else:
             log.warning(
-                f"Could not acquire exclusive lock on {device_path} - "
+                f"Could not inhibit automount for {device_path} - "
                 "automount may still occur, proceeding anyway"
             )
 
