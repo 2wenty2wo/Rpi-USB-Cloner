@@ -230,6 +230,32 @@ def _get_partition_mountpoint(partition_path: str) -> Optional[str]:
     return None
 
 
+def _get_live_partition_mountpoint(partition_path: str) -> Optional[str]:
+    if shutil.which("findmnt"):
+        result = run_command(
+            ["findmnt", "-n", partition_path],
+            check=False,
+            log_command=False,
+            log_output=False,
+        )
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            if output:
+                return output.split()[0]
+    if shutil.which("lsblk"):
+        result = run_command(
+            ["lsblk", "-no", "MOUNTPOINT", partition_path],
+            check=False,
+            log_command=False,
+            log_output=False,
+        )
+        if result.returncode == 0:
+            mountpoint = result.stdout.strip()
+            if mountpoint:
+                return mountpoint
+    return None
+
+
 def _ensure_partition_unmounted(partition_path: str, retries: int = 3) -> bool:
     for attempt in range(1, retries + 1):
         mountpoint = _get_partition_mountpoint(partition_path)
@@ -592,8 +618,8 @@ def format_device(
         partition_suffixes = ["p1", "p2", "p3", "p4", ""]
     else:
         partition_suffixes = ["1", "2", "3", "4", ""]
-    for partition_suffix in partition_suffixes:
-        candidate_partition_path = f"{device_pattern}{partition_suffix}"
+    for candidate_suffix in partition_suffixes:
+        candidate_partition_path = f"{device_pattern}{candidate_suffix}"
         with contextlib.suppress(Exception):
             # Try to unmount each potential partition
             result = run_command(
@@ -714,12 +740,65 @@ def format_device(
     final_device = get_device_by_name(device_name) or refreshed_device or device
     final_check_error: Optional[Exception] = None
     last_mountpoints: list[str] = []
+    final_partition_path = f"/dev/{device_name}{partition_suffix}1"
     for attempt in range(1, 4):
         final_device = (
             get_device_by_name(device_name, force_refresh=True)
             or refreshed_device
             or device
         )
+        live_mountpoint = _get_live_partition_mountpoint(final_partition_path)
+        if live_mountpoint:
+            log.debug(
+                "Final safety gate detected mountpoint {} for {} (attempt {}/3)",
+                live_mountpoint,
+                final_partition_path,
+                attempt,
+            )
+            last_mountpoints = [live_mountpoint]
+
+            if shutil.which("udisksctl"):
+                run_command(
+                    [
+                        "udisksctl",
+                        "unmount",
+                        "-b",
+                        final_partition_path,
+                        "--no-user-interaction",
+                    ],
+                    check=False,
+                    log_command=False,
+                )
+
+            run_command(
+                ["umount", final_partition_path], check=False, log_command=False
+            )
+
+            if shutil.which("udevadm"):
+                run_command(
+                    ["udevadm", "settle", "--timeout=5"],
+                    check=False,
+                    log_command=False,
+                )
+            time.sleep(1)
+
+            live_mountpoint = _get_live_partition_mountpoint(final_partition_path)
+            if live_mountpoint:
+                last_mountpoints = [live_mountpoint]
+                if attempt < 3:
+                    log.debug(
+                        "Final safety gate retry {}/3 for {} (mountpoint: {})",
+                        attempt,
+                        final_partition_path,
+                        live_mountpoint,
+                    )
+                    continue
+                final_check_error = DeviceBusyError(
+                    device_name,
+                    f"{final_partition_path} mounted at {live_mountpoint}",
+                )
+                break
+
         detected_mountpoints = (
             _collect_mountpoints(final_device) if final_device else []
         )
