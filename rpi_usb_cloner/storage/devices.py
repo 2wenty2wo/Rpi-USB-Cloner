@@ -209,10 +209,12 @@ def get_children(device: dict[str, Any]) -> list[dict[str, Any]]:
     return children if isinstance(children, list) else []
 
 
-def get_device_by_name(name: Optional[str]) -> Optional[dict[str, Any]]:
+def get_device_by_name(
+    name: Optional[str], force_refresh: bool = False
+) -> Optional[dict[str, Any]]:
     if not name:
         return None
-    for device in get_block_devices():
+    for device in get_block_devices(force_refresh=force_refresh):
         if device.get("name") == name:
             return device
     return None
