@@ -5,6 +5,11 @@ from typing import Callable, List, Optional
 from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.config import settings
+from rpi_usb_cloner.config.settings import (
+    DEFAULT_SCROLL_REFRESH_INTERVAL,
+    DEFAULT_TRANSITION_FRAME_COUNT,
+    DEFAULT_TRANSITION_FRAME_DELAY,
+)
 from rpi_usb_cloner.hardware.gpio import (
     PIN_A,
     PIN_B,
@@ -22,7 +27,6 @@ from rpi_usb_cloner.ui import display, renderer, transitions
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     DEFAULT_SCROLL_CYCLE_SECONDS,
-    DEFAULT_SCROLL_REFRESH_INTERVAL,
     INITIAL_REPEAT_DELAY,
     REPEAT_INTERVAL,
 )
@@ -228,7 +232,9 @@ def _render_menu_list_image(
 def _get_transition_frame_count() -> int:
     context = display.get_display_context()
     default_frames = max(8, min(24, context.width // 4))
-    setting_value = settings.get_setting("transition_frame_count", 3)
+    setting_value = settings.get_setting(
+        "transition_frame_count", DEFAULT_TRANSITION_FRAME_COUNT
+    )
     try:
         frames = int(setting_value)
     except (TypeError, ValueError):
@@ -237,11 +243,13 @@ def _get_transition_frame_count() -> int:
 
 
 def _get_transition_frame_delay() -> float:
-    setting_value = settings.get_setting("transition_frame_delay", 0.005)
+    setting_value = settings.get_setting(
+        "transition_frame_delay", DEFAULT_TRANSITION_FRAME_DELAY
+    )
     try:
         delay = float(setting_value)
     except (TypeError, ValueError):
-        return 0.005
+        return DEFAULT_TRANSITION_FRAME_DELAY
     return max(0.0, delay)
 
 

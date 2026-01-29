@@ -112,8 +112,17 @@ from rpi_usb_cloner.app.menu_builders import (
     build_screensaver_items,
 )
 from rpi_usb_cloner.config import settings as settings_store
+from rpi_usb_cloner.config.settings import (
+    DEFAULT_TRANSITION_FRAME_COUNT,
+    DEFAULT_TRANSITION_FRAME_DELAY,
+)
 from rpi_usb_cloner.hardware import gpio
 from rpi_usb_cloner.logging import get_logger, setup_logging
+from rpi_usb_cloner.ui.constants import (
+    BUTTON_POLL_DELAY,
+    INITIAL_REPEAT_DELAY,
+    REPEAT_INTERVAL,
+)
 from rpi_usb_cloner.menu import actions as menu_actions
 from rpi_usb_cloner.menu import definitions, navigator
 from rpi_usb_cloner.menu.model import get_screen_icon
@@ -375,9 +384,9 @@ def main(argv: Optional[list[str]] = None) -> None:
         menu_actions,
     )
 
-    input_poll_interval = 0.02  # 20ms for snappier button response (50 checks/sec)
-    initial_repeat_delay = 0.25
-    repeat_interval = 0.08
+    input_poll_interval = BUTTON_POLL_DELAY
+    initial_repeat_delay = INITIAL_REPEAT_DELAY
+    repeat_interval = REPEAT_INTERVAL
 
     def show_drive_info() -> None:
         page_index = 0
@@ -550,7 +559,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     def calculate_transition_frames() -> int:
         context = display.get_display_context()
         default_frames = max(8, min(24, context.width // 4))
-        setting_value = settings_store.get_setting("transition_frame_count", 3)
+        setting_value = settings_store.get_setting(
+            "transition_frame_count", DEFAULT_TRANSITION_FRAME_COUNT
+        )
         try:
             frames = int(setting_value)
         except (TypeError, ValueError):
@@ -558,11 +569,13 @@ def main(argv: Optional[list[str]] = None) -> None:
         return max(1, min(24, frames))
 
     def get_transition_frame_delay() -> float:
-        setting_value = settings_store.get_setting("transition_frame_delay", 0.005)
+        setting_value = settings_store.get_setting(
+            "transition_frame_delay", DEFAULT_TRANSITION_FRAME_DELAY
+        )
         try:
             delay = float(setting_value)
         except (TypeError, ValueError):
-            return 0.005
+            return DEFAULT_TRANSITION_FRAME_DELAY
         return max(0.0, delay)
 
     def render_current_screen(

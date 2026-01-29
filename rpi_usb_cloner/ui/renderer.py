@@ -8,6 +8,9 @@ from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.ui import display
 
+# Default visible rows - matches app.state.VISIBLE_ROWS
+DEFAULT_VISIBLE_ROWS = 3
+
 
 def _get_line_height(font, min_height=8):
     line_height = min_height
@@ -356,7 +359,7 @@ def render_menu_screen(
     selected_index: int,
     scroll_offset: int,
     status_line: str | None = None,
-    visible_rows: int = 4,
+    visible_rows: int = DEFAULT_VISIBLE_ROWS,
     title_font=None,
     title_icon: str | None = None,
     title_icon_font=None,
@@ -427,7 +430,7 @@ def render_menu_image(
     selected_index: int,
     scroll_offset: int,
     status_line: str | None = None,
-    visible_rows: int = 4,
+    visible_rows: int = DEFAULT_VISIBLE_ROWS,
     title_font=None,
     title_icon: str | None = None,
     title_icon_font=None,
