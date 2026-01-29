@@ -596,11 +596,19 @@ def main(argv: Optional[list[str]] = None) -> None:
                 app_context.discovered_drives,
                 state.usb_list_index,
             )
-        items = [item.label for item in menu_navigator.current_items()]
+        current_items = menu_navigator.current_items()
+        items = [item.label for item in current_items]
         status_line = get_screen_status_line(current_screen)
         dynamic_visible_rows = get_visible_rows_for_screen(current_screen, status_line)
         menu_navigator.sync_visible_rows(dynamic_visible_rows)
         current_state = menu_navigator.current_state()
+
+        # Get selected item's submenu icon for preview (if applicable)
+        selected_item_icon = None
+        if current_items and 0 <= current_state.selected_index < len(current_items):
+            selected_item = current_items[current_state.selected_index]
+            if selected_item.submenu:
+                selected_item_icon = get_screen_icon(selected_item.submenu.screen_id)
         current_menu_state = (
             current_screen.screen_id,
             current_state.selected_index,
@@ -647,6 +655,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     now=now,
                     last_activity_time=last_menu_activity_time,
                     app_context=app_context,
+                    selected_item_icon=selected_item_icon,
                 )
                 context = display.get_display_context()
                 footer_start, _ = renderer.calculate_footer_bounds(
@@ -678,6 +687,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     now=now,
                     last_activity_time=last_menu_activity_time,
                     app_context=app_context,
+                    selected_item_icon=selected_item_icon,
                 )
             last_render_state["key"] = render_key
             last_idle_animation_time = now

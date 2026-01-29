@@ -240,6 +240,20 @@ def toggle_screenshots() -> None:
     time.sleep(1.5)
 
 
+def toggle_menu_icon_preview() -> None:
+    """Toggle menu icon preview enabled/disabled.
+
+    When enabled, shows a larger 24px version of the selected menu item's
+    icon in the empty space on the right side of the display.
+    """
+    enabled = settings.get_bool("menu_icon_preview_enabled", default=False)
+    enabled = not enabled
+    settings.set_bool("menu_icon_preview_enabled", enabled)
+    status = "ENABLED" if enabled else "DISABLED"
+    screens.render_status_template("ICON PREVIEW", f"Icon preview {status}")
+    time.sleep(1.5)
+
+
 def toggle_web_server(app_context=None) -> None:
     """Toggle web server enabled/disabled."""
     enabled = settings.get_bool("web_server_enabled", default=False)

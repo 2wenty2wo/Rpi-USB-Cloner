@@ -115,6 +115,9 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
 def build_develop_items(settings_store, menu_actions):
     transition_label = _build_transition_label(settings_store)
     screenshots_enabled = settings_store.get_bool("screenshots_enabled", default=False)
+    icon_preview_enabled = settings_store.get_bool(
+        "menu_icon_preview_enabled", default=False
+    )
     return [
         MenuItem(
             label="SCREENS",
@@ -131,6 +134,10 @@ def build_develop_items(settings_store, menu_actions):
         MenuItem(
             label=format_toggle_label("SCREENSHOTS", screenshots_enabled),
             action=menu_actions.toggle_screenshots,
+        ),
+        MenuItem(
+            label=format_toggle_label("ICON PREVIEW", icon_preview_enabled),
+            action=menu_actions.toggle_menu_icon_preview,
         ),
         MenuItem(
             label=transition_label,
