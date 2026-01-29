@@ -348,3 +348,59 @@ class TestCollectStatusIndicators:
 
         assert len(result) == 1
         assert result[0].icon_path == ICON_BLUETOOTH
+
+    def test_status_bar_disabled_returns_empty(self, mocker):
+        """Test returns empty list when status bar is disabled via settings."""
+        mocker.patch(
+            "rpi_usb_cloner.config.settings.get_bool",
+            side_effect=lambda key, default=None: False if key == "status_bar_enabled" else True,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts",
+            return_value=(2, 1),
+        )
+
+        result = collect_status_indicators()
+
+        assert result == []
+
+    def test_individual_settings_respected(self, mocker):
+        """Test individual indicator settings are respected."""
+        def mock_get_bool(key, default=None):
+            if key == "status_bar_enabled":
+                return True
+            if key == "status_bar_wifi_enabled":
+                return False  # Disable WiFi
+            if key == "status_bar_drives_enabled":
+                return True
+            return True
+
+        mocker.patch(
+            "rpi_usb_cloner.config.settings.get_bool",
+            side_effect=mock_get_bool,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts",
+            return_value=(1, 0),
+        )
+        mocker.patch(
+            "rpi_usb_cloner.services.wifi.get_status_cached",
+            return_value={"connected": True, "ssid": "Test", "ip": "1.2.3.4"},
+        )
+        mocker.patch(
+            "rpi_usb_cloner.web.server.is_running",
+            return_value=False,
+        )
+        mocker.patch(
+            "subprocess.run",
+            return_value=Mock(returncode=0, stdout=""),
+        )
+
+        result = collect_status_indicators()
+
+        # Should only have drives (WiFi disabled via settings)
+        assert len(result) == 1
+        assert result[0].label == "U1"
+        # WiFi should not be in the list
+        for indicator in result:
+            assert indicator.icon_path != ICON_WIFI

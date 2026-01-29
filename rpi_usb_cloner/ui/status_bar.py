@@ -186,6 +186,28 @@ def collect_status_indicators(
     Returns:
         List of StatusIndicators sorted by priority (lowest first = rightmost).
     """
+    # Check master toggle - if status bar is disabled, return empty list
+    try:
+        from rpi_usb_cloner.config.settings import get_bool
+
+        if not get_bool("status_bar_enabled", default=True):
+            return []
+
+        # Check individual settings (only if status bar is enabled)
+        include_wifi = include_wifi and get_bool(
+            "status_bar_wifi_enabled", default=True
+        )
+        include_bluetooth = include_bluetooth and get_bool(
+            "status_bar_bluetooth_enabled", default=True
+        )
+        include_web = include_web and get_bool("status_bar_web_enabled", default=True)
+        include_drives = include_drives and get_bool(
+            "status_bar_drives_enabled", default=True
+        )
+    except Exception:
+        # If settings can't be loaded, use defaults (all enabled)
+        pass
+
     indicators: list[StatusIndicator] = []
 
     if include_drives:

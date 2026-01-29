@@ -353,3 +353,58 @@ def show_about_credits() -> None:
 
     # Wait for user to press back (PIN_A) or OK (PIN_B) button
     screens.wait_for_ack()
+
+
+# -----------------------------------------------------------------------------
+# Status Bar Toggle Actions
+# -----------------------------------------------------------------------------
+
+
+def toggle_status_bar_enabled() -> None:
+    """Toggle status bar visibility (master toggle)."""
+    enabled = settings.get_bool("status_bar_enabled", default=True)
+    enabled = not enabled
+    settings.set_bool("status_bar_enabled", enabled)
+    status = "SHOWN" if enabled else "HIDDEN"
+    screens.render_status_template("STATUS BAR", f"Status bar {status}")
+    time.sleep(1.5)
+
+
+def toggle_status_bar_wifi() -> None:
+    """Toggle WiFi icon visibility in status bar."""
+    enabled = settings.get_bool("status_bar_wifi_enabled", default=True)
+    enabled = not enabled
+    settings.set_bool("status_bar_wifi_enabled", enabled)
+    status = "SHOWN" if enabled else "HIDDEN"
+    screens.render_status_template("STATUS BAR", f"WiFi icon {status}")
+    time.sleep(1.5)
+
+
+def toggle_status_bar_bluetooth() -> None:
+    """Toggle Bluetooth icon visibility in status bar."""
+    enabled = settings.get_bool("status_bar_bluetooth_enabled", default=True)
+    enabled = not enabled
+    settings.set_bool("status_bar_bluetooth_enabled", enabled)
+    status = "SHOWN" if enabled else "HIDDEN"
+    screens.render_status_template("STATUS BAR", f"Bluetooth icon {status}")
+    time.sleep(1.5)
+
+
+def toggle_status_bar_web() -> None:
+    """Toggle Web Server icon visibility in status bar."""
+    enabled = settings.get_bool("status_bar_web_enabled", default=True)
+    enabled = not enabled
+    settings.set_bool("status_bar_web_enabled", enabled)
+    status = "SHOWN" if enabled else "HIDDEN"
+    screens.render_status_template("STATUS BAR", f"Web Server icon {status}")
+    time.sleep(1.5)
+
+
+def toggle_status_bar_drives() -> None:
+    """Toggle drive counts visibility in status bar."""
+    enabled = settings.get_bool("status_bar_drives_enabled", default=True)
+    enabled = not enabled
+    settings.set_bool("status_bar_drives_enabled", enabled)
+    status = "SHOWN" if enabled else "HIDDEN"
+    screens.render_status_template("STATUS BAR", f"Drive counts {status}")
+    time.sleep(1.5)

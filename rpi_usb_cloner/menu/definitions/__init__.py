@@ -48,6 +48,7 @@ from .settings import (  # noqa: E402
     SCREENS_MENU,
     SCREENSAVER_MENU,
     SETTINGS_MENU,
+    STATUS_BAR_MENU,
     SYSTEM_MENU,
 )
 from .tools import TOOLS_MENU  # noqa: E402
@@ -70,6 +71,7 @@ __all__ = [
     "SYSTEM_MENU",
     "ADVANCED_MENU",
     "SCREENSAVER_MENU",
+    "STATUS_BAR_MENU",
     "POWER_MENU",
     "DEVELOP_MENU",
     "SCREENS_MENU",

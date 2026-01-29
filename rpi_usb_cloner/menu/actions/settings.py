@@ -128,3 +128,33 @@ def show_about_credits() -> None:
     Re-exports from: rpi_usb_cloner.actions.settings.ui_actions.show_about_credits
     """
     settings_actions.show_about_credits()
+
+
+# -----------------------------------------------------------------------------
+# Status Bar Toggle Actions
+# -----------------------------------------------------------------------------
+
+
+def toggle_status_bar_enabled() -> None:
+    """Toggle status bar visibility (master toggle)."""
+    settings_actions.toggle_status_bar_enabled()
+
+
+def toggle_status_bar_wifi() -> None:
+    """Toggle WiFi icon visibility in status bar."""
+    settings_actions.toggle_status_bar_wifi()
+
+
+def toggle_status_bar_bluetooth() -> None:
+    """Toggle Bluetooth icon visibility in status bar."""
+    settings_actions.toggle_status_bar_bluetooth()
+
+
+def toggle_status_bar_web() -> None:
+    """Toggle Web Server icon visibility in status bar."""
+    settings_actions.toggle_status_bar_web()
+
+
+def toggle_status_bar_drives() -> None:
+    """Toggle drive counts visibility in status bar."""
+    settings_actions.toggle_status_bar_drives()
