@@ -12,11 +12,28 @@ from rpi_usb_cloner.ui import display
 DEFAULT_VISIBLE_ROWS = 3
 
 
+def _get_status_indicators(app_context=None) -> list:
+    """Collect all status indicators for the status bar.
+
+    Returns:
+        List of StatusIndicator objects sorted by priority.
+    """
+    try:
+        from rpi_usb_cloner.ui.status_bar import collect_status_indicators
+
+        return collect_status_indicators(app_context)
+    except Exception:
+        return []
+
+
 def _get_drive_status_text() -> str:
     """Build the drive status text showing U (USB) and R (Repo) counts.
 
     Format: "U2|R1" if both have drives, "U2" if only USB, "R1" if only repo.
     Returns empty string if no drives are connected.
+
+    Note: This is kept for backward compatibility. New code should use
+    _get_status_indicators() which includes WiFi, web server, and operation status.
     """
     try:
         from rpi_usb_cloner.services.drives import get_drive_counts
@@ -127,6 +144,7 @@ def _render_menu(
     selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
+    app_context=None,
 ) -> None:
     context = display.get_display_context()
     if clear:
@@ -312,71 +330,108 @@ def _render_menu(
             fill=255,
         )
 
-        # Get drive status parts (e.g., ["U2", "R1"]) and draw in solid boxes on the right
-        drive_status = _get_drive_status_text()
+        # Get all status indicators (WiFi, Web, Bluetooth, Drive counts)
+        status_indicators = _get_status_indicators(app_context)
         total_status_width = 0
         status_right_margin = 1
-        status_spacing = 4  # Space between status_line text and drive status boxes
-        box_spacing = 1  # Space between individual status boxes
-        box_padding_x = 1  # Horizontal padding inside each box
-        box_padding_y = 1  # Vertical padding inside each box
+        status_spacing = 4  # Space between status_line text and status indicators
+        indicator_spacing = 1  # 1px space between icons/boxes
+        box_padding_x = 1  # Horizontal padding inside each text box
 
-        if drive_status:
-            # Use silkscreen font (fontdisks) for drive status - same as items font
+        if status_indicators:
+            # Use silkscreen font (fontdisks) for text indicators
             status_indicator_font = context.fonts.get("items", context.fontdisks)
             status_font_height = _get_line_height(status_indicator_font)
-            footer_font_height = _get_line_height(footer_font)
 
-            # Split into individual status parts (e.g., "U2|R1" -> ["U2", "R1"])
-            status_parts = drive_status.split("|")
+            # Load icons and calculate widths for all indicators
+            indicator_data = []  # List of (width, icon_image or None)
+            for indicator in status_indicators:
+                if indicator.is_icon:
+                    # Load icon image from icon_path
+                    try:
+                        icon_img = Image.open(indicator.icon_path).convert("1")
+                        indicator_data.append((icon_img.width, icon_img))
+                        total_status_width += icon_img.width
+                    except Exception:
+                        # Fallback to label if icon fails to load
+                        label_width = _measure_text_width(
+                            status_indicator_font, indicator.label or "?"
+                        )
+                        indicator_data.append((label_width + (box_padding_x * 2), None))
+                        total_status_width += label_width + (box_padding_x * 2)
+                else:
+                    # Text label with box
+                    label_width = _measure_text_width(
+                        status_indicator_font, indicator.label
+                    )
+                    indicator_data.append((label_width + (box_padding_x * 2), None))
+                    total_status_width += label_width + (box_padding_x * 2)
 
-            # Calculate total width needed for all boxes
-            part_widths = []
-            for part in status_parts:
-                part_width = _measure_text_width(status_indicator_font, part)
-                part_widths.append(part_width)
-                total_status_width += part_width + (box_padding_x * 2)
-            total_status_width += box_spacing * (len(status_parts) - 1)
+            # Add 1px spacing between indicators
+            if len(status_indicators) > 1:
+                total_status_width += indicator_spacing * (len(status_indicators) - 1)
 
-            # Draw boxes from right to left
+            # Draw indicators from right to left (lowest priority first = rightmost)
             current_x = context.width - status_right_margin
             # Calculate vertical position - leave 1px white border at top and bottom
             footer_top = footer_y - footer_padding + 1
             footer_bottom = context.height - 1
             box_top = footer_top + 1  # 1px margin from top of footer
             box_bottom = footer_bottom - 1  # 1px margin from bottom of footer
+            footer_height = box_bottom - box_top + 1
 
-            for i, part in enumerate(reversed(status_parts)):
-                part_idx = len(status_parts) - 1 - i
-                part_width = part_widths[part_idx]
-                box_width = part_width + (box_padding_x * 2)
+            for i, indicator in enumerate(status_indicators):
+                item_width, icon_img = indicator_data[i]
 
-                # Draw black box
-                box_left = current_x - box_width
-                box_right = current_x - 1
-                draw.rectangle(
-                    (box_left, box_top, box_right, box_bottom),
-                    outline=0,
-                    fill=0,
-                )
+                if icon_img is not None:
+                    # Draw icon (no box, just the icon centered vertically)
+                    icon_left = current_x - icon_img.width
+                    # Center 7px icon vertically in footer
+                    icon_top = box_top + (footer_height - icon_img.height) // 2
 
-                # Draw white text inside box, centered vertically
-                text_x = box_left + box_padding_x
-                box_inner_height = box_bottom - box_top + 1
-                text_y = box_top + (box_inner_height - status_font_height) // 2
-                draw.text(
-                    (text_x, text_y),
-                    part,
-                    font=status_indicator_font,
-                    fill=255,
-                )
+                    # Icons are black on white - paste directly onto white footer
+                    # The icons should be black pixels that show on white background
+                    image.paste(icon_img, (icon_left, icon_top))
 
-                # Move to next box position (left)
-                current_x = box_left - box_spacing
+                    current_x = icon_left - indicator_spacing
+                else:
+                    # Draw text with box
+                    box_left = current_x - item_width
+                    box_right = current_x - 1
+
+                    if indicator.inverted:
+                        # Inverted style: black box, white text
+                        draw.rectangle(
+                            (box_left, box_top, box_right, box_bottom),
+                            outline=0,
+                            fill=0,
+                        )
+                        text_fill = 255
+                    else:
+                        # Normal style: white box with black outline, black text
+                        draw.rectangle(
+                            (box_left, box_top, box_right, box_bottom),
+                            outline=0,
+                            fill=255,
+                        )
+                        text_fill = 0
+
+                    # Draw text inside box, centered vertically
+                    text_x = box_left + box_padding_x
+                    box_inner_height = box_bottom - box_top + 1
+                    text_y = box_top + (box_inner_height - status_font_height) // 2
+                    draw.text(
+                        (text_x, text_y),
+                        indicator.label,
+                        font=status_indicator_font,
+                        fill=text_fill,
+                    )
+
+                    current_x = box_left - indicator_spacing
 
         # Calculate available width for status line text
         max_status_width = context.width - left_margin - 1
-        if drive_status:
+        if status_indicators:
             max_status_width -= total_status_width + status_spacing + status_right_margin
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
@@ -470,6 +525,7 @@ def render_menu_screen(
     selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
+    app_context=None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -506,6 +562,7 @@ def render_menu_screen(
             selector_bounce_period=selector_bounce_period,
             screen_id=screen_id,
             clear=clear,
+            app_context=app_context,
         )
 
         context.disp.display(context.image)
@@ -541,6 +598,7 @@ def render_menu_image(
     selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
+    app_context=None,
 ) -> Image.Image:
     context = display.get_display_context()
     image = Image.new("1", (context.width, context.height), 0)
@@ -576,6 +634,7 @@ def render_menu_image(
         selector_bounce_period=selector_bounce_period,
         screen_id=screen_id,
         clear=clear,
+        app_context=app_context,
     )
     return image
 
