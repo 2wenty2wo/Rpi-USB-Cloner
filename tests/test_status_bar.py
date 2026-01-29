@@ -201,6 +201,7 @@ class TestGetDriveIndicators:
         assert result[0].label == "U2"
         assert result[0].priority == 0
         assert result[0].icon_path is None  # Text indicator, no icon
+        assert result[0].inverted is True  # Solid black box with white text
 
     def test_returns_repo_indicator_only(self, mocker):
         """Test returns only Repo indicator when no USB drives."""
