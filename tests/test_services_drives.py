@@ -9,6 +9,7 @@ from rpi_usb_cloner.services.drives import (
     _get_repo_device_names,
     _is_repo_on_mount,
     get_active_drive_label,
+    get_drive_counts,
     invalidate_repo_cache,
     list_media_drive_labels,
     list_media_drive_names,
@@ -444,3 +445,110 @@ class TestDriveSnapshot:
 
         assert snapshot1 == snapshot2
         assert snapshot1 != snapshot3
+
+
+class TestGetDriveCounts:
+    """Tests for get_drive_counts function."""
+
+    def test_no_drives(self):
+        """Test when no drives are connected."""
+        with (
+            patch(
+                "rpi_usb_cloner.services.drives._get_repo_device_names"
+            ) as mock_repo_names,
+            patch(
+                "rpi_usb_cloner.services.drives.list_usb_disks"
+            ) as mock_list_usb,
+        ):
+            mock_repo_names.return_value = set()
+            mock_list_usb.return_value = []
+
+            usb_count, repo_count = get_drive_counts()
+
+            assert usb_count == 0
+            assert repo_count == 0
+
+    def test_usb_drives_only(self):
+        """Test when only USB drives are connected (no repos)."""
+        with (
+            patch(
+                "rpi_usb_cloner.services.drives._get_repo_device_names"
+            ) as mock_repo_names,
+            patch(
+                "rpi_usb_cloner.services.drives.list_usb_disks"
+            ) as mock_list_usb,
+        ):
+            mock_repo_names.return_value = set()
+            mock_list_usb.return_value = [
+                {"name": "sda"},
+                {"name": "sdb"},
+            ]
+
+            usb_count, repo_count = get_drive_counts()
+
+            assert usb_count == 2
+            assert repo_count == 0
+
+    def test_repo_drives_only(self):
+        """Test when only repo drives are connected."""
+        with (
+            patch(
+                "rpi_usb_cloner.services.drives._get_repo_device_names"
+            ) as mock_repo_names,
+            patch(
+                "rpi_usb_cloner.services.drives.list_usb_disks"
+            ) as mock_list_usb,
+        ):
+            mock_repo_names.return_value = {"sda"}
+            mock_list_usb.return_value = [
+                {"name": "sda"},
+            ]
+
+            usb_count, repo_count = get_drive_counts()
+
+            assert usb_count == 0
+            assert repo_count == 1
+
+    def test_mixed_drives(self):
+        """Test when both USB and repo drives are connected."""
+        with (
+            patch(
+                "rpi_usb_cloner.services.drives._get_repo_device_names"
+            ) as mock_repo_names,
+            patch(
+                "rpi_usb_cloner.services.drives.list_usb_disks"
+            ) as mock_list_usb,
+        ):
+            mock_repo_names.return_value = {"sdc"}
+            mock_list_usb.return_value = [
+                {"name": "sda"},
+                {"name": "sdb"},
+                {"name": "sdc"},
+            ]
+
+            usb_count, repo_count = get_drive_counts()
+
+            assert usb_count == 2
+            assert repo_count == 1
+
+    def test_multiple_repos(self):
+        """Test when multiple repo drives are connected."""
+        with (
+            patch(
+                "rpi_usb_cloner.services.drives._get_repo_device_names"
+            ) as mock_repo_names,
+            patch(
+                "rpi_usb_cloner.services.drives.list_usb_disks"
+            ) as mock_list_usb,
+        ):
+            mock_repo_names.return_value = {"sda", "sdc"}
+            mock_list_usb.return_value = [
+                {"name": "sda"},
+                {"name": "sdb"},
+                {"name": "sdc"},
+            ]
+
+            usb_count, repo_count = get_drive_counts()
+
+            assert usb_count == 1
+            assert repo_count == 2

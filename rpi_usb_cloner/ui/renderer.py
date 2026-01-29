@@ -12,6 +12,28 @@ from rpi_usb_cloner.ui import display
 DEFAULT_VISIBLE_ROWS = 3
 
 
+def _get_drive_status_text() -> str:
+    """Build the drive status text showing U (USB) and R (Repo) counts.
+
+    Format: "U2|R1" if both have drives, "U2" if only USB, "R1" if only repo.
+    Returns empty string if no drives are connected.
+    """
+    try:
+        from rpi_usb_cloner.services.drives import get_drive_counts
+
+        usb_count, repo_count = get_drive_counts()
+    except Exception:
+        return ""
+
+    parts = []
+    if usb_count > 0:
+        parts.append(f"U{usb_count}")
+    if repo_count > 0:
+        parts.append(f"R{repo_count}")
+
+    return "|".join(parts)
+
+
 def _get_line_height(font, min_height=8):
     line_height = min_height
     try:
@@ -289,7 +311,71 @@ def _render_menu(
             outline=255,
             fill=255,
         )
+
+        # Get drive status parts (e.g., ["U2", "R1"]) and draw in solid boxes on the right
+        drive_status = _get_drive_status_text()
+        total_status_width = 0
+        status_right_margin = 1
+        status_spacing = 4  # Space between status_line text and drive status boxes
+        box_spacing = 1  # Space between individual status boxes
+        box_padding_x = 1  # Horizontal padding inside each box
+        box_padding_y = 1  # Vertical padding inside each box
+
+        if drive_status:
+            # Use silkscreen font (fontdisks) for drive status - same as items font
+            status_indicator_font = context.fonts.get("items", context.fontdisks)
+            status_font_height = _get_line_height(status_indicator_font)
+            footer_font_height = _get_line_height(footer_font)
+
+            # Split into individual status parts (e.g., "U2|R1" -> ["U2", "R1"])
+            status_parts = drive_status.split("|")
+
+            # Calculate total width needed for all boxes
+            part_widths = []
+            for part in status_parts:
+                part_width = _measure_text_width(status_indicator_font, part)
+                part_widths.append(part_width)
+                total_status_width += part_width + (box_padding_x * 2)
+            total_status_width += box_spacing * (len(status_parts) - 1)
+
+            # Draw boxes from right to left
+            current_x = context.width - status_right_margin
+            # Calculate vertical position - center in footer area
+            box_height = status_font_height + (box_padding_y * 2)
+            box_top = footer_y + (footer_font_height - status_font_height) // 2 - box_padding_y
+            box_bottom = box_top + box_height - 1
+
+            for i, part in enumerate(reversed(status_parts)):
+                part_idx = len(status_parts) - 1 - i
+                part_width = part_widths[part_idx]
+                box_width = part_width + (box_padding_x * 2)
+
+                # Draw black box
+                box_left = current_x - box_width
+                box_right = current_x - 1
+                draw.rectangle(
+                    (box_left, box_top, box_right, box_bottom),
+                    outline=0,
+                    fill=0,
+                )
+
+                # Draw white text inside box
+                text_x = box_left + box_padding_x
+                text_y = box_top + box_padding_y
+                draw.text(
+                    (text_x, text_y),
+                    part,
+                    font=status_indicator_font,
+                    fill=255,
+                )
+
+                # Move to next box position (left)
+                current_x = box_left - box_spacing
+
+        # Calculate available width for status line text
         max_status_width = context.width - left_margin - 1
+        if drive_status:
+            max_status_width -= total_status_width + status_spacing + status_right_margin
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
         draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)
