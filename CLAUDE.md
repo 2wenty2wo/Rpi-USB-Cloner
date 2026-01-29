@@ -61,7 +61,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 # Main entry point
 /home/user/Rpi-USB-Cloner/rpi-usb-cloner.py
     ↓
-rpi_usb_cloner/main.py (974 lines)
+rpi_usb_cloner/main.py (988 lines)
     ↓
 Main event loop with GPIO polling, USB detection, display rendering
 ```
@@ -174,7 +174,7 @@ def run_with_progress(
 Rpi-USB-Cloner/
 ├── rpi-usb-cloner.py              # Entry point script
 ├── rpi_usb_cloner/                # Main package (93 files, ~23,600 LOC)
-│   ├── main.py                    # Main event loop (907 lines) ⭐
+│   ├── main.py                    # Main event loop (988 lines) ⭐
 │   ├── logging.py                 # Loguru logging factory
 │   │
 │   ├── app/                        # Application state
@@ -218,6 +218,8 @@ Rpi-USB-Cloner/
 │   │   ├── icons.py               # Lucide icon definitions
 │   │   ├── transitions.py         # Menu slide transitions
 │   │   ├── constants.py           # UI constants
+│   │   ├── toggle.py              # Toggle switch icons for boolean settings
+│   │   ├── status_bar.py          # Status bar indicators (WiFi, BT, Web, Drives)
 │   │   ├── screens/               # Screen renderers
 │   │   │   ├── progress.py        # Progress bars with ETA
 │   │   │   ├── confirmation.py    # Yes/No dialogs, checkboxes
@@ -283,14 +285,16 @@ Rpi-USB-Cloner/
 │   │
 │   └── __init__.py
 │
-├── tests/                          # Test suite (32 test files)
+├── tests/                          # Test suite (45 test files)
 │   ├── conftest.py                # Shared fixtures ⭐
 │   ├── test_devices.py            # Device detection tests
 │   ├── test_clone*.py             # Cloning tests (5 files)
 │   ├── test_clonezilla*.py        # Clonezilla tests (6 files)
-│   ├── test_actions_*.py          # Action handler tests (4 files)
+│   ├── test_actions_*.py          # Action handler tests (5 files)
 │   ├── test_settings.py           # Settings tests
 │   ├── test_mount_security.py     # Security tests
+│   ├── test_status_bar.py         # Status bar tests
+│   ├── test_toggle.py             # Toggle switch tests
 │   └── test_*.py                  # Other test modules
 │
 ├── pyproject.toml                 # Project config (dependencies, pytest, ruff, mypy)
@@ -463,6 +467,14 @@ save_settings()
     "verify_image_hash_timeout_seconds": None,  # None = no timeout
     "screenshots_enabled": False,
     "web_server_enabled": False,
+    # Status bar settings (new)
+    "status_bar_enabled": True,
+    "status_bar_wifi_enabled": True,
+    "status_bar_bluetooth_enabled": True,
+    "status_bar_web_enabled": True,
+    "status_bar_drives_enabled": True,
+    # Menu display settings
+    "menu_icon_preview_enabled": False,
     # ... see config/settings.py for complete list
 }
 ```
@@ -659,7 +671,7 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Files**: 32 test modules with ~960 tests
+**Test Files**: 45 test modules with ~1000+ tests
 **Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
 
 **Coverage Strengths** (≥80%):
@@ -1234,6 +1246,35 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ### Recent Improvements
 
+#### 2026-01-29: Status Bar, Toggle Icons & Menu Icon Preview ✅
+**Status Bar System**:
+- New `ui/status_bar.py` module for system tray-like status indicators
+- Displays WiFi, Bluetooth, Web Server status, and drive counts (U#/R#)
+- Uses 7px icons for WiFi (`7px-wifi.png`), Bluetooth (`7px-bluetooth.png`), and Web Server (`7px-pointer.png`)
+- Master toggle and individual icon toggles in Settings → Display → Status Bar
+- `StatusIndicator` dataclass with priority-based ordering (lower priority = rightmost)
+- New settings: `status_bar_enabled`, `status_bar_wifi_enabled`, `status_bar_bluetooth_enabled`, `status_bar_web_enabled`, `status_bar_drives_enabled`
+
+**Toggle Switch Icons**:
+- New `ui/toggle.py` module providing visual ON/OFF toggle switches
+- 12x5 pixel toggle images (`toggle-on.png`, `toggle-off.png`)
+- `format_toggle_label()` adds markers like `"SCREENSAVER {{TOGGLE:ON}}"`
+- Renderer detects markers and replaces them with toggle images
+- Used across settings menus for boolean options (screensaver, web server, screenshots, etc.)
+
+**Menu Icon Preview**:
+- New setting `menu_icon_preview_enabled` to show enlarged (24px) icons
+- When enabled, displays the selected menu item's icon in the empty right side of the display
+- Toggle available in Settings → Advanced → Develop
+
+**New Menu Structure**:
+- Settings → Display → Status Bar submenu with individual toggles
+- Improved menu item labels with inline toggle graphics
+
+**New Tests**:
+- `tests/test_status_bar.py` - Comprehensive status bar tests
+- `tests/test_toggle.py` - Toggle icon tests
+
 #### 2026-01-29: Screensaver Refactor & Menu Reorganization ✅
 **Naming Consistency**:
 - Renamed all `sleep`-related variables to `screensaver` equivalents for clarity
@@ -1589,7 +1630,7 @@ def clone_device(source: str, destination: str) -> None:
 
 | File | LOC | Description |
 |------|-----|-------------|
-| `rpi_usb_cloner/main.py` | 974 | Main event loop, entry point ⭐ |
+| `rpi_usb_cloner/main.py` | 988 | Main event loop, entry point ⭐ |
 | `rpi_usb_cloner/app/context.py` | ~100 | AppContext (runtime state) ⭐ |
 | `rpi_usb_cloner/domain/models.py` | ~230 | Domain objects (Drive, DiskImage, CloneJob) ⭐ |
 | `rpi_usb_cloner/menu/navigator.py` | ~200 | Menu navigation logic ⭐ |
@@ -1779,6 +1820,34 @@ class MenuNavigator:
     def navigate_down(self) -> None
     def select_item(self) -> Optional[str]  # Returns action name
     def go_back(self) -> None
+```
+
+#### Status Bar & Toggles
+```python
+# ui/status_bar.py
+@dataclass(frozen=True)
+class StatusIndicator:
+    label: str                         # Short label (e.g., "U2")
+    priority: int = 0                  # Lower = further right
+    inverted: bool = False             # True for white-on-black
+    icon_path: Path | None = None      # Optional 7px icon
+
+collect_status_indicators(app_context=None) -> list[StatusIndicator]
+get_wifi_indicator() -> StatusIndicator | None
+get_bluetooth_indicator() -> StatusIndicator | None
+get_web_server_indicator() -> StatusIndicator | None
+get_drive_indicators() -> list[StatusIndicator]  # Returns U#/R# indicators
+
+# ui/toggle.py
+format_toggle_label(label: str, state: bool) -> str  # "LABEL {{TOGGLE:ON}}"
+parse_toggle_label(label: str) -> tuple[str, bool | None]
+has_toggle_marker(label: str) -> bool
+get_toggle_on() -> Image                    # 12x5 ON toggle image
+get_toggle_off() -> Image                   # 12x5 OFF toggle image
+get_toggle(state: bool) -> Image            # Get toggle by state
+
+# services/drives.py (new function)
+get_drive_counts() -> tuple[int, int]       # Returns (usb_count, repo_count)
 ```
 
 #### Logging
