@@ -146,7 +146,7 @@ def get_drive_indicators() -> list[StatusIndicator]:
     """Get drive count indicators.
 
     Returns:
-        List of StatusIndicators for USB and Repo counts.
+        List of StatusIndicators for USB and Repo counts (solid black boxes with white text).
     """
     indicators: list[StatusIndicator] = []
     try:
@@ -154,10 +154,11 @@ def get_drive_indicators() -> list[StatusIndicator]:
 
         usb_count, repo_count = get_drive_counts()
         # Lower priority = further right
+        # inverted=True gives solid black box with white text (original style)
         if repo_count > 0:
-            indicators.append(StatusIndicator(label=f"R{repo_count}", priority=1))
+            indicators.append(StatusIndicator(label=f"R{repo_count}", priority=1, inverted=True))
         if usb_count > 0:
-            indicators.append(StatusIndicator(label=f"U{usb_count}", priority=0))
+            indicators.append(StatusIndicator(label=f"U{usb_count}", priority=0, inverted=True))
     except Exception:
         pass
     return indicators
