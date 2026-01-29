@@ -400,8 +400,8 @@ class TestMainLoopIntegration:
             "AppState",
             build_fake_state(FakeDateTime.now() - timedelta(seconds=5)),
         )
-        monkeypatch.setattr(main.app_state, "ENABLE_SLEEP", True)
-        monkeypatch.setattr(main.app_state, "SLEEP_TIMEOUT", 0.1)
+        monkeypatch.setattr(main.app_state, "screensaver_enabled", True)
+        monkeypatch.setattr(main.app_state, "SCREENSAVER_TIMEOUT", 0.1)
         screensaver_calls = []
 
         def fake_screensaver(*_args, **_kwargs):

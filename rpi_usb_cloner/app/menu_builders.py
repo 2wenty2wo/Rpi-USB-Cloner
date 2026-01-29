@@ -63,7 +63,7 @@ def build_connectivity_items(settings_store, menu_actions):
 def build_display_items(settings_store, app_state, menu_actions):
     screensaver_enabled = settings_store.get_bool(
         "screensaver_enabled",
-        default=app_state.ENABLE_SLEEP,
+        default=app_state.screensaver_enabled,
     )
     screensaver_state = "ON" if screensaver_enabled else "OFF"
 
@@ -78,7 +78,7 @@ def build_display_items(settings_store, app_state, menu_actions):
 def build_screensaver_items(settings_store, app_state, menu_actions):
     screensaver_enabled = settings_store.get_bool(
         "screensaver_enabled",
-        default=app_state.ENABLE_SLEEP,
+        default=app_state.screensaver_enabled,
     )
     screensaver_state = "ON" if screensaver_enabled else "OFF"
     mode = settings_store.get_setting("screensaver_mode", "random")

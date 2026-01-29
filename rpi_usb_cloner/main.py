@@ -60,7 +60,7 @@ Device Monitoring:
     - Display is updated to show new device list
 
 Screensaver:
-    After SLEEP_TIMEOUT seconds of inactivity:
+    After SCREENSAVER_TIMEOUT seconds of inactivity:
     - Random or configured GIF is displayed on OLED
     - Any button press wakes display
     - If no GIFs available, shows blank screen
@@ -294,9 +294,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     )
 
     state = app_state.AppState()
-    app_state.ENABLE_SLEEP = settings_store.get_bool(
+    app_state.screensaver_enabled = settings_store.get_bool(
         "screensaver_enabled",
-        default=app_state.ENABLE_SLEEP,
+        default=app_state.screensaver_enabled,
     )
     last_usb_snapshot = None
     last_raw_usb_snapshot = None
@@ -784,9 +784,9 @@ def main(argv: Optional[list[str]] = None) -> None:
                     state.last_seen_devices = current_devices
                     render_requested = True
                 state.last_usb_check = time.time()
-            if app_state.ENABLE_SLEEP and not screensaver_active:
+            if app_state.screensaver_enabled and not screensaver_active:
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
-                if idle_seconds >= app_state.SLEEP_TIMEOUT:
+                if idle_seconds >= app_state.SCREENSAVER_TIMEOUT:
                     screensaver_active = True
                     screensaver_mode = settings_store.get_setting(
                         "screensaver_mode", "random"
