@@ -33,11 +33,10 @@ DEVELOP_MENU = MenuScreen(
     screen_id="develop",
     title="DEVELOP",
     items=[
+        # Only submenu refs needed here for _collect_screens() discovery.
+        # Full items (including dynamic TRANSITIONS label) provided by build_develop_items.
         menu_entry("SCREENS", submenu=SCREENS_MENU),
         menu_entry("ICONS", submenu=ICONS_MENU),
-        menu_entry("TITLE FONT PREVIEW", action=menu_actions.preview_title_font),
-        menu_entry("SCREENSHOTS", action=menu_actions.toggle_screenshots),
-        menu_entry("TRANSITIONS", action=menu_actions.select_transition_speed),
     ],
 )
 
@@ -60,10 +59,7 @@ SCREENSAVER_MENU = MenuScreen(
 CONNECTIVITY_MENU = MenuScreen(
     screen_id="connectivity",
     title="CONNECTIVITY",
-    items=[
-        menu_entry("WIFI", action=menu_actions.wifi_settings),
-        menu_entry("WEB SERVER", action=menu_actions.toggle_web_server),
-    ],
+    # Items provided dynamically by build_connectivity_items for WEB SERVER: ON/OFF label
 )
 
 DISPLAY_MENU = MenuScreen(

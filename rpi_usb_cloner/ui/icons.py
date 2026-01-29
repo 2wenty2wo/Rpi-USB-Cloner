@@ -41,7 +41,6 @@ SPARKLES_ICON = chr(58367)  # sparkles - format and special operations
 USB_ICON = chr(57516)  # usb drive icon - USB selection
 KEYBOARD_ICON = chr(57618)  # keyboard icon - text input
 INFO_ICON = chr(57487)  # info icon - information displays
-WRITE_ICON = chr(58597)  # write/backup icon - write operations
 ACTIVITY_ICON = chr(57400)  # activity icon - system status displays
 COPY_DRIVE_ICON = chr(58611)  # send-to-back - drive copy flow
 BACKUP_IMAGE_ICON = chr(58598)  # hard-drive-upload - image backup flow

@@ -39,12 +39,16 @@ from .clone import CLONE_MENU  # noqa: E402
 from .drives import DRIVE_LIST_MENU, DRIVES_MENU  # noqa: E402
 from .main import MAIN_MENU  # noqa: E402
 from .settings import (  # noqa: E402
+    ADVANCED_MENU,
+    CONNECTIVITY_MENU,
     DEVELOP_MENU,
+    DISPLAY_MENU,
     ICONS_MENU,
     POWER_MENU,
     SCREENS_MENU,
     SCREENSAVER_MENU,
     SETTINGS_MENU,
+    SYSTEM_MENU,
 )
 from .tools import TOOLS_MENU  # noqa: E402
 
@@ -61,6 +65,10 @@ __all__ = [
     "CLONE_MENU",
     "TOOLS_MENU",
     "SETTINGS_MENU",
+    "CONNECTIVITY_MENU",
+    "DISPLAY_MENU",
+    "SYSTEM_MENU",
+    "ADVANCED_MENU",
     "SCREENSAVER_MENU",
     "POWER_MENU",
     "DEVELOP_MENU",
