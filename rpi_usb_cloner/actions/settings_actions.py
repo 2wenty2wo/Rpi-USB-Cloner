@@ -72,6 +72,10 @@ _EXPORTS = {
         "rpi_usb_cloner.actions.settings.ui_actions",
         "toggle_screenshots",
     ),
+    "toggle_menu_icon_preview": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_menu_icon_preview",
+    ),
     "toggle_web_server": (
         "rpi_usb_cloner.actions.settings.ui_actions",
         "toggle_web_server",
