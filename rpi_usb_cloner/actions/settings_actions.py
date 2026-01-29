@@ -84,6 +84,27 @@ _EXPORTS = {
         "rpi_usb_cloner.actions.settings.ui_actions",
         "show_about_credits",
     ),
+    # Status bar toggles
+    "toggle_status_bar_enabled": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_status_bar_enabled",
+    ),
+    "toggle_status_bar_wifi": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_status_bar_wifi",
+    ),
+    "toggle_status_bar_bluetooth": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_status_bar_bluetooth",
+    ),
+    "toggle_status_bar_web": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_status_bar_web",
+    ),
+    "toggle_status_bar_drives": (
+        "rpi_usb_cloner.actions.settings.ui_actions",
+        "toggle_status_bar_drives",
+    ),
     # Update manager
     "update_version": (
         "rpi_usb_cloner.actions.settings.update_manager",
