@@ -528,13 +528,9 @@ def main(argv: Optional[list[str]] = None) -> None:
                 get_vendor_from_dict,
                 get_model_from_dict,
             )
-        if screen.screen_id == definitions.DRIVES_MENU.screen_id:
-            return active_drive_label or "NO DRIVE SELECTED"
-        if screen.screen_id == definitions.CLONE_MENU.screen_id:
-            return active_drive_label or "NO DRIVE SELECTED"
-        if screen.screen_id == definitions.MAIN_MENU.screen_id:
-            return active_drive_label or "NO DRIVE SELECTED"
-        return status_line
+        # For all other screens, show custom status_line if set,
+        # otherwise fall back to active drive label
+        return status_line or active_drive_label or "NO DRIVE SELECTED"
 
     def get_visible_rows_for_screen(
         screen: Any, status_line: Optional[str] = None
