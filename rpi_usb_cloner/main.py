@@ -650,6 +650,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     title_icon=get_screen_icon(current_screen.screen_id),
                     now=now,
                     last_activity_time=last_menu_activity_time,
+                    app_context=app_context,
                 )
                 context = display.get_display_context()
                 footer_start, _ = renderer.calculate_footer_bounds(
@@ -680,6 +681,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     title_icon=get_screen_icon(current_screen.screen_id),
                     now=now,
                     last_activity_time=last_menu_activity_time,
+                    app_context=app_context,
                 )
             last_render_state["key"] = render_key
             last_idle_animation_time = now
