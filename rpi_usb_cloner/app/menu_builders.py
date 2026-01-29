@@ -5,6 +5,7 @@ from rpi_usb_cloner.config.settings import (
     DEFAULT_TRANSITION_FRAME_DELAY,
 )
 from rpi_usb_cloner.menu import MenuItem, definitions
+from rpi_usb_cloner.ui.toggle import format_toggle_label
 
 
 def build_device_items(drives_service, drive_menu, menu_actions):
@@ -41,12 +42,11 @@ def build_connectivity_items(settings_store, menu_actions):
     web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
     if web_server_env_override is not None:
         web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
-        web_server_state = "ON" if web_server_enabled else "OFF"
-        web_server_label = f"WEB SERVER: {web_server_state} (ENV)"
+        # Show (ENV) suffix when overridden by environment variable
+        web_server_label = format_toggle_label("WEB SERVER (ENV)", web_server_enabled)
     else:
         web_server_enabled = web_server_enabled_setting
-        web_server_state = "ON" if web_server_enabled else "OFF"
-        web_server_label = f"WEB SERVER: {web_server_state}"
+        web_server_label = format_toggle_label("WEB SERVER", web_server_enabled)
 
     return [
         MenuItem(
@@ -65,11 +65,10 @@ def build_display_items(settings_store, app_state, menu_actions):
         "screensaver_enabled",
         default=app_state.screensaver_enabled,
     )
-    screensaver_state = "ON" if screensaver_enabled else "OFF"
 
     return [
         MenuItem(
-            label=f"SCREENSAVER: {screensaver_state}",
+            label=format_toggle_label("SCREENSAVER", screensaver_enabled),
             submenu=definitions.SCREENSAVER_MENU,
         ),
     ]
@@ -80,14 +79,13 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
         "screensaver_enabled",
         default=app_state.screensaver_enabled,
     )
-    screensaver_state = "ON" if screensaver_enabled else "OFF"
     mode = settings_store.get_setting("screensaver_mode", "random")
     mode_label = "RANDOM" if mode == "random" else "SELECTED"
     selected_gif = settings_store.get_setting("screensaver_gif")
     selected_label = selected_gif if selected_gif else "NONE"
     items = [
         MenuItem(
-            label=f"SCREENSAVER: {screensaver_state}",
+            label=format_toggle_label("SCREENSAVER", screensaver_enabled),
             action=menu_actions.toggle_screensaver_enabled,
         ),
         MenuItem(
@@ -116,6 +114,7 @@ def build_screensaver_items(settings_store, app_state, menu_actions):
 
 def build_develop_items(settings_store, menu_actions):
     transition_label = _build_transition_label(settings_store)
+    screenshots_enabled = settings_store.get_bool("screenshots_enabled", default=False)
     return [
         MenuItem(
             label="SCREENS",
@@ -130,7 +129,7 @@ def build_develop_items(settings_store, menu_actions):
             action=menu_actions.preview_title_font,
         ),
         MenuItem(
-            label="SCREENSHOTS",
+            label=format_toggle_label("SCREENSHOTS", screenshots_enabled),
             action=menu_actions.toggle_screenshots,
         ),
         MenuItem(

@@ -7,6 +7,12 @@ from typing import Iterable
 from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui.toggle import (
+    TOGGLE_HEIGHT,
+    TOGGLE_WIDTH,
+    get_toggle,
+    parse_toggle_label,
+)
 
 # Default visible rows - matches app.state.VISIBLE_ROWS
 DEFAULT_VISIBLE_ROWS = 3
@@ -200,17 +206,33 @@ def _render_menu(
     max_item_width = max(0, max_item_width)
     items_list: list[str] = []
     item_widths: list[int] = []
+    item_toggles: list[bool | None] = []  # Track toggle states for each item
+
+    # Reserve space for toggle icon if present (toggle width + 2px spacing)
+    toggle_space = TOGGLE_WIDTH + 2
+
     for item_index, item in enumerate(items_seq):
-        item_width = _measure_text_width(list_font, item)
+        # Parse toggle marker from item label
+        clean_label, toggle_state = parse_toggle_label(item)
+        item_toggles.append(toggle_state)
+
+        # Calculate width based on clean label (without toggle marker)
+        item_width = _measure_text_width(list_font, clean_label)
         item_widths.append(item_width)
+
+        # Adjust max width for items with toggles to leave room for the icon
+        effective_max_width = max_item_width
+        if toggle_state is not None:
+            effective_max_width = max(0, max_item_width - toggle_space)
+
         if (
             enable_horizontal_scroll
             and item_index == selected_index
             and screen_id == "images"
         ):
-            items_list.append(item)
+            items_list.append(clean_label)
         else:
-            items_list.append(_truncate_text(item, list_font, max_item_width))
+            items_list.append(_truncate_text(clean_label, list_font, effective_max_width))
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     idle_seconds = None
@@ -242,12 +264,29 @@ def _render_menu(
                 scroll_start_delay=scroll_start_delay,
             )
         # Draw text with offset for alignment
+        text_x = left_margin + selector_width + x_offset
         draw.text(
-            (left_margin + selector_width + x_offset, text_y),
+            (text_x, text_y),
             items_list[item_index],
             font=list_font,
             fill=text_color,
         )
+
+        # Draw toggle icon if item has a toggle state
+        toggle_state = item_toggles[item_index]
+        if toggle_state is not None:
+            # Get the displayed text width (may be truncated)
+            displayed_text_width = _measure_text_width(
+                list_font, items_list[item_index]
+            )
+            # Position toggle after text with 2px spacing
+            toggle_x = text_x + displayed_text_width + 2
+            # Center toggle vertically within the row
+            toggle_y = row_top + max(0, (row_height - TOGGLE_HEIGHT) // 2)
+            # Get and paste the toggle image
+            toggle_img = get_toggle(toggle_state)
+            image.paste(toggle_img, (toggle_x, toggle_y))
+
         if enable_horizontal_scroll and is_selected and screen_id == "images":
             draw.rectangle(
                 (
