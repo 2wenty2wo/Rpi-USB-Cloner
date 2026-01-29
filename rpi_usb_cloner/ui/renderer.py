@@ -340,10 +340,11 @@ def _render_menu(
 
             # Draw boxes from right to left
             current_x = context.width - status_right_margin
-            # Calculate vertical position - center in footer area
-            box_height = status_font_height + (box_padding_y * 2)
-            box_top = footer_y + (footer_font_height - status_font_height) // 2 - box_padding_y
-            box_bottom = box_top + box_height - 1
+            # Calculate vertical position - leave 1px white border at top and bottom
+            footer_top = footer_y - footer_padding + 1
+            footer_bottom = context.height - 1
+            box_top = footer_top + 1  # 1px margin from top of footer
+            box_bottom = footer_bottom - 1  # 1px margin from bottom of footer
 
             for i, part in enumerate(reversed(status_parts)):
                 part_idx = len(status_parts) - 1 - i
@@ -359,9 +360,10 @@ def _render_menu(
                     fill=0,
                 )
 
-                # Draw white text inside box
+                # Draw white text inside box, centered vertically
                 text_x = box_left + box_padding_x
-                text_y = box_top + box_padding_y
+                box_inner_height = box_bottom - box_top + 1
+                text_y = box_top + (box_inner_height - status_font_height) // 2
                 draw.text(
                     (text_x, text_y),
                     part,
