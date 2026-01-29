@@ -65,11 +65,16 @@ def build_display_items(settings_store, app_state, menu_actions):
         "screensaver_enabled",
         default=app_state.screensaver_enabled,
     )
+    status_bar_enabled = settings_store.get_bool("status_bar_enabled", default=True)
 
     return [
         MenuItem(
             label=format_toggle_label("SCREENSAVER", screensaver_enabled),
             submenu=definitions.SCREENSAVER_MENU,
+        ),
+        MenuItem(
+            label=format_toggle_label("STATUS BAR", status_bar_enabled),
+            submenu=definitions.STATUS_BAR_MENU,
         ),
     ]
 
