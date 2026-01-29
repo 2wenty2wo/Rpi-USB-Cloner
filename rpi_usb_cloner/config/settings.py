@@ -15,14 +15,20 @@ SETTINGS_PATH = Path(
         Path.home() / ".config" / "rpi-usb-cloner" / "settings.json",
     )
 )
+
+# Default values - use these constants instead of hardcoding values elsewhere
+DEFAULT_TRANSITION_FRAME_COUNT = 3
+DEFAULT_TRANSITION_FRAME_DELAY = 0.005
+DEFAULT_SCROLL_REFRESH_INTERVAL = 0.04
+
 DEFAULT_SETTINGS: dict[str, Any] = {
     "screensaver_enabled": False,
     "screensaver_mode": "random",
     "screensaver_gif": None,
     "restore_partition_mode": "k0",
-    "scroll_refresh_interval": 0.04,
-    "transition_frame_count": 3,
-    "transition_frame_delay": 0.005,
+    "scroll_refresh_interval": DEFAULT_SCROLL_REFRESH_INTERVAL,
+    "transition_frame_count": DEFAULT_TRANSITION_FRAME_COUNT,
+    "transition_frame_delay": DEFAULT_TRANSITION_FRAME_DELAY,
     "verify_image_hash_timeout_seconds": None,
     "verify_partition_hash_timeout_seconds": None,
     "screenshots_enabled": False,

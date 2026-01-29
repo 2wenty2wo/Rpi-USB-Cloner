@@ -7,6 +7,10 @@ from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
+from rpi_usb_cloner.config.settings import (
+    DEFAULT_TRANSITION_FRAME_COUNT,
+    DEFAULT_TRANSITION_FRAME_DELAY,
+)
 from rpi_usb_cloner.ui import display, keyboard, menus, screens, screensaver
 from rpi_usb_cloner.ui.icons import KEYBOARD_ICON, SETTINGS_ICON
 from rpi_usb_cloner.web import server as web_server
@@ -262,8 +266,12 @@ def select_transition_speed() -> None:
         ("SNAPPY", 3, 0.005),
         ("SMOOTH", 4, 0.01),
     ]
-    current_frames = settings.get_setting("transition_frame_count", 3)
-    current_delay = settings.get_setting("transition_frame_delay", 0.005)
+    current_frames = settings.get_setting(
+        "transition_frame_count", DEFAULT_TRANSITION_FRAME_COUNT
+    )
+    current_delay = settings.get_setting(
+        "transition_frame_delay", DEFAULT_TRANSITION_FRAME_DELAY
+    )
     selected_index = 0
     for index, (_, frames, delay) in enumerate(options):
         if frames == current_frames and delay == current_delay:

@@ -1,5 +1,9 @@
 import os
 
+from rpi_usb_cloner.config.settings import (
+    DEFAULT_TRANSITION_FRAME_COUNT,
+    DEFAULT_TRANSITION_FRAME_DELAY,
+)
 from rpi_usb_cloner.menu import MenuItem, definitions
 
 
@@ -12,16 +16,20 @@ def build_device_items(drives_service, drive_menu, menu_actions):
 
 
 def _build_transition_label(settings_store):
-    transition_frames = settings_store.get_setting("transition_frame_count", 3)
-    transition_delay = settings_store.get_setting("transition_frame_delay", 0.005)
+    transition_frames = settings_store.get_setting(
+        "transition_frame_count", DEFAULT_TRANSITION_FRAME_COUNT
+    )
+    transition_delay = settings_store.get_setting(
+        "transition_frame_delay", DEFAULT_TRANSITION_FRAME_DELAY
+    )
     try:
         transition_frames_label = int(transition_frames)
     except (TypeError, ValueError):
-        transition_frames_label = 3
+        transition_frames_label = DEFAULT_TRANSITION_FRAME_COUNT
     try:
         transition_delay_label = float(transition_delay)
     except (TypeError, ValueError):
-        transition_delay_label = 0.005
+        transition_delay_label = DEFAULT_TRANSITION_FRAME_DELAY
     return f"TRANSITIONS: {transition_frames_label}F {transition_delay_label:.3f}s"
 
 
