@@ -312,3 +312,21 @@ def get_active_drive_label(active_drive: str | None) -> str | None:
             size_bytes = device.get("size", 0)
             return f"{device_name} {size_bytes / 1024 ** 3:.2f}GB"
     return active_drive
+
+
+def get_drive_counts() -> tuple[int, int]:
+    """Get counts of USB drives and repo drives.
+
+    Returns:
+        Tuple of (usb_count, repo_count) where:
+        - usb_count: Number of non-repo USB drives
+        - repo_count: Number of repo drives
+    """
+    repo_devices = _get_repo_device_names()
+    all_devices = list_usb_disks()
+    all_device_names = {d.get("name") for d in all_devices if d.get("name")}
+
+    repo_count = len(repo_devices & all_device_names)
+    usb_count = len(all_device_names - repo_devices)
+
+    return usb_count, repo_count

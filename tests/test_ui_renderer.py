@@ -396,3 +396,67 @@ class TestMenuRendering:
         )
         rendered_labels = [text for text in text_calls if text != "> "]
         assert any(label.endswith("…") for label in rendered_labels)
+
+
+# ==============================================================================
+# Drive Status Text Tests
+# ==============================================================================
+
+
+class TestDriveStatusText:
+    """Test drive status text generation for footer display."""
+
+    def test_no_drives(self, mocker):
+        """Test when no drives are connected returns empty string."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts", return_value=(0, 0)
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == ""
+
+    def test_usb_drives_only(self, mocker):
+        """Test with only USB drives shows U count."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts", return_value=(2, 0)
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == "U2"
+
+    def test_repo_drives_only(self, mocker):
+        """Test with only repo drives shows R count."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts", return_value=(0, 1)
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == "R1"
+
+    def test_mixed_drives(self, mocker):
+        """Test with both USB and repo drives shows both."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts", return_value=(2, 1)
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == "U2|R1"
+
+    def test_multiple_repos(self, mocker):
+        """Test with multiple repo drives."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts", return_value=(1, 3)
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == "U1|R3"
+
+    def test_exception_returns_empty(self, mocker):
+        """Test exception handling returns empty string."""
+        mocker.patch(
+            "rpi_usb_cloner.services.drives.get_drive_counts",
+            side_effect=Exception("Test error"),
+        )
+
+        result = renderer._get_drive_status_text()
+        assert result == ""
