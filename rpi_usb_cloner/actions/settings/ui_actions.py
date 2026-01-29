@@ -100,10 +100,12 @@ def screensaver_settings() -> None:
 
 def toggle_screensaver_enabled() -> None:
     """Toggle screensaver enabled/disabled."""
-    enabled = settings.get_bool("screensaver_enabled", default=app_state.ENABLE_SLEEP)
+    enabled = settings.get_bool(
+        "screensaver_enabled", default=app_state.screensaver_enabled
+    )
     enabled = not enabled
     settings.set_bool("screensaver_enabled", enabled)
-    app_state.ENABLE_SLEEP = enabled
+    app_state.screensaver_enabled = enabled
     status = "ENABLED" if enabled else "DISABLED"
     screens.render_status_template("SCREENSAVER", f"Screensaver {status}")
     time.sleep(1.5)
