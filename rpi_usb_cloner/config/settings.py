@@ -34,6 +34,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "screenshots_enabled": False,
     "screenshots_dir": "/home/pi/oled_screenshots",
     "web_server_enabled": False,
+    "menu_icon_preview_enabled": False,
 }
 
 

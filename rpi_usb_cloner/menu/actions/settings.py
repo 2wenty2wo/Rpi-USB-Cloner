@@ -90,6 +90,10 @@ def toggle_screenshots() -> None:
     settings_actions.toggle_screenshots()
 
 
+def toggle_menu_icon_preview() -> None:
+    settings_actions.toggle_menu_icon_preview()
+
+
 def toggle_web_server() -> None:
     context = get_action_context()
     settings_actions.toggle_web_server(

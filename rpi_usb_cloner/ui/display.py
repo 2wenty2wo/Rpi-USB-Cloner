@@ -146,8 +146,10 @@ TITLE_ICON_PADDING = 2
 TITLE_TEXT_Y_OFFSET = -2
 LUCIDE_FONT_PATH = ASSETS_DIR / "fonts" / "lucide.ttf"
 LUCIDE_FONT_SIZE = 16
+LUCIDE_PREVIEW_FONT_SIZE = 24
 ICON_BASELINE_ADJUST = -1
 _lucide_font: Optional[Font] = None
+_lucide_font_cache: dict[int, Font] = {}
 
 
 @dataclass(frozen=True)
@@ -423,6 +425,25 @@ def _get_lucide_font() -> Font:
     except OSError:
         _lucide_font = get_display_context().fontdisks
     return _lucide_font
+
+
+def get_lucide_font_sized(size: int) -> Font:
+    """Get Lucide icon font at a specific size.
+
+    Args:
+        size: Font size in pixels.
+
+    Returns:
+        Font object at the requested size.
+    """
+    if size in _lucide_font_cache:
+        return _lucide_font_cache[size]
+    try:
+        font = ImageFont.truetype(str(LUCIDE_FONT_PATH), size)
+    except OSError:
+        font = get_display_context().fontdisks
+    _lucide_font_cache[size] = font
+    return font
 
 
 def draw_title_with_icon(

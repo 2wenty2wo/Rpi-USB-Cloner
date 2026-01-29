@@ -188,7 +188,7 @@ class FakeMenuNavigator:
         return self._screen
 
     def current_items(self):
-        return [SimpleNamespace(label="Item")]
+        return [SimpleNamespace(label="Item", submenu=None)]
 
     def current_state(self):
         return self._state

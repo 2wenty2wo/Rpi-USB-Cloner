@@ -151,6 +151,7 @@ def _render_menu(
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
+    selected_item_icon: str | None = None,
 ) -> None:
     context = display.get_display_context()
     if clear:
@@ -361,6 +362,39 @@ def _render_menu(
             fill=255,
         )
 
+    # Draw selected item icon preview in the right side if enabled
+    if selected_item_icon and not selected_item_icon.endswith(".png"):
+        from rpi_usb_cloner.config.settings import get_bool
+
+        if get_bool("menu_icon_preview_enabled", default=False):
+            icon_preview_size = 24
+            icon_font = display.get_lucide_font_sized(icon_preview_size)
+
+            # Calculate icon dimensions
+            icon_bbox = icon_font.getbbox(selected_item_icon)
+            icon_width = icon_bbox[2] - icon_bbox[0]
+            icon_height = icon_bbox[3] - icon_bbox[1]
+
+            # Position: right side, vertically centered in content area
+            # Leave space for scrollbar (4px from right edge)
+            icon_x = context.width - icon_width - 4
+            if needs_scrollbar:
+                icon_x -= scrollbar_width + scrollbar_padding
+
+            # Center vertically between content_top and content_bottom
+            content_height = content_bottom - content_top
+            icon_y = content_top + (content_height - icon_height) // 2
+
+            # Adjust for font baseline offset
+            icon_y -= icon_bbox[1]
+
+            draw.text(
+                (icon_x, icon_y),
+                selected_item_icon,
+                font=icon_font,
+                fill=255,
+            )
+
     if status_line:
         # Draw white background bar for footer (full screen width)
         draw.rectangle(
@@ -565,6 +599,7 @@ def render_menu_screen(
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
+    selected_item_icon: str | None = None,
 ) -> None:
     context = display.get_display_context()
     draw = context.draw
@@ -602,6 +637,7 @@ def render_menu_screen(
             screen_id=screen_id,
             clear=clear,
             app_context=app_context,
+            selected_item_icon=selected_item_icon,
         )
 
         context.disp.display(context.image)
@@ -638,6 +674,7 @@ def render_menu_image(
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
+    selected_item_icon: str | None = None,
 ) -> Image.Image:
     context = display.get_display_context()
     image = Image.new("1", (context.width, context.height), 0)
@@ -674,6 +711,7 @@ def render_menu_image(
         screen_id=screen_id,
         clear=clear,
         app_context=app_context,
+        selected_item_icon=selected_item_icon,
     )
     return image
 
