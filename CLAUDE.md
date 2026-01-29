@@ -2,7 +2,7 @@
 
 > **Purpose**: This document provides comprehensive guidance for AI assistants (like Claude) working on the Raspberry Pi USB Cloner codebase. It covers architecture, conventions, workflows, and common tasks.
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-01-29
 **Project**: Raspberry Pi USB Cloner
 **Language**: Python 3.8+
 **License**: MIT
@@ -61,7 +61,7 @@ A hardware-based USB cloning solution for Raspberry Pi Zero/Zero 2 with:
 # Main entry point
 /home/user/Rpi-USB-Cloner/rpi-usb-cloner.py
     ↓
-rpi_usb_cloner/main.py (907 lines)
+rpi_usb_cloner/main.py (974 lines)
     ↓
 Main event loop with GPIO polling, USB detection, display rendering
 ```
@@ -191,7 +191,7 @@ Rpi-USB-Cloner/
 │   │   │   ├── drives.py          # Drives submenu
 │   │   │   ├── clone.py           # Clone/Images submenu
 │   │   │   ├── tools.py           # Tools submenu
-│   │   │   └── settings.py        # Settings submenu
+│   │   │   └── settings.py        # Settings hierarchy (Connectivity, Display, System, Advanced)
 │   │   └── actions/               # Menu action handlers (deprecated, see actions/)
 │   │
 │   ├── domain/                     # Domain models (type-safe)
@@ -1234,6 +1234,51 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ### Recent Improvements
 
+#### 2026-01-29: Screensaver Refactor & Menu Reorganization ✅
+**Naming Consistency**:
+- Renamed all `sleep`-related variables to `screensaver` equivalents for clarity
+- Updated timeout references and settings handling across multiple modules
+- `app/state.py`, `main.py`, `menu_builders.py`, `ui_actions.py` all use consistent naming
+
+**Settings Menu Reorganization**:
+- **New Structure**: SETTINGS → CONNECTIVITY, DISPLAY, SYSTEM, ADVANCED
+- **CONNECTIVITY**: WiFi settings, Web Server toggle
+- **DISPLAY**: Screensaver settings (enable/disable, timeout, mode, GIF selection)
+- **SYSTEM**: System Info, Update, About, Power submenu
+- **ADVANCED**: Developer tools (screens demo, icons demo, transitions)
+- Replaced flat settings list with organized submenus
+
+**Idle Menu Animation**:
+- Added animated menu selector when idle (visual feedback during inactivity)
+- `menu_activity_time` tracking in main loop
+- Configurable animation render tick
+
+**Transition Settings**:
+- Refactored to use constants from `ui/constants.py` for default values
+- `DEFAULT_SCROLL_REFRESH_INTERVAL` for backward compatibility
+- Improved maintainability across modules
+
+**Device Labels**:
+- Now uses child partition labels for more descriptive device names
+- Phase 1 of Human-Readable Device Labels complete
+
+**Bug Fixes**:
+- Fixed screensaver "Select GIF" showing when mode is "Random" (now only shows when "Selected")
+- Fixed idle animation render tick timing
+- Fixed idle menu animation refresh
+
+#### 2026-01-28: Format Safety & Device Lock Improvements ✅
+**Format Safety Hardening**:
+- Comprehensive format safety checks added
+- Proper partition unmounting before format operations
+- udev rule approach for preventing automount interference
+- Exclusive device lock (`fcntl.flock`) during critical operations
+- Handles mkfs spawn failures gracefully
+
+**Files Modified**:
+- `storage/format.py` - Simplified to ~280 lines with robust safety
+- Multiple test fixes for format safety validation
+
 #### 2026-01-26: Web UI & Image Repository Enhancements ✅
 **New Features**:
 - **Image Sizes in Repo List**: Images now display their sizes in the repository listing
@@ -1361,11 +1406,6 @@ if is_operation_active():
 - Location: Various menu screens (e.g., 'choose image' screen)
 - Issue: Text scrolling speed varies based on text length
 - Expected: All items should scroll at consistent speed
-
-**Screensaver Menu Logic** (Low Priority)
-- Location: `menu/definitions/settings.py`
-- Issue: "Select GIF" option shows even when mode is set to "Random"
-- Expected: Only show "Select GIF" when mode is "Selected"
 
 **Web UI OLED Preview** (Low Priority)
 - Issue: No fullscreen mode for OLED preview in web UI
@@ -1549,7 +1589,7 @@ def clone_device(source: str, destination: str) -> None:
 
 | File | LOC | Description |
 |------|-----|-------------|
-| `rpi_usb_cloner/main.py` | 907 | Main event loop, entry point ⭐ |
+| `rpi_usb_cloner/main.py` | 974 | Main event loop, entry point ⭐ |
 | `rpi_usb_cloner/app/context.py` | ~100 | AppContext (runtime state) ⭐ |
 | `rpi_usb_cloner/domain/models.py` | ~230 | Domain objects (Drive, DiskImage, CloneJob) ⭐ |
 | `rpi_usb_cloner/menu/navigator.py` | ~200 | Menu navigation logic ⭐ |
