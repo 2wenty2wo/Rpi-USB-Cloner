@@ -65,11 +65,16 @@ def build_display_items(settings_store, app_state, menu_actions):
         "screensaver_enabled",
         default=app_state.screensaver_enabled,
     )
+    status_bar_enabled = settings_store.get_bool("status_bar_enabled", default=True)
 
     return [
         MenuItem(
             label=format_toggle_label("SCREENSAVER", screensaver_enabled),
             submenu=definitions.SCREENSAVER_MENU,
+        ),
+        MenuItem(
+            label=format_toggle_label("STATUS BAR", status_bar_enabled),
+            submenu=definitions.STATUS_BAR_MENU,
         ),
     ]
 
@@ -144,3 +149,53 @@ def build_develop_items(settings_store, menu_actions):
             action=menu_actions.select_transition_speed,
         ),
     ]
+
+
+def build_status_bar_items(settings_store, menu_actions):
+    """Build status bar visibility toggle menu items.
+
+    Shows a master toggle for all icons, and if enabled,
+    shows individual toggles for each icon type.
+    """
+    status_bar_enabled = settings_store.get_bool("status_bar_enabled", default=True)
+
+    items = [
+        MenuItem(
+            label=format_toggle_label("SHOW ALL", status_bar_enabled),
+            action=menu_actions.toggle_status_bar_enabled,
+        ),
+    ]
+
+    # Only show individual toggles if status bar is enabled
+    if status_bar_enabled:
+        wifi_enabled = settings_store.get_bool("status_bar_wifi_enabled", default=True)
+        bluetooth_enabled = settings_store.get_bool(
+            "status_bar_bluetooth_enabled", default=True
+        )
+        web_enabled = settings_store.get_bool("status_bar_web_enabled", default=True)
+        drives_enabled = settings_store.get_bool(
+            "status_bar_drives_enabled", default=True
+        )
+
+        items.extend(
+            [
+                MenuItem(
+                    label=format_toggle_label("WIFI", wifi_enabled),
+                    action=menu_actions.toggle_status_bar_wifi,
+                ),
+                MenuItem(
+                    label=format_toggle_label("BLUETOOTH", bluetooth_enabled),
+                    action=menu_actions.toggle_status_bar_bluetooth,
+                ),
+                MenuItem(
+                    label=format_toggle_label("WEB SERVER", web_enabled),
+                    action=menu_actions.toggle_status_bar_web,
+                ),
+                MenuItem(
+                    label=format_toggle_label("DRIVE COUNTS", drives_enabled),
+                    action=menu_actions.toggle_status_bar_drives,
+                ),
+            ]
+        )
+
+    return items

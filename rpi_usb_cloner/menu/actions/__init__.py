@@ -73,6 +73,11 @@ from .settings import (  # noqa: E402
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
     toggle_screenshots,
+    toggle_status_bar_bluetooth,
+    toggle_status_bar_drives,
+    toggle_status_bar_enabled,
+    toggle_status_bar_web,
+    toggle_status_bar_wifi,
     toggle_web_server,
     update_version,
     wifi_settings,
@@ -144,6 +149,12 @@ __all__ = [
     "restart_system",
     "shutdown_system",
     "show_about_credits",
+    # Status bar actions
+    "toggle_status_bar_enabled",
+    "toggle_status_bar_wifi",
+    "toggle_status_bar_bluetooth",
+    "toggle_status_bar_web",
+    "toggle_status_bar_drives",
     # Utility
     "noop",
 ]

@@ -110,6 +110,7 @@ from rpi_usb_cloner.app.menu_builders import (
     build_device_items,
     build_display_items,
     build_screensaver_items,
+    build_status_bar_items,
 )
 from rpi_usb_cloner.config import settings as settings_store
 from rpi_usb_cloner.config.settings import (
@@ -383,6 +384,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         app_state,
         menu_actions,
     )
+    get_status_bar_items = partial(
+        build_status_bar_items,
+        settings_store,
+        menu_actions,
+    )
 
     input_poll_interval = BUTTON_POLL_DELAY
     initial_repeat_delay = INITIAL_REPEAT_DELAY
@@ -514,6 +520,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             definitions.DISPLAY_MENU.screen_id: get_display_items,
             definitions.DEVELOP_MENU.screen_id: get_develop_items,
             definitions.SCREENSAVER_MENU.screen_id: get_screensaver_items,
+            definitions.STATUS_BAR_MENU.screen_id: get_status_bar_items,
         },
     )
 

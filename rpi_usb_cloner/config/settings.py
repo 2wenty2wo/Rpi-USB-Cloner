@@ -35,6 +35,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "screenshots_dir": "/home/pi/oled_screenshots",
     "web_server_enabled": False,
     "menu_icon_preview_enabled": False,
+    # Status bar icon visibility settings
+    "status_bar_enabled": True,
+    "status_bar_wifi_enabled": True,
+    "status_bar_bluetooth_enabled": True,
+    "status_bar_web_enabled": True,
+    "status_bar_drives_enabled": True,
 }
 
 

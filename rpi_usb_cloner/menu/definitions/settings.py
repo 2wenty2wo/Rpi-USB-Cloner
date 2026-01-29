@@ -56,6 +56,12 @@ SCREENSAVER_MENU = MenuScreen(
     title="SCREENSAVER",
 )
 
+STATUS_BAR_MENU = MenuScreen(
+    screen_id="status_bar",
+    title="STATUS BAR",
+    # Items provided dynamically by build_status_bar_items
+)
+
 CONNECTIVITY_MENU = MenuScreen(
     screen_id="connectivity",
     title="CONNECTIVITY",
@@ -67,6 +73,7 @@ DISPLAY_MENU = MenuScreen(
     title="DISPLAY",
     items=[
         menu_entry("SCREENSAVER", submenu=SCREENSAVER_MENU),
+        menu_entry("STATUS BAR", submenu=STATUS_BAR_MENU),
     ],
 )
 
