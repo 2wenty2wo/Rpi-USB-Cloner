@@ -25,13 +25,7 @@ def _build_transition_label(settings_store):
     return f"TRANSITIONS: {transition_frames_label}F {transition_delay_label:.3f}s"
 
 
-def build_settings_items(settings_store, app_state, menu_actions, power_menu):
-    screensaver_enabled = settings_store.get_bool(
-        "screensaver_enabled",
-        default=app_state.ENABLE_SLEEP,
-    )
-    screensaver_state = "ON" if screensaver_enabled else "OFF"
-
+def build_connectivity_items(settings_store, menu_actions):
     web_server_enabled_setting = settings_store.get_bool(
         "web_server_enabled",
         default=False,
@@ -55,30 +49,20 @@ def build_settings_items(settings_store, app_state, menu_actions, power_menu):
             label=web_server_label,
             action=menu_actions.toggle_web_server,
         ),
-        MenuItem(
-            label="SYSTEM INFO",
-            action=menu_actions.system_info,
-        ),
+    ]
+
+
+def build_display_items(settings_store, app_state, menu_actions):
+    screensaver_enabled = settings_store.get_bool(
+        "screensaver_enabled",
+        default=app_state.ENABLE_SLEEP,
+    )
+    screensaver_state = "ON" if screensaver_enabled else "OFF"
+
+    return [
         MenuItem(
             label=f"SCREENSAVER: {screensaver_state}",
             submenu=definitions.SCREENSAVER_MENU,
-        ),
-        MenuItem(
-            label="POWER",
-            submenu=power_menu,
-        ),
-        MenuItem(
-            label="DEVELOP",
-            submenu=definitions.DEVELOP_MENU,
-        ),
-        MenuItem(
-            label="UPDATE",
-            action=menu_actions.update_version,
-        ),
-        # Display credits screen from ui/assets/credits.png
-        MenuItem(
-            label="ABOUT",
-            action=menu_actions.show_about_credits,
         ),
     ]
 
