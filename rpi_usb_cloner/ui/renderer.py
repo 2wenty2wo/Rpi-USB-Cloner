@@ -148,8 +148,6 @@ def _render_menu(
     selector_idle_delay: float = 1.0,
     selector_bounce_amplitude: int = 2,
     selector_bounce_period: float = 0.4,
-    selector_animation_frame: int | None = None,
-    selector_frames_per_cycle: int = 8,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -242,18 +240,11 @@ def _render_menu(
     if now is not None and last_activity_time is not None:
         idle_seconds = max(0.0, now - last_activity_time)
     selector_offset = 0
-    if selector_animation_frame is not None and selector_bounce_amplitude:
-        # Frame-based animation: smooth regardless of timing jitter
-        frames_per_cycle = max(1, selector_frames_per_cycle)
-        phase = (selector_animation_frame % frames_per_cycle) / frames_per_cycle
-        phase = phase * 2 * math.pi
-        selector_offset = int(round(math.sin(phase) * selector_bounce_amplitude))
-    elif (
+    if (
         idle_seconds is not None
         and idle_seconds >= selector_idle_delay
         and selector_bounce_amplitude
     ):
-        # Fallback: time-based animation (legacy)
         safe_period = max(selector_bounce_period, 0.01)
         phase = ((idle_seconds - selector_idle_delay) / safe_period) * 2 * math.pi
         selector_offset = int(round(math.sin(phase) * selector_bounce_amplitude))
@@ -605,8 +596,6 @@ def render_menu_screen(
     selector_idle_delay: float = 1.0,
     selector_bounce_amplitude: int = 2,
     selector_bounce_period: float = 0.4,
-    selector_animation_frame: int | None = None,
-    selector_frames_per_cycle: int = 8,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -645,8 +634,6 @@ def render_menu_screen(
             selector_idle_delay=selector_idle_delay,
             selector_bounce_amplitude=selector_bounce_amplitude,
             selector_bounce_period=selector_bounce_period,
-            selector_animation_frame=selector_animation_frame,
-            selector_frames_per_cycle=selector_frames_per_cycle,
             screen_id=screen_id,
             clear=clear,
             app_context=app_context,
@@ -684,8 +671,6 @@ def render_menu_image(
     selector_idle_delay: float = 1.0,
     selector_bounce_amplitude: int = 2,
     selector_bounce_period: float = 0.4,
-    selector_animation_frame: int | None = None,
-    selector_frames_per_cycle: int = 8,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -723,8 +708,6 @@ def render_menu_image(
         selector_idle_delay=selector_idle_delay,
         selector_bounce_amplitude=selector_bounce_amplitude,
         selector_bounce_period=selector_bounce_period,
-        selector_animation_frame=selector_animation_frame,
-        selector_frames_per_cycle=selector_frames_per_cycle,
         screen_id=screen_id,
         clear=clear,
         app_context=app_context,
