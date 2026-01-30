@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import time
 from typing import Iterable
 
@@ -13,6 +12,7 @@ from rpi_usb_cloner.ui.toggle import (
     get_toggle,
     parse_toggle_label,
 )
+
 
 # Default visible rows - matches app.state.VISIBLE_ROWS
 DEFAULT_VISIBLE_ROWS = 3
@@ -145,9 +145,6 @@ def _render_menu(
     scroll_gap: int = 20,
     now: float | None = None,
     last_activity_time: float | None = None,
-    selector_idle_delay: float = 1.0,
-    selector_bounce_amplitude: int = 2,
-    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -236,18 +233,6 @@ def _render_menu(
             items_list.append(_truncate_text(clean_label, list_font, effective_max_width))
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
-    idle_seconds = None
-    if now is not None and last_activity_time is not None:
-        idle_seconds = max(0.0, now - last_activity_time)
-    selector_offset = 0
-    if (
-        idle_seconds is not None
-        and idle_seconds >= selector_idle_delay
-        and selector_bounce_amplitude
-    ):
-        safe_period = max(selector_bounce_period, 0.01)
-        phase = ((idle_seconds - selector_idle_delay) / safe_period) * 2 * math.pi
-        selector_offset = int(round(math.sin(phase) * selector_bounce_amplitude))
     for row_index, item_index in enumerate(range(start_index, end_index)):
         row_top = current_y + row_index * row_height
         text_y = row_top + max(0, (row_height - line_height) // 2)
@@ -301,10 +286,7 @@ def _render_menu(
             )
         # Draw selector for selected item
         if is_selected:
-            selector_x = left_margin
-            if selector_offset:
-                selector_x = max(0, left_margin + selector_offset)
-            draw.text((selector_x, text_y), selector, font=list_font, fill=text_color)
+            draw.text((left_margin, text_y), selector, font=list_font, fill=text_color)
 
     footer_font = None
     footer_height = 0
@@ -593,9 +575,6 @@ def render_menu_screen(
     scroll_gap: int = 20,
     now: float | None = None,
     last_activity_time: float | None = None,
-    selector_idle_delay: float = 1.0,
-    selector_bounce_amplitude: int = 2,
-    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -631,9 +610,6 @@ def render_menu_screen(
             scroll_gap=scroll_gap,
             now=now,
             last_activity_time=last_activity_time,
-            selector_idle_delay=selector_idle_delay,
-            selector_bounce_amplitude=selector_bounce_amplitude,
-            selector_bounce_period=selector_bounce_period,
             screen_id=screen_id,
             clear=clear,
             app_context=app_context,
@@ -668,9 +644,6 @@ def render_menu_image(
     scroll_gap: int = 20,
     now: float | None = None,
     last_activity_time: float | None = None,
-    selector_idle_delay: float = 1.0,
-    selector_bounce_amplitude: int = 2,
-    selector_bounce_period: float = 0.4,
     screen_id: str | None = None,
     clear: bool = True,
     app_context=None,
@@ -705,9 +678,6 @@ def render_menu_image(
         scroll_gap=scroll_gap,
         now=now,
         last_activity_time=last_activity_time,
-        selector_idle_delay=selector_idle_delay,
-        selector_bounce_amplitude=selector_bounce_amplitude,
-        selector_bounce_period=selector_bounce_period,
         screen_id=screen_id,
         clear=clear,
         app_context=app_context,
