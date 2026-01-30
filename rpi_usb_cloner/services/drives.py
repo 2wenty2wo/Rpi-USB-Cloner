@@ -104,7 +104,8 @@ class USBSnapshot:
     Attributes:
         raw_devices: List of all USB device names (e.g., ['sda', 'sdb'])
         media_devices: List of media drive names (excluding repos)
-        mountpoints: List of (device_name, mountpoint) tuples for all USB devices
+        mountpoints: List of (device_name, mountpoint) tuples. For partitions,
+            uses the partition name (e.g., 'sda1') to detect mount swaps.
     """
 
     raw_devices: list[str]
@@ -145,12 +146,18 @@ def get_usb_snapshot() -> USBSnapshot:
     mountpoints: list[tuple[str, str]] = []
 
     def collect_mountpoints(device: dict, device_name: str) -> None:
-        """Recursively collect mountpoints from device and children."""
+        """Recursively collect mountpoints from device and children.
+
+        Uses the actual device/partition name for each mountpoint so that
+        mountpoint swaps on different partitions are detected correctly.
+        """
         mountpoint = device.get("mountpoint")
         if mountpoint:
             mountpoints.append((device_name, mountpoint))
         for child in get_children(device):
-            collect_mountpoints(child, device_name)
+            # Use child's own name (partition name) for partition mountpoints
+            child_name = child.get("name") or device_name
+            collect_mountpoints(child, child_name)
 
     # Single pass through all block devices
     for device in get_block_devices():
