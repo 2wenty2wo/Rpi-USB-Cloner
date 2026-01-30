@@ -16,6 +16,7 @@ Icon indicators (from right to left by priority):
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -26,6 +27,9 @@ if TYPE_CHECKING:
 
 # Path to assets folder
 ASSETS_PATH = Path(__file__).parent / "assets"
+
+# Cache for Bluetooth status to avoid subprocess calls on every render
+_bluetooth_cache: dict[str, object] = {"result": None, "timestamp": 0.0}
 
 # Icon paths (7px high icons for status bar)
 ICON_WIFI = ASSETS_PATH / "7px-wifi.png"
@@ -57,33 +61,47 @@ class StatusIndicator:
         return self.icon_path is not None and self.icon_path.exists()
 
 
-def get_bluetooth_indicator() -> StatusIndicator | None:
+def get_bluetooth_indicator(ttl_s: float = 2.0) -> StatusIndicator | None:
     """Get Bluetooth status indicator.
+
+    Args:
+        ttl_s: Cache time-to-live in seconds (default 2.0).
 
     Returns:
         StatusIndicator with Bluetooth icon, or None if not connected.
     """
+    global _bluetooth_cache
+
+    # Check cache first to avoid subprocess on every render
+    now = time.monotonic()
+    if now - _bluetooth_cache["timestamp"] < ttl_s:
+        return _bluetooth_cache["result"]  # type: ignore[return-value]
+
+    result = None
     try:
         # Check if bluetooth is connected
-        # For now, check if any bluetooth device is connected via bluetoothctl
         import subprocess
 
-        result = subprocess.run(
+        proc = subprocess.run(
             ["bluetoothctl", "devices", "Connected"],
             capture_output=True,
             text=True,
             timeout=2,
         )
         # If there are connected devices, the output won't be empty
-        if result.returncode == 0 and result.stdout.strip():
-            return StatusIndicator(
+        if proc.returncode == 0 and proc.stdout.strip():
+            result = StatusIndicator(
                 label="BT",
                 priority=25,
                 icon_path=ICON_BLUETOOTH,
             )
     except Exception:
         pass
-    return None
+
+    # Update cache
+    _bluetooth_cache["result"] = result
+    _bluetooth_cache["timestamp"] = now
+    return result
 
 
 def get_wifi_indicator() -> StatusIndicator | None:

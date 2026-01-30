@@ -558,6 +558,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     selector_idle_delay = 1.0
     selector_bounce_period = 0.4
     idle_animation_interval = max(0.05, selector_bounce_period / 8)
+    selector_animation_frame = 0  # Frame counter for smooth animation
+    selector_frames_per_cycle = 8  # Frames per full bounce cycle
 
     def calculate_transition_frames() -> int:
         context = display.get_display_context()
@@ -586,7 +588,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         force: bool = False,
         now: float | None = None,
     ) -> None:
-        nonlocal last_menu_activity_time, last_idle_animation_time
+        nonlocal last_menu_activity_time, last_idle_animation_time, selector_animation_frame
         if now is None:
             now = time.monotonic()
         current_screen = menu_navigator.current_screen()
@@ -625,12 +627,16 @@ def main(argv: Optional[list[str]] = None) -> None:
             last_menu_state["value"] = current_menu_state
             last_menu_activity_time = now
             last_idle_animation_time = now
+            selector_animation_frame = 0  # Reset animation on menu activity
         idle_seconds = max(0.0, now - last_menu_activity_time)
+        animation_active = idle_seconds >= selector_idle_delay
         selector_animation_tick = 0
-        if idle_seconds >= selector_idle_delay:
+        if animation_active:
             selector_animation_tick = int(
                 (idle_seconds - selector_idle_delay) / idle_animation_interval
             )
+        # Frame to pass to renderer (None when not animating)
+        current_animation_frame = selector_animation_frame if animation_active else None
         render_key = (
             current_screen.screen_id,
             tuple(items),
@@ -649,6 +655,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             if navigation_action is not None:
                 last_menu_activity_time = now
                 last_idle_animation_time = now
+                selector_animation_frame = 0  # Reset animation on navigation
             if screen_changed and navigation_action in {"forward", "back"}:
                 from_image = display.get_display_context().image.copy()
                 to_image = renderer.render_menu_image(
@@ -661,6 +668,8 @@ def main(argv: Optional[list[str]] = None) -> None:
                     title_icon=get_screen_icon(current_screen.screen_id),
                     now=now,
                     last_activity_time=last_menu_activity_time,
+                    selector_animation_frame=current_animation_frame,
+                    selector_frames_per_cycle=selector_frames_per_cycle,
                     app_context=app_context,
                     selected_item_icon=selected_item_icon,
                 )
@@ -693,11 +702,16 @@ def main(argv: Optional[list[str]] = None) -> None:
                     title_icon=get_screen_icon(current_screen.screen_id),
                     now=now,
                     last_activity_time=last_menu_activity_time,
+                    selector_animation_frame=current_animation_frame,
+                    selector_frames_per_cycle=selector_frames_per_cycle,
                     app_context=app_context,
                     selected_item_icon=selected_item_icon,
                 )
             last_render_state["key"] = render_key
             last_idle_animation_time = now
+            # Advance animation frame for next render (smooth frame-by-frame)
+            if animation_active:
+                selector_animation_frame += 1
 
     def handle_back() -> None:
         if app_context.operation_active and not app_context.allow_back_interrupt:
@@ -746,6 +760,11 @@ def main(argv: Optional[list[str]] = None) -> None:
             force_render = False
             now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
+                # Render animation frame before USB polling to minimize visible pause
+                # (USB polling can block for 50-500ms)
+                idle_secs = now - last_menu_activity_time
+                if idle_secs >= selector_idle_delay and not screensaver_active:
+                    render_current_screen(now=now)
                 raw_devices = get_raw_usb_snapshot()
                 if raw_devices != state.last_seen_raw_devices:
                     log_debug(
@@ -799,6 +818,9 @@ def main(argv: Optional[list[str]] = None) -> None:
                     state.last_seen_devices = current_devices
                     render_requested = True
                 state.last_usb_check = time.time()
+                # Re-sample time after USB polling to ensure animation timing
+                # is based on fresh timestamps (USB polling can block 50-500ms)
+                now = time.monotonic()
             if app_state.screensaver_enabled and not screensaver_active:
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SCREENSAVER_TIMEOUT:
@@ -943,6 +965,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             if button_pressed:
                 last_menu_activity_time = now
                 last_idle_animation_time = now
+                selector_animation_frame = 0  # Reset animation on button press
                 state.lcdstart = datetime.now()
                 state.run_once = 0
 

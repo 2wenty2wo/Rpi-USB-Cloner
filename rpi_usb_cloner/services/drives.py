@@ -87,6 +87,10 @@ _repo_device_cache: set[str] | None = None
 _startup_time: float | None = None
 _STARTUP_GRACE_PERIOD = 3.0  # Don't cache empty results for 3 seconds after startup
 
+# Cache for drive counts to avoid subprocess calls on every render
+_drive_counts_cache: dict[str, object] = {"counts": (0, 0), "timestamp": 0.0}
+_DRIVE_COUNTS_TTL = 2.0  # Cache TTL in seconds
+
 
 @dataclass
 class DriveSnapshot:
@@ -113,14 +117,15 @@ def _is_repo_on_mount(repo_path: Path, mount_path: Path) -> bool:
 
 
 def invalidate_repo_cache() -> None:
-    """Invalidate the repo device cache.
+    """Invalidate the repo device cache and drive counts cache.
 
     Call this when USB devices change to force a rescan of repo devices.
     This avoids expensive partition scanning on every menu render while still
     staying up-to-date when devices are added/removed.
     """
-    global _repo_device_cache
+    global _repo_device_cache, _drive_counts_cache
     _repo_device_cache = None
+    _drive_counts_cache = {"counts": (0, 0), "timestamp": 0.0}
 
 
 def _get_repo_device_names() -> set[str]:
@@ -317,11 +322,23 @@ def get_active_drive_label(active_drive: str | None) -> str | None:
 def get_drive_counts() -> tuple[int, int]:
     """Get counts of USB drives and repo drives.
 
+    Uses a 2-second cache to avoid subprocess calls on every render.
+
     Returns:
         Tuple of (usb_count, repo_count) where:
         - usb_count: Number of non-repo USB drives
         - repo_count: Number of repo drives
     """
+    import time
+
+    global _drive_counts_cache
+
+    # Check cache first
+    now = time.monotonic()
+    if now - _drive_counts_cache["timestamp"] < _DRIVE_COUNTS_TTL:  # type: ignore[operator]
+        return _drive_counts_cache["counts"]  # type: ignore[return-value]
+
+    # Calculate fresh counts
     repo_devices = _get_repo_device_names()
     all_devices = list_usb_disks()
     all_device_names = {d.get("name") for d in all_devices if d.get("name")}
@@ -329,4 +346,9 @@ def get_drive_counts() -> tuple[int, int]:
     repo_count = len(repo_devices & all_device_names)
     usb_count = len(all_device_names - repo_devices)
 
-    return usb_count, repo_count
+    # Update cache
+    counts = (usb_count, repo_count)
+    _drive_counts_cache["counts"] = counts
+    _drive_counts_cache["timestamp"] = now
+
+    return counts
