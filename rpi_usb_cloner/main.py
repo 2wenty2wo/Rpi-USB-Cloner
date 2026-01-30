@@ -99,7 +99,9 @@ import os
 import time
 from datetime import datetime
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Generator, Optional
+
+from PIL import Image
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
@@ -634,7 +636,11 @@ def main(argv: Optional[list[str]] = None) -> None:
                     status_line=status_line
                 )
                 dirty_region = (0, 0, context.width, footer_start)
-                transitions.render_slide_transition(
+                
+                # Start non-blocking transition
+                nonlocal active_transition, transition_next_frame_time, transition_to_image
+                transition_to_image = to_image
+                active_transition = transitions.generate_slide_transition(
                     from_image=from_image,
                     to_image=to_image,
                     direction=navigation_action,
@@ -642,11 +648,18 @@ def main(argv: Optional[list[str]] = None) -> None:
                     dirty_region=dirty_region,
                     frame_delay=get_transition_frame_delay(),
                 )
-                with display._display_lock:
-                    context = display.get_display_context()
-                    context.image.paste(to_image)
-                    context.disp.display(context.image)
-                    display.mark_display_dirty()
+                # Advance to first frame and get next frame time
+                try:
+                    transition_next_frame_time = next(active_transition)
+                except StopIteration:
+                    # Transition completed immediately (e.g., frame_count=0)
+                    active_transition = None
+                    transition_to_image = None
+                    with display._display_lock:
+                        context = display.get_display_context()
+                        context.image.paste(to_image)
+                        context.disp.display(context.image)
+                        display.mark_display_dirty()
             else:
                 renderer.render_menu_screen(
                     title=current_screen.title,
@@ -702,15 +715,47 @@ def main(argv: Optional[list[str]] = None) -> None:
     }
     screensaver_active = False
 
+    # Non-blocking transition state
+    active_transition: Generator[float, None, None] | None = None
+    transition_next_frame_time: float = 0.0
+    transition_to_image: Image.Image | None = None
+
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
 
     error_displayed = False
     try:
         while True:
+            # Handle non-blocking animation transitions first
+            transition_just_completed = False
+            if active_transition is not None:
+                now = time.monotonic()
+                if now >= transition_next_frame_time:
+                    try:
+                        transition_next_frame_time = next(active_transition)
+                    except StopIteration:
+                        # Transition complete - paste full to_image to update footer
+                        active_transition = None
+                        if transition_to_image is not None:
+                            with display._display_lock:
+                                context = display.get_display_context()
+                                context.image.paste(transition_to_image)
+                                context.disp.display(context.image)
+                                display.mark_display_dirty()
+                            transition_to_image = None
+                        transition_just_completed = True
+                else:
+                    # Not time for next frame yet, small sleep to prevent busy-wait
+                    time.sleep(0.001)
+                    continue
+
             render_requested = False
             force_render = False
             now = time.monotonic()
+            
+            # If transition just completed, force a render to update state
+            if transition_just_completed:
+                force_render = True
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 # Use batched snapshot for efficiency (single lsblk call)
                 # First pass: get raw/mount info to detect changes
