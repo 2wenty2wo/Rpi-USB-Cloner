@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.ui import display, menus, screens
 
@@ -28,8 +29,6 @@ from .system_utils import (
 )
 
 
-# Create logger for update operations
-log = LoggerFactory.for_system()
 
 OLED_LINE_MAX = 21
 
@@ -76,7 +75,7 @@ def _extract_error_hint(stderr: str, stdout: str = "", fallback: str = "") -> st
 def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
     """Check if updates are available."""
     if not is_git_repo(repo_root):
-        log.debug("Update status check: repo not found", component="update_manager")
+        logger.debug("Update status check: repo not found", component="update_manager")
         return "Repo not found", None, ""
     fetch = run_command(["git", "fetch", "--quiet"], cwd=repo_root)
     if fetch.returncode != 0:
@@ -86,7 +85,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             f"git fetch rc={fetch.returncode}",
         )
         if is_dubious_ownership_error(fetch.stderr):
-            log.debug(
+            logger.debug(
                 "Update status check: dubious ownership detected; retrying with "
                 "safe.directory",
                 component="update_manager",
@@ -101,7 +100,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                     fetch.stdout,
                     f"git fetch rc={fetch.returncode}",
                 )
-                log.warning(
+                logger.warning(
                     "Update check failed: git fetch retry failed "
                     f"rc={fetch.returncode} stderr={_escape_braces(repr(fetch.stderr))} "
                     f"hint={_escape_braces(repr(error_hint))}",
@@ -114,7 +113,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             )
             upstream_ref = upstream.stdout.strip()
             if upstream.returncode != 0 or not upstream_ref:
-                log.warning(
+                logger.warning(
                     "Update check failed: no upstream branch configured "
                     f"rc={upstream.returncode} stdout={_escape_braces(repr(upstream.stdout))} "
                     f"stderr={_escape_braces(repr(upstream.stderr))}",
@@ -131,7 +130,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                     behind.stdout,
                     f"git rev-list rc={behind.returncode}",
                 )
-                log.warning(
+                logger.warning(
                     "Update check failed: git rev-list failed after retry "
                     f"rc={behind.returncode} stderr={_escape_braces(repr(behind.stderr))} "
                     f"hint={_escape_braces(repr(error_hint))}",
@@ -139,7 +138,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 )
                 return "Unable to check", None, error_hint
             count = behind.stdout.strip()
-            log.debug(
+            logger.debug(
                 f"Update status check: behind count after retry="
                 f"{_escape_braces(repr(count))}",
                 component="update_manager",
@@ -149,7 +148,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
                 status = "Update available" if behind_count > 0 else "Up to date"
                 return status, behind_count, ""
             return "Up to date", None, ""
-        log.warning(
+        logger.warning(
             "Update check failed: git fetch failed "
             f"rc={fetch.returncode} stderr={_escape_braces(repr(fetch.stderr))} "
             f"hint={_escape_braces(repr(error_hint))}",
@@ -162,7 +161,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
     )
     upstream_ref = upstream.stdout.strip()
     if upstream.returncode != 0 or not upstream_ref:
-        log.debug("Update status check: upstream missing", component="update_manager")
+        logger.debug("Update status check: upstream missing", component="update_manager")
         return "No upstream configured", None, ""
     behind = run_command(
         ["git", "rev-list", "--count", "HEAD..@{u}"],
@@ -174,7 +173,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
             behind.stdout,
             f"git rev-list rc={behind.returncode}",
         )
-        log.warning(
+        logger.warning(
             "Update check failed: git rev-list failed "
             f"rc={behind.returncode} stderr={_escape_braces(repr(behind.stderr))} "
             f"hint={_escape_braces(repr(error_hint))}",
@@ -182,7 +181,7 @@ def get_update_status(repo_root: Path) -> tuple[str, Optional[int], str]:
         )
         return "Unable to check", None, error_hint
     count = behind.stdout.strip()
-    log.debug(
+    logger.debug(
         f"Update status check: behind count={_escape_braces(repr(count))}",
         component="update_manager",
     )
@@ -197,7 +196,7 @@ def check_update_status(repo_root: Path) -> tuple[str, Optional[int], str, str]:
     """Check update status and return with timestamp."""
     status, behind_count, error_hint = get_update_status(repo_root)
     last_checked = time.strftime("%Y-%m-%d %H:%M", time.localtime())
-    log.debug(
+    logger.debug(
         f"Update status check complete at {last_checked}: {status} "
         f"hint={error_hint!r}",
         component="update_manager",
@@ -260,11 +259,11 @@ def run_update_flow(
 ) -> None:
     """Execute the software update process."""
     repo_root = Path(__file__).resolve().parents[3]
-    log.debug(f"Repo root detection: {repo_root}", component="update_manager")
+    logger.debug(f"Repo root detection: {repo_root}", component="update_manager")
     is_repo = is_git_repo(repo_root)
-    log.debug(f"Repo root is git repo: {is_repo}", component="update_manager")
+    logger.debug(f"Repo root is git repo: {is_repo}", component="update_manager")
     if not is_repo:
-        log.debug("Update aborted: repo not found", component="update_manager")
+        logger.debug("Update aborted: repo not found", component="update_manager")
         screens.wait_for_paginated_input(
             title,
             ["Repo not found"],
@@ -273,14 +272,14 @@ def run_update_flow(
         return
     dirty_tree = has_dirty_working_tree(repo_root)
     if dirty_tree:
-        log.debug("Dirty working tree detected", component="update_manager")
+        logger.debug("Dirty working tree detected", component="update_manager")
     if not confirm_update_action(
         title,
         dirty_tree=dirty_tree,
         confirm_callback=confirm_action,
         title_icon=title_icon,
     ):
-        log.debug("Update canceled by confirmation prompt", component="update_manager")
+        logger.debug("Update canceled by confirmation prompt", component="update_manager")
         return
 
     def run_with_progress(
@@ -353,7 +352,7 @@ def run_update_flow(
     dubious_ownership = is_dubious_ownership_error(pull_result.stderr)
     safe_directory_added = False
     if dubious_ownership and is_running_under_systemd():
-        log.debug(
+        logger.debug(
             f"Dubious ownership detected; adding safe.directory for {repo_root}",
             component="update_manager",
         )
@@ -381,7 +380,7 @@ def run_update_flow(
         )
         output_lines = ownership_lines + output_lines
     if pull_result.returncode != 0:
-        log.debug(
+        logger.debug(
             f"Git pull failed with return code {pull_result.returncode}",
             component="update_manager",
         )
@@ -416,7 +415,7 @@ def run_update_flow(
             lambda update_progress: restart_systemd_service(),
         )
         if restart_result.returncode != 0:
-            log.debug(
+            logger.debug(
                 f"Service restart failed with return code {restart_result.returncode}",
                 component="update_manager",
             )
@@ -467,7 +466,7 @@ def update_version() -> None:
             )
         if "error" in error_holder:
             exc = error_holder["error"]
-            log.warning(
+            logger.warning(
                 f"Update check failed with exception: {type(exc).__name__}: "
                 f"{_escape_braces(str(exc))}",
                 component="update_manager",

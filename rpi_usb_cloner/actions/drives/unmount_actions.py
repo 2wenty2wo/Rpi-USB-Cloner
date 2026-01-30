@@ -10,7 +10,8 @@ from typing import Callable
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import EJECT_ICON
@@ -18,8 +19,6 @@ from rpi_usb_cloner.ui.icons import EJECT_ICON
 from ._utils import collect_mountpoints, handle_screenshot
 
 
-log_menu = LoggerFactory.for_menu()
-log_system = LoggerFactory.for_system()
 
 
 def unmount_drive(
@@ -76,34 +75,34 @@ def unmount_drive(
         return
 
     # Attempt to unmount
-    log_system.info("Attempting to unmount device", device=device_name)
+    logger.info("Attempting to unmount device", device=device_name)
     display.display_lines(["UNMOUNTING..."])
     success, used_lazy = unmount_device_with_retry(device)
 
     if not success:
-        log_system.error("Unmount failed", device=device_name)
+        logger.error("Unmount failed", device=device_name)
         display.display_lines(["UNMOUNT", "FAILED"])
         time.sleep(1)
         return
 
     # Show success message
     if used_lazy:
-        log_system.info("Device unmounted (lazy)", device=device_name)
+        logger.info("Device unmounted (lazy)", device=device_name)
         display.display_lines(["UNMOUNTED", "(lazy)"])
     else:
-        log_system.info("Device unmounted successfully", device=device_name)
+        logger.info("Device unmounted successfully", device=device_name)
         display.display_lines(["UNMOUNTED"])
     time.sleep(0.5)
 
     # Offer to power off drive
     if _confirm_power_off(state, device_name):
-        log_system.info("Attempting to power off device", device=device_name)
+        logger.info("Attempting to power off device", device=device_name)
         display.display_lines(["POWERING OFF..."])
         if power_off_device(device):
-            log_system.info("Device powered off successfully", device=device_name)
+            logger.info("Device powered off successfully", device=device_name)
             display.display_lines(["POWERED OFF"])
         else:
-            log_system.error("Power off failed", device=device_name)
+            logger.error("Power off failed", device=device_name)
             display.display_lines(["POWER OFF", "FAILED"])
         time.sleep(1)
 
@@ -130,12 +129,12 @@ def _confirm_unmount(state: app_state.AppState, device_name: str) -> bool:
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            log_menu.debug("Unmount selection changed: YES")
+            logger.debug("Unmount selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            log_menu.debug("Unmount selection changed: NO")
+            logger.debug("Unmount selection changed: NO")
 
     confirmed = gpio.poll_button_events(
         {
@@ -174,12 +173,12 @@ def _confirm_power_off(state: app_state.AppState, device_name: str) -> bool:
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            log_menu.debug("Power off selection changed: YES")
+            logger.debug("Power off selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            log_menu.debug("Power off selection changed: NO")
+            logger.debug("Power off selection changed: NO")
 
     confirmed = gpio.poll_button_events(
         {

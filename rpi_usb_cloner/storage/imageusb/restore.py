@@ -8,7 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone.command_runners import (
     run_checked_with_streaming_progress,
@@ -18,7 +19,7 @@ from rpi_usb_cloner.storage.clone.models import resolve_device_node
 from .detection import IMAGEUSB_HEADER_SIZE, validate_imageusb_file
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def restore_imageusb_file(

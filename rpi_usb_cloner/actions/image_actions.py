@@ -10,7 +10,7 @@ from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
 from rpi_usb_cloner.storage import clone, clonezilla, devices, image_repo, imageusb, iso
 from rpi_usb_cloner.storage.clonezilla.backup import check_tool_available
 from rpi_usb_cloner.ui import display, menus, screens
@@ -338,7 +338,7 @@ def backup_image(
 
     # Step 8: Execute backup with progress
     job_id = f"backup-{uuid4().hex}"
-    op_log = get_logger(job_id=job_id, tags=["backup"], source="backup")
+    op_log = logger.bind(job_id=job_id, tags=["backup"], source="backup")
     op_log.info(
         "Starting backup: %s -> %s (%s)",
         source_name,
@@ -650,7 +650,7 @@ def write_image(
     progress_ratio_snapshot: Optional[float] = 0.0
     start_time = time.monotonic()
     job_id = f"restore-{uuid4().hex}"
-    op_log = get_logger(job_id=job_id, tags=["restore"], source="restore")
+    op_log = logger.bind(job_id=job_id, tags=["restore"], source="restore")
     op_log.info(
         "Starting restore: %s -> %s (mode %s)",
         selected_image.name,

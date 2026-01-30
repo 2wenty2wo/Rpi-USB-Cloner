@@ -6,7 +6,8 @@ from typing import Callable, Optional
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.ui import display, menus, screens
 
 from .system_utils import (
@@ -23,7 +24,6 @@ from .system_utils import (
 
 
 # Create logger for power management
-log = LoggerFactory.for_system()
 
 
 _SERVICE_NAME = "rpi-usb-cloner.service"
@@ -36,7 +36,7 @@ def restart_service() -> None:
     display.clear_display()
     restart_result = restart_systemd_service()
     if restart_result.returncode != 0:
-        log.debug(
+        logger.debug(
             f"Service restart failed with return code {restart_result.returncode}",
             component="power",
         )
@@ -57,7 +57,7 @@ def stop_service() -> None:
     display.clear_display()
     stop_result = stop_systemd_service()
     if stop_result.returncode != 0:
-        log.debug(
+        logger.debug(
             f"Service stop failed with return code {stop_result.returncode}",
             component="power",
         )
@@ -82,7 +82,7 @@ def restart_system() -> None:
     display.clear_display()
     reboot_result = reboot_system()
     if reboot_result.returncode != 0:
-        log.debug(
+        logger.debug(
             f"System reboot failed with return code {reboot_result.returncode}",
             component="power",
         )
@@ -104,7 +104,7 @@ def shutdown_system() -> None:
     display.clear_display()
     shutdown_result = poweroff_system()
     if shutdown_result.returncode != 0:
-        log.debug(
+        logger.debug(
             f"System poweroff failed with return code {shutdown_result.returncode}",
             component="power",
         )
@@ -145,11 +145,11 @@ def confirm_action(
         current_r = gpio.is_pressed(gpio.PIN_R)
         if not prev_states["R"] and current_r and selection == app_state.CONFIRM_NO:
             selection = app_state.CONFIRM_YES
-            log.debug(f"Confirmation selection changed: {selection}", component="power")
+            logger.debug(f"Confirmation selection changed: {selection}", component="power")
         current_l = gpio.is_pressed(gpio.PIN_L)
         if not prev_states["L"] and current_l and selection == app_state.CONFIRM_YES:
             selection = app_state.CONFIRM_NO
-            log.debug(f"Confirmation selection changed: {selection}", component="power")
+            logger.debug(f"Confirmation selection changed: {selection}", component="power")
         current_a = gpio.is_pressed(gpio.PIN_A)
         if not prev_states["A"] and current_a:
             return False
@@ -183,7 +183,7 @@ def confirm_power_action(
     """Confirm a power action with the user."""
     prompt = build_power_action_prompt(action_label)
     confirmed = confirm_callback(title, prompt)
-    log.debug(
+    logger.debug(
         f"Power action confirmation {action_label}: confirmed={confirmed}",
         component="power",
     )

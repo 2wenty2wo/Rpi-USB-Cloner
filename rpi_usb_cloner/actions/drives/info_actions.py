@@ -11,7 +11,8 @@ from typing import Callable
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage.devices import (
     get_children,
     human_size,
@@ -23,7 +24,6 @@ from rpi_usb_cloner.ui.icons import DRIVES_ICON
 from ._utils import handle_screenshot
 
 
-log_system = LoggerFactory.for_system()
 
 
 def drive_info(
@@ -240,7 +240,7 @@ def _render_disk_usage_page(
             used_bytes += used
             partition_count += 1
         except (FileNotFoundError, PermissionError, OSError) as error:
-            log_system.debug(
+            logger.debug(
                 "Disk usage check failed", mountpoint=mountpoint, error=str(error)
             )
 

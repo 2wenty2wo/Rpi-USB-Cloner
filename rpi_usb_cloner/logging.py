@@ -6,7 +6,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
@@ -252,33 +252,6 @@ def setup_logging(
     return logger
 
 
-def get_logger(
-    *,
-    job_id: str | None = None,
-    tags: Iterable[str] | None = None,
-    source: str | None = None,
-) -> Logger:
-    """
-    Get a logger with bound context.
-
-    Args:
-        job_id: Job identifier for tracking operations
-        tags: Tags for filtering (e.g., ["clone", "storage"])
-        source: Source component (e.g., "clone", "usb", "web")
-
-    Returns:
-        Logger with bound context
-    """
-    extras: dict[str, object] = {}
-    if job_id is not None:
-        extras["job_id"] = job_id
-    if tags is not None:
-        extras["tags"] = list(tags)
-    if source is not None:
-        extras["source"] = source
-    return logger.bind(**extras)
-
-
 @contextmanager
 def job_context(job_id: str, **extra):
     """
@@ -291,7 +264,9 @@ def job_context(job_id: str, **extra):
     Yields:
         Logger with bound job_id
     """
-    yield get_logger(job_id=job_id, **extra)
+    extras: dict[str, object] = {"job_id": job_id}
+    extras.update(extra)
+    yield logger.bind(**extras)
 
 
 @contextmanager
@@ -344,62 +319,6 @@ def operation_context(operation: str, **details):
                 duration_seconds=round(duration, 2),
             )
             raise
-
-
-class LoggerFactory:
-    """
-    Factory for creating domain-specific loggers with automatic context.
-
-    Each factory method returns a logger pre-configured with appropriate
-    source, tags, and context for the domain.
-    """
-
-    @staticmethod
-    def for_clone(job_id: str | None = None, **details) -> Logger:
-        """Logger for clone operations."""
-        if job_id is None:
-            job_id = f"clone-{uuid.uuid4().hex[:8]}"
-        return logger.bind(
-            job_id=job_id, source="clone", tags=["clone", "storage"], **details
-        )
-
-    @staticmethod
-    def for_usb() -> Logger:
-        """Logger for USB device detection and management."""
-        return logger.bind(source="usb", tags=["usb", "hardware"])
-
-    @staticmethod
-    def for_web(connection_id: str | None = None) -> Logger:
-        """Logger for web server operations."""
-        if connection_id is None:
-            connection_id = "-"
-        return logger.bind(
-            source="web", tags=["web", "ws"], connection_id=connection_id
-        )
-
-    @staticmethod
-    def for_menu() -> Logger:
-        """Logger for menu navigation and UI operations."""
-        return logger.bind(source="menu", tags=["ui", "menu"])
-
-    @staticmethod
-    def for_gpio() -> Logger:
-        """Logger for GPIO/hardware button operations."""
-        return logger.bind(source="gpio", tags=["gpio", "hardware", "button"])
-
-    @staticmethod
-    def for_clonezilla(job_id: str | None = None) -> Logger:
-        """Logger for Clonezilla backup/restore operations."""
-        if job_id is None:
-            job_id = f"clonezilla-{uuid.uuid4().hex[:8]}"
-        return logger.bind(
-            job_id=job_id, source="clonezilla", tags=["clonezilla", "backup"]
-        )
-
-    @staticmethod
-    def for_system() -> Logger:
-        """Logger for system operations (startup, shutdown, config)."""
-        return logger.bind(source="system", tags=["system"])
 
 
 class ThrottledLogger:

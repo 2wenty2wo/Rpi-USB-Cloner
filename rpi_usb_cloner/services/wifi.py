@@ -7,11 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Iterable, Sequence, TypedDict
 
-from rpi_usb_cloner.logging import LoggerFactory
-
-
-# Create logger for WiFi operations
-log = LoggerFactory.for_system()
+from loguru import logger
 
 _error_handler: Callable[[Iterable[str]], None] | None
 _command_runner: (
@@ -43,7 +39,7 @@ def configure_wifi_helpers(
 ) -> None:
     """Configure WiFi helpers (kept for backwards compatibility).
 
-    Note: log_debug parameter is ignored - logging now uses LoggerFactory.
+    Note: log_debug parameter is ignored - logging now uses loguru.
     """
     global _error_handler, _command_runner
     _error_handler = error_handler
@@ -130,26 +126,26 @@ def _run_command(
 ) -> subprocess.CompletedProcess[str]:
     runner = _command_runner or _default_runner
     command_display = _format_command(command, redactions)
-    log.debug(f"Running command: {command_display}")
+    logger.debug(f"Running command: {command_display}")
     try:
         result = runner(command, check)
     except subprocess.CalledProcessError as error:
-        log.debug(f"Command failed: {command_display}")
+        logger.debug(f"Command failed: {command_display}")
         if error.stdout:
-            log.debug(f"stdout: {error.stdout.strip()}")
+            logger.debug(f"stdout: {error.stdout.strip()}")
         if error.stderr:
-            log.debug(f"stderr: {error.stderr.strip()}")
+            logger.debug(f"stderr: {error.stderr.strip()}")
         raise
     if result.stdout:
-        log.debug(f"stdout: {result.stdout.strip()}")
+        logger.debug(f"stdout: {result.stdout.strip()}")
     if result.stderr:
-        log.debug(f"stderr: {result.stderr.strip()}")
-    log.debug(f"Command completed with return code {result.returncode}")
+        logger.debug(f"stderr: {result.stderr.strip()}")
+    logger.debug(f"Command completed with return code {result.returncode}")
     return result
 
 
 def _notify_error(message: str) -> None:
-    log.debug(message)
+    logger.debug(message)
     if _error_handler:
         _error_handler(["WIFI ERROR", message])
 
@@ -165,7 +161,7 @@ def list_wifi_interfaces() -> list[str]:
                 if len(parts) >= 2:
                     interfaces.append(parts[1])
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"iw dev failed: {error}")
+        logger.debug(f"iw dev failed: {error}")
     if interfaces:
         return interfaces
 
@@ -178,7 +174,7 @@ def list_wifi_interfaces() -> list[str]:
             if device_type == "wifi" and device:
                 interfaces.append(device)
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"nmcli device status failed: {error}")
+        logger.debug(f"nmcli device status failed: {error}")
 
     if not interfaces:
         _notify_error("No Wi-Fi interfaces detected.")
@@ -203,7 +199,7 @@ def _select_active_interface() -> str | None:
             if device_type == "wifi" and state == "connected" and device in interfaces:
                 return device
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"nmcli device status failed: {error}")
+        logger.debug(f"nmcli device status failed: {error}")
     return interfaces[0]
 
 
@@ -225,14 +221,14 @@ def list_networks() -> list[WifiNetwork]:
         try:
             _run_command(["rfkill", "unblock", "wifi"])
         except FileNotFoundError as error:
-            log.debug(f"rfkill not available: {error}")
+            logger.debug(f"rfkill not available: {error}")
         except subprocess.CalledProcessError as error:
-            log.debug(f"rfkill unblock failed: {error}")
+            logger.debug(f"rfkill unblock failed: {error}")
 
         try:
             _run_command(["ip", "link", "set", interface, "up"])
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            log.debug(f"ip link set up failed: {error}")
+            logger.debug(f"ip link set up failed: {error}")
 
     def _parse_signal_line(value: str) -> int | None:
         match = re.search(r"(-?\d+(?:\.\d+)?)", value)
@@ -357,7 +353,7 @@ def list_networks() -> list[WifiNetwork]:
         iw_command = ["iw", "dev", interface, "scan"]
         iw_command_display = _format_command(iw_command)
         try:
-            log.debug(f"Running command: {iw_command_display}")
+            logger.debug(f"Running command: {iw_command_display}")
             result = subprocess.run(
                 iw_command,
                 check=True,
@@ -366,24 +362,24 @@ def list_networks() -> list[WifiNetwork]:
                 timeout=10,
             )
             if result.stdout:
-                log.debug(f"stdout: {result.stdout.strip()}")
+                logger.debug(f"stdout: {result.stdout.strip()}")
             if result.stderr:
-                log.debug(f"stderr: {result.stderr.strip()}")
-            log.debug(f"Command completed with return code {result.returncode}")
+                logger.debug(f"stderr: {result.stderr.strip()}")
+            logger.debug(f"Command completed with return code {result.returncode}")
             networks = _parse_iw_scan(result.stdout)
             if networks:
                 return networks
         except subprocess.TimeoutExpired:
-            log.debug("iw scan timed out")
+            logger.debug("iw scan timed out")
             _notify_error("Wi-Fi scan timed out.")
             return []
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            log.debug(f"iw scan failed: {error}")
+            logger.debug(f"iw scan failed: {error}")
             if isinstance(error, subprocess.CalledProcessError):
                 if error.stdout:
-                    log.debug(f"stdout: {error.stdout.strip()}")
+                    logger.debug(f"stdout: {error.stdout.strip()}")
                 if error.stderr:
-                    log.debug(f"stderr: {error.stderr.strip()}")
+                    logger.debug(f"stderr: {error.stderr.strip()}")
 
         try:
             result = _run_command(["iwlist", interface, "scan"])
@@ -391,7 +387,7 @@ def list_networks() -> list[WifiNetwork]:
             if networks:
                 return networks
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            log.debug(f"iwlist scan failed: {error}")
+            logger.debug(f"iwlist scan failed: {error}")
 
         _notify_error("No Wi-Fi networks found.")
         return []
@@ -418,11 +414,11 @@ def list_networks() -> list[WifiNetwork]:
                 ]
             )
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
-            log.debug(f"nmcli scan failed: {error}")
+            logger.debug(f"nmcli scan failed: {error}")
             return _scan_with_iw()
 
         if not result.stdout.strip():
-            log.debug("nmcli stdout empty or whitespace-only; nmcli returned no APs.")
+            logger.debug("nmcli stdout empty or whitespace-only; nmcli returned no APs.")
 
         networks: list[WifiNetwork] = []
         non_empty_ssid = False
@@ -447,7 +443,7 @@ def list_networks() -> list[WifiNetwork]:
                 )
             )
         if not networks:
-            log.debug(
+            logger.debug(
                 "nmcli parsing produced no networks; retrying nmcli before falling back."
             )
             continue
@@ -476,7 +472,7 @@ def get_active_ssid(interface: str | None = None) -> str | None:
             if active == "yes" and device == interface and current_ssid:
                 return current_ssid
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"nmcli active SSID lookup failed: {error}")
+        logger.debug(f"nmcli active SSID lookup failed: {error}")
 
     try:
         result = _run_command(["iw", "dev"])
@@ -492,7 +488,7 @@ def get_active_ssid(interface: str | None = None) -> str | None:
                 if current_ssid:
                     return current_ssid
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"iw dev SSID lookup failed: {error}")
+        logger.debug(f"iw dev SSID lookup failed: {error}")
     return None
 
 
@@ -512,7 +508,7 @@ def connect(ssid: str, password: str | None = None) -> bool:
 
     active_ssid = get_active_ssid()
     if active_ssid and active_ssid == ssid:
-        log.debug(f"Already connected to SSID {ssid} on {interface}")
+        logger.debug(f"Already connected to SSID {ssid} on {interface}")
         return True
 
     if not password:
@@ -656,7 +652,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
                 if ip_address:
                     ip_value = ip_address.split(",", 1)[0].split("/", 1)[0]
             except (FileNotFoundError, subprocess.CalledProcessError) as error:
-                log.debug(f"nmcli ip lookup failed: {error}")
+                logger.debug(f"nmcli ip lookup failed: {error}")
             if not ip_value:
                 ip_value = get_ip_address()
             active_ssid = get_active_ssid(device)
@@ -667,7 +663,7 @@ def get_status_cached(ttl_s: float = 1.0) -> dict:
             }
             break
     except (FileNotFoundError, subprocess.CalledProcessError) as error:
-        log.debug(f"nmcli status lookup failed: {error}")
+        logger.debug(f"nmcli status lookup failed: {error}")
 
     with _STATUS_CACHE_LOCK:
         _STATUS_CACHE.update(status)

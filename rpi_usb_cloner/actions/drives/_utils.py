@@ -11,14 +11,14 @@ from typing import Callable, Iterable
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config import settings
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage.devices import format_device_label, get_children
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON
 
 
-log_menu = LoggerFactory.for_menu()
 
 
 def apply_confirmation_selection(selection: int, direction: str) -> int:
@@ -90,7 +90,7 @@ def confirm_destructive_action(
         updated = apply_confirmation_selection(selection[0], "right")
         if updated != selection[0]:
             selection[0] = updated
-            log_menu.debug("Destructive action confirmation changed: YES")
+            logger.debug("Destructive action confirmation changed: YES")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
@@ -98,7 +98,7 @@ def confirm_destructive_action(
         updated = apply_confirmation_selection(selection[0], "left")
         if updated != selection[0]:
             selection[0] = updated
-            log_menu.debug("Destructive action confirmation changed: NO")
+            logger.debug("Destructive action confirmation changed: NO")
             state.run_once = 0
             state.lcdstart = datetime.now()
 

@@ -483,7 +483,7 @@ save_settings()
 
 **Framework**: loguru (structured logging with multi-sink support)
 **Log Directory**: `~/.local/state/rpi-usb-cloner/logs/` (override with `RPI_USB_CLONER_LOG_DIR`)
-**Architecture**: 100% LoggerFactory-based (callback-free since 2026-01-25)
+**Architecture**: Direct loguru usage throughout the codebase
 
 #### Log Files
 | File | Level | Retention | Purpose |
@@ -493,22 +493,21 @@ save_settings()
 | `trace.log` | TRACE+ | 1 day | Ultra-verbose (--trace mode) |
 | `structured.jsonl` | INFO+ | 7 days | Machine-parseable JSON logs |
 
-#### Logger Factory API (`logging.py`)
-All modules use `LoggerFactory` directly - no callback configuration needed.
+#### Logging API
+All modules use loguru directly:
 
 ```python
-from rpi_usb_cloner.logging import LoggerFactory, operation_context
+from loguru import logger
 
-# Domain-specific loggers (pre-configured with source/tags)
-log = LoggerFactory.for_clone(job_id="clone-abc123")  # source="clone", tags=["clone", "storage"]
-log = LoggerFactory.for_usb()                          # source="usb", tags=["usb", "hardware"]
-log = LoggerFactory.for_web(connection_id="ws-123")    # source="web", tags=["web", "ws"]
-log = LoggerFactory.for_clonezilla()                   # source="clonezilla", tags=["clonezilla", "backup"]
-log = LoggerFactory.for_gpio()                         # source="gpio", tags=["gpio", "hardware", "button"]
-log = LoggerFactory.for_menu()                         # source="menu", tags=["ui", "menu"]
-log = LoggerFactory.for_system()                       # source="system", tags=["system"]
+# Simple logging
+logger.debug("Debug message")
+logger.info("Info message")
+logger.warning("Warning message")
+logger.error("Error message")
 
 # Operation tracking with automatic timing
+from rpi_usb_cloner.logging import operation_context
+
 with operation_context("clone", source="/dev/sda", target="/dev/sdb") as log:
     log.info("Clone progress", percent=50)
     # Auto-logs start, completion/failure, and duration
@@ -1340,15 +1339,9 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 #### 2026-01-25: Logging System - Callback-Free Migration ✅
 **Infrastructure Changes**:
-- **100% LoggerFactory Coverage**: All modules now use `LoggerFactory` directly (no callbacks)
+- **Direct loguru usage**: All modules now use `from loguru import logger` directly
 - **Removed Callback Infrastructure**: Eliminated `configure_progress_logger()` and `configure_display_helpers()` functions
 - **Cleaned Compatibility Layer**: Removed obsolete exports from `storage/clone/__init__.py` and `storage/clone.py`
-
-**Modules Migrated**:
-- `storage/clone/progress.py` - Progress monitoring now uses LoggerFactory
-- `storage/clone/command_runners.py` - Command execution logging migrated
-- `ui/display.py` - Display module uses `LoggerFactory.for_menu()`
-- `storage/mount.py` - Mount utilities use `LoggerFactory.for_system()`
 
 **Impact**:
 - ~170+ logging calls converted from callbacks/print to loguru
@@ -1854,24 +1847,19 @@ get_drive_counts() -> tuple[int, int]       # Returns (usb_count, repo_count)
 ```python
 # logging.py
 setup_logging(app_context, debug=False, trace=False) -> Logger
-get_logger(job_id=None, tags=None, source=None) -> Logger
 
 # Context managers
 with operation_context("clone", source="/dev/sda") as log:
     log.info("Progress", percent=50)  # Auto-logs duration on exit
 
-# Factory methods (all modules use these directly - no callbacks)
-LoggerFactory.for_clone(job_id=None) -> Logger      # Clone operations
-LoggerFactory.for_usb() -> Logger                    # USB device detection
-LoggerFactory.for_web(connection_id=None) -> Logger  # Web server
-LoggerFactory.for_clonezilla(job_id=None) -> Logger  # Clonezilla operations
-LoggerFactory.for_gpio() -> Logger                   # GPIO/hardware buttons
-LoggerFactory.for_menu() -> Logger                   # Menu navigation/UI
-LoggerFactory.for_system() -> Logger                 # System operations
+# Direct loguru usage (all modules)
+from loguru import logger
+logger.debug("Debug message")
+logger.info("Info message")
 
 # Utility classes
-ThrottledLogger(log, interval_seconds=5.0)  # Rate-limited logging
-EventLogger.log_clone_started(log, source, target, mode)  # Structured events
+ThrottledLogger(logger, interval_seconds=5.0)  # Rate-limited logging
+EventLogger.log_clone_started(logger, source, target, mode)  # Structured events
 ```
 
 ---

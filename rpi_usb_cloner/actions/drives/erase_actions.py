@@ -11,7 +11,8 @@ from typing import Callable
 from uuid import uuid4
 
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.logging import LoggerFactory, get_logger
+from loguru import logger
+
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage.clone import erase_device
 from rpi_usb_cloner.storage.devices import (
@@ -29,7 +30,6 @@ from ._utils import (
 )
 
 
-log_operation = LoggerFactory.for_clone()
 
 
 def erase_drive(
@@ -74,7 +74,7 @@ def erase_drive(
 
     # Threading pattern for progress screen
     job_id = f"erase-{uuid4().hex}"
-    op_log = get_logger(job_id=job_id, tags=["erase"], source="erase")
+    op_log = logger.bind(job_id=job_id, tags=["erase"], source="erase")
     op_log.info(f"Starting erase: {target_name} (mode {mode})")
 
     done = threading.Event()
@@ -135,7 +135,7 @@ def erase_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        log_operation.error(
+        logger.error(
             "Erase failed with exception",
             device=target_name,
             mode=mode,
@@ -143,10 +143,10 @@ def erase_drive(
         )
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
-        log_operation.error("Erase failed", device=target_name, mode=mode)
+        logger.error("Erase failed", device=target_name, mode=mode)
         screens.render_status_template("ERASE", "Failed", progress_line="Check logs.")
     else:
-        log_operation.info(
+        logger.info(
             "Erase completed successfully", device=target_name, mode=mode
         )
         screens.render_status_template("ERASE", "Done", progress_line="Complete.")

@@ -13,14 +13,15 @@ from typing import cast
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.domain import DiskImage
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.services import transfer
 from rpi_usb_cloner.storage import devices, image_repo
 from rpi_usb_cloner.ui import display, menus, screens
 from rpi_usb_cloner.ui.icons import ALERT_ICON, FOLDER_ICON
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def copy_images_to_usb(*, app_context: AppContext) -> None:

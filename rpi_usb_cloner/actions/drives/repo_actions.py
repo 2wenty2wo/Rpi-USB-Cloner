@@ -11,7 +11,8 @@ from typing import Callable
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage.devices import get_children, list_usb_disks
 from rpi_usb_cloner.ui import display, menus, screens
@@ -20,8 +21,6 @@ from rpi_usb_cloner.ui.icons import ALERT_ICON, FOLDER_ICON
 from ._utils import handle_screenshot
 
 
-log_menu = LoggerFactory.for_menu()
-log_system = LoggerFactory.for_system()
 
 
 def create_repo_drive(
@@ -98,12 +97,12 @@ def create_repo_drive(
 
     # Create the flag file
     flag_path = Path(mountpoint) / image_repo.REPO_FLAG_FILENAME
-    log_system.info("Creating repo flag file", device=target_name, path=str(flag_path))
+    logger.info("Creating repo flag file", device=target_name, path=str(flag_path))
     display.display_lines(["CREATING REPO..."])
 
     try:
         flag_path.touch(exist_ok=True)
-        log_system.info(
+        logger.info(
             "Successfully created repo flag file",
             device=target_name,
             path=str(flag_path),
@@ -120,7 +119,7 @@ def create_repo_drive(
         time.sleep(1.5)
 
     except OSError as error:
-        log_system.error(
+        logger.error(
             "Failed to create repo flag file",
             device=target_name,
             path=str(flag_path),
@@ -158,12 +157,12 @@ def _confirm_create_repo(state: app_state.AppState, target_name: str) -> bool:
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            log_menu.debug("Create repo selection changed: YES")
+            logger.debug("Create repo selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            log_menu.debug("Create repo selection changed: NO")
+            logger.debug("Create repo selection changed: NO")
 
     confirmed = gpio.poll_button_events(
         {
@@ -197,14 +196,14 @@ def _get_or_mount_partition(
             continue
 
         if mountpoint:
-            log_system.debug(
+            logger.debug(
                 "Using mounted partition",
                 partition=partition_name,
                 mountpoint=mountpoint,
             )
             break
 
-        log_system.info(
+        logger.info(
             "Mounting partition for repo creation", partition=partition_name
         )
         display.display_lines(["MOUNTING..."])
@@ -213,7 +212,7 @@ def _get_or_mount_partition(
             partition_node = f"/dev/{partition_name}"
             mount_module.mount_partition(partition_node, name=partition_name)
         except (ValueError, RuntimeError) as error:
-            log_system.warning(
+            logger.warning(
                 "Failed to mount partition", partition=partition_name, error=str(error)
             )
             continue
@@ -228,7 +227,7 @@ def _get_or_mount_partition(
                 break
 
         if mountpoint:
-            log_system.info(
+            logger.info(
                 "Mounted partition successfully",
                 partition=partition_name,
                 mountpoint=mountpoint,

@@ -12,7 +12,8 @@ import time
 
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.services import discovery, wifi_direct
 from rpi_usb_cloner.services.peer_transfer_server import TransferServer
 from rpi_usb_cloner.storage import image_repo
@@ -26,7 +27,7 @@ from .network_transfer_actions import (
 )
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def wifi_direct_host(*, app_context: AppContext) -> None:

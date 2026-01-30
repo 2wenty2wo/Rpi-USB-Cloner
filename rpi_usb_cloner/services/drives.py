@@ -71,13 +71,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from rpi_usb_cloner.domain import Drive
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
 from rpi_usb_cloner.storage import devices as storage_devices
 from rpi_usb_cloner.storage.devices import format_device_label, list_usb_disks
 from rpi_usb_cloner.storage.image_repo import find_image_repos
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 # Cache for repo device names to avoid expensive scanning on every menu render

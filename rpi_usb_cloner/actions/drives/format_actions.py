@@ -11,7 +11,8 @@ from typing import Callable
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
@@ -30,8 +31,6 @@ from ._utils import (
 )
 
 
-log_menu = LoggerFactory.for_menu()
-log_operation = LoggerFactory.for_clone()
 
 
 def format_drive(
@@ -161,7 +160,7 @@ def format_drive(
 
     if "error" in error_holder:
         error = error_holder["error"]
-        log_operation.error(
+        logger.error(
             "Format failed with exception",
             device=target_name,
             filesystem=filesystem,
@@ -171,7 +170,7 @@ def format_drive(
         )
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     elif not result_holder.get("result", False):
-        log_operation.error(
+        logger.error(
             "Format failed",
             device=target_name,
             filesystem=filesystem,
@@ -181,7 +180,7 @@ def format_drive(
         screens.render_status_template("FORMAT", "Failed", progress_line="Check logs.")
     else:
         formatted_label = format_device_label(target)
-        log_operation.debug(
+        logger.debug(
             "Format completed (action) for {}",
             formatted_label,
             device=target_name,
@@ -218,12 +217,12 @@ def _prompt_for_label(state: app_state.AppState) -> str | None:
     def on_right():
         if selection[0] == app_state.CONFIRM_NO:
             selection[0] = app_state.CONFIRM_YES
-            log_menu.debug("Format label selection changed: YES")
+            logger.debug("Format label selection changed: YES")
 
     def on_left():
         if selection[0] == app_state.CONFIRM_YES:
             selection[0] = app_state.CONFIRM_NO
-            log_menu.debug("Format label selection changed: NO")
+            logger.debug("Format label selection changed: NO")
 
     add_label = gpio.poll_button_events(
         {

@@ -4,7 +4,8 @@ import shutil
 
 import rpi_usb_cloner.ui.display as display
 from rpi_usb_cloner.app import state as app_state
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
@@ -23,8 +24,6 @@ from rpi_usb_cloner.storage.validation import (
 from .command_runners import run_checked_with_streaming_progress
 
 
-# Create logger for erase operations
-log = LoggerFactory.for_clone()
 
 
 def display_lines(lines):
@@ -56,14 +55,14 @@ def erase_device(target, mode, progress_callback=None):
             progress_callback(["ERROR", "Device busy"], None)
         else:
             display_lines(["ERROR", "Device busy"])
-        log.error(f"Erase aborted: {error}")
+        logger.error(f"Erase aborted: {error}")
         return False
     except Exception as error:
         if progress_callback:
             progress_callback(["ERROR", "Validation"], None)
         else:
             display_lines(["ERROR", "Validation"])
-        log.error(f"Erase aborted: validation failed: {error}")
+        logger.error(f"Erase aborted: validation failed: {error}")
         return False
 
     target_name = target.get("name")
@@ -76,7 +75,7 @@ def erase_device(target, mode, progress_callback=None):
                 progress_callback(["ERROR", "Unmount failed"], None)
             else:
                 display_lines(["ERROR", "Unmount failed"])
-            log.error("Erase aborted: target unmount failed")
+            logger.error("Erase aborted: target unmount failed")
             return False
         try:
             refreshed_target = get_device_by_name(target.get("name")) or target
@@ -86,14 +85,14 @@ def erase_device(target, mode, progress_callback=None):
                 progress_callback(["ERROR", "Device busy"], None)
             else:
                 display_lines(["ERROR", "Device busy"])
-            log.error(f"Erase aborted: {error}")
+            logger.error(f"Erase aborted: {error}")
             return False
         except Exception as error:
             if progress_callback:
                 progress_callback(["ERROR", "Validation"], None)
             else:
                 display_lines(["ERROR", "Validation"])
-            log.error(f"Erase aborted: validation failed: {error}")
+            logger.error(f"Erase aborted: validation failed: {error}")
             return False
         mode = (mode or "").lower()
         device_label = format_device_label(target)
@@ -124,14 +123,14 @@ def erase_device(target, mode, progress_callback=None):
                 )
                 return True
             except Exception as e:
-                log.error(f"Erase command failed: {e}")
+                logger.error(f"Erase command failed: {e}")
                 return False
 
         if mode == "secure":
             shred_path = shutil.which("shred")
             if not shred_path:
                 emit_error("no shred tool")
-                log.error("Erase failed: shred not available")
+                logger.error("Erase failed: shred not available")
                 return False
             return run_erase_command(
                 [shred_path, "-v", "-n", "1", "-z", target_node],
@@ -142,7 +141,7 @@ def erase_device(target, mode, progress_callback=None):
             discard_path = shutil.which("blkdiscard")
             if not discard_path:
                 emit_error("no discard")
-                log.error("Erase failed: blkdiscard not available")
+                logger.error("Erase failed: blkdiscard not available")
                 return False
             return run_erase_command([discard_path, target_node])
 
@@ -150,7 +149,7 @@ def erase_device(target, mode, progress_callback=None):
             dd_path = shutil.which("dd")
             if not dd_path:
                 emit_error("no dd tool")
-                log.error("Erase failed: dd not available")
+                logger.error("Erase failed: dd not available")
                 return False
             return run_erase_command(
                 [
@@ -166,19 +165,19 @@ def erase_device(target, mode, progress_callback=None):
 
         if mode != "quick":
             emit_error("unknown mode")
-            log.error(f"Erase failed: unknown mode {mode}")
+            logger.error(f"Erase failed: unknown mode {mode}")
             return False
 
         # Quick mode: wipefs + zero start and end
         wipefs_path = shutil.which("wipefs")
         if not wipefs_path:
             emit_error("no wipefs")
-            log.error("Erase failed: wipefs not available")
+            logger.error("Erase failed: wipefs not available")
             return False
         dd_path = shutil.which("dd")
         if not dd_path:
             emit_error("no dd tool")
-            log.error("Erase failed: dd not available")
+            logger.error("Erase failed: dd not available")
             return False
 
         if not run_erase_command([wipefs_path, "-a", target_node]):

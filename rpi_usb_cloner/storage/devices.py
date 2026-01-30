@@ -70,14 +70,11 @@ import subprocess
 import time
 from typing import Any, Callable, Iterable, Optional, Union
 
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
 
 
 ROOT_MOUNTPOINTS = {"/", "/boot", "/boot/firmware"}
 LSBLK_CACHE_TTL_SECONDS = 1.0
-
-# Create logger for device operations
-log = LoggerFactory.for_usb()
 
 _error_handler: Optional[Callable[[Iterable[str]], None]]
 _last_lsblk_names: Optional[tuple[str, ...]] = None
@@ -94,7 +91,7 @@ def configure_device_helpers(
 ) -> None:
     """Configure device helpers (kept for backwards compatibility).
 
-    Note: log_debug parameter is ignored - logging now uses LoggerFactory.
+    Note: log_debug parameter is ignored - logging now uses loguru.
     """
     global _error_handler
     _error_handler = error_handler
@@ -107,22 +104,22 @@ def run_command(
     log_command: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     if log_command:
-        log.debug(f"Running command: {' '.join(command)}")
+        logger.debug(f"Running command: {' '.join(command)}")
     try:
         result = subprocess.run(command, check=check, text=True, capture_output=True)
     except subprocess.CalledProcessError as error:
-        log.error(f"Command failed: {' '.join(command)}", tags=["command", "error"])
+        logger.error(f"Command failed: {' '.join(command)}")
         if error.stdout:
-            log.debug(f"stdout: {error.stdout.strip()}")
+            logger.debug(f"stdout: {error.stdout.strip()}")
         if error.stderr:
-            log.debug(f"stderr: {error.stderr.strip()}")
+            logger.debug(f"stderr: {error.stderr.strip()}")
         raise
     if result.stdout and (log_output or result.returncode != 0):
-        log.debug(f"stdout: {result.stdout.strip()}")
+        logger.debug(f"stdout: {result.stdout.strip()}")
     if result.stderr and (log_output or result.returncode != 0):
-        log.debug(f"stderr: {result.stderr.strip()}")
+        logger.debug(f"stderr: {result.stderr.strip()}")
     if log_command:
-        log.debug(f"Command completed with return code {result.returncode}")
+        logger.debug(f"Command completed with return code {result.returncode}")
     return result
 
 
@@ -236,11 +233,11 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
         )
         if device_names != _last_lsblk_names:
             if device_names:
-                log.debug(
+                logger.debug(
                     f"lsblk found {len(device_names)} devices: {', '.join(device_names)}"
                 )
             else:
-                log.debug("lsblk found no block devices")
+                logger.debug("lsblk found no block devices")
             _last_lsblk_names = device_names
         _lsblk_cache = devices
         _lsblk_cache_time = now
@@ -248,7 +245,7 @@ def get_block_devices(force_refresh: bool = False) -> list[dict[str, Any]]:
     except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
         if _error_handler:
             _error_handler(["LSBLK ERROR", str(error)])
-        log.debug(f"lsblk failed: {error}")
+        logger.debug(f"lsblk failed: {error}")
         if _lsblk_cache is not None and not force_refresh:
             return _lsblk_cache
         return []
@@ -360,7 +357,7 @@ def unmount_device(device: dict[str, Any], raise_on_failure: bool = False) -> bo
 
     failed_mounts = [mp for mp in failed_mounts if _is_mountpoint_active(mp)]
     if failed_mounts:
-        log.debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
+        logger.debug(f"Failed to unmount mountpoints: {', '.join(failed_mounts)}")
         if _error_handler:
             _error_handler(["UNMOUNT FAILED", *failed_mounts])
 

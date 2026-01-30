@@ -56,11 +56,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from rpi_usb_cloner.logging import LoggerFactory
-
-
-# Module logger
-log = LoggerFactory.for_system()
+from loguru import logger
 
 
 def list_media_devices() -> list[str]:
@@ -320,13 +316,13 @@ if __name__ == "__main__":
     for device in devices:
         mount(device)
 
-        log.info(f"Drive: {get_device_name(device)}")
-        log.info(f"Mounted: {'Yes' if is_mounted(device) else 'No'}")
-        log.info(f"Removable: {'Yes' if is_removable(device) else 'No'}")
-        log.info(f"Size: {get_size(device)} bytes")
-        log.info(f"Size: {get_size(device) / 1024**3:.2f} GB")
-        log.info(f"Model: {get_model(device)}")
-        log.info(f"Vendor: {get_vendor(device)}")
-        log.info("")
+        logger.info(f"Drive: {get_device_name(device)}")
+        logger.info(f"Mounted: {'Yes' if is_mounted(device) else 'No'}")
+        logger.info(f"Removable: {'Yes' if is_removable(device) else 'No'}")
+        logger.info(f"Size: {get_size(device)} bytes")
+        logger.info(f"Size: {get_size(device) / 1024**3:.2f} GB")
+        logger.info(f"Model: {get_model(device)}")
+        logger.info(f"Vendor: {get_vendor(device)}")
+        logger.info("")
 
         unmount(device)

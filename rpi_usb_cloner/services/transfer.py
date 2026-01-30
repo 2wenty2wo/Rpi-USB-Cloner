@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import Callable
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage import image_repo
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def find_destination_repos(exclude_drive: str | None = None) -> list[ImageRepo]:

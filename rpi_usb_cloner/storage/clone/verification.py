@@ -7,14 +7,15 @@ import time
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage.devices import get_children, get_device_by_name, human_size
 from rpi_usb_cloner.ui.display import display_lines
 
 from .models import get_partition_number, resolve_device_node
 
 
-log = get_logger(source=__name__, tags=["verify"])
+log = logger.bind(source=__name__, tags=["verify"])
 
 
 def compute_sha256(

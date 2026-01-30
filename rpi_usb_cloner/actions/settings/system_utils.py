@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
 
 
 _SERVICE_NAME = "rpi-usb-cloner.service"
@@ -18,8 +18,6 @@ _GIT_PROGRESS_STAGES = {
     "Updating files": 2,
 }
 
-# Create logger for system utilities
-log = LoggerFactory.for_system()
 
 
 def _escape_braces(text: str) -> str:
@@ -41,7 +39,7 @@ def run_command(
     """Run a command and capture output."""
     validate_command_args(args)
     cwd_display = str(cwd) if cwd else None
-    log.debug(
+    logger.debug(
         f"Running command: {_escape_braces(repr(args))} cwd={cwd_display}",
         component="system",
     )
@@ -52,12 +50,12 @@ def run_command(
         text=True,
         check=False,
     )
-    log.debug(f"Command return code: {result.returncode}", component="system")
-    log.debug(
+    logger.debug(f"Command return code: {result.returncode}", component="system")
+    logger.debug(
         f"Command stdout: {_escape_braces(repr(result.stdout.strip()))}",
         component="system",
     )
-    log.debug(
+    logger.debug(
         f"Command stderr: {_escape_braces(repr(result.stderr.strip()))}",
         component="system",
     )
@@ -86,7 +84,7 @@ def get_git_version(repo_root: Path) -> Optional[str]:
 def get_app_version() -> str:
     """Get application version from git or VERSION file."""
     repo_root = Path(__file__).resolve().parents[3]
-    log.debug(f"Repo root detection (version): {repo_root}", component="system")
+    logger.debug(f"Repo root detection (version): {repo_root}", component="system")
     version = get_git_version(repo_root)
     if version:
         return version
@@ -107,7 +105,7 @@ def has_dirty_working_tree(repo_root: Path) -> bool:
     """Check if git working tree has uncommitted changes."""
     status = run_command(["git", "status", "--porcelain"], cwd=repo_root)
     dirty = bool(status.stdout.strip())
-    log.debug(f"Dirty working tree: {dirty}", component="system")
+    logger.debug(f"Dirty working tree: {dirty}", component="system")
     return dirty
 
 
@@ -119,23 +117,23 @@ def is_dubious_ownership_error(stderr: str) -> bool:
 def is_running_under_systemd() -> bool:
     """Detect if running under systemd."""
     invocation_id = os.environ.get("INVOCATION_ID")
-    log.debug(f"Systemd detection: INVOCATION_ID={invocation_id!r}", component="system")
+    logger.debug(f"Systemd detection: INVOCATION_ID={invocation_id!r}", component="system")
     if invocation_id:
-        log.debug(
+        logger.debug(
             "Systemd detection: running under systemd via INVOCATION_ID",
             component="system",
         )
         return True
     if Path("/proc/1/comm").exists():
         comm = Path("/proc/1/comm").read_text(encoding="utf-8").strip()
-        log.debug(f"Systemd detection: /proc/1/comm={comm!r}", component="system")
+        logger.debug(f"Systemd detection: /proc/1/comm={comm!r}", component="system")
         if comm != "systemd":
-            log.debug("Systemd detection: init is not systemd", component="system")
+            logger.debug("Systemd detection: init is not systemd", component="system")
             return False
     else:
-        log.debug("Systemd detection: /proc/1/comm missing", component="system")
+        logger.debug("Systemd detection: /proc/1/comm missing", component="system")
     if not shutil.which("systemctl"):
-        log.debug("Systemd detection: systemctl not found", component="system")
+        logger.debug("Systemd detection: systemctl not found", component="system")
         return False
     show = run_command(
         ["systemctl", "show", _SERVICE_NAME, "--property=ActiveState", "--value"]
@@ -143,12 +141,12 @@ def is_running_under_systemd() -> bool:
     if show.returncode == 0 and show.stdout.strip():
         active_state = show.stdout.strip()
         is_active = active_state in {"active", "activating", "reloading"}
-        log.debug(
+        logger.debug(
             f"Systemd detection: ActiveState={active_state!r} active={is_active}",
             component="system",
         )
         return is_active
-    log.debug(
+    logger.debug(
         "Systemd detection: systemctl show returned no active state", component="system"
     )
     return False
@@ -157,7 +155,7 @@ def is_running_under_systemd() -> bool:
 def run_systemctl_command(args: list[str]) -> subprocess.CompletedProcess[str]:
     """Run systemctl command."""
     if not shutil.which("systemctl"):
-        log.debug(
+        logger.debug(
             f"systemctl command failed: {' '.join(args)} (systemctl missing)",
             component="system",
         )

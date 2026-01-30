@@ -5,13 +5,13 @@ from pathlib import Path
 from typing import Iterable
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage import clonezilla, devices, imageusb, mount
 from rpi_usb_cloner.storage.imageusb.detection import get_imageusb_metadata
 
 
 REPO_FLAG_FILENAME = ".rpi-usb-cloner-image-repo"
-log = LoggerFactory.for_clone()
 
 
 def _iter_partitions(device: dict) -> Iterable[dict]:
@@ -80,7 +80,7 @@ def find_image_repos(flag_filename: str = REPO_FLAG_FILENAME) -> list[ImageRepo]
                 if not flag_path.exists():
                     continue
             except OSError as exc:
-                log.debug(
+                logger.debug(
                     f"Skipping image repo check for mountpoint {mountpoint}: {exc}",
                     mountpoint=str(mountpoint),
                     error=str(exc),

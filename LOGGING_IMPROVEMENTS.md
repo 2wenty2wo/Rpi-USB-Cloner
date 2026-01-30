@@ -1,5 +1,7 @@
 # Logging System Improvements
 
+> **Note (2026-01-30):** The `LoggerFactory` class mentioned throughout this document has been deprecated and removed. All modules now use loguru directly via `from loguru import logger`. The utility functions like `setup_logging()`, `operation_context()`, `ThrottledLogger`, and `EventLogger` remain available.
+
 ## Overview
 
 This document summarizes the comprehensive logging system improvements implemented for the Raspberry Pi USB Cloner project. The new system provides multi-tier logging, powerful filtering, and a beautiful Web UI.
@@ -61,20 +63,17 @@ This document summarizes the comprehensive logging system improvements implement
 
 ### 3. Utility Classes
 
-#### LoggerFactory
-Domain-specific loggers with automatic context:
+#### Direct Loguru Usage
+All modules now use loguru directly:
 
 ```python
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
 
-# Each domain gets pre-configured logger with appropriate source/tags
-log = LoggerFactory.for_system()      # source="system", tags=["system"]
-log = LoggerFactory.for_usb()         # source="usb", tags=["usb", "hardware"]
-log = LoggerFactory.for_clone()       # source="clone", tags=["clone", "storage"], job_id auto-generated
-log = LoggerFactory.for_web()         # source="web", tags=["web", "ws"]
-log = LoggerFactory.for_gpio()        # source="gpio", tags=["gpio", "hardware", "button"]
-log = LoggerFactory.for_menu()        # source="menu", tags=["ui", "menu"]
-log = LoggerFactory.for_clonezilla()  # source="clonezilla", tags=["clonezilla", "backup"]
+# Simple logging
+logger.debug("Debug message")
+logger.info("Info message")
+logger.warning("Warning message")
+logger.error("Error message")
 ```
 
 #### operation_context()
@@ -97,10 +96,10 @@ with operation_context("clone", source="/dev/sda", target="/dev/sdb", mode="smar
 Rate-limited logging for high-frequency events:
 
 ```python
-from rpi_usb_cloner.logging import ThrottledLogger, LoggerFactory
+from loguru import logger
+from rpi_usb_cloner.logging import ThrottledLogger
 
-log = LoggerFactory.for_clone()
-throttled = ThrottledLogger(log, interval_seconds=5.0)
+throttled = ThrottledLogger(logger, interval_seconds=5.0)
 
 for i in range(1000):
     # Only logs every 5 seconds, even though called 1000 times

@@ -14,11 +14,12 @@ from typing import Callable
 from aiohttp import web
 
 from rpi_usb_cloner.domain import ImageRepo, ImageType
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage import image_repo
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 # Session management
 _active_sessions: dict[str, dict] = {}  # token -> {created_at, pin, peer_ip}

@@ -10,10 +10,10 @@ import subprocess
 import time
 from dataclasses import dataclass
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 class WiFiDirectError(Exception):

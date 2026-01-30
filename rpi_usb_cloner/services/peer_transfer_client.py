@@ -10,12 +10,13 @@ from typing import Callable
 import aiohttp
 
 from rpi_usb_cloner.domain import DiskImage, ImageType
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.services.discovery import PeerDevice
 from rpi_usb_cloner.storage import image_repo
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 class AuthenticationError(Exception):

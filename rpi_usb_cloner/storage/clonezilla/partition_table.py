@@ -15,13 +15,14 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage import devices
 
 from .models import DiskLayoutOp
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def collect_disk_layout_ops(

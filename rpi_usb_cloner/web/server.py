@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Sequence, Union
 
 from aiohttp import web
+from loguru import logger
 from typing_extensions import TypeAlias
 
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 from rpi_usb_cloner.hardware import gpio, virtual_gpio
-from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.storage import image_repo
 from rpi_usb_cloner.storage.device_lock import is_operation_active
 from rpi_usb_cloner.ui import display
@@ -208,10 +208,9 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     which prevents flickering caused by capturing partial renders.
     """
     notifier = request.app[DISPLAY_NOTIFIER_KEY]
-    log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    log.debug(
+    logger.debug(
         f"Screen WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -235,10 +234,10 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(f"Screen WebSocket error: {exc}", tags=["ws", "websocket", "error"])
+        logger.warning(f"Screen WebSocket error: {exc}", tags=["ws", "websocket", "error"])
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Screen WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -251,10 +250,9 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     Receives button press commands and injects them as virtual GPIO events.
     Message format: {"button": "UP|DOWN|LEFT|RIGHT|BACK|OK"}
     """
-    log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    log.debug(
+    logger.debug(
         f"Control WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -282,18 +280,18 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
                         pin = button_map[button]
                         virtual_gpio.inject_button_press(pin)
                         # Button presses are TRACE-level (very verbose)
-                        log.trace(
+                        logger.trace(
                             f"Web UI button pressed: {button}",
                             tags=["web", "input", "button"],
                         )
                     else:
-                        log.warning(
+                        logger.warning(
                             f"Unknown control button payload: {data}",
                             tags=["web", "input", "error"],
                         )
                         await ws.send_json({"error": f"Unknown button: {button}"})
                 except (json.JSONDecodeError, KeyError) as e:
-                    log.warning(
+                    logger.warning(
                         f"Invalid control payload: {msg.data} ({e})",
                         tags=["web", "input", "error"],
                     )
@@ -303,12 +301,12 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(
+        logger.warning(
             f"Control WebSocket error: {exc}", tags=["ws", "websocket", "error"]
         )
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Control WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -318,7 +316,6 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
 
 async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     """WebSocket handler that streams application log buffer updates."""
-    log = LoggerFactory.for_web()
     app_context: AppContext | None = request.app.get(APP_CONTEXT_KEY)
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
@@ -326,7 +323,7 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
         await ws.send_json({"type": "error", "message": "Log buffer unavailable"})
         await ws.close()
         return ws
-    log.debug(
+    logger.debug(
         f"Log WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -354,10 +351,10 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(f"Log WebSocket error: {exc}", tags=["ws", "websocket", "error"])
+        logger.warning(f"Log WebSocket error: {exc}", tags=["ws", "websocket", "error"])
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Log WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -369,10 +366,9 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
 
     Sends CPU, memory, disk, and temperature data every 2 seconds.
     """
-    log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    log.debug(
+    logger.debug(
         f"Health WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -387,10 +383,10 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(f"Health WebSocket error: {exc}", tags=["ws", "websocket", "error"])
+        logger.warning(f"Health WebSocket error: {exc}", tags=["ws", "websocket", "error"])
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Health WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -403,10 +399,9 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
 
     Sends list of detected USB devices with their status every 2 seconds.
     """
-    log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    log.debug(
+    logger.debug(
         f"Devices WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -486,12 +481,12 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(
+        logger.warning(
             f"Devices WebSocket error: {exc}", tags=["ws", "websocket", "error"]
         )
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Devices WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -501,10 +496,9 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
 
 async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
     """WebSocket handler that streams image repository contents."""
-    log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    log.debug(
+    logger.debug(
         f"Images WebSocket connected from {request.remote}",
         tags=["ws", "websocket", "connection"],
     )
@@ -558,7 +552,7 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                 try:
                     repo_stats = repo_stats_task.result()
                 except Exception as exc:
-                    log.warning(
+                    logger.warning(
                         f"Repo stats refresh failed: {exc}",
                         tags=["ws", "websocket", "error", "repo"],
                     )
@@ -568,7 +562,7 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
                 try:
                     image_sizes = image_sizes_task.result()
                 except Exception as exc:
-                    log.warning(
+                    logger.warning(
                         f"Image size refresh failed: {exc}",
                         tags=["ws", "websocket", "error", "repo"],
                     )
@@ -598,10 +592,10 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        log.warning(f"Images WebSocket error: {exc}", tags=["ws", "websocket", "error"])
+        logger.warning(f"Images WebSocket error: {exc}", tags=["ws", "websocket", "error"])
     finally:
         await ws.close()
-        log.debug(
+        logger.debug(
             f"Images WebSocket disconnected from {request.remote}",
             tags=["ws", "websocket", "connection"],
         )
@@ -638,8 +632,7 @@ def stop_server(timeout: float = 5.0, log_debug=None) -> bool:
         return False
     handle.stop(timeout=timeout)
     _current_handle = None
-    log = LoggerFactory.for_web()
-    log.info("Web server stopped")
+    logger.info("Web server stopped")
     return True
 
 
@@ -712,8 +705,7 @@ def start_server(
             loop.close()
             return
         runner_queue.put(("ok", (runner, loop, stop_event)))
-        log = LoggerFactory.for_web()
-        log.info(f"Web server started at http://{host}:{port}")
+        logger.info(f"Web server started at http://{host}:{port}")
         notifier_thread = threading.Thread(target=notify_display_updates, daemon=True)
         notifier_thread.start()
         try:

@@ -96,11 +96,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
-from rpi_usb_cloner.logging import LoggerFactory
-
-
-# Module logger
-log = LoggerFactory.for_menu()
+from loguru import logger
 
 
 Font = Union[ImageFont.ImageFont, ImageFont.FreeTypeFont]
@@ -226,21 +222,21 @@ def capture_screenshot() -> Optional[Path]:
         try:
             resolved_dir.chmod(0o775)
         except (PermissionError, OSError) as error:
-            log.debug(f"Screenshot dir permissions unchanged: {error}")
+            logger.debug(f"Screenshot dir permissions unchanged: {error}")
         try:
             import pwd
 
             pi_user = pwd.getpwnam("pi")
             os.chown(resolved_dir, pi_user.pw_uid, pi_user.pw_gid)
         except (KeyError, PermissionError, OSError) as error:
-            log.debug(f"Screenshot dir ownership unchanged: {error}")
+            logger.debug(f"Screenshot dir ownership unchanged: {error}")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         screenshot_path = resolved_dir / f"screenshot_{timestamp}.png"
         screenshot.save(screenshot_path)
-        log.debug(f"Screenshot saved: {screenshot_path}")
+        logger.debug(f"Screenshot saved: {screenshot_path}")
         return screenshot_path
     except Exception as error:
-        log.debug(f"Screenshot failed: {error}")
+        logger.debug(f"Screenshot failed: {error}")
         return None
 
 
@@ -1005,4 +1001,4 @@ def basemenu(state: app_state.AppState) -> None:
     state.run_once = 0
     if not devices_present:
         state.index = app_state.MENU_NONE
-    log.debug("Base menu drawn")
+    logger.debug("Base menu drawn")

@@ -5,7 +5,8 @@ import select
 import subprocess
 import time
 
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.ui.display import display_lines
 
 from .progress import (
@@ -15,13 +16,11 @@ from .progress import (
 )
 
 
-# Module logger
-log = LoggerFactory.for_clone()
 
 
 def run_checked_command(command, input_text=None):
     """Run a command and raise RuntimeError if it fails."""
-    log.debug(f"Running command: {' '.join(command)}")
+    logger.debug(f"Running command: {' '.join(command)}")
     result = subprocess.run(
         command,
         input=input_text,
@@ -56,7 +55,7 @@ def run_progress_command(
             None,
         )
     )
-    log.debug(f"Starting command: {' '.join(command)}")
+    logger.debug(f"Starting command: {' '.join(command)}")
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
@@ -76,7 +75,7 @@ def run_progress_command(
         if ready:
             line = process.stderr.readline()
         if line:
-            log.debug(f"stderr: {line.strip()}")
+            logger.debug(f"stderr: {line.strip()}")
             bytes_match = re.search(r"(\d+)\s+bytes", line)
             percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
             rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)
@@ -144,10 +143,10 @@ def run_progress_command(
         error_output = process.stderr.read().strip()
         message = error_output.splitlines()[-1] if error_output else "Command failed"
         display_lines(["FAILED", message[:20]])
-        log.debug(f"Command failed with code {process.returncode}: {message}")
+        logger.debug(f"Command failed with code {process.returncode}: {message}")
         return False
     display_lines([title, "Complete"])
-    log.debug("Command completed successfully")
+    logger.debug("Command completed successfully")
     return True
 
 
@@ -160,7 +159,7 @@ def run_checked_with_progress(
 ):
     """Run a command with progress parsing from stderr (legacy API)."""
     display_lines([title, "Starting..."])
-    log.debug(f"Running command: {' '.join(command)}")
+    logger.debug(f"Running command: {' '.join(command)}")
     result = subprocess.run(
         command,
         stdin=stdin_source,
@@ -223,7 +222,7 @@ def run_checked_with_streaming_progress(
         ),
         ratio=compute_ratio(0 if total_bytes else None, None),
     )
-    log.debug(f"Running command: {' '.join(command)}")
+    logger.debug(f"Running command: {' '.join(command)}")
     process = subprocess.Popen(
         command,
         stdin=stdin_source,
@@ -251,7 +250,7 @@ def run_checked_with_streaming_progress(
             line = process.stderr.readline()
         if line:
             stderr_lines.append(line)
-            log.debug(f"stderr: {line.strip()}")
+            logger.debug(f"stderr: {line.strip()}")
             bytes_match = re.search(r"(\d+)\s+bytes", line)
             percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
             rate_match = re.search(r"(\d+(?:\.\d+)?)\s*MiB/s", line)

@@ -23,10 +23,7 @@ import threading
 from contextlib import contextmanager
 from typing import Generator
 
-from rpi_usb_cloner.logging import LoggerFactory
-
-
-log = LoggerFactory.for_clone()
+from loguru import logger
 
 # Lock for thread-safe access to operation state
 _lock = threading.Lock()
@@ -55,7 +52,7 @@ def device_operation(device_name: str) -> Generator[None, None, None]:
     with _lock:
         _operation_count += 1
         _active_device = device_name
-        log.debug(f"Device operation started on {device_name}")
+        logger.debug(f"Device operation started on {device_name}")
 
     try:
         yield
@@ -64,7 +61,7 @@ def device_operation(device_name: str) -> Generator[None, None, None]:
             _operation_count -= 1
             if _operation_count == 0:
                 _active_device = None
-            log.debug(f"Device operation completed on {device_name}")
+            logger.debug(f"Device operation completed on {device_name}")
 
 
 def is_operation_active() -> bool:

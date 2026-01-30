@@ -9,7 +9,8 @@ import time
 from pathlib import Path
 from typing import Callable, Iterable, TypedDict
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
+
 from rpi_usb_cloner.storage import clone, devices
 from rpi_usb_cloner.storage.clone import (
     format_filesystem_type,
@@ -30,7 +31,7 @@ from .partition_table import (
 )
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 
 def get_blockdev_size_bytes(device_node: str) -> int | None:

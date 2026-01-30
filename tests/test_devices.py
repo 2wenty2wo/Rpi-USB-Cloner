@@ -686,7 +686,7 @@ class TestConfigureDeviceHelpers:
     def test_configure_log_debug(self):
         """Test configuring debug logger (backwards compatibility)."""
         mock_logger = Mock()
-        # Should not crash - log_debug parameter is ignored after LoggerFactory migration
+        # Should not crash - log_debug parameter is ignored, uses loguru directly
         devices.configure_device_helpers(log_debug=mock_logger)
 
     def test_configure_error_handler(self):
@@ -705,7 +705,7 @@ class TestConfigureDeviceHelpers:
             log_debug=mock_logger, error_handler=mock_handler
         )
 
-        # Only error_handler is still used; log_debug is ignored (LoggerFactory migration)
+        # Only error_handler is still used; log_debug is ignored (uses loguru directly)
         assert devices._error_handler == mock_handler
 
     def test_configure_with_none(self):

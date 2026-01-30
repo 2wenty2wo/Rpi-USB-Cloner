@@ -118,7 +118,7 @@ from rpi_usb_cloner.config.settings import (
     DEFAULT_TRANSITION_FRAME_DELAY,
 )
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import get_logger, setup_logging
+from rpi_usb_cloner.logging import setup_logging
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     INITIAL_REPEAT_DELAY,
@@ -221,13 +221,10 @@ def main(argv: Optional[list[str]] = None) -> None:
     app_context = AppContext()
     setup_logging(app_context, debug=debug_enabled, trace=trace_enabled)
 
-    # Use LoggerFactory for structured logging
-    from rpi_usb_cloner.logging import LoggerFactory
-
-    log = LoggerFactory.for_system()
+    from loguru import logger
 
     # Log startup with context
-    log.info(
+    logger.info(
         "Application starting",
         debug=debug_enabled,
         trace=trace_enabled,
@@ -246,8 +243,8 @@ def main(argv: Optional[list[str]] = None) -> None:
         source: Optional[str] = None,
     ) -> None:
         message_text = message.message if hasattr(message, "message") else message
-        logger = get_logger(tags=tags, source=source or "APP")
-        logger.log(str(level).upper(), message_text)
+        bound_logger = logger.bind(tags=tags, source=source or "APP")
+        bound_logger.log(str(level).upper(), message_text)
 
     gpio.setup_gpio()
     context = display.init_display()
@@ -261,7 +258,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     )
     web_server_env_override = os.environ.get("WEB_SERVER_ENABLED", None)
 
-    web_log_debug = get_logger(tags=["web", "ws"], source="web").debug
+    web_log_debug = logger.bind(tags=["web", "ws"], source="web").debug
     if web_server_env_override is not None:
         web_server_enabled = web_server_env_override.lower() not in {"0", "false", "no"}
         if web_server_enabled:
@@ -288,10 +285,10 @@ def main(argv: Optional[list[str]] = None) -> None:
         log_debug=usb_log_debug, error_handler=display.display_lines
     )
     configure_format_helpers(
-        log_debug=get_logger(tags=["format"], source="format").debug
+        log_debug=logger.bind(tags=["format"], source="format").debug
     )
     wifi.configure_wifi_helpers(
-        log_debug=get_logger(source="wifi").debug, error_handler=display.display_lines
+        log_debug=logger.bind(source="wifi").debug, error_handler=display.display_lines
     )
 
     state = app_state.AppState()
@@ -505,7 +502,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             app_context=app_context,
             clone_mode=clone_mode,
             state=state,
-            log_debug=get_logger(source="actions").debug,
+            log_debug=logger.bind(source="actions").debug,
             get_selected_usb_name=lambda: app_context.active_drive,
             show_drive_info=show_drive_info,
         )
@@ -963,7 +960,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         pass
     except Exception as error:
         # Log critical crash to all sinks (console, files, Web UI)
-        crash_log = get_logger(tags=["crash", "fatal"], source="main")
+        crash_log = logger.bind(tags=["crash", "fatal"], source="main")
         crash_log.critical(
             f"Application crash: {type(error).__name__}",
             error_type=type(error).__name__,

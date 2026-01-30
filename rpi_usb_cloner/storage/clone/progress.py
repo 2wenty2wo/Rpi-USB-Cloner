@@ -2,12 +2,9 @@
 
 import re
 
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage.devices import human_size
-
-
-# Module logger
-log = LoggerFactory.for_clone()
 
 
 def format_eta(seconds):
@@ -104,7 +101,7 @@ def parse_progress_from_output(stderr_output, total_bytes=None, title="WORKING")
     if not stderr_output:
         return
     for line in stderr_output.splitlines():
-        log.debug(f"stderr: {line.strip()}")
+        logger.debug(f"stderr: {line.strip()}")
         bytes_match = re.search(r"(\d+)\s+bytes", line)
         percent_match = re.search(r"(\d+(?:\.\d+)?)%", line)
         if bytes_match:

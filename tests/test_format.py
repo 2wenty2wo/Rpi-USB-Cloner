@@ -61,12 +61,12 @@ class TestCreatePartitionTable:
     @patch("rpi_usb_cloner.storage.format.log.error")
     @patch("rpi_usb_cloner.storage.format.run_command")
     def test_create_partition_table_logs_error(self, mock_run, mock_log):
-        """Test that partition table errors are logged via LoggerFactory."""
+        """Test that partition table errors are logged via loguru."""
         mock_run.return_value = Mock(returncode=1, stderr="Device busy", stdout="")
 
         format_module._create_partition_table("/dev/sda")
 
-        # Verify error was logged via LoggerFactory at ERROR level
+        # Verify error was logged via loguru at ERROR level
         assert any("parted failed" in str(call) for call in mock_log.call_args_list)
 
 
@@ -648,7 +648,7 @@ class TestConfigureFormatHelpers:
         """Test configuring debug logging (backwards compatibility)."""
         mock_logger = Mock()
 
-        # Should not crash - log_debug parameter is ignored after LoggerFactory migration
+        # Should not crash - log_debug parameter is ignored, uses loguru directly
         format_module.configure_format_helpers(log_debug=mock_logger)
 
     def test_log_debug_without_configuration(self):

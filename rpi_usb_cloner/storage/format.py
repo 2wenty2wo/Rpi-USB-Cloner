@@ -50,7 +50,8 @@ import subprocess
 import time
 from typing import Callable, List, Optional
 
-from rpi_usb_cloner.logging import LoggerFactory
+from loguru import logger
+
 from rpi_usb_cloner.storage.device_lock import device_operation
 from rpi_usb_cloner.storage.devices import (
     format_device_label,
@@ -59,8 +60,6 @@ from rpi_usb_cloner.storage.devices import (
 )
 
 
-# Create logger for format operations
-log = LoggerFactory.for_clone()
 
 
 def configure_format_helpers(
@@ -68,7 +67,7 @@ def configure_format_helpers(
 ) -> None:
     """Configure format helpers (kept for backwards compatibility).
 
-    Note: log_debug parameter is ignored - logging now uses LoggerFactory.
+    Note: log_debug parameter is ignored - logging now uses loguru.
     """
     return
 
@@ -97,7 +96,7 @@ def _ensure_partition_unmounted(partition_path: str) -> bool:
     """Ensure the partition is unmounted."""
     live_mountpoint = _get_live_partition_mountpoint(partition_path)
     if live_mountpoint:
-        log.warning(f"Partition still mounted at {live_mountpoint}")
+        logger.warning(f"Partition still mounted at {live_mountpoint}")
         return False
     return True
 
@@ -108,7 +107,7 @@ def _unmount_partition_aggressive(partition_path: str) -> bool:
         run_command(["umount", "-f", partition_path], check=False, log_command=False)
         return True
     except Exception as error:
-        log.debug(f"Aggressive unmount failed for {partition_path}: {error}")
+        logger.debug(f"Aggressive unmount failed for {partition_path}: {error}")
         return False
 
 
@@ -127,18 +126,18 @@ def _create_partition_table(device_path: str) -> bool:
         True on success, False on failure
     """
     try:
-        log.debug(f"Creating MBR partition table on {device_path}")
+        logger.debug(f"Creating MBR partition table on {device_path}")
         result = run_command(
             ["parted", "-s", device_path, "mklabel", "msdos"],
             check=False,
             log_command=False,
         )
         if result.returncode != 0:
-            log.error(f"parted failed: {result.stderr}")
+            logger.error(f"parted failed: {result.stderr}")
             return False
         return True
     except subprocess.CalledProcessError as error:
-        log.error(f"parted failed: {error}")
+        logger.error(f"parted failed: {error}")
         return False
 
 
@@ -148,13 +147,13 @@ def _wait_for_partition_device(
     poll_interval: float = 0.25,
 ) -> bool:
     """Wait for partition device node to appear."""
-    log.debug(f"Waiting for partition device {partition_path} to appear")
+    logger.debug(f"Waiting for partition device {partition_path} to appear")
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         if os.path.exists(partition_path):  # noqa: PTH110
             return True
         time.sleep(poll_interval)
-    log.error(f"Partition device did not appear: {partition_path}")
+    logger.error(f"Partition device did not appear: {partition_path}")
     return False
 
 
@@ -168,7 +167,7 @@ def _create_partition(device_path: str) -> bool:
         True on success, False on failure
     """
     try:
-        log.debug(f"Creating primary partition on {device_path}")
+        logger.debug(f"Creating primary partition on {device_path}")
         # Create partition from 1MiB to 100% (proper alignment)
         run_command(["parted", "-s", device_path, "mkpart", "primary", "1MiB", "100%"])
         partition_path = _get_partition_path(device_path)
@@ -176,7 +175,7 @@ def _create_partition(device_path: str) -> bool:
             run_command(["sync"], check=False, log_command=False)
         return _wait_for_partition_device(partition_path)
     except subprocess.CalledProcessError as error:
-        log.error(f"Failed to create partition: {error}")
+        logger.error(f"Failed to create partition: {error}")
         return False
 
 
@@ -203,7 +202,7 @@ def _format_filesystem(
     mode = mode.lower()
 
     if not _ensure_partition_unmounted(partition_path):
-        log.warning(f"Format aborted: {partition_path} is still mounted")
+        logger.warning(f"Format aborted: {partition_path} is still mounted")
         return False
 
     # Build format command based on filesystem type
@@ -238,11 +237,11 @@ def _format_filesystem(
         command.append(partition_path)
 
     else:
-        log.error(f"Unsupported filesystem type: {filesystem}")
+        logger.error(f"Unsupported filesystem type: {filesystem}")
         return False
 
     try:
-        log.info(f"Formatting {partition_path} as {filesystem} (mode: {mode})")
+        logger.info(f"Formatting {partition_path} as {filesystem} (mode: {mode})")
 
         # Update progress
         if progress_callback:
@@ -258,7 +257,7 @@ def _format_filesystem(
 
         stderr_stream = process.stderr
         if stderr_stream is None:
-            log.error("Format failed: missing stderr stream")
+            logger.error("Format failed: missing stderr stream")
             return False
 
         # Monitor progress for ext4 (shows percentage)
@@ -273,7 +272,7 @@ def _format_filesystem(
                 if readable:
                     line = stderr_stream.readline()
                     if line:
-                        log.debug(f"mkfs output: {line.strip()}")
+                        logger.debug(f"mkfs output: {line.strip()}")
                         match = pattern.search(line)
                         if match and progress_callback:
                             percent = int(match.group(1))
@@ -288,10 +287,10 @@ def _format_filesystem(
 
         if returncode != 0:
             stderr = stderr_stream.read()
-            log.error(f"Format failed: {stderr}")
+            logger.error(f"Format failed: {stderr}")
             return False
 
-        log.info(f"Successfully formatted {partition_path} as {filesystem}")
+        logger.info(f"Successfully formatted {partition_path} as {filesystem}")
 
         # Update progress to complete
         if progress_callback:
@@ -300,10 +299,10 @@ def _format_filesystem(
         return True
 
     except subprocess.CalledProcessError as error:
-        log.error(f"Failed to format partition: {error}")
+        logger.error(f"Failed to format partition: {error}")
         return False
     except Exception as error:
-        log.error(f"Unexpected error during format: {error}")
+        logger.error(f"Unexpected error during format: {error}")
         return False
 
 
@@ -331,7 +330,7 @@ def format_device(
     """
     device_name = device.get("name")
     if not device_name:
-        log.warning("Format aborted: device has no name field")
+        logger.warning("Format aborted: device has no name field")
         return False
 
     device_path = f"/dev/{device_name}"
@@ -339,11 +338,11 @@ def format_device(
 
     # Validate device path
     if not _validate_device_path(device_path):
-        log.warning(f"Format aborted: invalid device path {device_path}")
+        logger.warning(f"Format aborted: invalid device path {device_path}")
         return False
 
     device_label = format_device_label(device)
-    log.info(f"Starting format of {device_label} as {filesystem} ({mode})")
+    logger.info(f"Starting format of {device_label} as {filesystem} ({mode})")
 
     # Use device operation lock to pause web UI scanning
     with device_operation(device_name):
@@ -353,12 +352,12 @@ def format_device(
                 progress_callback(["Unmounting..."], 0.0)
             unmounted = unmount_device(device)
             if not unmounted:
-                log.error(f"Failed to unmount device: {device_label}")
+                logger.error(f"Failed to unmount device: {device_label}")
                 return False
             # Give the system a moment to release the device
             time.sleep(1)
         except Exception as error:
-            log.error(f"Failed to unmount device: {error}")
+            logger.error(f"Failed to unmount device: {error}")
             return False
 
         # Create partition table
@@ -366,7 +365,7 @@ def format_device(
             progress_callback(["Creating partition table..."], 0.1)
 
         if not _create_partition_table(device_path):
-            log.warning(
+            logger.warning(
                 f"Format aborted: failed to create partition table on {device_label}"
             )
             return False
@@ -376,19 +375,19 @@ def format_device(
             progress_callback(["Creating partition..."], 0.3)
 
         if not _create_partition(device_path):
-            log.warning(f"Format aborted: failed to create partition on {device_label}")
+            logger.warning(f"Format aborted: failed to create partition on {device_label}")
             return False
 
         if not os.path.exists(partition_path):  # noqa: PTH110
-            log.warning(f"Format aborted: partition node missing for {device_label}")
+            logger.warning(f"Format aborted: partition node missing for {device_label}")
             return False
 
         # Format filesystem
         if not _format_filesystem(
             partition_path, filesystem, mode, label, progress_callback
         ):
-            log.warning(f"Format aborted: filesystem format failed on {device_label}")
+            logger.warning(f"Format aborted: filesystem format failed on {device_label}")
             return False
 
-        log.info(f"Format completed successfully for {device_label}")
+        logger.info(f"Format completed successfully for {device_label}")
         return True

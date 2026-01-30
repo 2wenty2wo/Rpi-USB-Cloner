@@ -13,10 +13,10 @@ from typing import Callable
 
 from zeroconf import ServiceBrowser, ServiceInfo, ServiceStateChange, Zeroconf
 
-from rpi_usb_cloner.logging import get_logger
+from loguru import logger
 
 
-log = get_logger(source=__name__)
+log = logger.bind(source=__name__)
 
 # Service type for Pi USB Cloner transfers
 SERVICE_TYPE = "_rpi-cloner._tcp.local."

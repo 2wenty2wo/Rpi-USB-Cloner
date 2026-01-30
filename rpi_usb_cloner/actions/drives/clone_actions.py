@@ -13,7 +13,8 @@ from uuid import UUID, uuid4
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.domain import CloneJob, CloneMode, Drive
 from rpi_usb_cloner.hardware import gpio
-from rpi_usb_cloner.logging import LoggerFactory, get_logger
+from loguru import logger
+
 from rpi_usb_cloner.services import drives
 from rpi_usb_cloner.storage import devices
 from rpi_usb_cloner.storage.clone import clone_device_v2
@@ -27,8 +28,6 @@ from rpi_usb_cloner.ui.icons import ALERT_ICON, COPY_DRIVE_ICON, DRIVES_ICON
 from ._utils import apply_confirmation_selection, handle_screenshot
 
 
-log_menu = LoggerFactory.for_menu()
-log_operation = LoggerFactory.for_clone()
 
 
 def prepare_copy_operation(
@@ -182,7 +181,7 @@ def _confirm_copy_prompt(
         updated = apply_confirmation_selection(selection[0], "right")
         if updated != selection[0]:
             selection[0] = updated
-            log_menu.debug("Copy menu selection changed: YES")
+            logger.debug("Copy menu selection changed: YES")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
@@ -190,7 +189,7 @@ def _confirm_copy_prompt(
         updated = apply_confirmation_selection(selection[0], "left")
         if updated != selection[0]:
             selection[0] = updated
-            log_menu.debug("Copy menu selection changed: NO")
+            logger.debug("Copy menu selection changed: NO")
             state.run_once = 0
             state.lcdstart = datetime.now()
 
@@ -232,13 +231,13 @@ def _execute_clone_job(
     """Run clone operation and return (success, status_line)."""
     source_name = source.get("name")
     target_name = target.get("name")
-    op_log = get_logger(job_id=job_id, tags=["clone"], source="clone")
+    op_log = logger.bind(job_id=job_id, tags=["clone"], source="clone")
     op_log.info(f"Starting clone: {source_name} -> {target_name} (mode {mode})")
 
     try:
         job = _prepare_clone_job(source, target, mode, job_id)
     except (KeyError, ValueError) as error:
-        log_operation.error(
+        logger.error(
             "Copy failed",
             source=source_name,
             target=target_name,
@@ -251,7 +250,7 @@ def _execute_clone_job(
     if clone_device_v2(job):
         return True, "Complete."
 
-    log_operation.error(
+    logger.error(
         "Copy failed",
         source=source_name,
         target=target_name,
