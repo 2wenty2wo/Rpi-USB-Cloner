@@ -245,6 +245,7 @@ tests/
 ├── test_clonezilla_restore.py # Clonezilla restore tests
 ├── test_clonezilla_verification.py # Clonezilla verification tests
 ├── test_command_runners.py  # Command runner tests
+├── test_erase_extended.py   # Extended erase operation tests
 ├── test_devices.py          # Device detection and management tests
 ├── test_domain_models.py    # Domain model tests
 ├── test_erase.py            # Device erase tests
@@ -258,7 +259,12 @@ tests/
 ├── test_menu_navigator.py   # Menu navigation logic tests
 ├── test_mount.py            # Mount utility tests
 ├── test_mount_security.py   # Mount security tests
+├── test_services_discovery.py      # mDNS peer discovery tests
 ├── test_services_drives.py  # Drive service tests
+├── test_services_peer_transfer_client.py # HTTP transfer client tests
+├── test_services_peer_transfer_server.py # HTTP transfer server tests
+├── test_services_transfer.py       # USB-to-USB transfer tests
+├── test_services_wifi_direct.py    # WiFi Direct P2P tests
 ├── test_settings.py         # Settings management tests
 ├── test_system_health.py    # System health monitoring tests
 ├── test_ui_confirmation.py  # Confirmation dialog tests

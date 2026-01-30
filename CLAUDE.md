@@ -672,7 +672,7 @@ Fixes #456
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
 **Test Files**: 45 test modules with ~1000+ tests
-**Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
+**Current Coverage**: ~45.72% overall (see TEST_COVERAGE_ANALYSIS.md for details)
 
 **Coverage Strengths** (≥80%):
 - Config/Settings: 100%

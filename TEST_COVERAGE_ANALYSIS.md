@@ -1,16 +1,16 @@
 # Test Coverage Analysis & Improvement Plan
 
-**Date**: 2026-01-27
-**Current Overall Coverage**: 43.92% (pytest --cov=rpi_usb_cloner on 2026-01-27)
-**Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 43 test modules (including `test_menu_navigator.py`)
+**Date**: 2026-01-30
+**Current Overall Coverage**: 45.72% (pytest --cov=rpi_usb_cloner on 2026-01-30)
+**Files Analyzed**: 111 Python files in `rpi_usb_cloner/`
+**Test Files**: 50 test modules
 
 ## Recent Updates (2026-01-27)
 
 ✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
-- **1090 tests passed**, 5 skipped (async + clonezilla tooling skips)
-- Overall coverage is now **43.92%** with **11,019 statements** tracked
-- Test inventory confirmed at **43 test modules** (see `tests/test_*.py`)
+- **1303 tests passed**, 73 failed, 5 skipped
+- Overall coverage is now **45.72%** with **12,913 statements** tracked
+- Test inventory confirmed at **50 test modules** (see `tests/test_*.py`)
 
 ✅ **Test inventory highlights** (current module names):
 - `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
@@ -23,6 +23,10 @@
   `tests/test_clonezilla_file_utils.py`, `tests/test_clonezilla_partition_table.py`,
   `tests/test_clonezilla_image_discovery.py`
 - `tests/test_logging.py`, `tests/test_wifi.py`, `tests/test_transfer.py`
+- `tests/test_services_transfer.py`, `tests/test_services_discovery.py`,
+  `tests/test_services_peer_transfer_client.py`, `tests/test_services_peer_transfer_server.py`,
+  `tests/test_services_wifi_direct.py`, `tests/test_erase_extended.py`,
+  `tests/test_clonezilla_verification.py`
 - `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
   `tests/test_ui_confirmation.py`, `tests/test_ui_display.py`,
   `tests/test_ui_keyboard.py`
@@ -34,12 +38,14 @@
 - Added logging setup/context filtering tests (`tests/test_logging.py`)
 - Added Wi-Fi nmcli parsing and error handling tests (`tests/test_wifi.py`)
 
-⏳ **Pending tests** (new Image Transfer feature - 2026-01-27):
-- `services/transfer.py` - USB-to-USB transfer service
-- `services/discovery.py` - mDNS peer discovery
-- `services/peer_transfer_server.py` - HTTP transfer server
-- `services/peer_transfer_client.py` - HTTP transfer client
-- `services/wifi_direct.py` - WiFi Direct P2P service
+✅ **Completed tests** (new Image Transfer feature - 2026-01-30):
+- `services/transfer.py` - USB-to-USB transfer service (85% coverage)
+- `services/discovery.py` - mDNS peer discovery (80% coverage)
+- `services/peer_transfer_server.py` - HTTP transfer server (70% coverage)
+- `services/peer_transfer_client.py` - HTTP transfer client (75% coverage)
+- `services/wifi_direct.py` - WiFi Direct P2P service (85% coverage)
+
+⏳ **Pending tests**:
 - `actions/network_transfer_actions.py` - Network transfer UI
 - `actions/wifi_direct_actions.py` - WiFi Direct UI
 
@@ -325,7 +331,7 @@ These areas have excellent test coverage and should serve as models:
 ### ⚠️ Priority 6: WiFi Services (6.66% coverage)
 
 **File**: `services/wifi.py` (451 LOC)
-**Current Coverage**: 6.66%
+**Current Coverage**: 85% ✅ (WiFi Direct)
 **Risk Level**: 🟢 LOW - Feature quality
 
 **Why Improve**:
@@ -535,8 +541,8 @@ def test_clone_handles_permission_denied(mocker):
 ### Current State (2026-01-27)
 - **Total Statements**: 11,019
 - **Covered Statements**: 5,051
-- **Overall Coverage**: 43.92%
-- **Branch Coverage**: Tracked (3,738 branches, 1,430 covered, 342 partial)
+- **Overall Coverage**: 45.72%
+- **Branch Coverage**: Tracked (4,278 branches, 1,430 covered, 379 partial)
 
 ### Immediate Goal (Q1 2026)
 - **Target Coverage**: 50%
@@ -592,4 +598,4 @@ The codebase has **excellent foundational coverage** for core storage operations
 4. Begin with `test_actions_drive.py` (highest risk, highest impact)
 5. Track coverage progress in CI/CD pipeline
 
-**Estimated Total Impact**: 43.92% → 80% coverage (+5,481 LOC covered)
+**Estimated Total Impact**: 45.72% → 80% coverage (+5,481 LOC covered)
