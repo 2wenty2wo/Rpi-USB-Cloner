@@ -799,9 +799,6 @@ def main(argv: Optional[list[str]] = None) -> None:
                     state.last_seen_devices = current_devices
                     render_requested = True
                 state.last_usb_check = time.time()
-                # Re-sample time after USB polling to ensure animation timing
-                # is based on fresh timestamps (USB polling can block 50-500ms)
-                now = time.monotonic()
             if app_state.screensaver_enabled and not screensaver_active:
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SCREENSAVER_TIMEOUT:
