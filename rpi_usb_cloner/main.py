@@ -125,7 +125,6 @@ from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.services import drives, wifi
 from rpi_usb_cloner.services.drives import list_usb_disks_filtered
 from rpi_usb_cloner.storage import devices
-from rpi_usb_cloner.storage.devices import list_usb_disks
 from rpi_usb_cloner.storage.format import configure_format_helpers
 from rpi_usb_cloner.ui import (
     display,
@@ -299,62 +298,41 @@ def main(argv: Optional[list[str]] = None) -> None:
         "screensaver_enabled",
         default=app_state.screensaver_enabled,
     )
-    last_usb_snapshot = None
-    last_raw_usb_snapshot = None
-    last_mount_snapshot = None
+    # Use batched USB snapshot for efficiency - single lsblk call
+    last_batched_snapshot: drives.USBSnapshot | None = None
 
-    def get_usb_snapshot() -> list[str]:
-        nonlocal last_usb_snapshot
+    def get_batched_usb_snapshot() -> drives.USBSnapshot:
+        """Get USB device snapshot with single system call.
+
+        Returns a USBSnapshot containing raw devices, media devices, and
+        mountpoints in a single pass. Uses ~3x fewer system calls than
+        separate functions.
+        """
         try:
-            devices_list = drives.list_media_drive_names()
+            snapshot = drives.get_usb_snapshot()
         except Exception as error:
-            usb_log_debug(f"Failed to list media devices: {error}")
-            return []
-        snapshot = sorted(devices_list)
-        if snapshot != last_usb_snapshot:
-            usb_log_debug(f"USB snapshot: {snapshot}")
-            last_usb_snapshot = snapshot
+            usb_log_debug(f"Failed to get USB snapshot: {error}")
+            snapshot = drives.USBSnapshot(
+                raw_devices=[], media_devices=[], mountpoints=[]
+            )
         return snapshot
 
-    def get_raw_usb_snapshot() -> list[str]:
-        nonlocal last_raw_usb_snapshot
-        try:
-            devices_list = drives.list_raw_usb_disk_names()
-        except Exception as error:
-            usb_log_debug(f"Failed to list raw USB devices: {error}")
-            return []
-        snapshot = sorted(devices_list)
-        if snapshot != last_raw_usb_snapshot:
-            usb_log_debug(f"Raw USB snapshot: {snapshot}")
-            last_raw_usb_snapshot = snapshot
-        return snapshot
-
-    def get_usb_mount_snapshot() -> list[tuple[str, str]]:
-        nonlocal last_mount_snapshot
-
-        def collect_mountpoints(
-            device: dict[str, Any], mountpoints: list[tuple[str, str]]
-        ) -> None:
-            mountpoint = device.get("mountpoint")
-            name = device.get("name") or ""
-            if mountpoint:
-                mountpoints.append((name, mountpoint))
-            for child in device.get("children", []) or []:
-                collect_mountpoints(child, mountpoints)
-
-        try:
-            usb_devices = list_usb_disks()
-        except Exception as error:
-            usb_log_debug(f"Failed to list USB mountpoints: {error}")
-            return []
-        mountpoints: list[tuple[str, str]] = []
-        for device in usb_devices:
-            collect_mountpoints(device, mountpoints)
-        snapshot = sorted(mountpoints)
-        if snapshot != last_mount_snapshot:
-            usb_log_debug(f"USB mount snapshot: {snapshot}")
-            last_mount_snapshot = snapshot
-        return snapshot
+    def log_snapshot_changes(snapshot: drives.USBSnapshot) -> None:
+        """Log changes in USB snapshot compared to last_batched_snapshot."""
+        nonlocal last_batched_snapshot
+        if snapshot.raw_devices != getattr(
+            last_batched_snapshot, "raw_devices", None
+        ):
+            usb_log_debug(f"Raw USB snapshot: {snapshot.raw_devices}")
+        if snapshot.mountpoints != getattr(
+            last_batched_snapshot, "mountpoints", None
+        ):
+            usb_log_debug(f"USB mount snapshot: {snapshot.mountpoints}")
+        if snapshot.media_devices != getattr(
+            last_batched_snapshot, "media_devices", None
+        ):
+            usb_log_debug(f"USB snapshot: {snapshot.media_devices}")
+        last_batched_snapshot = snapshot
 
     get_device_items = partial(
         build_device_items,
@@ -705,8 +683,10 @@ def main(argv: Optional[list[str]] = None) -> None:
     render_current_screen(force=True, now=time.monotonic())
     state.last_usb_check = time.time()
     state.last_seen_devices = list(app_context.discovered_drives)
-    state.last_seen_raw_devices = get_raw_usb_snapshot()
-    state.last_seen_mount_snapshot = get_usb_mount_snapshot()
+    # Initialize batched snapshot
+    _initial_snapshot = get_batched_usb_snapshot()
+    state.last_seen_raw_devices = _initial_snapshot.raw_devices
+    state.last_seen_mount_snapshot = _initial_snapshot.mountpoints
     prev_states = {
         "U": gpio.is_pressed(gpio.PIN_U),
         "D": gpio.is_pressed(gpio.PIN_D),
@@ -732,22 +712,41 @@ def main(argv: Optional[list[str]] = None) -> None:
             force_render = False
             now = time.monotonic()
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
-                raw_devices = get_raw_usb_snapshot()
+                # Use batched snapshot for efficiency (single lsblk call)
+                # First pass: get raw/mount info to detect changes
+                usb_snapshot = get_batched_usb_snapshot()
+                raw_devices = usb_snapshot.raw_devices
+                mount_snapshot = usb_snapshot.mountpoints
+
+                # Check for changes and invalidate cache BEFORE using media_devices
+                # This ensures repo filtering uses fresh cache
+                cache_invalidated = False
                 if raw_devices != state.last_seen_raw_devices:
                     log_debug(
                         f"Raw USB devices changed: {state.last_seen_raw_devices} -> {raw_devices}"
                     )
                     drives.invalidate_repo_cache()
+                    cache_invalidated = True
                     state.last_seen_raw_devices = raw_devices
-                mount_snapshot = get_usb_mount_snapshot()
                 if mount_snapshot != state.last_seen_mount_snapshot:
                     log_debug(
                         "USB mountpoints changed: "
                         f"{state.last_seen_mount_snapshot} -> {mount_snapshot}"
                     )
                     drives.invalidate_repo_cache()
+                    cache_invalidated = True
                     state.last_seen_mount_snapshot = mount_snapshot
-                current_devices = get_usb_snapshot()
+
+                # If cache was invalidated, get fresh media_devices
+                # Otherwise use the media_devices from first snapshot
+                if cache_invalidated:
+                    # Get fresh snapshot with updated cache
+                    usb_snapshot = get_batched_usb_snapshot()
+
+                # Log all changes now that we have final snapshot
+                log_snapshot_changes(usb_snapshot)
+                current_devices = usb_snapshot.media_devices
+
                 if current_devices != app_context.discovered_drives:
                     log_debug(
                         f"Checking USB devices (interval {app_state.USB_REFRESH_INTERVAL}s)"

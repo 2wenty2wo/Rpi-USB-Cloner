@@ -303,7 +303,7 @@ def setup_main_mocks(
         and isinstance(drives_list[0], list)
     ):
         drive_sequence = iter(drives_list)
-        last_drive_snapshot = drives_list[-1]
+        last_drive_snapshot = drives_list[0]  # Start with first element
     else:
         drive_sequence = None
         last_drive_snapshot = drives_list
@@ -323,8 +323,30 @@ def setup_main_mocks(
     def invalidate_repo_cache():
         drive_calls["invalidate"] += 1
 
-    monkeypatch.setattr(main.drives, "list_media_drive_names", list_media_drive_names)
-    monkeypatch.setattr(main.drives, "list_raw_usb_disk_names", list_raw_usb_disk_names)
+    # Mock the batched USB snapshot function (replaces separate list_* functions)
+    def get_usb_snapshot():
+        drive_calls["media"] += 1
+        drive_calls["raw"] += 1
+        nonlocal last_drive_snapshot
+        if drive_sequence is not None:
+            with suppress(StopIteration):
+                last_drive_snapshot = next(drive_sequence)
+        # Extract mountpoints from mounts data
+        mount_list = []
+        for m in mounts:
+            if isinstance(m, dict) and m.get("mountpoint"):
+                mount_list.append((m.get("name", ""), m.get("mountpoint", "")))
+        return main.drives.USBSnapshot(
+            raw_devices=list(raw_list),
+            media_devices=list(last_drive_snapshot),
+            mountpoints=mount_list,
+        )
+
+    monkeypatch.setattr(main.drives, "get_usb_snapshot", get_usb_snapshot)
+    # Also mock list_media_drive_names for initialization (before batched snapshot kicks in)
+    monkeypatch.setattr(
+        main.drives, "list_media_drive_names", lambda: list(last_drive_snapshot)
+    )
     monkeypatch.setattr(main.drives, "invalidate_repo_cache", invalidate_repo_cache)
     monkeypatch.setattr(
         main.drives,
@@ -332,7 +354,6 @@ def setup_main_mocks(
         lambda current_drives, index: current_drives[index] if current_drives else None,
     )
     monkeypatch.setattr(main.drives, "get_active_drive_label", lambda active: active)
-    monkeypatch.setattr(main, "list_usb_disks", lambda: list(mounts))
 
     monkeypatch.setattr(main.navigator, "MenuNavigator", FakeMenuNavigator)
     return drive_calls
@@ -359,8 +380,9 @@ class TestMainLoopIntegration:
 
     def test_usb_refresh_interval_triggers(self, monkeypatch):
         fake_gpio = FakeGPIO([{}])
+        # Need max_sleeps=3 for two USB refresh cycles (batched function counts as one call)
         fake_time = FakeTime(
-            start=0.0, gpio=fake_gpio, max_sleeps=2, time_step_multiplier=100.0
+            start=0.0, gpio=fake_gpio, max_sleeps=3, time_step_multiplier=100.0
         )
         drive_calls = setup_main_mocks(
             monkeypatch,
