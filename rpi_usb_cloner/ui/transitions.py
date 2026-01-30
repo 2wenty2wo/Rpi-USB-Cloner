@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Generator
 
 from PIL import Image
 
@@ -24,6 +25,42 @@ def render_slide_transition(
         frame_count: Number of frames to render.
         dirty_region: Optional bounding box (left, top, right, bottom) to update.
         frame_delay: Delay between frames in seconds.
+    """
+    for _ in generate_slide_transition(
+        from_image, to_image, direction, frame_count, dirty_region, frame_delay
+    ):
+        pass  # Consume all frames immediately (blocking mode)
+
+
+def generate_slide_transition(
+    from_image: Image.Image,
+    to_image: Image.Image,
+    direction: str,
+    frame_count: int,
+    dirty_region: tuple[int, int, int, int] | None = None,
+    frame_delay: float = 0.04,
+) -> Generator[float, None, None]:
+    """Generate a horizontal slide transition frame by frame.
+
+    This is a non-blocking generator that yields after each frame, allowing
+    the main loop to process input between frames.
+
+    Args:
+        from_image: Starting frame (current screen).
+        to_image: Ending frame (next screen).
+        direction: "forward" (new screen slides in from right) or "back".
+        frame_count: Number of frames to render.
+        dirty_region: Optional bounding box (left, top, right, bottom) to update.
+        frame_delay: Delay between frames in seconds.
+
+    Yields:
+        float: Timestamp when next frame should be rendered (monotonic).
+
+    Example:
+        for next_frame_time in generate_slide_transition(...):
+            # Process input, check buttons, etc.
+            while time.monotonic() < next_frame_time:
+                time.sleep(0.001)  # Small sleep to prevent busy-wait
     """
     context = display.get_display_context()
     width, height = context.width, context.height
@@ -58,5 +95,6 @@ def render_slide_transition(
             context.image.paste(region, (left, top))
             context.disp.display(context.image)
             display.mark_display_dirty()
-        if frame_delay > 0:
-            time.sleep(frame_delay)
+
+        # Yield time for next frame instead of sleeping
+        yield time.monotonic() + frame_delay

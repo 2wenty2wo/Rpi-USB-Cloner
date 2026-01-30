@@ -99,7 +99,7 @@ import os
 import time
 from datetime import datetime
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Generator, Optional
 
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
@@ -634,7 +634,10 @@ def main(argv: Optional[list[str]] = None) -> None:
                     status_line=status_line
                 )
                 dirty_region = (0, 0, context.width, footer_start)
-                transitions.render_slide_transition(
+                
+                # Start non-blocking transition
+                nonlocal active_transition, transition_next_frame_time
+                active_transition = transitions.generate_slide_transition(
                     from_image=from_image,
                     to_image=to_image,
                     direction=navigation_action,
@@ -642,11 +645,17 @@ def main(argv: Optional[list[str]] = None) -> None:
                     dirty_region=dirty_region,
                     frame_delay=get_transition_frame_delay(),
                 )
-                with display._display_lock:
-                    context = display.get_display_context()
-                    context.image.paste(to_image)
-                    context.disp.display(context.image)
-                    display.mark_display_dirty()
+                # Advance to first frame and get next frame time
+                try:
+                    transition_next_frame_time = next(active_transition)
+                except StopIteration:
+                    # Transition completed immediately (e.g., frame_count=0)
+                    active_transition = None
+                    with display._display_lock:
+                        context = display.get_display_context()
+                        context.image.paste(to_image)
+                        context.disp.display(context.image)
+                        display.mark_display_dirty()
             else:
                 renderer.render_menu_screen(
                     title=current_screen.title,
@@ -702,12 +711,32 @@ def main(argv: Optional[list[str]] = None) -> None:
     }
     screensaver_active = False
 
+    # Non-blocking transition state
+    active_transition: Generator[float, None, None] | None = None
+    transition_next_frame_time: float = 0.0
+
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
 
     error_displayed = False
     try:
         while True:
+            # Handle non-blocking animation transitions first
+            if active_transition is not None:
+                now = time.monotonic()
+                if now >= transition_next_frame_time:
+                    try:
+                        transition_next_frame_time = next(active_transition)
+                    except StopIteration:
+                        # Transition complete - finalize with to_image
+                        active_transition = None
+                        # Final frame already displayed by generator, just need
+                        # to ensure we have the complete to_image in context
+                # Skip other processing during animation to maintain frame timing
+                # Small sleep to prevent busy-wait
+                time.sleep(0.001)
+                continue
+
             render_requested = False
             force_render = False
             now = time.monotonic()
