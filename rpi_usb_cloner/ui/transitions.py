@@ -26,10 +26,15 @@ def render_slide_transition(
         dirty_region: Optional bounding box (left, top, right, bottom) to update.
         frame_delay: Delay between frames in seconds.
     """
-    for _ in generate_slide_transition(
+    # Blocking mode: consume frames with proper timing
+    last_frame_time = time.monotonic()
+    for next_frame_time in generate_slide_transition(
         from_image, to_image, direction, frame_count, dirty_region, frame_delay
     ):
-        pass  # Consume all frames immediately (blocking mode)
+        # Sleep until next frame time
+        sleep_duration = next_frame_time - time.monotonic()
+        if sleep_duration > 0:
+            time.sleep(sleep_duration)
 
 
 def generate_slide_transition(

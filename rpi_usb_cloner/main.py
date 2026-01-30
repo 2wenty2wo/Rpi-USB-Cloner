@@ -101,6 +101,8 @@ from datetime import datetime
 from functools import partial
 from typing import Any, Generator, Optional
 
+from PIL import Image
+
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.app.context import AppContext
 from rpi_usb_cloner.app.drive_info import get_device_status_line, render_drive_info
@@ -636,7 +638,8 @@ def main(argv: Optional[list[str]] = None) -> None:
                 dirty_region = (0, 0, context.width, footer_start)
                 
                 # Start non-blocking transition
-                nonlocal active_transition, transition_next_frame_time
+                nonlocal active_transition, transition_next_frame_time, transition_to_image
+                transition_to_image = to_image
                 active_transition = transitions.generate_slide_transition(
                     from_image=from_image,
                     to_image=to_image,
@@ -651,6 +654,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                 except StopIteration:
                     # Transition completed immediately (e.g., frame_count=0)
                     active_transition = None
+                    transition_to_image = None
                     with display._display_lock:
                         context = display.get_display_context()
                         context.image.paste(to_image)
@@ -714,6 +718,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     # Non-blocking transition state
     active_transition: Generator[float, None, None] | None = None
     transition_next_frame_time: float = 0.0
+    transition_to_image: Image.Image | None = None
 
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
@@ -728,14 +733,21 @@ def main(argv: Optional[list[str]] = None) -> None:
                     try:
                         transition_next_frame_time = next(active_transition)
                     except StopIteration:
-                        # Transition complete - finalize with to_image
+                        # Transition complete - paste full to_image to update footer
                         active_transition = None
-                        # Final frame already displayed by generator, just need
-                        # to ensure we have the complete to_image in context
-                # Skip other processing during animation to maintain frame timing
-                # Small sleep to prevent busy-wait
-                time.sleep(0.001)
-                continue
+                        if transition_to_image is not None:
+                            with display._display_lock:
+                                context = display.get_display_context()
+                                context.image.paste(transition_to_image)
+                                context.disp.display(context.image)
+                                display.mark_display_dirty()
+                            transition_to_image = None
+                        # Force a render to ensure UI is consistent
+                        render_requested = True
+                else:
+                    # Not time for next frame yet, small sleep to prevent busy-wait
+                    time.sleep(0.001)
+                    continue
 
             render_requested = False
             force_render = False
