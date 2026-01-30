@@ -17,6 +17,46 @@ from rpi_usb_cloner.ui.toggle import (
 # Default visible rows - matches app.state.VISIBLE_ROWS
 DEFAULT_VISIBLE_ROWS = 3
 
+# Font metrics cache: {font_id: line_height}
+_line_height_cache: dict[int, int] = {}
+
+# Status indicator cache: (timestamp, indicators_list)
+_status_indicators_cache: tuple[float, list] | None = None
+_STATUS_INDICATORS_TTL = 1.0  # 1 second cache
+
+
+def _get_cached_line_height(font, min_height=8) -> int:
+    """Get line height for font with caching.
+    
+    Font metrics don't change during runtime, so we cache by font object id.
+    """
+    font_id = id(font)
+    if font_id not in _line_height_cache:
+        _line_height_cache[font_id] = _compute_line_height(font, min_height)
+    return _line_height_cache[font_id]
+
+
+def _compute_line_height(font, min_height=8) -> int:
+    """Compute line height for font (without caching)."""
+    line_height = min_height
+    try:
+        bbox = font.getbbox("Ag")
+        line_height = max(bbox[3] - bbox[1], line_height)
+    except AttributeError:
+        if hasattr(font, "getmetrics"):
+            ascent, descent = font.getmetrics()
+            line_height = max(ascent + descent, line_height)
+    return line_height
+
+
+def _get_line_height(font, min_height=8) -> int:
+    """Get line height for font (with caching).
+    
+    Deprecated: Use _get_cached_line_height directly for new code.
+    Kept for backward compatibility.
+    """
+    return _get_cached_line_height(font, min_height)
+
 
 def _get_status_indicators(app_context=None) -> list:
     """Collect all status indicators for the status bar.
@@ -24,12 +64,36 @@ def _get_status_indicators(app_context=None) -> list:
     Returns:
         List of StatusIndicator objects sorted by priority.
     """
+    global _status_indicators_cache
+    
+    now = time.monotonic()
+    
+    # Return cached result if within TTL
+    if _status_indicators_cache is not None:
+        cached_time, cached_indicators = _status_indicators_cache
+        if now - cached_time < _STATUS_INDICATORS_TTL:
+            return cached_indicators
+    
+    # Compute fresh indicators
     try:
         from rpi_usb_cloner.ui.status_bar import collect_status_indicators
 
-        return collect_status_indicators(app_context)
+        indicators = collect_status_indicators(app_context)
     except Exception:
-        return []
+        indicators = []
+    
+    # Cache the result
+    _status_indicators_cache = (now, indicators)
+    return indicators
+
+
+def invalidate_status_indicators_cache() -> None:
+    """Invalidate the status indicators cache.
+    
+    Call this when status bar settings change to force a refresh.
+    """
+    global _status_indicators_cache
+    _status_indicators_cache = None
 
 
 def _get_drive_status_text() -> str:
@@ -57,16 +121,13 @@ def _get_drive_status_text() -> str:
     return "|".join(parts)
 
 
-def _get_line_height(font, min_height=8):
-    line_height = min_height
-    try:
-        bbox = font.getbbox("Ag")
-        line_height = max(bbox[3] - bbox[1], line_height)
-    except AttributeError:
-        if hasattr(font, "getmetrics"):
-            ascent, descent = font.getmetrics()
-            line_height = max(ascent + descent, line_height)
-    return line_height
+def _get_line_height(font, min_height=8) -> int:
+    """Get line height for font (with caching).
+    
+    Deprecated: Use _get_cached_line_height directly for new code.
+    Kept for backward compatibility.
+    """
+    return _get_cached_line_height(font, min_height)
 
 
 def _measure_text_width(font, text: str) -> int:
