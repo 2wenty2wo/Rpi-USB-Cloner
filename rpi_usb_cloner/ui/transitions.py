@@ -27,7 +27,6 @@ def render_slide_transition(
         frame_delay: Delay between frames in seconds.
     """
     # Blocking mode: consume frames with proper timing
-    last_frame_time = time.monotonic()
     for next_frame_time in generate_slide_transition(
         from_image, to_image, direction, frame_count, dirty_region, frame_delay
     ):

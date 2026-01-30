@@ -727,6 +727,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     try:
         while True:
             # Handle non-blocking animation transitions first
+            transition_just_completed = False
             if active_transition is not None:
                 now = time.monotonic()
                 if now >= transition_next_frame_time:
@@ -742,8 +743,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                                 context.disp.display(context.image)
                                 display.mark_display_dirty()
                             transition_to_image = None
-                        # Force a render to ensure UI is consistent
-                        render_requested = True
+                        transition_just_completed = True
                 else:
                     # Not time for next frame yet, small sleep to prevent busy-wait
                     time.sleep(0.001)
@@ -752,6 +752,10 @@ def main(argv: Optional[list[str]] = None) -> None:
             render_requested = False
             force_render = False
             now = time.monotonic()
+            
+            # If transition just completed, force a render to update state
+            if transition_just_completed:
+                force_render = True
             if time.time() - state.last_usb_check >= app_state.USB_REFRESH_INTERVAL:
                 # Use batched snapshot for efficiency (single lsblk call)
                 # First pass: get raw/mount info to detect changes
