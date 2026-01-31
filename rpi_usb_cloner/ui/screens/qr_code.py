@@ -1,14 +1,13 @@
 """QR code display screen for Bluetooth pairing.
 
-This module provides a screen that displays a QR code for Bluetooth
-pairing along with manual pairing instructions.
+This module provides screens that match the app's standard style.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.logging import LoggerFactory
 from rpi_usb_cloner.services.bluetooth import (
@@ -17,6 +16,8 @@ from rpi_usb_cloner.services.bluetooth import (
     get_bluetooth_status,
     get_trusted_bluetooth_devices,
 )
+from rpi_usb_cloner.ui import display, menus
+from rpi_usb_cloner.ui.icons import get_screen_icon
 
 if TYPE_CHECKING:
     from rpi_usb_cloner.app.context import AppContext
@@ -24,48 +25,24 @@ if TYPE_CHECKING:
 
 log = LoggerFactory.for_menu()
 
-# Display dimensions
-SCREEN_WIDTH = 128
-SCREEN_HEIGHT = 64
-
-# QR code positioning
-QR_SIZE = 50  # QR code will be 50x50 pixels (version 2 at 2px per module)
-QR_X = 2  # Left side
-QR_Y = 12  # Below title
+# QR code dimensions
+QR_SIZE = 44
 
 
 def _generate_qr_matrix(data: str, version: int = 2) -> list[list[bool]]:
-    """Generate a simple QR code matrix.
-
-    This is a simplified QR code generator that creates a scannable QR code
-    for small amounts of data. For production use, consider using the 'qrcode'
-    library, but this implementation avoids the dependency.
-
-    Args:
-        data: The data to encode
-        version: QR code version (1-3 supported)
-
-    Returns:
-        2D boolean matrix where True = black module
-    """
+    """Generate a QR code matrix."""
     try:
-        # Try to use the qrcode library if available
         import qrcode
+
         error_correction = None
         try:
             from qrcode.constants import ERROR_CORRECT_L
 
             error_correction = ERROR_CORRECT_L
         except Exception:
-            error_correction = getattr(
-                getattr(qrcode, "constants", None), "ERROR_CORRECT_L", None
-            )
+            pass
 
-        qr_kwargs = {
-            "version": version,
-            "box_size": 1,
-            "border": 2,
-        }
+        qr_kwargs = {"version": version, "box_size": 1, "border": 2}
         if error_correction is not None:
             qr_kwargs["error_correction"] = error_correction
 
@@ -73,51 +50,36 @@ def _generate_qr_matrix(data: str, version: int = 2) -> list[list[bool]]:
         qr.add_data(data)
         qr.make(fit=True)
 
-        # Convert to boolean matrix
-        matrix = []
-        for row in qr.modules:
-            matrix.append([bool(module) for module in row])
-        return matrix
+        return [[bool(m) for m in row] for row in qr.modules]
     except ImportError:
         pass
 
-    # Fallback: generate a simple pattern that looks like a QR code
-    # This won't be scannable but shows the UI works
+    # Fallback pattern
     size = 21 if version == 1 else 25 if version == 2 else 29
     matrix = [[False] * size for _ in range(size)]
 
-    # Draw finder patterns (the three big squares in corners)
-    def draw_finder_pattern(x: int, y: int) -> None:
+    def draw_finder(x: int, y: int) -> None:
         for dy in range(7):
             for dx in range(7):
-                # Outer square
                 if dy == 0 or dy == 6 or dx == 0 or dx == 6:
                     matrix[y + dy][x + dx] = True
-                # Inner square
                 elif 2 <= dy <= 4 and 2 <= dx <= 4:
                     matrix[y + dy][x + dx] = True
 
-    # Top-left finder
-    draw_finder_pattern(0, 0)
-    # Top-right finder
-    draw_finder_pattern(size - 7, 0)
-    # Bottom-left finder
-    draw_finder_pattern(0, size - 7)
+    draw_finder(0, 0)
+    draw_finder(size - 7, 0)
+    draw_finder(0, size - 7)
 
-    # Draw timing patterns (alternating line between finders)
     for i in range(8, size - 8):
         matrix[6][i] = i % 2 == 0
         matrix[i][6] = i % 2 == 0
 
-    # Dark module (always present)
     matrix[size - 8][8] = True
 
-    # Encode data as simple alternating pattern
     data_hash = sum(ord(c) * (i + 1) for i, c in enumerate(data))
     for y in range(size):
         for x in range(size):
-            if not matrix[y][x]:  # Only fill empty areas
-                # Pseudo-random based on data hash
+            if not matrix[y][x]:
                 idx = y * size + x
                 matrix[y][x] = ((data_hash + idx * 13) % 17) < 8
 
@@ -125,202 +87,147 @@ def _generate_qr_matrix(data: str, version: int = 2) -> list[list[bool]]:
 
 
 def _scale_matrix(matrix: list[list[bool]], scale: int) -> list[list[bool]]:
-    """Scale up a matrix by a factor."""
+    """Scale up a matrix."""
     if scale == 1:
         return matrix
-
-    height = len(matrix)
-    width = len(matrix[0]) if height > 0 else 0
 
     scaled = []
     for row in matrix:
         new_row = []
         for val in row:
             new_row.extend([val] * scale)
-        # Repeat each row
         for _ in range(scale):
             scaled.append(new_row[:])
-
     return scaled
 
 
-def _resolve_font(display_ctx: DisplayContext) -> ImageFont.ImageFont:
-    """Resolve a usable font, falling back to the default if needed."""
-    # Use fontdisks as the small font (commonly used for UI text)
-    font = getattr(display_ctx, "fontdisks", None)
-    if font is None or not isinstance(font, ImageFont.ImageFont):
-        return ImageFont.load_default()
+def _draw_qr_on_image(image: Image.Image, qr_text: str, x: int, y: int) -> None:
+    """Draw QR code onto existing image."""
     try:
-        font.getmask("A")
-    except Exception:
-        return ImageFont.load_default()
-    return font
+        matrix = _generate_qr_matrix(qr_text, version=2)
+        scaled = _scale_matrix(matrix, 2)
+
+        height = len(scaled)
+        width = len(scaled[0]) if height > 0 else 0
+
+        for row_y, row in enumerate(scaled):
+            for col_x, is_black in enumerate(row):
+                if is_black:
+                    image.putpixel((x + col_x, y + row_y), 1)
+
+        # Border
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([x - 1, y - 1, x + width, y + height], outline=1)
+    except Exception as e:
+        log.warning(f"QR draw failed: {e}")
 
 
 def render_bluetooth_qr_screen(
     app_ctx: AppContext,
     display_ctx: DisplayContext,
 ) -> None:
-    """Render the Bluetooth QR code screen.
-
-    Displays a QR code containing the web UI URL for quick access after
-    manual Bluetooth pairing. Also shows pairing information (MAC, PIN).
-
-    Note: iOS/Android don't support auto-pairing from QR codes, so users
-    must manually pair via Bluetooth settings first, then scan this QR
-    to open the web UI in their browser.
-
-    Args:
-        app_ctx: Application context
-        display_ctx: Display context with display device and fonts
-    """
-    # Get pairing data
+    """Render Bluetooth QR code screen with app-standard styling."""
     data = generate_qr_data()
-
-    # Create image buffer
-    image = Image.new("1", (SCREEN_WIDTH, SCREEN_HEIGHT), 0)
-    draw = ImageDraw.Draw(image)
-
-    font = _resolve_font(display_ctx)
-
-    # Draw title bar
-    draw.text((2, 0), "SCAN FOR WEB UI", font=font, fill=1)
-    draw.line([(0, 10), (SCREEN_WIDTH, 10)], fill=1)
+    title = "BLUETOOTH"
+    title_icon = get_screen_icon("bluetooth")
 
     if "error" in data:
-        # Show error message
-        draw.text((2, 20), "Bluetooth not enabled", font=font, fill=1)
-        draw.text((2, 35), "Press BACK to return", font=font, fill=1)
-        display_ctx.disp.display(image)
-        app_ctx.current_screen_image = image
+        display.render_paginated_lines(
+            title,
+            ["Bluetooth not enabled", "", "Press BACK"],
+            page_index=0,
+            title_icon=title_icon,
+        )
         return
 
-    # Generate QR code (contains web UI URL only)
-    qr_text = generate_qr_text()
-    try:
-        qr_matrix = _generate_qr_matrix(qr_text, version=2)
-        # Scale to 2px per module for 50x50 total
-        scaled_matrix = _scale_matrix(qr_matrix, 2)
-    except Exception as e:
-        log.warning(f"Failed to generate QR code: {e}")
-        scaled_matrix = None
+    # Get context info
+    context = display.get_display_context()
+    content_top = menus.get_standard_content_top(title, title_icon=title_icon)
 
-    # Draw QR code on left side
-    if scaled_matrix:
-        qr_height = len(scaled_matrix)
-        qr_width = len(scaled_matrix[0]) if qr_height > 0 else 0
+    # Use the display's image buffer
+    with display._display_lock:
+        draw = context.draw
+        draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
 
-        # Center the QR code vertically in available space
-        qr_y_offset = QR_Y + (QR_SIZE - qr_height) // 2
+        # Title bar (matching app style)
+        from rpi_usb_cloner.ui.display import draw_title_with_icon
 
-        for y, row in enumerate(scaled_matrix):
-            for x, is_black in enumerate(row):
-                if is_black:
-                    draw.point((QR_X + x, qr_y_offset + y), fill=1)
+        draw_title_with_icon(title, title_icon=title_icon)
 
-        # Draw border around QR code
-        draw.rectangle(
-            [QR_X - 1, qr_y_offset - 1, QR_X + qr_width, qr_y_offset + qr_height],
-            outline=1,
-        )
+        # QR code on left
+        qr_text = generate_qr_text()
+        _draw_qr_on_image(context.image, qr_text, 2, content_top)
 
-    # Draw pairing info on right side
-    info_x = QR_X + QR_SIZE + 4
-    info_y = QR_Y
+        # Info text on right
+        items_font = context.fonts.get("items", context.fontdisks)
+        info_x = 50
+        y = content_top
 
-    # Instructions
-    draw.text((info_x, info_y), "1.Pair manually", font=font, fill=1)
-    draw.text((info_x, info_y + 10), "2.Scan QR code", font=font, fill=1)
+        draw.text((info_x, y), "1. Pair phone", font=items_font, fill=255)
+        y += 10
+        draw.text((info_x, y), "2. Scan code", font=items_font, fill=255)
+        y += 14
 
-    # Device name (truncated if needed)
-    name = data.get("device_name", "Unknown")[:11]
-    draw.text((info_x, info_y + 22), name, font=font, fill=1)
+        name = data.get("device_name", "RPI-USB")[:10]
+        draw.text((info_x, y), name, font=items_font, fill=255)
+        y += 10
 
-    # PIN with highlight
-    pin = data.get("pin", "000000")
-    draw.text((info_x, info_y + 32), "PIN:", font=font, fill=1)
-    # Draw PIN with inverted background for emphasis
-    pin_width = len(pin) * 6  # Approximate width
-    draw.rectangle(
-        [info_x + 22, info_y + 31, info_x + 22 + pin_width + 2, info_y + 39],
-        fill=1,
-    )
-    draw.text((info_x + 23, info_y + 32), pin, font=font, fill=0)
+        # PIN highlighted
+        pin = data.get("pin", "000000")
+        draw.rectangle([info_x, y, info_x + 38, y + 9], fill=255)
+        draw.text((info_x + 2, y), f"{pin}", font=items_font, fill=0)
 
-    # Footer hint
-    draw.line([(0, SCREEN_HEIGHT - 9), (SCREEN_WIDTH, SCREEN_HEIGHT - 9)], fill=1)
-    draw.text((2, SCREEN_HEIGHT - 8), "A:Back C:Refresh", font=font, fill=1)
+        # Footer
+        draw.line([(0, 56), (128, 56)], fill=255)
+        draw.text((2, 57), "A:Back C:Refresh", font=items_font, fill=255)
 
-    # Update display
-    display_ctx.disp.display(image)
-    app_ctx.current_screen_image = image
+        context.disp.display(context.image)
+        display.mark_display_dirty()
+
+    app_ctx.current_screen_image = context.image.copy()
 
 
 def render_bluetooth_status_screen(
     app_ctx: AppContext,
     display_ctx: DisplayContext,
 ) -> None:
-    """Render the Bluetooth status screen.
-
-    Shows current Bluetooth PAN connection status and information.
-
-    Args:
-        app_ctx: Application context
-        display_ctx: Display context with display device and fonts
-    """
+    """Render Bluetooth status screen with app-standard styling."""
     status = get_bluetooth_status()
     trusted_count = len(get_trusted_bluetooth_devices())
+    title_icon = get_screen_icon("bluetooth")
 
-    # Create image buffer
-    image = Image.new("1", (SCREEN_WIDTH, SCREEN_HEIGHT), 0)
-    draw = ImageDraw.Draw(image)
-
-    font = _resolve_font(display_ctx)
-
-    # Draw title
-    draw.text((2, 0), "BLUETOOTH STATUS", font=font, fill=1)
-    draw.line([(0, 10), (SCREEN_WIDTH, 10)], fill=1)
-
-    y = 14
+    lines = []
 
     if not status.enabled:
-        draw.text((2, y), "Status: DISABLED", font=font, fill=1)
-        y += 12
-        draw.text((2, y), "Trusted: {} devices".format(trusted_count), font=font, fill=1)
-        y += 12
-        draw.text((2, y), "Press SELECT for menu", font=font, fill=1)
+        lines.extend([
+            "Status: DISABLED",
+            f"Trusted: {trusted_count} devices",
+            "",
+            "B: Menu  C: Enable",
+        ])
     else:
-        # Status
         state = "CONNECTED" if status.connected else "WAITING"
-        draw.text((2, y), f"Status: {state}", font=font, fill=1)
-        y += 12
+        lines.append(f"Status: {state}")
 
-        # MAC address
         if status.mac_address:
-            draw.text((2, y), f"MAC: {status.mac_address}", font=font, fill=1)
-            y += 12
+            lines.append(f"MAC: {status.mac_address}")
 
-        # PIN
         if status.pin:
-            draw.text((2, y), f"PIN: {status.pin}", font=font, fill=1)
-            y += 12
+            lines.append(f"PIN: {status.pin}")
 
-        # IP address
         if status.ip_address:
-            draw.text((2, y), f"IP: {status.ip_address}", font=font, fill=1)
-            y += 12
+            lines.append(f"IP: {status.ip_address}")
 
-        # Connected device (or trusted count)
         if status.connected and status.connected_device:
-            device = status.connected_device[:20]
-            draw.text((2, y), f"Device: {device}", font=font, fill=1)
+            lines.append(f"Device: {status.connected_device[:18]}")
         else:
-            draw.text((2, y), f"Trusted: {trusted_count} devices", font=font, fill=1)
+            lines.append(f"Trusted: {trusted_count} devices")
 
-    # Footer
-    draw.line([(0, SCREEN_HEIGHT - 9), (SCREEN_WIDTH, SCREEN_HEIGHT - 9)], fill=1)
-    draw.text((2, SCREEN_HEIGHT - 8), "A:Back B:Menu C:Toggle", font=font, fill=1)
+        lines.extend(["", "B: Menu  C: Toggle"])
 
-    # Update display
-    display_ctx.disp.display(image)
-    app_ctx.current_screen_image = image
+    display.render_paginated_lines(
+        "BLUETOOTH",
+        lines,
+        page_index=0,
+        title_icon=title_icon,
+    )
