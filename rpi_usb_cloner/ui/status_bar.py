@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import subprocess
+
 if TYPE_CHECKING:
     from rpi_usb_cloner.app.context import AppContext
 
@@ -58,24 +60,31 @@ class StatusIndicator:
 
 
 def get_bluetooth_indicator() -> StatusIndicator | None:
-    """Get Bluetooth status indicator.
+    """Get Bluetooth PAN status indicator.
 
     Returns:
-        StatusIndicator with Bluetooth icon, or None if not connected.
+        StatusIndicator with Bluetooth icon, or None if PAN not connected.
     """
     try:
-        # Check if bluetooth is connected
-        # For now, check if any bluetooth device is connected via bluetoothctl
-        import subprocess
+        from rpi_usb_cloner.services.bluetooth import is_bluetooth_connected
 
+        if is_bluetooth_connected():
+            return StatusIndicator(
+                label="BT",
+                priority=25,
+                icon_path=ICON_BLUETOOTH,
+            )
+    except Exception:
+        pass
+
+    try:
         result = subprocess.run(
             ["bluetoothctl", "devices", "Connected"],
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=5,
         )
-        # If there are connected devices, the output won't be empty
-        if result.returncode == 0 and result.stdout.strip():
+        if result.returncode == 0 and "Device" in result.stdout:
             return StatusIndicator(
                 label="BT",
                 priority=25,
