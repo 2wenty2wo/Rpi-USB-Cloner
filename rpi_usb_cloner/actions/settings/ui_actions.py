@@ -408,3 +408,311 @@ def toggle_status_bar_drives() -> None:
     status = "SHOWN" if enabled else "HIDDEN"
     screens.render_status_template("STATUS BAR", f"Drive counts {status}")
     time.sleep(1.5)
+
+
+# -----------------------------------------------------------------------------
+# Bluetooth PAN Actions
+# -----------------------------------------------------------------------------
+
+
+def bluetooth_settings() -> None:
+    """Display Bluetooth settings and status screen with menu options."""
+    from rpi_usb_cloner.services.bluetooth import (
+        get_bluetooth_status,
+        is_bluetooth_pan_enabled,
+        is_bluetooth_connected,
+    )
+    from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
+
+    while True:
+        context = display.get_display_context()
+        app_context = display.get_app_context()
+
+        # Show status screen
+        render_bluetooth_status_screen(app_context, context)
+
+        # Wait for user input
+        event_received = False
+        while not event_received:
+            from rpi_usb_cloner.hardware import gpio
+
+            event = gpio.get_button_event()
+            if event:
+                button, event_type = event
+                if event_type == "press":
+                    if button == "A":
+                        # Back
+                        return
+                    elif button == "B":
+                        # Select - show Bluetooth menu
+                        bluetooth_menu()
+                        event_received = True
+                    elif button == "C":
+                        # Quick toggle
+                        status = get_bluetooth_status()
+                        if status.enabled:
+                            toggle_bluetooth_pan()
+                        else:
+                            enable_bluetooth_pan()
+                        event_received = True
+
+            time.sleep(0.02)
+
+
+def bluetooth_menu() -> None:
+    """Show Bluetooth options menu."""
+    from rpi_usb_cloner.services.bluetooth import (
+        get_bluetooth_status,
+        is_bluetooth_connected,
+    )
+
+    status = get_bluetooth_status()
+
+    # Build menu based on current state
+    items = []
+    if status.enabled:
+        items.append("DISABLE BLUETOOTH")
+        if status.connected:
+            items.append("TRUST THIS DEVICE")
+            items.append("SHOW QR CODE")
+        else:
+            items.append("SHOW QR CODE")
+    else:
+        items.append("ENABLE BLUETOOTH")
+
+    items.append("TRUSTED DEVICES...")
+
+    selection = menus.render_menu_list(
+        "BLUETOOTH",
+        items,
+        header_lines=["Bluetooth options"],
+        transition_direction="forward",
+    )
+
+    if selection is None:
+        return
+
+    selected = items[selection]
+
+    if selected == "ENABLE BLUETOOTH":
+        enable_bluetooth_pan()
+    elif selected == "DISABLE BLUETOOTH":
+        disable_bluetooth_pan()
+    elif selected == "TRUST THIS DEVICE":
+        bluetooth_trust_current()
+    elif selected == "SHOW QR CODE":
+        show_bluetooth_qr()
+    elif selected == "TRUSTED DEVICES...":
+        bluetooth_trusted_devices()
+
+
+def toggle_bluetooth_pan() -> None:
+    """Toggle Bluetooth PAN mode on/off."""
+    from rpi_usb_cloner.services.bluetooth import (
+        get_bluetooth_status,
+        toggle_bluetooth_pan as do_toggle,
+    )
+
+    status = get_bluetooth_status()
+    was_enabled = status.enabled
+
+    screens.render_status_template(
+        "BLUETOOTH",
+        "Enabling..." if not was_enabled else "Disabling...",
+    )
+
+    try:
+        new_state = do_toggle()
+        if new_state:
+            status = get_bluetooth_status()
+            pin = status.pin or "Unknown"
+            screens.render_status_template(
+                "BLUETOOTH",
+                f"Enabled PIN: {pin}",
+            )
+        else:
+            screens.render_status_template("BLUETOOTH", "Disabled")
+    except Exception as e:
+        screens.render_status_template("BLUETOOTH", f"Error: {str(e)[:20]}")
+
+    time.sleep(1.5)
+
+
+def show_bluetooth_qr() -> None:
+    """Show Bluetooth pairing QR code screen."""
+    from rpi_usb_cloner.services.bluetooth import (
+        generate_qr_data,
+        get_bluetooth_status,
+        is_bluetooth_pan_enabled,
+    )
+    from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_qr_screen
+
+    if not is_bluetooth_pan_enabled():
+        screens.render_status_template("BLUETOOTH", "Enable Bluetooth first")
+        time.sleep(1.5)
+        return
+
+    context = display.get_display_context()
+    app_context = display.get_app_context()
+
+    # Show QR screen
+    render_bluetooth_qr_screen(app_context, context)
+
+    # Wait for user input
+    while True:
+        from rpi_usb_cloner.hardware import gpio
+
+        event = gpio.get_button_event()
+        if event:
+            button, event_type = event
+            if event_type == "press":
+                if button == "A":
+                    # Back
+                    break
+                elif button == "C":
+                    # Refresh - re-render QR code
+                    render_bluetooth_qr_screen(app_context, context)
+
+        time.sleep(0.02)
+
+
+def enable_bluetooth_pan() -> None:
+    """Enable Bluetooth PAN mode."""
+    from rpi_usb_cloner.services.bluetooth import (
+        enable_bluetooth_pan as do_enable,
+        get_bluetooth_status,
+    )
+
+    screens.render_status_template("BLUETOOTH", "Enabling...")
+
+    try:
+        if do_enable():
+            status = get_bluetooth_status()
+            pin = status.pin or "Unknown"
+            screens.render_status_template(
+                "BLUETOOTH",
+                f"Enabled PIN: {pin}",
+            )
+        else:
+            screens.render_status_template("BLUETOOTH", "Failed to enable")
+    except Exception as e:
+        screens.render_status_template("BLUETOOTH", f"Error: {str(e)[:20]}")
+
+    time.sleep(1.5)
+
+
+def disable_bluetooth_pan() -> None:
+    """Disable Bluetooth PAN mode."""
+    from rpi_usb_cloner.services.bluetooth import disable_bluetooth_pan as do_disable
+
+    screens.render_status_template("BLUETOOTH", "Disabling...")
+
+    try:
+        do_disable()
+        screens.render_status_template("BLUETOOTH", "Disabled")
+    except Exception as e:
+        screens.render_status_template("BLUETOOTH", f"Error: {str(e)[:20]}")
+
+    time.sleep(1.5)
+
+
+def bluetooth_trusted_devices() -> None:
+    """Show and manage trusted Bluetooth devices."""
+    from rpi_usb_cloner.services.bluetooth import (
+        forget_all_bluetooth_devices,
+        get_trusted_bluetooth_devices,
+        is_bluetooth_auto_reconnect_enabled,
+        remove_trusted_bluetooth_device,
+        set_bluetooth_auto_reconnect,
+    )
+
+    while True:
+        devices = get_trusted_bluetooth_devices()
+        auto_reconnect = is_bluetooth_auto_reconnect_enabled()
+
+        # Build menu items
+        items = []
+        # Add auto-reconnect toggle at top
+        auto_label = f"AUTO-RECONNECT: {'ON' if auto_reconnect else 'OFF'}"
+        items.append(auto_label)
+
+        if devices:
+            items.append("-- TRUSTED DEVICES --")
+            for device in devices:
+                name = device.get("name", "Unknown")
+                mac = device.get("mac", "Unknown")
+                items.append(f"{name} ({mac[-5:]})")
+            items.append("-- ACTIONS --")
+            items.append("FORGET ALL DEVICES")
+        else:
+            items.append("No trusted devices")
+
+        selection = menus.render_menu_list(
+            "TRUSTED DEVICES",
+            items,
+            header_lines=["Manage trusted devices"],
+            transition_direction="forward",
+        )
+
+        if selection is None:
+            break
+
+        selected = items[selection]
+
+        if selected == auto_label:
+            # Toggle auto-reconnect
+            set_bluetooth_auto_reconnect(not auto_reconnect)
+            screens.render_status_template(
+                "AUTO-RECONNECT",
+                "Enabled" if not auto_reconnect else "Disabled",
+            )
+            time.sleep(1)
+
+        elif selected == "FORGET ALL DEVICES":
+            # Confirm before clearing
+            confirmed = screens.render_confirmation_screen(
+                "FORGET ALL?",
+                ["Remove all trusted", "Bluetooth devices?"],
+            )
+            if confirmed == "YES":
+                forget_all_bluetooth_devices()
+                screens.render_status_template("TRUSTED DEVICES", "All devices forgotten")
+                time.sleep(1.5)
+
+        elif "(" in selected and ")" in selected and "--" not in selected:
+            # Selected a device - offer to forget it
+            # Extract MAC from the display string
+            device_idx = selection - 2  # Account for header and separator
+            if 0 <= device_idx < len(devices):
+                device = devices[device_idx]
+                mac = device.get("mac", "")
+                name = device.get("name", "Unknown")
+
+                confirmed = screens.render_confirmation_screen(
+                    "FORGET DEVICE?",
+                    [f"Remove {name}?"],
+                )
+                if confirmed == "YES":
+                    remove_trusted_bluetooth_device(mac)
+                    screens.render_status_template("TRUSTED DEVICES", f"Forgot {name}")
+                    time.sleep(1.5)
+
+
+def bluetooth_trust_current() -> None:
+    """Trust the currently connected Bluetooth device."""
+    from rpi_usb_cloner.services.bluetooth import (
+        get_bluetooth_status,
+        trust_current_bluetooth_device,
+    )
+
+    status = get_bluetooth_status()
+    if not status.connected:
+        screens.render_status_template("BLUETOOTH", "No device connected")
+        time.sleep(1.5)
+        return
+
+    if trust_current_bluetooth_device():
+        screens.render_status_template("BLUETOOTH", "Device trusted")
+    else:
+        screens.render_status_template("BLUETOOTH", "Trust failed")
+    time.sleep(1.5)

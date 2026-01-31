@@ -17,6 +17,8 @@ dependencies = [
     "aiohttp==3.9.5",
     "loguru==0.7.2",
     "psutil==5.9.8",
+    "zeroconf==0.132.2",
+    "qrcode[pil]==7.4.2",
 ]
 
 [project.optional-dependencies]

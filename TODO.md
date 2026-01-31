@@ -29,6 +29,11 @@
   - USB-to-USB (plugging destination drive into source Pi)
   - Ethernet Direct (mDNS discovery + HTTP transfer)
   - WiFi Direct (P2P wireless without router)
+- [x] **Bluetooth PAN** - Bluetooth tethering for web UI access without WiFi:
+  - Pi acts as Bluetooth NAP (Network Access Point)
+  - QR code pairing display
+  - Internet sharing via phone tethering
+  - Trusted devices with auto-reconnect
 - [ ] Network share mounting (SMB/NFS) for image repositories
 - [ ] Batch operation queue system
 - [ ] Scheduled automated backups

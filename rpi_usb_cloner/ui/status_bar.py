@@ -58,24 +58,15 @@ class StatusIndicator:
 
 
 def get_bluetooth_indicator() -> StatusIndicator | None:
-    """Get Bluetooth status indicator.
+    """Get Bluetooth PAN status indicator.
 
     Returns:
-        StatusIndicator with Bluetooth icon, or None if not connected.
+        StatusIndicator with Bluetooth icon, or None if PAN not connected.
     """
     try:
-        # Check if bluetooth is connected
-        # For now, check if any bluetooth device is connected via bluetoothctl
-        import subprocess
+        from rpi_usb_cloner.services.bluetooth import is_bluetooth_connected
 
-        result = subprocess.run(
-            ["bluetoothctl", "devices", "Connected"],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        # If there are connected devices, the output won't be empty
-        if result.returncode == 0 and result.stdout.strip():
+        if is_bluetooth_connected():
             return StatusIndicator(
                 label="BT",
                 priority=25,
