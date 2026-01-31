@@ -13,7 +13,7 @@ CONFIRM_YES = 1
 
 QUICK_WIPE_MIB = 32
 USB_REFRESH_INTERVAL = 2.0
-VISIBLE_ROWS = 3
+VISIBLE_ROWS = 4
 # Runtime state for screensaver - mirrors settings["screensaver_enabled"]
 screensaver_enabled = False
 SCREENSAVER_TIMEOUT = 30.0
