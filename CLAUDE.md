@@ -588,10 +588,11 @@ STATUS_ICON_SIZE = 7                # 7px status icons (WiFi, BT, Web)
 | Font Name | File | Size | Usage |
 |-----------|------|------|-------|
 | `title` | Born2bSportyFS.otf | 16pt | Screen titles |
-| `items` | slkscr.ttf | 8pt | Menu items, content |
+| `items` | slkscr.ttf | 8pt | Menu items, content, status bar |
 | `items_bold` | slkscrb.ttf | 8pt | Bold menu text |
-| `footer` | Born2bSportyFS.otf | 16pt | Footer text |
 | `icons` | lucide.ttf | 16pt | Lucide icons |
+
+**Note**: The `fonts["footer"]` entry exists (Born2bSportyFS.otf 16pt) but the status bar actually uses the `items` font.
 
 **Line height calculation**: Use `_get_cached_line_height(font)` from `ui/renderer.py`
 
