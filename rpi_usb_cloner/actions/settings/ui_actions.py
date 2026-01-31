@@ -417,7 +417,6 @@ def toggle_status_bar_drives() -> None:
 
 def bluetooth_settings() -> None:
     """Display Bluetooth settings and status screen with menu options."""
-    from rpi_usb_cloner.menu.actions import get_action_context
     from rpi_usb_cloner.services.bluetooth import (
         get_bluetooth_status,
         is_bluetooth_pan_enabled,
@@ -425,12 +424,9 @@ def bluetooth_settings() -> None:
     )
     from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
 
-    # Get app context from action context
-    action_context = get_action_context()
-    app_context = action_context.app_context
-
     while True:
         context = display.get_display_context()
+        app_context = display.get_app_context()
 
         # Show status screen
         render_bluetooth_status_screen(app_context, context)
@@ -544,7 +540,6 @@ def toggle_bluetooth_pan() -> None:
 
 def show_bluetooth_qr() -> None:
     """Show Bluetooth pairing QR code screen."""
-    from rpi_usb_cloner.menu.actions import get_action_context
     from rpi_usb_cloner.services.bluetooth import (
         generate_qr_data,
         get_bluetooth_status,
@@ -557,11 +552,8 @@ def show_bluetooth_qr() -> None:
         time.sleep(1.5)
         return
 
-    # Get app context from action context
-    action_context = get_action_context()
-    app_context = action_context.app_context
-
     context = display.get_display_context()
+    app_context = display.get_app_context()
 
     # Show QR screen
     render_bluetooth_qr_screen(app_context, context)
