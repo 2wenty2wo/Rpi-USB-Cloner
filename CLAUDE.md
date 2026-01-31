@@ -697,6 +697,8 @@ def render_menu(context, items, selected_index, title, ...):
 
 **Location**: `ui/status_bar.py`
 
+The status bar is **consistent across all screens** that display it. Some screens (e.g., progress, error) may omit the footer entirely, but when present it always uses the same layout and indicators.
+
 The status bar displays system indicators right-aligned:
 ```
 │                    W  BT  U2 R1│
