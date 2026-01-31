@@ -424,6 +424,7 @@ def bluetooth_settings() -> None:
         is_bluetooth_connected,
     )
     from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
+    from rpi_usb_cloner.hardware import gpio
 
     # Get app context from action context
     action_context = get_action_context()
@@ -435,32 +436,35 @@ def bluetooth_settings() -> None:
         # Show status screen
         render_bluetooth_status_screen(app_context, context)
 
-        # Wait for user input
-        event_received = False
-        while not event_received:
-            from rpi_usb_cloner.hardware import gpio
+        # Poll for button events
+        def on_button_a():
+            return "exit"  # Back
 
-            event = gpio.get_button_event()
-            if event:
-                button, event_type = event
-                if event_type == "press":
-                    if button == "A":
-                        # Back
-                        return
-                    elif button == "B":
-                        # Select - show Bluetooth menu
-                        bluetooth_menu()
-                        event_received = True
-                    elif button == "C":
-                        # Quick toggle
-                        status = get_bluetooth_status()
-                        if status.enabled:
-                            toggle_bluetooth_pan()
-                        else:
-                            enable_bluetooth_pan()
-                        event_received = True
+        def on_button_b():
+            return "menu"  # Show menu
 
-            time.sleep(0.02)
+        def on_button_c():
+            return "toggle"  # Quick toggle
+
+        result = gpio.poll_button_events(
+            {
+                gpio.PIN_A: on_button_a,
+                gpio.PIN_B: on_button_b,
+                gpio.PIN_C: on_button_c,
+            },
+            poll_interval=0.05,
+        )
+
+        if result == "exit":
+            return
+        elif result == "menu":
+            bluetooth_menu()
+        elif result == "toggle":
+            status = get_bluetooth_status()
+            if status.enabled:
+                toggle_bluetooth_pan()
+            else:
+                enable_bluetooth_pan()
 
 
 def bluetooth_menu() -> None:
@@ -551,6 +555,7 @@ def show_bluetooth_qr() -> None:
         is_bluetooth_pan_enabled,
     )
     from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_qr_screen
+    from rpi_usb_cloner.hardware import gpio
 
     if not is_bluetooth_pan_enabled():
         screens.render_status_template("BLUETOOTH", "Enable Bluetooth first")
@@ -566,22 +571,26 @@ def show_bluetooth_qr() -> None:
     # Show QR screen
     render_bluetooth_qr_screen(app_context, context)
 
-    # Wait for user input
+    # Poll for button events
+    def on_button_a():
+        return "exit"  # Back
+
+    def on_button_c():
+        return "refresh"  # Refresh QR
+
     while True:
-        from rpi_usb_cloner.hardware import gpio
+        result = gpio.poll_button_events(
+            {
+                gpio.PIN_A: on_button_a,
+                gpio.PIN_C: on_button_c,
+            },
+            poll_interval=0.05,
+        )
 
-        event = gpio.get_button_event()
-        if event:
-            button, event_type = event
-            if event_type == "press":
-                if button == "A":
-                    # Back
-                    break
-                elif button == "C":
-                    # Refresh - re-render QR code
-                    render_bluetooth_qr_screen(app_context, context)
-
-        time.sleep(0.02)
+        if result == "exit":
+            break
+        elif result == "refresh":
+            render_bluetooth_qr_screen(app_context, context)
 
 
 def enable_bluetooth_pan() -> None:
