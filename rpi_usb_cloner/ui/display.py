@@ -300,7 +300,7 @@ def init_display() -> DisplayContext:
         "title": fontcopy,
         "items": fontdisks,
         "items_bold": fontitems_bold,
-        "footer": fontcopy,
+        "footer": fontdisks,
     }
 
     return DisplayContext(
