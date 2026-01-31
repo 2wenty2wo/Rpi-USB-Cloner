@@ -8,9 +8,9 @@
 ## Recent Updates (2026-01-27)
 
 ✅ **Re-ran coverage locally** with `pytest --cov=rpi_usb_cloner`:
-- **1090 tests passed**, 5 skipped (async + clonezilla tooling skips)
-- Overall coverage is now **43.92%** with **11,019 statements** tracked
-- Test inventory confirmed at **43 test modules** (see `tests/test_*.py`)
+- **1196 tests passed**, 9 skipped (async + complex mocking)
+- Overall coverage improved with **5 new test modules** for transfer services
+- Test inventory confirmed at **48 test modules** (see `tests/test_*.py`)
 
 ✅ **Test inventory highlights** (current module names):
 - `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
@@ -23,6 +23,9 @@
   `tests/test_clonezilla_file_utils.py`, `tests/test_clonezilla_partition_table.py`,
   `tests/test_clonezilla_image_discovery.py`
 - `tests/test_logging.py`, `tests/test_wifi.py`, `tests/test_transfer.py`
+- `tests/test_transfer_services.py`, `tests/test_discovery.py`,
+  `tests/test_peer_transfer_client.py`, `tests/test_peer_transfer_server.py`,
+  `tests/test_wifi_direct.py`
 - `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
   `tests/test_ui_confirmation.py`, `tests/test_ui_display.py`,
   `tests/test_ui_keyboard.py`
@@ -33,13 +36,16 @@
 - Added targeted helper tests for action handler selection/validation logic
 - Added logging setup/context filtering tests (`tests/test_logging.py`)
 - Added Wi-Fi nmcli parsing and error handling tests (`tests/test_wifi.py`)
+- Added comprehensive Image Transfer service tests (106 tests, 5 modules)
 
-⏳ **Pending tests** (new Image Transfer feature - 2026-01-27):
-- `services/transfer.py` - USB-to-USB transfer service
-- `services/discovery.py` - mDNS peer discovery
-- `services/peer_transfer_server.py` - HTTP transfer server
-- `services/peer_transfer_client.py` - HTTP transfer client
-- `services/wifi_direct.py` - WiFi Direct P2P service
+✅ **Completed tests** (Image Transfer feature - 2026-01-31):
+- `services/transfer.py` - 95.3% coverage (`test_transfer_services.py`)
+- `services/discovery.py` - 79.1% coverage (`test_discovery.py`)
+- `services/peer_transfer_server.py` - 60.5% coverage (`test_peer_transfer_server.py`)
+- `services/peer_transfer_client.py` - 47.6% coverage (`test_peer_transfer_client.py`)
+- `services/wifi_direct.py` - 71.7% coverage (`test_wifi_direct.py`)
+
+⏳ **Pending tests**:
 - `actions/network_transfer_actions.py` - Network transfer UI
 - `actions/wifi_direct_actions.py` - WiFi Direct UI
 

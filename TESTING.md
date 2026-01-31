@@ -259,6 +259,11 @@ tests/
 ├── test_mount.py            # Mount utility tests
 ├── test_mount_security.py   # Mount security tests
 ├── test_services_drives.py  # Drive service tests
+├── test_transfer_services.py # USB-to-USB transfer service tests
+├── test_discovery.py         # mDNS peer discovery tests
+├── test_peer_transfer_client.py # HTTP transfer client tests
+├── test_peer_transfer_server.py # HTTP transfer server tests
+├── test_wifi_direct.py       # WiFi Direct P2P tests
 ├── test_settings.py         # Settings management tests
 ├── test_system_health.py    # System health monitoring tests
 ├── test_ui_confirmation.py  # Confirmation dialog tests
@@ -536,7 +541,7 @@ When contributing new code:
 
 ---
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-01-31
 **Test Count & Coverage**: See the latest GitHub Actions `Tests` workflow run for
 date-stamped totals and the `coverage-reports` artifact for the HTML report to
 avoid drift in this document.
