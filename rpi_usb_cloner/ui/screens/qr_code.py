@@ -101,8 +101,13 @@ def _scale_matrix(matrix: list[list[bool]], scale: int) -> list[list[bool]]:
     return scaled
 
 
-def _draw_qr_on_image(image: Image.Image, qr_text: str, x: int, y: int) -> None:
-    """Draw QR code onto existing image."""
+def _draw_qr_on_image(
+    image: Image.Image,
+    qr_text: str,
+    x: int,
+    y: int,
+) -> tuple[int, int]:
+    """Draw QR code onto existing image and return (width, height)."""
     try:
         matrix = _generate_qr_matrix(qr_text, version=2)
         scaled = _scale_matrix(matrix, 2)
@@ -118,8 +123,10 @@ def _draw_qr_on_image(image: Image.Image, qr_text: str, x: int, y: int) -> None:
         # Border
         draw = ImageDraw.Draw(image)
         draw.rectangle([x - 1, y - 1, x + width, y + height], outline=1)
+        return width, height
     except Exception as e:
         log.warning(f"QR draw failed: {e}")
+        return 0, 0
 
 
 def render_bluetooth_qr_screen(
@@ -156,11 +163,13 @@ def render_bluetooth_qr_screen(
 
         # QR code on left
         qr_text = generate_qr_text()
-        _draw_qr_on_image(context.image, qr_text, 2, content_top)
+        qr_x = 2
+        qr_width, _ = _draw_qr_on_image(context.image, qr_text, qr_x, content_top)
 
         # Info text on right
         items_font = context.fonts.get("items", context.fontdisks)
-        info_x = 50
+        info_margin = 4
+        info_x = qr_x + qr_width + info_margin
         y = content_top
 
         draw.text((info_x, y), "1. Pair phone", font=items_font, fill=255)
