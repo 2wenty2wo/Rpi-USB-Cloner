@@ -146,8 +146,7 @@ def _scale_matrix(matrix: list[list[bool]], scale: int) -> list[list[bool]]:
 
 def _resolve_font(display_ctx: DisplayContext) -> ImageFont.ImageFont:
     """Resolve a usable font, falling back to the default if needed."""
-    # Use fontdisks as the small font (commonly used for UI text)
-    font = getattr(display_ctx, "fontdisks", None)
+    font = getattr(display_ctx, "font_small", None)
     if font is None or not isinstance(font, ImageFont.ImageFont):
         return ImageFont.load_default()
     try:
@@ -191,7 +190,7 @@ def render_bluetooth_qr_screen(
         # Show error message
         draw.text((2, 20), "Bluetooth not enabled", font=font, fill=1)
         draw.text((2, 35), "Press BACK to return", font=font, fill=1)
-        display_ctx.disp.display(image)
+        display_ctx.device.display(image)
         app_ctx.current_screen_image = image
         return
 
@@ -252,7 +251,7 @@ def render_bluetooth_qr_screen(
     draw.text((2, SCREEN_HEIGHT - 8), "A:Back C:Refresh", font=font, fill=1)
 
     # Update display
-    display_ctx.disp.display(image)
+    display_ctx.device.display(image)
     app_ctx.current_screen_image = image
 
 
@@ -322,5 +321,5 @@ def render_bluetooth_status_screen(
     draw.text((2, SCREEN_HEIGHT - 8), "A:Back B:Menu C:Toggle", font=font, fill=1)
 
     # Update display
-    display_ctx.disp.display(image)
+    display_ctx.device.display(image)
     app_ctx.current_screen_image = image

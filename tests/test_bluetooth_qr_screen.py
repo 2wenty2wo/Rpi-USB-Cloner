@@ -81,8 +81,8 @@ class TestBluetoothQRScreen:
     def mock_context(self):
         """Create a mock display context."""
         context = MagicMock()
-        context.fontdisks = MagicMock()
-        context.disp = MagicMock()
+        context.font_small = MagicMock()
+        context.device = MagicMock()
         return context
 
     @pytest.fixture
@@ -102,7 +102,7 @@ class TestBluetoothQRScreen:
         render_bluetooth_qr_screen(mock_app_context, mock_context)
 
         # Should display error message
-        mock_context.disp.display.assert_called_once()
+        mock_context.device.display.assert_called_once()
 
     @patch("rpi_usb_cloner.ui.screens.qr_code.generate_qr_data")
     @patch("rpi_usb_cloner.ui.screens.qr_code._generate_qr_matrix")
@@ -123,7 +123,7 @@ class TestBluetoothQRScreen:
 
         render_bluetooth_qr_screen(mock_app_context, mock_context)
 
-        mock_context.disp.display.assert_called_once()
+        mock_context.device.display.assert_called_once()
 
 
 class TestBluetoothStatusScreen:
@@ -133,8 +133,8 @@ class TestBluetoothStatusScreen:
     def mock_context(self):
         """Create a mock display context."""
         context = MagicMock()
-        context.fontdisks = MagicMock()
-        context.disp = MagicMock()
+        context.font_small = MagicMock()
+        context.device = MagicMock()
         return context
 
     @pytest.fixture
@@ -145,8 +145,7 @@ class TestBluetoothStatusScreen:
         return context
 
     @patch("rpi_usb_cloner.ui.screens.qr_code.get_bluetooth_status")
-    @patch("rpi_usb_cloner.ui.screens.qr_code.get_trusted_bluetooth_devices")
-    def test_render_disabled(self, mock_get_trusted, mock_get_status, mock_context, mock_app_context):
+    def test_render_disabled(self, mock_get_status, mock_context, mock_app_context):
         """Test status screen when Bluetooth is disabled."""
         from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
 
@@ -154,16 +153,13 @@ class TestBluetoothStatusScreen:
         mock_status.enabled = False
         mock_status.connected = False
         mock_get_status.return_value = mock_status
-        mock_get_trusted.return_value = []
 
         render_bluetooth_status_screen(mock_app_context, mock_context)
 
-        # Should display error message
-        mock_context.disp.display.assert_called_once()
+        mock_context.device.display.assert_called_once()
 
     @patch("rpi_usb_cloner.ui.screens.qr_code.get_bluetooth_status")
-    @patch("rpi_usb_cloner.ui.screens.qr_code.get_trusted_bluetooth_devices")
-    def test_render_connected(self, mock_get_trusted, mock_get_status, mock_context, mock_app_context):
+    def test_render_connected(self, mock_get_status, mock_context, mock_app_context):
         """Test status screen when Bluetooth is connected."""
         from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
 
@@ -175,15 +171,13 @@ class TestBluetoothStatusScreen:
         mock_status.ip_address = "192.168.50.1"
         mock_status.connected_device = "iPhone (AA:BB:CC:DD:EE:FF)"
         mock_get_status.return_value = mock_status
-        mock_get_trusted.return_value = []
 
         render_bluetooth_status_screen(mock_app_context, mock_context)
 
-        mock_context.disp.display.assert_called_once()
+        mock_context.device.display.assert_called_once()
 
     @patch("rpi_usb_cloner.ui.screens.qr_code.get_bluetooth_status")
-    @patch("rpi_usb_cloner.ui.screens.qr_code.get_trusted_bluetooth_devices")
-    def test_render_waiting(self, mock_get_trusted, mock_get_status, mock_context, mock_app_context):
+    def test_render_waiting(self, mock_get_status, mock_context, mock_app_context):
         """Test status screen when waiting for connection."""
         from rpi_usb_cloner.ui.screens.qr_code import render_bluetooth_status_screen
 
@@ -195,8 +189,7 @@ class TestBluetoothStatusScreen:
         mock_status.ip_address = "192.168.50.1"
         mock_status.connected_device = None
         mock_get_status.return_value = mock_status
-        mock_get_trusted.return_value = []
 
         render_bluetooth_status_screen(mock_app_context, mock_context)
 
-        mock_context.disp.display.assert_called_once()
+        mock_context.device.display.assert_called_once()
