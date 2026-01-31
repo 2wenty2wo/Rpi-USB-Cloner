@@ -27,6 +27,3 @@ typing_extensions==4.12.2
 
 # mDNS service discovery for peer-to-peer transfers
 zeroconf==0.132.2
-
-# QR code generation for Bluetooth pairing
-qrcode[pil]==7.4.2

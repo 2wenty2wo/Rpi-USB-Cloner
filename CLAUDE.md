@@ -1246,34 +1246,6 @@ sudo journalctl -u rpi-usb-cloner.service -f
 
 ### Recent Improvements
 
-#### 2026-01-31: Bluetooth PAN with Trusted Devices & Auto-Reconnect ✅
-**Bluetooth PAN**:
-- New `services/bluetooth.py` - Bluetooth Network Access Point (NAP) management
-- Pi acts as Bluetooth access point for phone tethering (no WiFi needed)
-- QR code display for quick web UI access (`http://192.168.50.1:8000`)
-- Random 6-digit PIN generated each session for secure pairing
-- Status bar shows Bluetooth icon when connected (`7px-bluetooth.png`)
-
-**Trusted Devices & Auto-Reconnect**:
-- Save trusted devices to settings (`bluetooth_trusted_devices`)
-- Auto-reconnect to trusted devices when Bluetooth enabled
-- Manage trusted devices: view, forget individual, forget all
-- Toggle auto-reconnect on/off (`bluetooth_auto_reconnect`)
-
-**UI Integration**:
-- Settings → Connectivity → Bluetooth PAN menu
-- Status screen with MAC, PIN, connection status
-- QR code screen for web UI access
-- Trusted devices management screen
-
-**Dependencies**:
-- Added `qrcode[pil]==7.4.2` to requirements
-
-**Files**:
-- `rpi_usb_cloner/services/bluetooth.py` - Bluetooth PAN service
-- `rpi_usb_cloner/ui/screens/qr_code.py` - QR code display
-- `rpi_usb_cloner/config/settings.py` - Trusted devices settings
-
 #### 2026-01-29: Status Bar, Toggle Icons & Menu Icon Preview ✅
 **Status Bar System**:
 - New `ui/status_bar.py` module for system tray-like status indicators

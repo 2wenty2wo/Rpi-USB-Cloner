@@ -50,15 +50,10 @@ from .images import (  # noqa: E402
     write_image,
 )
 from .settings import (  # noqa: E402
-    bluetooth_settings,
-    bluetooth_trust_current,
-    bluetooth_trusted_devices,
     demo_confirmation_screen,
     demo_info_screen,
     demo_progress_screen,
     demo_status_screen,
-    disable_bluetooth_pan,
-    enable_bluetooth_pan,
     heroicons_demo,
     keyboard_test,
     lucide_demo,
@@ -72,10 +67,8 @@ from .settings import (  # noqa: E402
     select_transition_speed,
     settings_coming_soon,
     show_about_credits,
-    show_bluetooth_qr,
     shutdown_system,
     stop_service,
-    toggle_bluetooth_pan,
     toggle_menu_icon_preview,
     toggle_screensaver_enabled,
     toggle_screensaver_mode,
@@ -162,14 +155,6 @@ __all__ = [
     "toggle_status_bar_bluetooth",
     "toggle_status_bar_web",
     "toggle_status_bar_drives",
-    # Bluetooth PAN actions
-    "bluetooth_settings",
-    "toggle_bluetooth_pan",
-    "show_bluetooth_qr",
-    "enable_bluetooth_pan",
-    "disable_bluetooth_pan",
-    "bluetooth_trusted_devices",
-    "bluetooth_trust_current",
     # Utility
     "noop",
 ]

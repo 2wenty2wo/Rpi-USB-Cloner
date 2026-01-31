@@ -41,9 +41,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "status_bar_bluetooth_enabled": True,
     "status_bar_web_enabled": True,
     "status_bar_drives_enabled": True,
-    # Bluetooth trusted devices (auto-reconnect)
-    "bluetooth_trusted_devices": [],  # List of {mac: str, name: str, paired_at: str}
-    "bluetooth_auto_reconnect": True,  # Enable auto-reconnect to trusted devices
 }
 
 
