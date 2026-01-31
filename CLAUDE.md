@@ -1486,6 +1486,9 @@ def clone_device(source: str, destination: str) -> None:
 #### Web UI Performance
 - **WebSocket frame rate** is limited to prevent browser lag
 - **Large logs** can slow down web UI - implement pagination
+- **Graceful shutdown**: WebSocket connections are closed with `WSCloseCode.GOING_AWAY` (1001) on server shutdown
+  - Connections tracked via `weakref.WeakSet` for automatic cleanup
+  - `app.on_shutdown` signal handler ensures proper disconnection
 
 ### Hardware Quirks
 
@@ -1638,7 +1641,7 @@ def clone_device(source: str, destination: str) -> None:
 | `rpi_usb_cloner/storage/image_repo.py` | ~270 | Image repository management ⭐ |
 | `rpi_usb_cloner/storage/clone/operations.py` | ~400 | Clone operations ⭐ |
 | `rpi_usb_cloner/ui/renderer.py` | ~300 | OLED rendering ⭐ |
-| `rpi_usb_cloner/web/server.py` | ~400 | Web server (aiohttp) ⭐ |
+| `rpi_usb_cloner/web/server.py` | ~450 | Web server with graceful WebSocket shutdown ⭐ |
 | `rpi_usb_cloner/config/settings.py` | ~200 | Settings management ⭐ |
 
 ### Configuration Files
