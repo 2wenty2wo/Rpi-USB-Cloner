@@ -158,38 +158,3 @@ def toggle_status_bar_web() -> None:
 def toggle_status_bar_drives() -> None:
     """Toggle drive counts visibility in status bar."""
     settings_actions.toggle_status_bar_drives()
-
-
-def bluetooth_settings() -> None:
-    """Display Bluetooth settings screen."""
-    settings_actions.bluetooth_settings()
-
-
-def toggle_bluetooth_pan() -> None:
-    """Toggle Bluetooth PAN mode on/off."""
-    settings_actions.toggle_bluetooth_pan()
-
-
-def show_bluetooth_qr() -> None:
-    """Show Bluetooth pairing QR code."""
-    settings_actions.show_bluetooth_qr()
-
-
-def enable_bluetooth_pan() -> None:
-    """Enable Bluetooth PAN mode."""
-    settings_actions.enable_bluetooth_pan()
-
-
-def disable_bluetooth_pan() -> None:
-    """Disable Bluetooth PAN mode."""
-    settings_actions.disable_bluetooth_pan()
-
-
-def bluetooth_trusted_devices() -> None:
-    """Show and manage trusted Bluetooth devices."""
-    settings_actions.bluetooth_trusted_devices()
-
-
-def bluetooth_trust_current() -> None:
-    """Trust the currently connected Bluetooth device."""
-    settings_actions.bluetooth_trust_current()

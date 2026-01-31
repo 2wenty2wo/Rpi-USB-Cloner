@@ -35,8 +35,6 @@ def _build_transition_label(settings_store):
 
 
 def build_connectivity_items(settings_store, menu_actions):
-    from rpi_usb_cloner.services.bluetooth import is_bluetooth_pan_enabled
-
     web_server_enabled_setting = settings_store.get_bool(
         "web_server_enabled",
         default=False,
@@ -50,10 +48,6 @@ def build_connectivity_items(settings_store, menu_actions):
         web_server_enabled = web_server_enabled_setting
         web_server_label = format_toggle_label("WEB SERVER", web_server_enabled)
 
-    # Bluetooth PAN status
-    bluetooth_enabled = is_bluetooth_pan_enabled()
-    bluetooth_label = format_toggle_label("BLUETOOTH PAN", bluetooth_enabled)
-
     return [
         MenuItem(
             label="WIFI",
@@ -62,10 +56,6 @@ def build_connectivity_items(settings_store, menu_actions):
         MenuItem(
             label=web_server_label,
             action=menu_actions.toggle_web_server,
-        ),
-        MenuItem(
-            label=bluetooth_label,
-            action=menu_actions.bluetooth_settings,
         ),
     ]
 

@@ -180,35 +180,6 @@ _EXPORTS = {
         "rpi_usb_cloner.actions.settings.system_utils",
         "poweroff_system",
     ),
-    # Bluetooth PAN
-    "bluetooth_settings": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "bluetooth_settings",
-    ),
-    "toggle_bluetooth_pan": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "toggle_bluetooth_pan",
-    ),
-    "show_bluetooth_qr": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "show_bluetooth_qr",
-    ),
-    "enable_bluetooth_pan": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "enable_bluetooth_pan",
-    ),
-    "disable_bluetooth_pan": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "disable_bluetooth_pan",
-    ),
-    "bluetooth_trusted_devices": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "bluetooth_trusted_devices",
-    ),
-    "bluetooth_trust_current": (
-        "rpi_usb_cloner.actions.settings.ui_actions",
-        "bluetooth_trust_current",
-    ),
 }
 
 __all__ = list(_EXPORTS.keys())
