@@ -8,9 +8,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.services.bluetooth import (
+    generate_qr_data,
+    generate_qr_text,
+    get_bluetooth_status,
+    get_trusted_bluetooth_devices,
+)
 
 if TYPE_CHECKING:
     from rpi_usb_cloner.app.context import AppContext
@@ -45,14 +51,25 @@ def _generate_qr_matrix(data: str, version: int = 2) -> list[list[bool]]:
     try:
         # Try to use the qrcode library if available
         import qrcode
-        from qrcode.constants import ERROR_CORRECT_L
+        error_correction = None
+        try:
+            from qrcode.constants import ERROR_CORRECT_L
 
-        qr = qrcode.QRCode(
-            version=version,
-            error_correction=ERROR_CORRECT_L,
-            box_size=1,
-            border=2,
-        )
+            error_correction = ERROR_CORRECT_L
+        except Exception:
+            error_correction = getattr(
+                getattr(qrcode, "constants", None), "ERROR_CORRECT_L", None
+            )
+
+        qr_kwargs = {
+            "version": version,
+            "box_size": 1,
+            "border": 2,
+        }
+        if error_correction is not None:
+            qr_kwargs["error_correction"] = error_correction
+
+        qr = qrcode.QRCode(**qr_kwargs)
         qr.add_data(data)
         qr.make(fit=True)
 
@@ -127,6 +144,18 @@ def _scale_matrix(matrix: list[list[bool]], scale: int) -> list[list[bool]]:
     return scaled
 
 
+def _resolve_font(display_ctx: DisplayContext) -> ImageFont.ImageFont:
+    """Resolve a usable font, falling back to the default if needed."""
+    font = getattr(display_ctx, "font_small", None)
+    if font is None or not isinstance(font, ImageFont.ImageFont):
+        return ImageFont.load_default()
+    try:
+        font.getmask("A")
+    except Exception:
+        return ImageFont.load_default()
+    return font
+
+
 def render_bluetooth_qr_screen(
     app_ctx: AppContext,
     display_ctx: DisplayContext,
@@ -144,8 +173,6 @@ def render_bluetooth_qr_screen(
         app_ctx: Application context
         display_ctx: Display context with display device and fonts
     """
-    from rpi_usb_cloner.services.bluetooth import generate_qr_data, generate_qr_text
-
     # Get pairing data
     data = generate_qr_data()
 
@@ -153,14 +180,16 @@ def render_bluetooth_qr_screen(
     image = Image.new("1", (SCREEN_WIDTH, SCREEN_HEIGHT), 0)
     draw = ImageDraw.Draw(image)
 
+    font = _resolve_font(display_ctx)
+
     # Draw title bar
-    draw.text((2, 0), "SCAN FOR WEB UI", font=display_ctx.font_small, fill=1)
+    draw.text((2, 0), "SCAN FOR WEB UI", font=font, fill=1)
     draw.line([(0, 10), (SCREEN_WIDTH, 10)], fill=1)
 
     if "error" in data:
         # Show error message
-        draw.text((2, 20), "Bluetooth not enabled", font=display_ctx.font_small, fill=1)
-        draw.text((2, 35), "Press BACK to return", font=display_ctx.font_small, fill=1)
+        draw.text((2, 20), "Bluetooth not enabled", font=font, fill=1)
+        draw.text((2, 35), "Press BACK to return", font=font, fill=1)
         display_ctx.device.display(image)
         app_ctx.current_screen_image = image
         return
@@ -199,27 +228,27 @@ def render_bluetooth_qr_screen(
     info_y = QR_Y
 
     # Instructions
-    draw.text((info_x, info_y), "1.Pair manually", font=display_ctx.font_small, fill=1)
-    draw.text((info_x, info_y + 10), "2.Scan QR code", font=display_ctx.font_small, fill=1)
+    draw.text((info_x, info_y), "1.Pair manually", font=font, fill=1)
+    draw.text((info_x, info_y + 10), "2.Scan QR code", font=font, fill=1)
 
     # Device name (truncated if needed)
     name = data.get("device_name", "Unknown")[:11]
-    draw.text((info_x, info_y + 22), name, font=display_ctx.font_small, fill=1)
+    draw.text((info_x, info_y + 22), name, font=font, fill=1)
 
     # PIN with highlight
     pin = data.get("pin", "000000")
-    draw.text((info_x, info_y + 32), "PIN:", font=display_ctx.font_small, fill=1)
+    draw.text((info_x, info_y + 32), "PIN:", font=font, fill=1)
     # Draw PIN with inverted background for emphasis
     pin_width = len(pin) * 6  # Approximate width
     draw.rectangle(
         [info_x + 22, info_y + 31, info_x + 22 + pin_width + 2, info_y + 39],
         fill=1,
     )
-    draw.text((info_x + 23, info_y + 32), pin, font=display_ctx.font_small, fill=0)
+    draw.text((info_x + 23, info_y + 32), pin, font=font, fill=0)
 
     # Footer hint
     draw.line([(0, SCREEN_HEIGHT - 9), (SCREEN_WIDTH, SCREEN_HEIGHT - 9)], fill=1)
-    draw.text((2, SCREEN_HEIGHT - 8), "A:Back C:Refresh", font=display_ctx.font_small, fill=1)
+    draw.text((2, SCREEN_HEIGHT - 8), "A:Back C:Refresh", font=font, fill=1)
 
     # Update display
     display_ctx.device.display(image)
@@ -238,11 +267,6 @@ def render_bluetooth_status_screen(
         app_ctx: Application context
         display_ctx: Display context with display device and fonts
     """
-    from rpi_usb_cloner.services.bluetooth import (
-        get_bluetooth_status,
-        get_trusted_bluetooth_devices,
-    )
-
     status = get_bluetooth_status()
     trusted_count = len(get_trusted_bluetooth_devices())
 
@@ -250,49 +274,51 @@ def render_bluetooth_status_screen(
     image = Image.new("1", (SCREEN_WIDTH, SCREEN_HEIGHT), 0)
     draw = ImageDraw.Draw(image)
 
+    font = _resolve_font(display_ctx)
+
     # Draw title
-    draw.text((2, 0), "BLUETOOTH STATUS", font=display_ctx.font_small, fill=1)
+    draw.text((2, 0), "BLUETOOTH STATUS", font=font, fill=1)
     draw.line([(0, 10), (SCREEN_WIDTH, 10)], fill=1)
 
     y = 14
 
     if not status.enabled:
-        draw.text((2, y), "Status: DISABLED", font=display_ctx.font_small, fill=1)
+        draw.text((2, y), "Status: DISABLED", font=font, fill=1)
         y += 12
-        draw.text((2, y), "Trusted: {} devices".format(trusted_count), font=display_ctx.font_small, fill=1)
+        draw.text((2, y), "Trusted: {} devices".format(trusted_count), font=font, fill=1)
         y += 12
-        draw.text((2, y), "Press SELECT for menu", font=display_ctx.font_small, fill=1)
+        draw.text((2, y), "Press SELECT for menu", font=font, fill=1)
     else:
         # Status
         state = "CONNECTED" if status.connected else "WAITING"
-        draw.text((2, y), f"Status: {state}", font=display_ctx.font_small, fill=1)
+        draw.text((2, y), f"Status: {state}", font=font, fill=1)
         y += 12
 
         # MAC address
         if status.mac_address:
-            draw.text((2, y), f"MAC: {status.mac_address}", font=display_ctx.font_small, fill=1)
+            draw.text((2, y), f"MAC: {status.mac_address}", font=font, fill=1)
             y += 12
 
         # PIN
         if status.pin:
-            draw.text((2, y), f"PIN: {status.pin}", font=display_ctx.font_small, fill=1)
+            draw.text((2, y), f"PIN: {status.pin}", font=font, fill=1)
             y += 12
 
         # IP address
         if status.ip_address:
-            draw.text((2, y), f"IP: {status.ip_address}", font=display_ctx.font_small, fill=1)
+            draw.text((2, y), f"IP: {status.ip_address}", font=font, fill=1)
             y += 12
 
         # Connected device (or trusted count)
         if status.connected and status.connected_device:
             device = status.connected_device[:20]
-            draw.text((2, y), f"Device: {device}", font=display_ctx.font_small, fill=1)
+            draw.text((2, y), f"Device: {device}", font=font, fill=1)
         else:
-            draw.text((2, y), f"Trusted: {trusted_count} devices", font=display_ctx.font_small, fill=1)
+            draw.text((2, y), f"Trusted: {trusted_count} devices", font=font, fill=1)
 
     # Footer
     draw.line([(0, SCREEN_HEIGHT - 9), (SCREEN_WIDTH, SCREEN_HEIGHT - 9)], fill=1)
-    draw.text((2, SCREEN_HEIGHT - 8), "A:Back B:Menu C:Toggle", font=display_ctx.font_small, fill=1)
+    draw.text((2, SCREEN_HEIGHT - 8), "A:Back B:Menu C:Toggle", font=font, fill=1)
 
     # Update display
     display_ctx.device.display(image)

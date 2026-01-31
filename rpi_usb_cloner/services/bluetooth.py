@@ -105,7 +105,7 @@ class BluetoothPANManager:
 
     def _generate_pin(self) -> str:
         """Generate a random PIN for pairing."""
-        return secrets.token_hex(PIN_LENGTH // 2).upper()[:PIN_LENGTH]
+        return f"{secrets.randbelow(10**PIN_LENGTH):0{PIN_LENGTH}d}"
 
     def _run_command(
         self, cmd: list[str], check: bool = True, timeout: int = 10
