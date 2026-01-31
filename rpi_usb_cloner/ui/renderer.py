@@ -15,7 +15,7 @@ from rpi_usb_cloner.ui.toggle import (
 
 
 # Default visible rows - matches app.state.VISIBLE_ROWS
-DEFAULT_VISIBLE_ROWS = 3
+DEFAULT_VISIBLE_ROWS = 4
 
 # Font metrics cache: {font_id: line_height}
 _line_height_cache: dict[int, int] = {}
