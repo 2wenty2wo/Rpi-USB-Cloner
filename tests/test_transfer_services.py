@@ -9,12 +9,12 @@ import pytest
 
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 from rpi_usb_cloner.services.transfer import (
+    _copy_directory_with_progress,
+    _copy_file_with_progress,
+    _copy_single_image,
     copy_images_to_repo,
     estimate_transfer_size,
     find_destination_repos,
-    _copy_single_image,
-    _copy_file_with_progress,
-    _copy_directory_with_progress,
 )
 
 
@@ -27,10 +27,13 @@ class TestFindDestinationRepos:
             ImageRepo(path=Path("/mnt/sda1"), drive_name="sda1"),
             ImageRepo(path=Path("/mnt/sdb1"), drive_name="sdb1"),
         ]
-        
-        with patch("rpi_usb_cloner.services.transfer.image_repo.find_image_repos", return_value=mock_repos):
+
+        with patch(
+            "rpi_usb_cloner.services.transfer.image_repo.find_image_repos",
+            return_value=mock_repos,
+        ):
             result = find_destination_repos()
-        
+
         assert len(result) == 2
         assert result[0].drive_name == "sda1"
         assert result[1].drive_name == "sdb1"
@@ -42,18 +45,24 @@ class TestFindDestinationRepos:
             ImageRepo(path=Path("/mnt/sdb1"), drive_name="sdb1"),
             ImageRepo(path=Path("/mnt/sdc1"), drive_name="sdc1"),
         ]
-        
-        with patch("rpi_usb_cloner.services.transfer.image_repo.find_image_repos", return_value=mock_repos):
+
+        with patch(
+            "rpi_usb_cloner.services.transfer.image_repo.find_image_repos",
+            return_value=mock_repos,
+        ):
             result = find_destination_repos(exclude_drive="sda1")
-        
+
         assert len(result) == 2
         assert all(repo.drive_name != "sda1" for repo in result)
 
     def test_find_repos_empty_list(self):
         """Test finding repos when none available."""
-        with patch("rpi_usb_cloner.services.transfer.image_repo.find_image_repos", return_value=[]):
+        with patch(
+            "rpi_usb_cloner.services.transfer.image_repo.find_image_repos",
+            return_value=[],
+        ):
             result = find_destination_repos()
-        
+
         assert result == []
 
 
@@ -63,27 +72,39 @@ class TestEstimateTransferSize:
     def test_estimate_with_known_sizes(self):
         """Test estimating size when all images have known sizes."""
         images = [
-            DiskImage(name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO),
-            DiskImage(name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO),
+            DiskImage(
+                name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO
+            ),
+            DiskImage(
+                name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO
+            ),
         ]
-        
-        with patch("rpi_usb_cloner.services.transfer.image_repo.get_image_size_bytes") as mock_get_size:
+
+        with patch(
+            "rpi_usb_cloner.services.transfer.image_repo.get_image_size_bytes"
+        ) as mock_get_size:
             mock_get_size.side_effect = [1000, 2000]
             result = estimate_transfer_size(images)
-        
+
         assert result == 3000
 
     def test_estimate_with_unknown_sizes(self):
         """Test estimating size when some sizes are unknown."""
         images = [
-            DiskImage(name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO),
-            DiskImage(name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO),
+            DiskImage(
+                name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO
+            ),
+            DiskImage(
+                name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO
+            ),
         ]
-        
-        with patch("rpi_usb_cloner.services.transfer.image_repo.get_image_size_bytes") as mock_get_size:
+
+        with patch(
+            "rpi_usb_cloner.services.transfer.image_repo.get_image_size_bytes"
+        ) as mock_get_size:
             mock_get_size.side_effect = [1000, None]
             result = estimate_transfer_size(images)
-        
+
         assert result == 1000
 
     def test_estimate_empty_list(self):
@@ -99,12 +120,14 @@ class TestCopyImagesToRepo:
         """Test successful copy of multiple images."""
         destination = ImageRepo(path=tmp_path, drive_name="sda1")
         images = [
-            DiskImage(name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO),
+            DiskImage(
+                name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO
+            ),
         ]
-        
+
         with patch("rpi_usb_cloner.services.transfer._copy_single_image") as mock_copy:
             success, failure = copy_images_to_repo(images, destination)
-        
+
         assert success == 1
         assert failure == 0
         mock_copy.assert_called_once()
@@ -113,22 +136,30 @@ class TestCopyImagesToRepo:
         """Test copy with some failures."""
         destination = ImageRepo(path=tmp_path, drive_name="sda1")
         images = [
-            DiskImage(name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO),
-            DiskImage(name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO),
+            DiskImage(
+                name="img1.iso", path=Path("/tmp/img1.iso"), image_type=ImageType.ISO
+            ),
+            DiskImage(
+                name="img2.iso", path=Path("/tmp/img2.iso"), image_type=ImageType.ISO
+            ),
         ]
-        
+
         with patch("rpi_usb_cloner.services.transfer._copy_single_image") as mock_copy:
             mock_copy.side_effect = [None, Exception("Copy failed")]
             success, failure = copy_images_to_repo(images, destination)
-        
+
         assert success == 1
         assert failure == 1
 
     def test_copy_destination_not_exist(self):
         """Test copy to non-existent destination."""
         destination = ImageRepo(path=Path("/nonexistent"), drive_name="sda1")
-        images = [DiskImage(name="img.iso", path=Path("/tmp/img.iso"), image_type=ImageType.ISO)]
-        
+        images = [
+            DiskImage(
+                name="img.iso", path=Path("/tmp/img.iso"), image_type=ImageType.ISO
+            )
+        ]
+
         with pytest.raises(OSError, match="Destination path does not exist"):
             copy_images_to_repo(images, destination)
 
@@ -137,8 +168,12 @@ class TestCopyImagesToRepo:
         file_path = tmp_path / "file.txt"
         file_path.write_text("test")
         destination = ImageRepo(path=file_path, drive_name="sda1")
-        images = [DiskImage(name="img.iso", path=Path("/tmp/img.iso"), image_type=ImageType.ISO)]
-        
+        images = [
+            DiskImage(
+                name="img.iso", path=Path("/tmp/img.iso"), image_type=ImageType.ISO
+            )
+        ]
+
         with pytest.raises(OSError, match="Destination path is not a directory"):
             copy_images_to_repo(images, destination)
 
@@ -154,15 +189,17 @@ class TestCopySingleImage:
             path=Path("/tmp/backup"),
             image_type=ImageType.CLONEZILLA_DIR,
         )
-        
+
         progress_calls = []
-        
+
         def progress_cb(name, progress):
             progress_calls.append((name, progress))
-        
-        with patch("rpi_usb_cloner.services.transfer._copy_directory_with_progress") as mock_copy:
+
+        with patch(
+            "rpi_usb_cloner.services.transfer._copy_directory_with_progress"
+        ) as mock_copy:
             _copy_single_image(image, destination, progress_cb)
-        
+
         mock_copy.assert_called_once()
         assert progress_calls[0] == ("backup", 0.0)
         assert progress_calls[-1] == ("backup", 1.0)
@@ -175,10 +212,12 @@ class TestCopySingleImage:
             path=Path("/tmp/image.iso"),
             image_type=ImageType.ISO,
         )
-        
-        with patch("rpi_usb_cloner.services.transfer._copy_file_with_progress") as mock_copy:
+
+        with patch(
+            "rpi_usb_cloner.services.transfer._copy_file_with_progress"
+        ) as mock_copy:
             _copy_single_image(image, destination)
-        
+
         mock_copy.assert_called_once()
 
     def test_copy_bin_file(self, tmp_path):
@@ -189,21 +228,23 @@ class TestCopySingleImage:
             path=Path("/tmp/image.bin"),
             image_type=ImageType.IMAGEUSB_BIN,
         )
-        
-        with patch("rpi_usb_cloner.services.transfer._copy_file_with_progress") as mock_copy:
+
+        with patch(
+            "rpi_usb_cloner.services.transfer._copy_file_with_progress"
+        ) as mock_copy:
             _copy_single_image(image, destination)
-        
+
         mock_copy.assert_called_once()
 
     def test_copy_unsupported_type(self, tmp_path):
         """Test copying unsupported image type."""
         destination = ImageRepo(path=tmp_path, drive_name="sda1")
-        
+
         # Create a mock image type
         mock_image = Mock()
         mock_image.name = "test"
         mock_image.image_type = "UNKNOWN"
-        
+
         with pytest.raises(ValueError, match="Unsupported image type"):
             _copy_single_image(mock_image, destination)
 
@@ -216,14 +257,14 @@ class TestCopyFileWithProgress:
         src = tmp_path / "source.txt"
         dest = tmp_path / "dest.txt"
         src.write_text("A" * 1000)
-        
+
         progress_calls = []
-        
+
         def progress_cb(name, progress):
             progress_calls.append(progress)
-        
+
         _copy_file_with_progress(src, dest, "test.txt", progress_cb)
-        
+
         assert dest.exists()
         assert dest.read_text() == src.read_text()
         assert len(progress_calls) > 0
@@ -234,9 +275,9 @@ class TestCopyFileWithProgress:
         src = tmp_path / "source.txt"
         dest = tmp_path / "dest.txt"
         src.write_text("test content")
-        
+
         _copy_file_with_progress(src, dest, "test.txt", None)
-        
+
         assert dest.exists()
         assert dest.read_text() == "test content"
 
@@ -246,10 +287,10 @@ class TestCopyFileWithProgress:
         dest = tmp_path / "dest.txt"
         src.write_text("new content")
         dest.write_text("old content")
-        
+
         with patch("rpi_usb_cloner.services.transfer.log"):
             _copy_file_with_progress(src, dest, "test.txt", None)
-        
+
         assert dest.read_text() == "new content"
 
     def test_copy_empty_file(self, tmp_path):
@@ -257,9 +298,9 @@ class TestCopyFileWithProgress:
         src = tmp_path / "empty.txt"
         dest = tmp_path / "dest.txt"
         src.write_text("")
-        
+
         _copy_file_with_progress(src, dest, "test.txt", None)
-        
+
         assert dest.exists()
         assert dest.read_bytes() == b""
 
@@ -273,16 +314,16 @@ class TestCopyDirectoryWithProgress:
         src.mkdir()
         (src / "file1.txt").write_text("content1")
         (src / "file2.txt").write_text("content2")
-        
+
         dest = tmp_path / "dest"
-        
+
         progress_calls = []
-        
+
         def progress_cb(name, progress):
             progress_calls.append(progress)
-        
+
         _copy_directory_with_progress(src, dest, "backup", progress_cb)
-        
+
         assert (dest / "file1.txt").exists()
         assert (dest / "file2.txt").exists()
         assert (dest / "file1.txt").read_text() == "content1"
@@ -292,9 +333,9 @@ class TestCopyDirectoryWithProgress:
         src = tmp_path / "source"
         src.mkdir()
         dest = tmp_path / "dest"
-        
+
         _copy_directory_with_progress(src, dest, "backup", None)
-        
+
         assert dest.exists()
 
     def test_copy_directory_with_subdirs(self, tmp_path):
@@ -304,10 +345,10 @@ class TestCopyDirectoryWithProgress:
         subdir = src / "subdir"
         subdir.mkdir()
         (subdir / "file.txt").write_text("nested content")
-        
+
         dest = tmp_path / "dest"
-        
+
         _copy_directory_with_progress(src, dest, "backup", None)
-        
+
         assert (dest / "subdir" / "file.txt").exists()
         assert (dest / "subdir" / "file.txt").read_text() == "nested content"

@@ -10,7 +10,7 @@ import weakref
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Any, Sequence, Union, cast
 
 from aiohttp import WSCloseCode, web
 from typing_extensions import TypeAlias
@@ -57,14 +57,14 @@ class ServerHandle:
     async def _trigger_shutdown(self) -> None:
         """Trigger app shutdown signal for graceful WebSocket cleanup."""
         # This is called within the event loop
-        pass  # The actual cleanup is handled by on_shutdown signal
+        # The actual cleanup is handled by on_shutdown signal
 
 
 _current_handle: ServerHandle | None = None
 
 # WebSocket connection tracking keys
 WEBSOCKETS_KEY: web.AppKey[weakref.WeakSet[web.WebSocketResponse]] = web.AppKey(
-    "websockets", weakref.WeakSet
+    "websockets", cast(Any, weakref.WeakSet)
 )
 
 
@@ -111,7 +111,7 @@ APP_CONTEXT_KEY: web.AppKey[AppContext | None] = web.AppKey("app_context", AppCo
 
 async def _on_shutdown(app: web.Application) -> None:
     """Gracefully close all WebSocket connections on shutdown.
-    
+
     This signal handler ensures all connected clients receive a proper
     close code (WSCloseCode.GOING_AWAY) when the server is shutting down,
     rather than abruptly disconnecting.
@@ -120,34 +120,27 @@ async def _on_shutdown(app: web.Application) -> None:
     websockets = app.get(WEBSOCKETS_KEY)
     if not websockets:
         return
-    
+
     # Create a snapshot to avoid modification during iteration
     active_ws = set(websockets)
     if not active_ws:
         return
-    
+
     log.info(
         f"Closing {len(active_ws)} WebSocket connection(s) gracefully",
         tags=["ws", "websocket", "shutdown"],
     )
-    
+
     # Close all connections concurrently with timeout
-    close_tasks = [
-        _close_websocket_gracefully(ws, log) for ws in active_ws
-    ]
+    close_tasks = [_close_websocket_gracefully(ws, log) for ws in active_ws]
     await asyncio.gather(*close_tasks, return_exceptions=True)
 
 
-async def _close_websocket_gracefully(
-    ws: web.WebSocketResponse, log
-) -> None:
+async def _close_websocket_gracefully(ws: web.WebSocketResponse, log) -> None:
     """Close a single WebSocket connection with proper error handling."""
     try:
         if not ws.closed:
-            await ws.close(
-                code=WSCloseCode.GOING_AWAY,
-                message=b"Server shutdown"
-            )
+            await ws.close(code=WSCloseCode.GOING_AWAY, message=b"Server shutdown")
     except Exception as exc:
         log.debug(
             f"Error closing WebSocket: {exc}",
@@ -155,11 +148,9 @@ async def _close_websocket_gracefully(
         )
 
 
-def _register_websocket(
-    app: web.Application, ws: web.WebSocketResponse
-) -> None:
+def _register_websocket(app: web.Application, ws: web.WebSocketResponse) -> None:
     """Register a WebSocket connection for tracking.
-    
+
     Uses WeakSet so connections are automatically removed when
     the WebSocketResponse is garbage collected.
     """
@@ -168,9 +159,7 @@ def _register_websocket(
         websockets.add(ws)
 
 
-def _unregister_websocket(
-    app: web.Application, ws: web.WebSocketResponse
-) -> None:
+def _unregister_websocket(app: web.Application, ws: web.WebSocketResponse) -> None:
     """Unregister a WebSocket connection."""
     websockets = app.get(WEBSOCKETS_KEY)
     if websockets is not None:
@@ -296,11 +285,11 @@ async def handle_screen_ws(request: web.Request) -> web.WebSocketResponse:
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     log.debug(
         f"Screen WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -353,11 +342,11 @@ async def handle_control_ws(request: web.Request) -> web.WebSocketResponse:
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     log.debug(
         f"Control WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -441,17 +430,17 @@ async def handle_logs_ws(request: web.Request) -> web.WebSocketResponse:
     app_context: AppContext | None = request.app.get(APP_CONTEXT_KEY)
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     if not app_context:
         _unregister_websocket(request.app, ws)
         await ws.send_json({"type": "error", "message": "Log buffer unavailable"})
         await ws.close()
         return ws
-    
+
     log.debug(
         f"Log WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -507,11 +496,11 @@ async def handle_health_ws(request: web.Request) -> web.WebSocketResponse:
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     log.debug(
         f"Health WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -555,11 +544,11 @@ async def handle_devices_ws(request: web.Request) -> web.WebSocketResponse:
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     log.debug(
         f"Devices WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -665,11 +654,11 @@ async def handle_images_ws(request: web.Request) -> web.WebSocketResponse:
     log = LoggerFactory.for_web()
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    
+
     # Register for tracking
     _register_websocket(request.app, ws)
     connection_id = id(ws)
-    
+
     log.debug(
         f"Images WebSocket connected from {request.remote} (id={connection_id})",
         tags=["ws", "websocket", "connection"],
@@ -844,13 +833,13 @@ def start_server(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         app = web.Application()
-        
+
         # Initialize WebSocket tracking
         app[WEBSOCKETS_KEY] = weakref.WeakSet()
-        
+
         # Register graceful shutdown handler
-        app.on_shutdown.append(_on_shutdown)
-        
+        app.on_shutdown.append(cast(Any, _on_shutdown))
+
         notifier = DisplayUpdateNotifier(loop)
         stop_event = threading.Event()
         app[DISPLAY_NOTIFIER_KEY] = notifier

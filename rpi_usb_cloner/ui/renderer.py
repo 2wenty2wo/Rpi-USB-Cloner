@@ -27,7 +27,7 @@ _STATUS_INDICATORS_TTL = 1.0  # 1 second cache
 
 def _get_cached_line_height(font, min_height=8) -> int:
     """Get line height for font with caching.
-    
+
     Font metrics don't change during runtime, so we cache by font object id.
     """
     font_id = id(font)
@@ -51,7 +51,7 @@ def _compute_line_height(font, min_height=8) -> int:
 
 def _get_line_height(font, min_height=8) -> int:
     """Get line height for font (with caching).
-    
+
     Deprecated: Use _get_cached_line_height directly for new code.
     Kept for backward compatibility.
     """
@@ -65,15 +65,15 @@ def _get_status_indicators(app_context=None) -> list:
         List of StatusIndicator objects sorted by priority.
     """
     global _status_indicators_cache
-    
+
     now = time.monotonic()
-    
+
     # Return cached result if within TTL
     if _status_indicators_cache is not None:
         cached_time, cached_indicators = _status_indicators_cache
         if now - cached_time < _STATUS_INDICATORS_TTL:
             return cached_indicators
-    
+
     # Compute fresh indicators
     try:
         from rpi_usb_cloner.ui.status_bar import collect_status_indicators
@@ -81,7 +81,7 @@ def _get_status_indicators(app_context=None) -> list:
         indicators = collect_status_indicators(app_context)
     except Exception:
         indicators = []
-    
+
     # Cache the result
     _status_indicators_cache = (now, indicators)
     return indicators
@@ -89,7 +89,7 @@ def _get_status_indicators(app_context=None) -> list:
 
 def invalidate_status_indicators_cache() -> None:
     """Invalidate the status indicators cache.
-    
+
     Call this when status bar settings change to force a refresh.
     """
     global _status_indicators_cache
@@ -119,15 +119,6 @@ def _get_drive_status_text() -> str:
         parts.append(f"R{repo_count}")
 
     return "|".join(parts)
-
-
-def _get_line_height(font, min_height=8) -> int:
-    """Get line height for font (with caching).
-    
-    Deprecated: Use _get_cached_line_height directly for new code.
-    Kept for backward compatibility.
-    """
-    return _get_cached_line_height(font, min_height)
 
 
 def _measure_text_width(font, text: str) -> int:
@@ -291,7 +282,9 @@ def _render_menu(
         ):
             items_list.append(clean_label)
         else:
-            items_list.append(_truncate_text(clean_label, list_font, effective_max_width))
+            items_list.append(
+                _truncate_text(clean_label, list_font, effective_max_width)
+            )
     start_index = max(scroll_offset, 0)
     end_index = min(start_index + visible_rows, len(items_list))
     for row_index, item_index in enumerate(range(start_index, end_index)):
@@ -460,7 +453,7 @@ def _render_menu(
             status_font_height = _get_line_height(status_indicator_font)
 
             # Load icons and calculate widths for all indicators
-            indicator_data = []  # List of (width, icon_image or None)
+            indicator_data: list[tuple[int, Image.Image | None]] = []
             for indicator in status_indicators:
                 if indicator.is_icon:
                     # Load icon image from icon_path
@@ -497,17 +490,17 @@ def _render_menu(
             footer_height = box_bottom - box_top + 1
 
             for i, indicator in enumerate(status_indicators):
-                item_width, icon_img = indicator_data[i]
+                item_width, icon_image = indicator_data[i]
 
-                if icon_img is not None:
+                if icon_image is not None:
                     # Draw icon (no box, just the icon centered vertically)
-                    icon_left = current_x - icon_img.width
+                    icon_left = current_x - icon_image.width
                     # Center 7px icon vertically in footer
-                    icon_top = box_top + (footer_height - icon_img.height) // 2
+                    icon_top = box_top + (footer_height - icon_image.height) // 2
 
                     # Icons are black on white - paste directly onto white footer
                     # The icons should be black pixels that show on white background
-                    image.paste(icon_img, (icon_left, icon_top))
+                    image.paste(icon_image, (icon_left, icon_top))
 
                     current_x = icon_left - indicator_spacing
                 else:
@@ -548,7 +541,9 @@ def _render_menu(
         # Calculate available width for status line text
         max_status_width = context.width - left_margin - 1
         if status_indicators:
-            max_status_width -= total_status_width + status_spacing + status_right_margin
+            max_status_width -= (
+                total_status_width + status_spacing + status_right_margin
+            )
         footer_text = _truncate_text(status_line, footer_font, max_status_width)
         # Draw text in black on the white background
         draw.text((left_margin, footer_y), footer_text, font=footer_font, fill=0)

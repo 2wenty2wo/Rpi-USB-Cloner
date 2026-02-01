@@ -6,8 +6,6 @@ Tests for uncovered functions in rpi_usb_cloner.actions.drives._utils module.
 from datetime import datetime
 from unittest.mock import Mock
 
-import pytest
-
 from rpi_usb_cloner.actions.drives import _utils as drive_utils
 from rpi_usb_cloner.app import state as app_state
 
@@ -131,11 +129,22 @@ class TestConfirmDestructiveAction:
         mock_state.lcdstart = datetime.now()
 
         # Mock all the default dependencies
-        mocker.patch("rpi_usb_cloner.actions.drives._utils.gpio.poll_button_events", return_value=True)
-        mocker.patch("rpi_usb_cloner.actions.drives._utils.menus.wait_for_buttons_release")
-        mocker.patch("rpi_usb_cloner.actions.drives._utils.screens.render_confirmation_screen")
-        mocker.patch("rpi_usb_cloner.actions.drives._utils.handle_screenshot", return_value=False)
-        mocker.patch("rpi_usb_cloner.actions.drives._utils.menus.BUTTON_POLL_DELAY", 0.01)
+        mocker.patch(
+            "rpi_usb_cloner.actions.drives._utils.gpio.poll_button_events",
+            return_value=True,
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drives._utils.menus.wait_for_buttons_release"
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drives._utils.screens.render_confirmation_screen"
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drives._utils.handle_screenshot", return_value=False
+        )
+        mocker.patch(
+            "rpi_usb_cloner.actions.drives._utils.menus.BUTTON_POLL_DELAY", 0.01
+        )
 
         result = drive_utils.confirm_destructive_action(
             state=mock_state,
@@ -167,7 +176,9 @@ class TestSelectTargetDeviceEdgeCases:
         device_a = {"name": "sda", "size": 2000000}
         device_b = {"name": "sdb", "size": 1500000}
 
-        devices, target = drive_utils.select_target_device([device_c, device_a, device_b], None)
+        devices, target = drive_utils.select_target_device(
+            [device_c, device_a, device_b], None
+        )
 
         assert devices == [device_a, device_b, device_c]
         assert target == device_c  # Last device is selected when no selection specified
@@ -177,7 +188,9 @@ class TestSelectTargetDeviceEdgeCases:
         device_a = {"name": "sda", "size": 1000000}
         device_b = {"name": "sdb", "size": 2000000}
 
-        devices, target = drive_utils.select_target_device([device_a, device_b], "nonexistent")
+        devices, target = drive_utils.select_target_device(
+            [device_a, device_b], "nonexistent"
+        )
 
         assert target == device_b  # Falls back to last device
 
@@ -186,7 +199,9 @@ class TestSelectTargetDeviceEdgeCases:
         device_no_name = {"size": 1000000}
         device_with_name = {"name": "sda", "size": 2000000}
 
-        devices, target = drive_utils.select_target_device([device_no_name, device_with_name], None)
+        devices, target = drive_utils.select_target_device(
+            [device_no_name, device_with_name], None
+        )
 
         # Should not crash, sorts with empty string for missing name
         assert device_with_name in devices
@@ -259,7 +274,11 @@ class TestCollectMountpointsEdgeCases:
                     "name": "sda1",
                     "mountpoint": "/media/part1",
                     "children": [
-                        {"name": "sda1p1", "mountpoint": "/media/nested", "children": []}
+                        {
+                            "name": "sda1p1",
+                            "mountpoint": "/media/nested",
+                            "children": [],
+                        }
                     ],
                 },
             ],
@@ -297,7 +316,10 @@ class TestCollectMountpointsEdgeCases:
         device = {
             "name": "sda",
             "mountpoint": None,
-            "children": [{"name": "sda1"}, {"name": "sda2", "mountpoint": "/media/part2"}],
+            "children": [
+                {"name": "sda1"},
+                {"name": "sda2", "mountpoint": "/media/part2"},
+            ],
         }
 
         mountpoints = drive_utils.collect_mountpoints(device)
@@ -370,7 +392,9 @@ class TestApplyConfirmationSelectionEdgeCases:
 
     def test_already_at_yes_pressing_right(self):
         """Test pressing right when already at YES."""
-        result = drive_utils.apply_confirmation_selection(app_state.CONFIRM_YES, "right")
+        result = drive_utils.apply_confirmation_selection(
+            app_state.CONFIRM_YES, "right"
+        )
         assert result == app_state.CONFIRM_YES
 
     def test_empty_direction(self):

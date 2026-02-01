@@ -15,8 +15,9 @@ from rpi_usb_cloner.ui.icons import (
 
 from . import get_action_context
 
+
 if TYPE_CHECKING:
-    from rpi_usb_cloner.actions import drive_actions as DriveActionsModule
+    pass
 
 
 def _ensure_drive_selected(title: str, title_icon: str) -> bool:

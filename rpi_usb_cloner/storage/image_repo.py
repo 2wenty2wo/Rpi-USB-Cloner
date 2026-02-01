@@ -197,16 +197,20 @@ def _sum_tree_bytes(root: Path) -> int:
     total = 0
     try:
         paths = root.rglob("*")
+        for path in paths:
+            try:
+                try:
+                    relative_path = path.relative_to(root)
+                except ValueError:
+                    relative_path = path
+                if _is_temp_clonezilla_path(relative_path):
+                    continue
+                if path.is_file() and not path.is_symlink():
+                    total += path.stat().st_size
+            except OSError:
+                continue
     except OSError:
-        return 0
-    for path in paths:
-        if _is_temp_clonezilla_path(path):
-            continue
-        try:
-            if path.is_file() and not path.is_symlink():
-                total += path.stat().st_size
-        except OSError:
-            continue
+        return total
     return total
 
 

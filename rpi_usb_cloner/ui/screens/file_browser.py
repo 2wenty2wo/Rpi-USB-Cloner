@@ -33,11 +33,20 @@ def _get_line_height(font, min_height=8):
     line_height = min_height
     try:
         bbox = font.getbbox("Ag")
-        line_height = max(bbox[3] - bbox[1], line_height)
-    except AttributeError:
+        if isinstance(bbox, tuple) and len(bbox) >= 4:
+            line_height = max(bbox[3] - bbox[1], line_height)
+        else:
+            raise TypeError("Invalid bbox")
+    except (AttributeError, TypeError, ValueError):
         if hasattr(font, "getmetrics"):
-            ascent, descent = font.getmetrics()
-            line_height = max(ascent + descent, line_height)
+            try:
+                ascent, descent = font.getmetrics()
+                if isinstance(ascent, (int, float)) and isinstance(
+                    descent, (int, float)
+                ):
+                    line_height = max(ascent + descent, line_height)
+            except (AttributeError, TypeError, ValueError):
+                pass
     return line_height
 
 
@@ -133,6 +142,8 @@ def _render_browser_screen(
     # Draw title with icon
     layout = display.draw_title_with_icon(title, icon=title_icon)
     content_top = layout.content_top
+    if not isinstance(content_top, int):
+        content_top = 0
 
     # Calculate available space for items
     items_font = fonts.get("items")

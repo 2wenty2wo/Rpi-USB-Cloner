@@ -24,6 +24,7 @@ from pathlib import Path
 
 from PIL import Image
 
+
 # Asset paths
 ASSETS_PATH = Path(__file__).parent / "assets"
 TOGGLE_ON_PATH = ASSETS_PATH / "icons" / "toggle-on.png"
@@ -97,8 +98,7 @@ def _load_toggle_image(on: bool) -> Image.Image:
     path = TOGGLE_ON_PATH if on else TOGGLE_OFF_PATH
     if not path.exists():
         # Return a simple fallback rectangle if image not found
-        img = Image.new("1", (TOGGLE_WIDTH, TOGGLE_HEIGHT), 0)
-        return img
+        return Image.new("1", (TOGGLE_WIDTH, TOGGLE_HEIGHT), 0)
     return Image.open(path).convert("1")
 
 

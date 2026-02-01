@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from aiohttp import web
 
-from rpi_usb_cloner.domain import ImageRepo, ImageType
+from rpi_usb_cloner.domain import ImageRepo
 from rpi_usb_cloner.services.peer_transfer_server import (
+    SESSION_TIMEOUT,
     TransferServer,
     _active_sessions,
-    _current_pin,
     _failed_attempts,
-    SESSION_TIMEOUT,
-    MAX_FAILED_ATTEMPTS,
 )
 
 
@@ -38,7 +34,7 @@ class TestTransferServerInit:
     def test_initialization(self, destination_repo):
         """Test server initialization."""
         server = TransferServer(destination_repo, port=9999)
-        
+
         assert server.destination_repo == destination_repo
         assert server.port == 9999
         assert server.app is None
@@ -52,7 +48,7 @@ class TestGeneratePin:
     def test_generate_pin_format(self, transfer_server):
         """Test PIN is 4 digits."""
         pin = transfer_server._generate_pin()
-        
+
         assert len(pin) == 4
         assert pin.isdigit()
 
@@ -73,75 +69,90 @@ class TestStartStop:
         mock_site = AsyncMock()
         mock_runner = AsyncMock()
         mock_runner.setup = AsyncMock()
-        
+
         captured_pin = None
-        
+
         def capture_pin(*args, **kwargs):
             nonlocal captured_pin
             captured_pin = transfer_server.get_current_pin()
             return mock_site
-        
+
         mock_site.start = AsyncMock(side_effect=capture_pin)
         mock_site.stop = AsyncMock()
-        
-        with patch("rpi_usb_cloner.services.peer_transfer_server.web.TCPSite", return_value=mock_site):
-            with patch("rpi_usb_cloner.services.peer_transfer_server.web.AppRunner", return_value=mock_runner):
-                await transfer_server.start()
-                
-                assert captured_pin is not None
-                assert len(captured_pin) == 4
-                
-                await transfer_server.stop()
+
+        with patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.TCPSite",
+            return_value=mock_site,
+        ), patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.AppRunner",
+            return_value=mock_runner,
+        ):
+            await transfer_server.start()
+
+            assert captured_pin is not None
+            assert len(captured_pin) == 4
+
+            await transfer_server.stop()
 
     @pytest.mark.asyncio
     async def test_start_with_custom_pin_callback(self, transfer_server):
         """Test starting with custom PIN callback."""
         pin_callback = Mock(return_value="5678")
-        
+
         mock_site = AsyncMock()
         mock_runner = AsyncMock()
         mock_runner.setup = AsyncMock()
-        
+
         captured_pin = None
-        
+
         def capture_pin(*args, **kwargs):
             nonlocal captured_pin
             captured_pin = transfer_server.get_current_pin()
             return mock_site
-        
+
         mock_site.start = AsyncMock(side_effect=capture_pin)
         mock_site.stop = AsyncMock()
-        
-        with patch("rpi_usb_cloner.services.peer_transfer_server.web.TCPSite", return_value=mock_site):
-            with patch("rpi_usb_cloner.services.peer_transfer_server.web.AppRunner", return_value=mock_runner):
-                await transfer_server.start(pin_callback=pin_callback)
-                
-                assert captured_pin == "5678"
-                
-                await transfer_server.stop()
+
+        with patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.TCPSite",
+            return_value=mock_site,
+        ), patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.AppRunner",
+            return_value=mock_runner,
+        ):
+            await transfer_server.start(pin_callback=pin_callback)
+
+            assert captured_pin == "5678"
+
+            await transfer_server.stop()
 
     @pytest.mark.asyncio
     async def test_stop_clears_sessions(self, transfer_server):
         """Test stopping clears active sessions."""
         global _active_sessions
-        
+
         # Store original state
         original_sessions = dict(_active_sessions)
         _active_sessions["test_token"] = {"created_at": time.time()}
-        
+
         mock_site = AsyncMock()
         mock_runner = AsyncMock()
         mock_runner.setup = AsyncMock()
         mock_runner.cleanup = AsyncMock()
-        
-        with patch("rpi_usb_cloner.services.peer_transfer_server.web.TCPSite", return_value=mock_site):
-            with patch("rpi_usb_cloner.services.peer_transfer_server.web.AppRunner", return_value=mock_runner):
-                await transfer_server.start()
-                await transfer_server.stop()
-        
+
+        with patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.TCPSite",
+            return_value=mock_site,
+        ), patch(
+            "rpi_usb_cloner.services.peer_transfer_server.web.AppRunner",
+            return_value=mock_runner,
+        ):
+            await transfer_server.start()
+            await transfer_server.stop()
+
         # After stop, sessions should be cleared
         assert len(_active_sessions) == 0
-        
+
         # Restore original state
         _active_sessions.clear()
         _active_sessions.update(original_sessions)
@@ -155,17 +166,18 @@ class TestHandleAuth:
         """Test successful authentication."""
         # Set the PIN using the server's method
         import rpi_usb_cloner.services.peer_transfer_server as server_module
+
         original_pin = server_module._current_pin
         server_module._current_pin = "1234"
-        
+
         try:
             mock_request = AsyncMock()
             mock_request.remote = "192.168.1.50"
             mock_request.json = AsyncMock(return_value={"pin": "1234"})
-            
+
             with patch.object(transfer_server, "_check_rate_limit", return_value=True):
                 response = await transfer_server._handle_auth(mock_request)
-            
+
             assert response.status == 200
             # aiohttp Response doesn't have json() method directly, check the text
             response_text = response.text
@@ -178,15 +190,16 @@ class TestHandleAuth:
         """Test authentication with invalid PIN."""
         global _current_pin
         _current_pin = "1234"
-        
+
         mock_request = AsyncMock()
         mock_request.remote = "192.168.1.50"
         mock_request.json = AsyncMock(return_value={"pin": "0000"})
-        
-        with patch.object(transfer_server, "_check_rate_limit", return_value=True):
-            with patch.object(transfer_server, "_record_failed_attempt"):
-                response = await transfer_server._handle_auth(mock_request)
-        
+
+        with patch.object(
+            transfer_server, "_check_rate_limit", return_value=True
+        ), patch.object(transfer_server, "_record_failed_attempt"):
+            response = await transfer_server._handle_auth(mock_request)
+
         assert response.status == 401
         response_text = response.text
         assert "Invalid PIN" in response_text
@@ -196,10 +209,10 @@ class TestHandleAuth:
         """Test authentication when rate limited."""
         mock_request = AsyncMock()
         mock_request.remote = "192.168.1.50"
-        
+
         with patch.object(transfer_server, "_check_rate_limit", return_value=False):
             response = await transfer_server._handle_auth(mock_request)
-        
+
         assert response.status == 429
         response_text = response.text
         assert "retry_after" in response_text
@@ -212,16 +225,18 @@ class TestHandleTransferInit:
     async def test_transfer_init_success(self, transfer_server):
         """Test successful transfer initialization."""
         mock_request = AsyncMock()
-        mock_request.json = AsyncMock(return_value={
-            "images": [
-                {"name": "test.iso", "type": "iso", "size_bytes": 1000}
-            ]
-        })
-        
-        with patch.object(transfer_server, "_verify_token", return_value=True):
-            with patch("rpi_usb_cloner.services.peer_transfer_server.image_repo.get_repo_usage", return_value={"free_bytes": 10000}):
-                response = await transfer_server._handle_transfer_init(mock_request)
-        
+        mock_request.json = AsyncMock(
+            return_value={
+                "images": [{"name": "test.iso", "type": "iso", "size_bytes": 1000}]
+            }
+        )
+
+        with patch.object(transfer_server, "_verify_token", return_value=True), patch(
+            "rpi_usb_cloner.services.peer_transfer_server.image_repo.get_repo_usage",
+            return_value={"free_bytes": 10000},
+        ):
+            response = await transfer_server._handle_transfer_init(mock_request)
+
         assert response.status == 200
         response_text = response.text
         assert "accepted" in response_text
@@ -231,16 +246,18 @@ class TestHandleTransferInit:
     async def test_transfer_init_insufficient_space(self, transfer_server):
         """Test transfer init with insufficient space."""
         mock_request = AsyncMock()
-        mock_request.json = AsyncMock(return_value={
-            "images": [
-                {"name": "test.iso", "type": "iso", "size_bytes": 10000}
-            ]
-        })
-        
-        with patch.object(transfer_server, "_verify_token", return_value=True):
-            with patch("rpi_usb_cloner.services.peer_transfer_server.image_repo.get_repo_usage", return_value={"free_bytes": 1000}):
-                response = await transfer_server._handle_transfer_init(mock_request)
-        
+        mock_request.json = AsyncMock(
+            return_value={
+                "images": [{"name": "test.iso", "type": "iso", "size_bytes": 10000}]
+            }
+        )
+
+        with patch.object(transfer_server, "_verify_token", return_value=True), patch(
+            "rpi_usb_cloner.services.peer_transfer_server.image_repo.get_repo_usage",
+            return_value={"free_bytes": 1000},
+        ):
+            response = await transfer_server._handle_transfer_init(mock_request)
+
         assert response.status == 507
         response_text = response.text
         assert "Insufficient space" in response_text
@@ -250,10 +267,10 @@ class TestHandleTransferInit:
         """Test transfer init with no images."""
         mock_request = AsyncMock()
         mock_request.json = AsyncMock(return_value={"images": []})
-        
+
         with patch.object(transfer_server, "_verify_token", return_value=True):
             response = await transfer_server._handle_transfer_init(mock_request)
-        
+
         assert response.status == 400
         response_text = response.text
         assert "No images specified" in response_text
@@ -262,10 +279,10 @@ class TestHandleTransferInit:
     async def test_transfer_init_unauthorized(self, transfer_server):
         """Test transfer init without valid token."""
         mock_request = AsyncMock()
-        
+
         with patch.object(transfer_server, "_verify_token", return_value=False):
             response = await transfer_server._handle_transfer_init(mock_request)
-        
+
         assert response.status == 401
 
 
@@ -275,33 +292,33 @@ class TestVerifyToken:
     def test_verify_valid_token(self, transfer_server):
         """Test verifying valid token."""
         global _active_sessions
-        
+
         token = "valid_token_123"
         _active_sessions[token] = {
             "created_at": time.time(),
             "pin": "1234",
             "peer_ip": "192.168.1.50",
         }
-        
+
         mock_request = Mock()
         mock_request.headers = {"Authorization": f"Bearer {token}"}
-        
+
         assert transfer_server._verify_token(mock_request) is True
 
     def test_verify_expired_token(self, transfer_server):
         """Test verifying expired token."""
         global _active_sessions
-        
+
         token = "expired_token"
         _active_sessions[token] = {
             "created_at": time.time() - SESSION_TIMEOUT - 1,  # Expired
             "pin": "1234",
             "peer_ip": "192.168.1.50",
         }
-        
+
         mock_request = Mock()
         mock_request.headers = {"Authorization": f"Bearer {token}"}
-        
+
         assert transfer_server._verify_token(mock_request) is False
         assert token not in _active_sessions  # Should be removed
 
@@ -309,14 +326,14 @@ class TestVerifyToken:
         """Test verifying with invalid Authorization header."""
         mock_request = Mock()
         mock_request.headers = {"Authorization": "Basic dXNlcjpwYXNz"}  # Not Bearer
-        
+
         assert transfer_server._verify_token(mock_request) is False
 
     def test_verify_missing_token(self, transfer_server):
         """Test verifying missing token."""
         mock_request = Mock()
         mock_request.headers = {}
-        
+
         assert transfer_server._verify_token(mock_request) is False
 
 
@@ -327,37 +344,41 @@ class TestRateLimiting:
         """Test rate limit check under max attempts."""
         global _failed_attempts
         _failed_attempts.clear()
-        
+
         assert transfer_server._check_rate_limit("192.168.1.50") is True
 
     def test_check_rate_limit_exceeded(self, transfer_server):
         """Test rate limit check when exceeded."""
         global _failed_attempts
-        
+
         client_ip = "192.168.1.50"
         now = time.time()
-        _failed_attempts[client_ip] = [now - 5, now - 10, now - 15]  # 3 failures within window
-        
+        _failed_attempts[client_ip] = [
+            now - 5,
+            now - 10,
+            now - 15,
+        ]  # 3 failures within window
+
         assert transfer_server._check_rate_limit(client_ip) is False
 
     def test_check_rate_limit_old_attempts_cleaned(self, transfer_server):
         """Test old failed attempts are cleaned up."""
         global _failed_attempts
-        
+
         client_ip = "192.168.1.50"
         now = time.time()
         # Old attempts outside window
         _failed_attempts[client_ip] = [now - 100, now - 90, now - 80]
-        
+
         assert transfer_server._check_rate_limit(client_ip) is True
 
     def test_record_failed_attempt(self, transfer_server):
         """Test recording failed attempt."""
         global _failed_attempts
         _failed_attempts.clear()
-        
+
         transfer_server._record_failed_attempt("192.168.1.50")
-        
+
         assert "192.168.1.50" in _failed_attempts
         assert len(_failed_attempts["192.168.1.50"]) == 1
 
@@ -369,9 +390,9 @@ class TestHandleStatus:
     async def test_handle_status(self, transfer_server):
         """Test status endpoint."""
         mock_request = Mock()
-        
+
         response = await transfer_server._handle_status(mock_request)
-        
+
         assert response.status == 200
         response_text = response.text
         assert "ready" in response_text

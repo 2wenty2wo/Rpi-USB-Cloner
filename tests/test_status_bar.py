@@ -1,8 +1,9 @@
 """Tests for the status bar module."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 
 from rpi_usb_cloner.ui.status_bar import (
     ICON_BLUETOOTH,
@@ -113,7 +114,11 @@ class TestGetWifiIndicator:
         """Test returns indicator with WiFi icon when connected."""
         mocker.patch(
             "rpi_usb_cloner.services.wifi.get_status_cached",
-            return_value={"connected": True, "ssid": "MyNetwork", "ip": "192.168.1.100"},
+            return_value={
+                "connected": True,
+                "ssid": "MyNetwork",
+                "ip": "192.168.1.100",
+            },
         )
         result = get_wifi_indicator()
         assert result is not None
@@ -353,7 +358,7 @@ class TestCollectStatusIndicators:
         """Test returns empty list when status bar is disabled via settings."""
         mocker.patch(
             "rpi_usb_cloner.config.settings.get_bool",
-            side_effect=lambda key, default=None: False if key == "status_bar_enabled" else True,
+            side_effect=lambda key, default=None: key != "status_bar_enabled",
         )
         mocker.patch(
             "rpi_usb_cloner.services.drives.get_drive_counts",
@@ -366,6 +371,7 @@ class TestCollectStatusIndicators:
 
     def test_individual_settings_respected(self, mocker):
         """Test individual indicator settings are respected."""
+
         def mock_get_bool(key, default=None):
             if key == "status_bar_enabled":
                 return True

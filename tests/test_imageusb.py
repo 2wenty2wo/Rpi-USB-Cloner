@@ -173,9 +173,10 @@ class TestImageUSBRestore:
     def test_restore_not_root(self, valid_bin_file, mock_device):
         """Test restoration fails if not running as root."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         with patch("os.geteuid", return_value=1000), pytest.raises(
@@ -186,9 +187,10 @@ class TestImageUSBRestore:
     def test_restore_invalid_file(self, tmp_path, mock_device):
         """Test restoration fails with invalid file."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         # Create invalid file
@@ -204,9 +206,10 @@ class TestImageUSBRestore:
     def test_restore_non_removable_device(self, valid_bin_file):
         """Test restoration fails on non-removable device."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         # Mock non-removable device
@@ -230,9 +233,10 @@ class TestImageUSBRestore:
     def test_restore_success(self, valid_bin_file, mock_device, mocker):
         """Test successful restoration."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         # Mock all dependencies
@@ -274,9 +278,10 @@ class TestImageUSBRestore:
     def test_restore_unmount_failure(self, valid_bin_file, mock_device, mocker):
         """Test restoration fails if unmount fails."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         mocker.patch("os.geteuid", return_value=0)
@@ -298,9 +303,10 @@ class TestImageUSBRestore:
     def test_restore_with_progress_callback(self, valid_bin_file, mock_device, mocker):
         """Test restoration with progress callback."""
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         from rpi_usb_cloner.storage.imageusb.restore import restore_imageusb_file
 
         # Mock dependencies

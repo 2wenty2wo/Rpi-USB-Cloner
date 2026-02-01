@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Callable
 
@@ -76,8 +77,6 @@ def _get_blockdev_size_bytes(device_node: str) -> int | None:
     blockdev = shutil.which("blockdev")
     if not blockdev:
         return None
-    import subprocess
-
     result = subprocess.run(
         [blockdev, "--getsize64", device_node],
         capture_output=True,

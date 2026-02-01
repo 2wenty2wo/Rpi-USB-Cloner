@@ -8,6 +8,7 @@ Separated from menus.py to avoid circular imports.
 # Re-export from settings for backward compatibility
 from rpi_usb_cloner.config.settings import DEFAULT_SCROLL_REFRESH_INTERVAL
 
+
 # Button repeat timing
 INITIAL_REPEAT_DELAY = 0.25  # Delay before button starts repeating (seconds)
 REPEAT_INTERVAL = 0.08  # Interval between repeats once started (seconds)

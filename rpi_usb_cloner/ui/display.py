@@ -438,6 +438,7 @@ def get_lucide_font_sized(size: int) -> Font:
     """
     if size in _lucide_font_cache:
         return _lucide_font_cache[size]
+    font: Font
     try:
         font = ImageFont.truetype(str(LUCIDE_FONT_PATH), size)
     except OSError:

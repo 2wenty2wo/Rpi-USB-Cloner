@@ -238,6 +238,9 @@ tests/
 ├── test_actions_image.py         # Image action tests
 ├── test_actions_import.py        # Import action tests
 ├── test_actions_settings.py      # Settings action tests
+├── test_app_context.py           # App context tests
+├── test_app_drive_info.py        # Drive info display tests
+├── test_app_menu_builders.py     # Menu builder tests
 ├── test_clone.py                 # Clone operation tests
 ├── test_clone_models.py          # Clone domain model tests
 ├── test_clone_operations.py      # Clone operations tests
@@ -258,16 +261,23 @@ tests/
 ├── test_exceptions.py            # Custom exception tests
 ├── test_format.py                # Device format tests
 ├── test_image_repo.py            # Image repository tests
-├── test_imageusb.py              # ImageUSB tests
+├── test_image_repo_extra.py      # Additional image repo tests
+├── test_image_repo_more.py       # Extended image repo tests
+├── test_imageusb.py              # ImageUSB detection tests
+├── test_imageusb_restore.py      # ImageUSB restore tests
 ├── test_integration_clone_workflows.py # Integration clone workflows
+├── test_iso.py                   # ISO image writing tests
 ├── test_logging.py               # Logging setup and filtering tests
+├── test_logging_extra.py         # Extended logging tests
 ├── test_main.py                  # Main entry point tests
+├── test_menu_actions_settings.py # Menu settings actions tests
 ├── test_menu_navigator.py        # Menu navigation logic tests
 ├── test_mount.py                 # Mount utility tests
 ├── test_mount_security.py        # Mount security tests
 ├── test_peer_transfer_client.py  # HTTP transfer client tests
 ├── test_peer_transfer_server.py  # HTTP transfer server tests
 ├── test_services_drives.py       # Drive service tests
+├── test_services_drives_extra.py # Additional drive service tests
 ├── test_settings.py              # Settings management tests
 ├── test_status_bar.py            # Status bar UI tests
 ├── test_system_health.py         # System health monitoring tests
@@ -279,10 +289,17 @@ tests/
 ├── test_ui_keyboard.py           # Keyboard UI tests
 ├── test_ui_progress.py           # Progress screen tests
 ├── test_ui_renderer.py           # UI renderer tests
+├── test_ui_screens_error.py      # Error screen tests
+├── test_ui_screens_file_browser.py # File browser screen tests
+├── test_ui_screens_info.py       # Info screen tests
+├── test_ui_screens_logs.py       # Logs screen tests
+├── test_ui_screens_status.py     # Status screen tests
+├── test_imageusb_detection.py    # ImageUSB detection tests
 ├── test_validation.py            # Validation helper tests
 ├── test_verification.py          # Verification workflow tests
 ├── test_wifi.py                  # Wi-Fi service tests
 ├── test_wifi_direct.py           # WiFi Direct P2P tests
+├── test_wifi_extra.py            # Extended WiFi service tests
 └── test_web_server.py            # Web server + WebSocket tests
 ```
 
@@ -606,14 +623,14 @@ When contributing new code:
 
 | Metric | Value |
 |--------|-------|
-| **Total Test Files** | 50 |
-| **Tests Passed** | 1,477 |
-| **Tests Failed** | 0 |
-| **Tests Skipped** | 29 (POSIX-only features on Windows) |
-| **Overall Coverage** | ~46% |
+| **Total Test Files** | 66 |
+| **Tests Passed** | ~1,648 |
+| **Tests Failed** | ~29 (Windows-specific issues) |
+| **Tests Skipped** | ~52 (POSIX-only features on Windows) |
+| **Overall Coverage** | ~49.9% |
 | **Total Statements** | ~13,000 |
-| **Covered Statements** | ~6,000 |
-| **Branch Coverage** | 4,300 branches, ~55% covered |
+| **Covered Statements** | ~6,500 |
+| **Branch Coverage** | 4,300 branches, ~57% covered |
 
 ### Known Test Limitations
 
