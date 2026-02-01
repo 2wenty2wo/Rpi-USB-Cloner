@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from rpi_usb_cloner.app.context import AppContext
 
@@ -127,7 +128,9 @@ def get_web_server_indicator() -> StatusIndicator | None:
     return None
 
 
-def get_operation_indicator(app_context: AppContext | None = None) -> StatusIndicator | None:
+def get_operation_indicator(
+    app_context: AppContext | None = None,
+) -> StatusIndicator | None:
     """Get operation status indicator.
 
     Note: Currently disabled/hidden per user request.
@@ -156,9 +159,13 @@ def get_drive_indicators() -> list[StatusIndicator]:
         # Lower priority = further right
         # inverted=True gives solid black box with white text (original style)
         if repo_count > 0:
-            indicators.append(StatusIndicator(label=f"R{repo_count}", priority=1, inverted=True))
+            indicators.append(
+                StatusIndicator(label=f"R{repo_count}", priority=1, inverted=True)
+            )
         if usb_count > 0:
-            indicators.append(StatusIndicator(label=f"U{usb_count}", priority=0, inverted=True))
+            indicators.append(
+                StatusIndicator(label=f"U{usb_count}", priority=0, inverted=True)
+            )
     except Exception:
         pass
     return indicators

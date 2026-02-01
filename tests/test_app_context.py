@@ -12,8 +12,6 @@ from __future__ import annotations
 from collections import deque
 from datetime import datetime
 
-import pytest
-
 from rpi_usb_cloner.app.context import AppContext, LogEntry
 
 
@@ -125,7 +123,7 @@ class TestAppContext:
         """Test add_log with a string message."""
         ctx = AppContext()
         ctx.add_log("Test message", level="info", tags=["test"])
-        
+
         assert len(ctx.log_buffer) == 1
         entry = ctx.log_buffer[0]
         assert entry.message == "Test message"
@@ -143,7 +141,7 @@ class TestAppContext:
         ctx = AppContext()
         entry = LogEntry(message="Existing entry", level="error")
         ctx.add_log(entry)
-        
+
         assert len(ctx.log_buffer) == 1
         result = ctx.log_buffer[0]
         assert result.message == "Existing entry"
@@ -157,7 +155,7 @@ class TestAppContext:
             level="info",
             details={"duration": 10.5, "bytes": 1024},
         )
-        
+
         entry = ctx.log_buffer[0]
         assert entry.details == {"duration": 10.5, "bytes": 1024}
 
@@ -165,7 +163,7 @@ class TestAppContext:
         """Test add_log with source parameter."""
         ctx = AppContext()
         ctx.add_log("Message", source="test_module")
-        
+
         entry = ctx.log_buffer[0]
         assert entry.source == "test_module"
 
@@ -174,7 +172,7 @@ class TestAppContext:
         ctx = AppContext()
         timestamp = datetime(2024, 1, 15, 10, 30, 0)
         ctx.add_log("Message", timestamp=timestamp)
-        
+
         entry = ctx.log_buffer[0]
         assert entry.timestamp == timestamp
 
@@ -184,18 +182,18 @@ class TestAppContext:
         before = datetime.now()
         ctx.add_log("Message")
         after = datetime.now()
-        
+
         entry = ctx.log_buffer[0]
         assert before <= entry.timestamp <= after
 
     def test_log_buffer_maxlen(self):
         """Test that log buffer respects maxlen."""
         ctx = AppContext()
-        
+
         # Add more entries than maxlen
         for i in range(550):
             ctx.add_log(f"Message {i}")
-        
+
         # Buffer should only contain the last 500 entries
         assert len(ctx.log_buffer) == 500
         # Oldest entry should be "Message 50"
@@ -208,10 +206,10 @@ class TestAppContext:
         ctx = AppContext()
         details = {"key": "value"}
         ctx.add_log("Message", details=details)
-        
+
         # Mutate original
         details["key"] = "mutated"
-        
+
         # Entry should not be affected
         entry = ctx.log_buffer[0]
         assert entry.details == {"key": "value"}
@@ -221,10 +219,10 @@ class TestAppContext:
         ctx = AppContext()
         tags = ["tag1"]
         ctx.add_log("Message", tags=tags)
-        
+
         # Mutate original
         tags.append("tag2")
-        
+
         # Entry should not be affected
         entry = ctx.log_buffer[0]
         assert entry.tags == ["tag1"]
@@ -241,10 +239,10 @@ class TestAppContext:
         """Test that each AppContext has isolated log buffer."""
         ctx1 = AppContext()
         ctx2 = AppContext()
-        
+
         ctx1.add_log("Message 1")
         ctx2.add_log("Message 2")
-        
+
         assert len(ctx1.log_buffer) == 1
         assert len(ctx2.log_buffer) == 1
         assert ctx1.log_buffer[0].message == "Message 1"

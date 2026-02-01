@@ -5,7 +5,7 @@ which handle backup/restore operations for Clonezilla images and other image for
 """
 
 from datetime import datetime
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from unittest.mock import Mock
 
 import pytest

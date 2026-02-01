@@ -9,9 +9,7 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from rpi_usb_cloner.ui.screens.status import (
     render_status_screen,
@@ -88,18 +86,20 @@ class TestShowComingSoon:
 
     def test_show_coming_soon_default(self):
         """Test show_coming_soon with default parameters."""
-        with patch("rpi_usb_cloner.ui.screens.status.display") as mock_display:
-            with patch("rpi_usb_cloner.ui.screens.status.time.sleep") as mock_sleep:
-                show_coming_soon()
+        with patch("rpi_usb_cloner.ui.screens.status.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.status.time.sleep"
+        ) as mock_sleep:
+            show_coming_soon()
 
         mock_display.display_lines.assert_called_once()
         mock_sleep.assert_called_once_with(1)
 
     def test_show_coming_soon_custom_title(self):
         """Test show_coming_soon with custom title."""
-        with patch("rpi_usb_cloner.ui.screens.status.display") as mock_display:
-            with patch("rpi_usb_cloner.ui.screens.status.time.sleep"):
-                show_coming_soon(title="NOT READY")
+        with patch("rpi_usb_cloner.ui.screens.status.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.status.time.sleep"
+        ):
+            show_coming_soon(title="NOT READY")
 
         call_args = mock_display.display_lines.call_args
         lines = call_args.args[0]
@@ -107,9 +107,10 @@ class TestShowComingSoon:
 
     def test_show_coming_soon_no_delay(self):
         """Test show_coming_soon with no delay."""
-        with patch("rpi_usb_cloner.ui.screens.status.display") as mock_display:
-            with patch("rpi_usb_cloner.ui.screens.status.time.sleep") as mock_sleep:
-                show_coming_soon(delay=0)
+        with patch("rpi_usb_cloner.ui.screens.status.display"), patch(
+            "rpi_usb_cloner.ui.screens.status.time.sleep"
+        ) as mock_sleep:
+            show_coming_soon(delay=0)
 
         mock_sleep.assert_not_called()
 
@@ -119,24 +120,26 @@ class TestWaitForAck:
 
     def test_wait_for_ack_default_buttons(self):
         """Test wait_for_ack with default buttons."""
-        with patch("rpi_usb_cloner.ui.screens.status.menus") as mock_menus:
-            with patch("rpi_usb_cloner.ui.screens.status.gpio") as mock_gpio:
-                mock_gpio.PIN_A = 1
-                mock_gpio.PIN_B = 2
-                mock_gpio.poll_button_events.return_value = None
+        with patch("rpi_usb_cloner.ui.screens.status.menus") as mock_menus, patch(
+            "rpi_usb_cloner.ui.screens.status.gpio"
+        ) as mock_gpio:
+            mock_gpio.PIN_A = 1
+            mock_gpio.PIN_B = 2
+            mock_gpio.poll_button_events.return_value = None
 
-                wait_for_ack()
+            wait_for_ack()
 
         mock_menus.wait_for_buttons_release.assert_called_once()
         mock_gpio.poll_button_events.assert_called_once()
 
     def test_wait_for_ack_custom_buttons(self):
         """Test wait_for_ack with custom buttons."""
-        with patch("rpi_usb_cloner.ui.screens.status.menus") as mock_menus:
-            with patch("rpi_usb_cloner.ui.screens.status.gpio") as mock_gpio:
-                mock_gpio.poll_button_events.return_value = None
+        with patch("rpi_usb_cloner.ui.screens.status.menus") as mock_menus, patch(
+            "rpi_usb_cloner.ui.screens.status.gpio"
+        ) as mock_gpio:
+            mock_gpio.poll_button_events.return_value = None
 
-                wait_for_ack(buttons=[5, 6])
+            wait_for_ack(buttons=[5, 6])
 
         mock_menus.wait_for_buttons_release.assert_called_once()
         call_args = mock_menus.wait_for_buttons_release.call_args

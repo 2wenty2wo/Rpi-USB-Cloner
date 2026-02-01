@@ -12,9 +12,7 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from rpi_usb_cloner.services.drives import (
     USBSnapshot,
@@ -388,14 +386,12 @@ class TestRepoCacheGracePeriod:
     """Test cache grace period behavior in _get_repo_device_names."""
 
     @patch("rpi_usb_cloner.services.drives.find_image_repos")
-    def test_grace_period_no_cache_empty_result(
-        self, mock_find_repos
-    ):
+    def test_grace_period_no_cache_empty_result(self, mock_find_repos):
         """Test that empty results are not cached during grace period."""
         import time
-        
+
         invalidate_repo_cache()
-        
+
         mock_find_repos.return_value = []
 
         with patch.object(time, "time", side_effect=[0, 1.0, 1.0, 1.0]):
@@ -405,33 +401,33 @@ class TestRepoCacheGracePeriod:
 
         # Simulate finding repos on second call (during grace period)
         from rpi_usb_cloner.domain import ImageRepo
+
         mock_find_repos.return_value = [
             ImageRepo(path=Path("/mnt/usb/repo"), drive_name="sda")
         ]
 
-        with patch("rpi_usb_cloner.services.drives.list_usb_disks") as mock_list_usb:
-            with patch(
-                "rpi_usb_cloner.services.drives._collect_mountpoints"
-            ) as mock_collect:
-                mock_list_usb.return_value = [{"name": "sda"}]
-                mock_collect.return_value = {"/mnt/usb"}
+        with patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb, patch(
+            "rpi_usb_cloner.services.drives._collect_mountpoints"
+        ) as mock_collect, patch.object(
+            time, "time", side_effect=[0, 1.0, 1.0, 1.0]
+        ):
+            mock_list_usb.return_value = [{"name": "sda"}]
+            mock_collect.return_value = {"/mnt/usb"}
+            # Second call - should rescan since first wasn't cached
+            _get_repo_device_names()
 
-                with patch.object(time, "time", side_effect=[0, 1.0, 1.0, 1.0]):
-                    # Second call - should rescan since first wasn't cached
-                    result2 = _get_repo_device_names()
-        
         # find_image_repos should have been called twice since cache was invalidated
         assert mock_find_repos.call_count == 2
 
     @patch("rpi_usb_cloner.services.drives.find_image_repos")
-    def test_after_grace_period_cache_empty(
-        self, mock_find_repos
-    ):
+    def test_after_grace_period_cache_empty(self, mock_find_repos):
         """Test that empty results are cached after grace period."""
         import time
-        
+
         invalidate_repo_cache()
-        
+
         mock_find_repos.return_value = []
 
         # The grace period check happens when _startup_time is set and then elapsed > 3s
@@ -445,7 +441,7 @@ class TestRepoCacheGracePeriod:
         # The cache should now have an empty set
         # Second call with fresh time values but cache should still work
         result2 = _get_repo_device_names()
-        
+
         # Results should be the same
         assert result2 == set()
         # The function should cache after first call (once past grace period)
@@ -455,56 +451,60 @@ class TestRepoCacheGracePeriod:
     def test_caching_with_repos(self, mock_find_repos):
         """Test that non-empty results are always cached."""
         invalidate_repo_cache()
-        
+
         from rpi_usb_cloner.domain import ImageRepo
+
         mock_find_repos.return_value = [
             ImageRepo(path=Path("/mnt/usb/repo"), drive_name="sda")
         ]
 
-        with patch("rpi_usb_cloner.services.drives.list_usb_disks") as mock_list_usb:
-            with patch(
-                "rpi_usb_cloner.services.drives._collect_mountpoints"
-            ) as mock_collect:
-                mock_list_usb.return_value = [{"name": "sda"}]
-                mock_collect.return_value = {"/mnt/usb"}
+        with patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb, patch(
+            "rpi_usb_cloner.services.drives._collect_mountpoints"
+        ) as mock_collect:
+            mock_list_usb.return_value = [{"name": "sda"}]
+            mock_collect.return_value = {"/mnt/usb"}
 
-                # First call
-                result1 = _get_repo_device_names()
-                # Second call - should use cache
-                result2 = _get_repo_device_names()
+            # First call
+            result1 = _get_repo_device_names()
+            # Second call - should use cache
+            result2 = _get_repo_device_names()
 
-                # find_image_repos should only be called once
-                assert mock_find_repos.call_count == 1
-                assert result1 == result2
+            # find_image_repos should only be called once
+            assert mock_find_repos.call_count == 1
+            assert result1 == result2
 
     @patch("rpi_usb_cloner.services.drives.find_image_repos")
     def test_invalidate_cache_clears_cache(self, mock_find_repos):
         """Test that invalidate_repo_cache clears the cache."""
         from rpi_usb_cloner.domain import ImageRepo
+
         mock_find_repos.return_value = [
             ImageRepo(path=Path("/mnt/usb/repo"), drive_name="sda")
         ]
 
-        with patch("rpi_usb_cloner.services.drives.list_usb_disks") as mock_list_usb:
-            with patch(
-                "rpi_usb_cloner.services.drives._collect_mountpoints"
-            ) as mock_collect:
-                mock_list_usb.return_value = [{"name": "sda"}]
-                mock_collect.return_value = {"/mnt/usb"}
+        with patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb, patch(
+            "rpi_usb_cloner.services.drives._collect_mountpoints"
+        ) as mock_collect:
+            mock_list_usb.return_value = [{"name": "sda"}]
+            mock_collect.return_value = {"/mnt/usb"}
 
-                # First call - populates cache
-                _get_repo_device_names()
-                
-                # Invalidate cache
-                invalidate_repo_cache()
-                
-                # Call again - need to reset the mock to properly test
-                # The actual function will check the global cache variable
-                # which we've now set to None via invalidate_repo_cache()
-                result2 = _get_repo_device_names()
-                
-                # Should have found repos and cached them
-                assert result2 == {"sda"}
-                # The function may be called more than once due to the complexity
-                # of the caching logic, but the important thing is it works correctly
-                assert mock_find_repos.call_count >= 1
+            # First call - populates cache
+            _get_repo_device_names()
+
+            # Invalidate cache
+            invalidate_repo_cache()
+
+            # Call again - need to reset the mock to properly test
+            # The actual function will check the global cache variable
+            # which we've now set to None via invalidate_repo_cache()
+            result2 = _get_repo_device_names()
+
+            # Should have found repos and cached them
+            assert result2 == {"sda"}
+            # The function may be called more than once due to the complexity
+            # of the caching logic, but the important thing is it works correctly
+            assert mock_find_repos.call_count >= 1

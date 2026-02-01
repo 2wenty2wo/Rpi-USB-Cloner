@@ -12,10 +12,12 @@ import pytest
 
 from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.actions.drives import _utils as drive_utils
-from rpi_usb_cloner.actions.drives import clone_actions
-from rpi_usb_cloner.actions.drives import erase_actions
-from rpi_usb_cloner.actions.drives import unmount_actions
-from rpi_usb_cloner.actions.drives import repo_actions
+from rpi_usb_cloner.actions.drives import (
+    clone_actions,
+    erase_actions,
+    repo_actions,
+    unmount_actions,
+)
 from rpi_usb_cloner.app import state as app_state
 
 
@@ -121,16 +123,12 @@ class TestApplyConfirmationSelection:
 
     def test_selects_yes_on_right(self):
         """Test moving right switches to YES."""
-        result = drive_utils.apply_confirmation_selection(
-            app_state.CONFIRM_NO, "right"
-        )
+        result = drive_utils.apply_confirmation_selection(app_state.CONFIRM_NO, "right")
         assert result == app_state.CONFIRM_YES
 
     def test_selects_no_on_left(self):
         """Test moving left switches to NO."""
-        result = drive_utils.apply_confirmation_selection(
-            app_state.CONFIRM_YES, "left"
-        )
+        result = drive_utils.apply_confirmation_selection(app_state.CONFIRM_YES, "left")
         assert result == app_state.CONFIRM_NO
 
     def test_ignores_redundant_moves(self):
@@ -331,7 +329,8 @@ class TestExecuteCloneJob:
         target["name"] = "sdb"
 
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.clone_actions.clone_device_v2", return_value=True
+            "rpi_usb_cloner.actions.drives.clone_actions.clone_device_v2",
+            return_value=True,
         )
         mock_logger = Mock()
         mock_logger.info = Mock()
@@ -507,9 +506,10 @@ class TestEnsureRoot:
         """Test returns True when running as root (uid=0)."""
         # Skip on non-POSIX systems (Windows doesn't have geteuid)
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         mocker.patch("os.geteuid", return_value=0)
 
         result = drive_utils.ensure_root()
@@ -519,9 +519,10 @@ class TestEnsureRoot:
         """Test returns False and shows error when not running as root."""
         # Skip on non-POSIX systems (Windows doesn't have geteuid)
         import os
-        if not hasattr(os, 'geteuid'):
+
+        if not hasattr(os, "geteuid"):
             pytest.skip("geteuid not available on this platform")
-        
+
         mocker.patch("os.geteuid", return_value=1000)
         mocker.patch("time.sleep")
         mock_display = mocker.patch("rpi_usb_cloner.actions.drives._utils.display")
@@ -674,13 +675,16 @@ class TestEraseDrive:
     ):
         """Test shows error when no USB devices found."""
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.erase_actions.list_usb_disks", return_value=[]
+            "rpi_usb_cloner.actions.drives.erase_actions.list_usb_disks",
+            return_value=[],
         )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.erase_actions.drives._get_repo_device_names",
             return_value=[],
         )
-        mock_display = mocker.patch("rpi_usb_cloner.actions.drives.erase_actions.display")
+        mock_display = mocker.patch(
+            "rpi_usb_cloner.actions.drives.erase_actions.display"
+        )
         mocker.patch("time.sleep")
 
         get_selected = Mock(return_value=None)
@@ -710,7 +714,9 @@ class TestUnmountDrive:
     ):
         """Test shows error when no device selected."""
         mocker.patch("time.sleep")
-        mock_display = mocker.patch("rpi_usb_cloner.actions.drives.unmount_actions.display")
+        mock_display = mocker.patch(
+            "rpi_usb_cloner.actions.drives.unmount_actions.display"
+        )
 
         get_selected = Mock(return_value=None)
 
@@ -730,7 +736,9 @@ class TestUnmountDrive:
     ):
         """Test shows error when selected device not found."""
         mocker.patch("time.sleep")
-        mock_display = mocker.patch("rpi_usb_cloner.actions.drives.unmount_actions.display")
+        mock_display = mocker.patch(
+            "rpi_usb_cloner.actions.drives.unmount_actions.display"
+        )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.unmount_actions.list_usb_disks",
             return_value=[],
@@ -767,7 +775,9 @@ class TestCreateRepoDrive:
             "rpi_usb_cloner.actions.drives.repo_actions.drives._get_repo_device_names",
             return_value=set(),
         )
-        mock_display = mocker.patch("rpi_usb_cloner.actions.drives.repo_actions.display")
+        mock_display = mocker.patch(
+            "rpi_usb_cloner.actions.drives.repo_actions.display"
+        )
         mocker.patch("time.sleep")
 
         get_selected = Mock(return_value=None)
@@ -792,13 +802,16 @@ class TestCreateRepoDrive:
         device["name"] = "sda"
 
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks", return_value=[device]
+            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks",
+            return_value=[device],
         )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.repo_actions.drives._get_repo_device_names",
             return_value={"sda"},
         )
-        mock_display = mocker.patch("rpi_usb_cloner.actions.drives.repo_actions.display")
+        mock_display = mocker.patch(
+            "rpi_usb_cloner.actions.drives.repo_actions.display"
+        )
         mocker.patch("time.sleep")
 
         get_selected = Mock(return_value=None)
@@ -826,7 +839,8 @@ class TestCreateRepoDrive:
         device["children"] = []
 
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks", return_value=[device]
+            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks",
+            return_value=[device],
         )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.repo_actions.drives._get_repo_device_names",
@@ -874,7 +888,8 @@ class TestCreateRepoDrive:
         device["children"] = [partition]
 
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks", return_value=[device]
+            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks",
+            return_value=[device],
         )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.repo_actions.drives._get_repo_device_names",
@@ -929,7 +944,8 @@ class TestCreateRepoDrive:
         device["children"] = [partition]
 
         mocker.patch(
-            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks", return_value=[device]
+            "rpi_usb_cloner.actions.drives.repo_actions.list_usb_disks",
+            return_value=[device],
         )
         mocker.patch(
             "rpi_usb_cloner.actions.drives.repo_actions.drives._get_repo_device_names",

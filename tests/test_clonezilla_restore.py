@@ -11,25 +11,25 @@ This test suite covers:
 - Cleanup on failure
 """
 
+import os
 from pathlib import Path
 from unittest.mock import Mock, patch
-
-import os
 
 import pytest
 
 from rpi_usb_cloner.storage.clonezilla import restore
-
-# Skip POSIX-only tests on Windows
-posix_only = pytest.mark.skipif(
-    not hasattr(os, 'geteuid'),
-    reason="Requires POSIX features (os.geteuid)"
-)
 from rpi_usb_cloner.storage.clonezilla.models import (
     ClonezillaImage,
     DiskLayoutOp,
     PartitionRestoreOp,
     RestorePlan,
+)
+
+
+# Skip POSIX-only tests on Windows
+posix_only = pytest.mark.skipif(
+    not hasattr(os, "geteuid"),
+    reason="Requires POSIX features (os.geteuid)",
 )
 
 

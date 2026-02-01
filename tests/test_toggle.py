@@ -1,6 +1,5 @@
 """Tests for toggle switch icons module."""
 
-import pytest
 from PIL import Image
 
 from rpi_usb_cloner.ui.toggle import (

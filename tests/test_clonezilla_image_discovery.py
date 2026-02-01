@@ -398,6 +398,7 @@ class TestGetPartcloneTool:
     ):
         """Test fallback to standard paths when which fails."""
         import os
+
         mock_which.return_value = None
         mock_is_file.return_value = True
         mock_access.return_value = True

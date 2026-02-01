@@ -12,7 +12,6 @@ from rpi_usb_cloner.logging import (
     _should_log_button,
     _should_log_cache,
     _should_log_websocket,
-    get_logger,
     job_context,
     operation_context,
 )
@@ -279,9 +278,8 @@ class TestOperationContext:
         mock_logger.bind.return_value = mock_log
         mock_logger.contextualize = MagicMock()
 
-        with pytest.raises(ValueError, match="Test error"):
-            with operation_context("backup"):
-                raise ValueError("Test error")
+        with pytest.raises(ValueError, match="Test error"), operation_context("backup"):
+            raise ValueError("Test error")
 
         # Verify failure log
         assert mock_log.error.called
@@ -316,7 +314,7 @@ class TestLoggerFactory:
         """Test that for_clone generates job_id if not provided."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_clone()
+        LoggerFactory.for_clone()
 
         mock_logger.bind.assert_called_once()
         call_kwargs = mock_logger.bind.call_args.kwargs
@@ -329,7 +327,7 @@ class TestLoggerFactory:
         """Test that for_clone uses provided job_id."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_clone(job_id="my-clone-job")
+        LoggerFactory.for_clone(job_id="my-clone-job")
 
         call_kwargs = mock_logger.bind.call_args.kwargs
         assert call_kwargs["job_id"] == "my-clone-job"
@@ -339,7 +337,7 @@ class TestLoggerFactory:
         """Test for_usb factory method."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_usb()
+        LoggerFactory.for_usb()
 
         mock_logger.bind.assert_called_once_with(
             source="usb",
@@ -351,7 +349,7 @@ class TestLoggerFactory:
         """Test for_web without connection_id."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_web()
+        LoggerFactory.for_web()
 
         call_kwargs = mock_logger.bind.call_args.kwargs
         assert call_kwargs["source"] == "web"
@@ -363,7 +361,7 @@ class TestLoggerFactory:
         """Test for_web with connection_id."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_web(connection_id="conn-123")
+        LoggerFactory.for_web(connection_id="conn-123")
 
         call_kwargs = mock_logger.bind.call_args.kwargs
         assert call_kwargs["connection_id"] == "conn-123"
@@ -373,7 +371,7 @@ class TestLoggerFactory:
         """Test for_menu factory method."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_menu()
+        LoggerFactory.for_menu()
 
         mock_logger.bind.assert_called_once_with(
             source="menu",
@@ -385,7 +383,7 @@ class TestLoggerFactory:
         """Test for_gpio factory method."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_gpio()
+        LoggerFactory.for_gpio()
 
         mock_logger.bind.assert_called_once_with(
             source="gpio",
@@ -397,7 +395,7 @@ class TestLoggerFactory:
         """Test that for_clonezilla generates job_id."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_clonezilla()
+        LoggerFactory.for_clonezilla()
 
         call_kwargs = mock_logger.bind.call_args.kwargs
         assert call_kwargs["source"] == "clonezilla"
@@ -408,7 +406,7 @@ class TestLoggerFactory:
         """Test for_system factory method."""
         mock_logger.bind.return_value = Mock()
 
-        result = LoggerFactory.for_system()
+        LoggerFactory.for_system()
 
         mock_logger.bind.assert_called_once_with(
             source="system",
@@ -499,9 +497,7 @@ class TestEventLogger:
         """Test logging clone started event."""
         mock_log = Mock()
 
-        EventLogger.log_clone_started(
-            mock_log, "/dev/sda", "/dev/sdb", "smart"
-        )
+        EventLogger.log_clone_started(mock_log, "/dev/sda", "/dev/sdb", "smart")
 
         mock_log.info.assert_called_once()
         call_kwargs = mock_log.info.call_args.kwargs
@@ -515,8 +511,7 @@ class TestEventLogger:
         mock_log = Mock()
 
         EventLogger.log_clone_started(
-            mock_log, "/dev/sda", "/dev/sdb", "exact",
-            verify=True, compression="zstd"
+            mock_log, "/dev/sda", "/dev/sdb", "exact", verify=True, compression="zstd"
         )
 
         call_kwargs = mock_log.info.call_args.kwargs
@@ -599,8 +594,7 @@ class TestEventLogger:
         mock_log = Mock()
 
         EventLogger.log_operation_metric(
-            mock_log, "verify", "checksum_time", 5.5, "seconds",
-            algorithm="sha256"
+            mock_log, "verify", "checksum_time", 5.5, "seconds", algorithm="sha256"
         )
 
         call_kwargs = mock_log.debug.call_args.kwargs

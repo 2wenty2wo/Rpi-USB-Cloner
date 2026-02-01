@@ -167,15 +167,21 @@ def _view_devices(
         else 1
     )
 
-    total_pages = 3 + partition_pages  # disk usage + device info + drive info + partitions
+    total_pages = (
+        3 + partition_pages
+    )  # disk usage + device info + drive info + partitions
 
     # Route to appropriate renderer based on page index
     if page_index == 0:
         _render_disk_usage_page(device, page_index=page_index, total_pages=total_pages)
     elif page_index == 1:
-        _render_device_identity_page(device, page_index=page_index, total_pages=total_pages)
+        _render_device_identity_page(
+            device, page_index=page_index, total_pages=total_pages
+        )
     elif page_index == 2:
-        _render_drive_metadata_page(device, page_index=page_index, total_pages=total_pages)
+        _render_drive_metadata_page(
+            device, page_index=page_index, total_pages=total_pages
+        )
     else:
         partition_page_index = page_index - 3
         _render_partition_info_page(

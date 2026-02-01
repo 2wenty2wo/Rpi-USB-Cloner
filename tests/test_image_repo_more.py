@@ -14,11 +14,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
+from rpi_usb_cloner.domain import ImageRepo, ImageType
 from rpi_usb_cloner.storage import image_repo
 
 

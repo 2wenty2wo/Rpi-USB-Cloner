@@ -301,7 +301,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         default=app_state.screensaver_enabled,
     )
     # Use batched USB snapshot for efficiency - single lsblk call
-    last_batched_snapshot: drives.USBSnapshot | None = None
+    last_batched_snapshot: Optional[drives.USBSnapshot] = None
 
     def get_batched_usb_snapshot() -> drives.USBSnapshot:
         """Get USB device snapshot with single system call.
@@ -322,13 +322,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     def log_snapshot_changes(snapshot: drives.USBSnapshot) -> None:
         """Log changes in USB snapshot compared to last_batched_snapshot."""
         nonlocal last_batched_snapshot
-        if snapshot.raw_devices != getattr(
-            last_batched_snapshot, "raw_devices", None
-        ):
+        if snapshot.raw_devices != getattr(last_batched_snapshot, "raw_devices", None):
             usb_log_debug(f"Raw USB snapshot: {snapshot.raw_devices}")
-        if snapshot.mountpoints != getattr(
-            last_batched_snapshot, "mountpoints", None
-        ):
+        if snapshot.mountpoints != getattr(last_batched_snapshot, "mountpoints", None):
             usb_log_debug(f"USB mount snapshot: {snapshot.mountpoints}")
         if snapshot.media_devices != getattr(
             last_batched_snapshot, "media_devices", None
@@ -557,10 +553,15 @@ def main(argv: Optional[list[str]] = None) -> None:
             return DEFAULT_TRANSITION_FRAME_DELAY
         return max(0.0, delay)
 
+    # Non-blocking transition state
+    active_transition: Optional[Generator[float, None, None]] = None
+    transition_next_frame_time: float = 0.0
+    transition_to_image: Optional[Image.Image] = None
+
     def render_current_screen(
         *,
         force: bool = False,
-        now: float | None = None,
+        now: Optional[float] = None,
     ) -> None:
         nonlocal last_menu_activity_time
         if now is None:
@@ -636,7 +637,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                     status_line=status_line
                 )
                 dirty_region = (0, 0, context.width, footer_start)
-                
+
                 # Start non-blocking transition
                 nonlocal active_transition, transition_next_frame_time, transition_to_image
                 transition_to_image = to_image
@@ -715,11 +716,6 @@ def main(argv: Optional[list[str]] = None) -> None:
     }
     screensaver_active = False
 
-    # Non-blocking transition state
-    active_transition: Generator[float, None, None] | None = None
-    transition_next_frame_time: float = 0.0
-    transition_to_image: Image.Image | None = None
-
     def any_button_pressed() -> bool:
         return any(gpio.is_pressed(pin) for pin in gpio.PINS)
 
@@ -752,7 +748,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             render_requested = False
             force_render = False
             now = time.monotonic()
-            
+
             # If transition just completed, force a render to update state
             if transition_just_completed:
                 force_render = True
@@ -849,7 +845,15 @@ def main(argv: Optional[list[str]] = None) -> None:
                             time.sleep(input_poll_interval)
                     # Wait for button release to prevent phantom presses
                     menus.wait_for_buttons_release(
-                        [gpio.PIN_U, gpio.PIN_D, gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+                        [
+                            gpio.PIN_U,
+                            gpio.PIN_D,
+                            gpio.PIN_L,
+                            gpio.PIN_R,
+                            gpio.PIN_A,
+                            gpio.PIN_B,
+                            gpio.PIN_C,
+                        ]
                     )
                     state.lcdstart = datetime.now()
                     state.run_once = 0

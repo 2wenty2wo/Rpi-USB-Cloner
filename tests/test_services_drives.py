@@ -452,14 +452,11 @@ class TestGetDriveCounts:
 
     def test_no_drives(self):
         """Test when no drives are connected."""
-        with (
-            patch(
-                "rpi_usb_cloner.services.drives._get_repo_device_names"
-            ) as mock_repo_names,
-            patch(
-                "rpi_usb_cloner.services.drives.list_usb_disks"
-            ) as mock_list_usb,
-        ):
+        with patch(
+            "rpi_usb_cloner.services.drives._get_repo_device_names"
+        ) as mock_repo_names, patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb:
             mock_repo_names.return_value = set()
             mock_list_usb.return_value = []
 
@@ -470,14 +467,11 @@ class TestGetDriveCounts:
 
     def test_usb_drives_only(self):
         """Test when only USB drives are connected (no repos)."""
-        with (
-            patch(
-                "rpi_usb_cloner.services.drives._get_repo_device_names"
-            ) as mock_repo_names,
-            patch(
-                "rpi_usb_cloner.services.drives.list_usb_disks"
-            ) as mock_list_usb,
-        ):
+        with patch(
+            "rpi_usb_cloner.services.drives._get_repo_device_names"
+        ) as mock_repo_names, patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb:
             mock_repo_names.return_value = set()
             mock_list_usb.return_value = [
                 {"name": "sda"},
@@ -491,14 +485,11 @@ class TestGetDriveCounts:
 
     def test_repo_drives_only(self):
         """Test when only repo drives are connected."""
-        with (
-            patch(
-                "rpi_usb_cloner.services.drives._get_repo_device_names"
-            ) as mock_repo_names,
-            patch(
-                "rpi_usb_cloner.services.drives.list_usb_disks"
-            ) as mock_list_usb,
-        ):
+        with patch(
+            "rpi_usb_cloner.services.drives._get_repo_device_names"
+        ) as mock_repo_names, patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb:
             mock_repo_names.return_value = {"sda"}
             mock_list_usb.return_value = [
                 {"name": "sda"},
@@ -511,14 +502,11 @@ class TestGetDriveCounts:
 
     def test_mixed_drives(self):
         """Test when both USB and repo drives are connected."""
-        with (
-            patch(
-                "rpi_usb_cloner.services.drives._get_repo_device_names"
-            ) as mock_repo_names,
-            patch(
-                "rpi_usb_cloner.services.drives.list_usb_disks"
-            ) as mock_list_usb,
-        ):
+        with patch(
+            "rpi_usb_cloner.services.drives._get_repo_device_names"
+        ) as mock_repo_names, patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb:
             mock_repo_names.return_value = {"sdc"}
             mock_list_usb.return_value = [
                 {"name": "sda"},
@@ -533,14 +521,11 @@ class TestGetDriveCounts:
 
     def test_multiple_repos(self):
         """Test when multiple repo drives are connected."""
-        with (
-            patch(
-                "rpi_usb_cloner.services.drives._get_repo_device_names"
-            ) as mock_repo_names,
-            patch(
-                "rpi_usb_cloner.services.drives.list_usb_disks"
-            ) as mock_list_usb,
-        ):
+        with patch(
+            "rpi_usb_cloner.services.drives._get_repo_device_names"
+        ) as mock_repo_names, patch(
+            "rpi_usb_cloner.services.drives.list_usb_disks"
+        ) as mock_list_usb:
             mock_repo_names.return_value = {"sda", "sdc"}
             mock_list_usb.return_value = [
                 {"name": "sda"},

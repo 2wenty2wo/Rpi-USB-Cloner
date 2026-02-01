@@ -12,8 +12,6 @@ Covers:
 
 from __future__ import annotations
 
-import os
-import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -47,78 +45,70 @@ class TestRestoreIsoImage:
     @skip_windows
     def test_not_root_raises(self, mock_iso_file):
         """Test that non-root execution raises RuntimeError."""
-        with patch("os.geteuid", return_value=1000):
-            with pytest.raises(RuntimeError, match="Run as root"):
-                restore_iso_image(mock_iso_file, "sda")
+        with patch("os.geteuid", return_value=1000), pytest.raises(
+            RuntimeError, match="Run as root"
+        ):
+            restore_iso_image(mock_iso_file, "sda")
 
     @skip_windows
     def test_iso_file_not_found(self):
         """Test that missing ISO file raises RuntimeError."""
-        with patch("os.geteuid", return_value=0):
-            with pytest.raises(RuntimeError, match="ISO file not found"):
-                restore_iso_image(Path("/nonexistent.iso"), "sda")
+        with patch("os.geteuid", return_value=0), pytest.raises(
+            RuntimeError, match="ISO file not found"
+        ):
+            restore_iso_image(Path("/nonexistent.iso"), "sda")
 
     @skip_windows
     def test_target_device_too_small(self, mock_iso_file):
         """Test that too-small target device raises RuntimeError."""
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.iso.resolve_device_node",
-                return_value="/dev/sda",
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
-                    return_value={"name": "sda", "size": 100},
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.iso.devices.unmount_device",
-                        return_value=True,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="Target device too small"
-                        ):
-                            restore_iso_image(mock_iso_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.iso.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
+            return_value={"name": "sda", "size": 100},
+        ), patch(
+            "rpi_usb_cloner.storage.iso.devices.unmount_device",
+            return_value=True,
+        ), pytest.raises(
+            RuntimeError, match="Target device too small"
+        ):
+            restore_iso_image(mock_iso_file, "sda")
 
     @skip_windows
     def test_dd_not_found(self, mock_iso_file):
         """Test that missing dd command raises RuntimeError."""
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.iso.resolve_device_node",
-                return_value="/dev/sda",
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
-                    return_value=None,
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.iso.shutil.which",
-                        return_value=None,
-                    ):
-                        with pytest.raises(RuntimeError, match="dd not found"):
-                            restore_iso_image(mock_iso_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.iso.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.iso.shutil.which",
+            return_value=None,
+        ), pytest.raises(
+            RuntimeError, match="dd not found"
+        ):
+            restore_iso_image(mock_iso_file, "sda")
 
     @skip_windows
     def test_unmount_failure_raises(self, mock_iso_file):
         """Test that unmount failure raises RuntimeError."""
         device_info = {"name": "sda", "size": 1000000000}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.iso.resolve_device_node",
-                return_value="/dev/sda",
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
-                    return_value=device_info,
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.iso.devices.unmount_device",
-                        return_value=False,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="Failed to unmount target device"
-                        ):
-                            restore_iso_image(mock_iso_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.iso.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.iso.devices.get_device_by_name",
+            return_value=device_info,
+        ), patch(
+            "rpi_usb_cloner.storage.iso.devices.unmount_device",
+            return_value=False,
+        ), pytest.raises(
+            RuntimeError, match="Failed to unmount target device"
+        ):
+            restore_iso_image(mock_iso_file, "sda")
 
     @skip_windows
     def test_successful_iso_restore(self, mock_iso_file, mocker):
@@ -175,7 +165,9 @@ class TestRestoreIsoImage:
             )
             mocker.patch(
                 "rpi_usb_cloner.storage.iso.shutil.which",
-                side_effect=lambda cmd: f"/usr/bin/{cmd}" if cmd in ["dd", "blockdev"] else None,
+                side_effect=lambda cmd: (
+                    f"/usr/bin/{cmd}" if cmd in ["dd", "blockdev"] else None
+                ),
             )
             mocker.patch(
                 "rpi_usb_cloner.storage.iso.subprocess.run",
@@ -197,18 +189,17 @@ class TestGetBlockdevSizeBytes:
         """Test successful blockdev size retrieval."""
         with patch(
             "rpi_usb_cloner.storage.iso.shutil.which", return_value="/sbin/blockdev"
-        ):
-            with patch(
-                "rpi_usb_cloner.storage.iso.subprocess.run",
-                return_value=Mock(returncode=0, stdout="1073741824\n"),
-            ) as mock_run:
-                result = _get_blockdev_size_bytes("/dev/sda")
-                assert result == 1073741824
-                mock_run.assert_called_once_with(
-                    ["/sbin/blockdev", "--getsize64", "/dev/sda"],
-                    capture_output=True,
-                    text=True,
-                )
+        ), patch(
+            "rpi_usb_cloner.storage.iso.subprocess.run",
+            return_value=Mock(returncode=0, stdout="1073741824\n"),
+        ) as mock_run:
+            result = _get_blockdev_size_bytes("/dev/sda")
+            assert result == 1073741824
+            mock_run.assert_called_once_with(
+                ["/sbin/blockdev", "--getsize64", "/dev/sda"],
+                capture_output=True,
+                text=True,
+            )
 
     def test_blockdev_not_found(self):
         """Test when blockdev command is not available."""
@@ -220,25 +211,23 @@ class TestGetBlockdevSizeBytes:
         """Test when blockdev command fails."""
         with patch(
             "rpi_usb_cloner.storage.iso.shutil.which", return_value="/sbin/blockdev"
+        ), patch(
+            "rpi_usb_cloner.storage.iso.subprocess.run",
+            return_value=Mock(returncode=1, stdout=""),
         ):
-            with patch(
-                "rpi_usb_cloner.storage.iso.subprocess.run",
-                return_value=Mock(returncode=1, stdout=""),
-            ):
-                result = _get_blockdev_size_bytes("/dev/sda")
-                assert result is None
+            result = _get_blockdev_size_bytes("/dev/sda")
+            assert result is None
 
     def test_blockdev_invalid_output(self):
         """Test when blockdev returns non-numeric output."""
         with patch(
             "rpi_usb_cloner.storage.iso.shutil.which", return_value="/sbin/blockdev"
+        ), patch(
+            "rpi_usb_cloner.storage.iso.subprocess.run",
+            return_value=Mock(returncode=0, stdout="not a number"),
         ):
-            with patch(
-                "rpi_usb_cloner.storage.iso.subprocess.run",
-                return_value=Mock(returncode=0, stdout="not a number"),
-            ):
-                result = _get_blockdev_size_bytes("/dev/sda")
-                assert result is None
+            result = _get_blockdev_size_bytes("/dev/sda")
+            assert result is None
 
 
 class TestGetDeviceSizeBytes:

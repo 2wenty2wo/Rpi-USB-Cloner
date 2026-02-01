@@ -12,11 +12,9 @@ Platform-specific notes:
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -47,9 +45,10 @@ class TestRestoreImageUSBFile:
     @skip_windows
     def test_not_root_raises_permission_error(self, mock_bin_file):
         """Test that non-root execution raises PermissionError."""
-        with patch("os.geteuid", return_value=1000):
-            with pytest.raises(PermissionError, match="Must run as root"):
-                restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=1000), pytest.raises(
+            PermissionError, match="Must run as root"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_invalid_image_file_raises(self, tmp_path):
@@ -57,80 +56,69 @@ class TestRestoreImageUSBFile:
         invalid_file = tmp_path / "invalid.bin"
         invalid_file.write_text("not a valid imageusb file")
 
-        with patch("os.geteuid", return_value=0):
-            with pytest.raises(RuntimeError, match="Invalid ImageUSB file"):
-                restore_imageusb_file(invalid_file, "sda")
+        with patch("os.geteuid", return_value=0), pytest.raises(
+            RuntimeError, match="Invalid ImageUSB file"
+        ):
+            restore_imageusb_file(invalid_file, "sda")
 
     @skip_windows
     def test_device_not_found_raises(self, mock_bin_file):
         """Test that missing target device raises RuntimeError."""
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=None,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="Target device not found"
-                        ):
-                            restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=None,
+        ), pytest.raises(
+            RuntimeError, match="Target device not found"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_non_removable_device_raises(self, mock_bin_file):
         """Test that non-removable device raises RuntimeError."""
         device_info = {"name": "sda", "rm": "0"}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="not removable"
-                        ):
-                            restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), pytest.raises(
+            RuntimeError, match="not removable"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_removable_device_with_rm_one(self, mock_bin_file):
         """Test that removable device (rm=1) is accepted."""
         device_info = {"name": "sda", "rm": "1"}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with patch(
-                            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
-                            return_value=True,
-                        ):
-                            with patch(
-                                "rpi_usb_cloner.storage.imageusb.restore.shutil.which",
-                                return_value=None,  # Will fail on dd not found
-                            ):
-                                with pytest.raises(RuntimeError, match="dd command not found"):
-                                    restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
+            return_value=True,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.shutil.which",
+            return_value=None,  # Will fail on dd not found
+        ), pytest.raises(
+            RuntimeError, match="dd command not found"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_unmount_failure_raises(self, mock_bin_file):
@@ -141,59 +129,50 @@ class TestRestoreImageUSBFile:
         def progress_callback(messages, progress):
             progress_calls.append((messages, progress))
 
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with patch(
-                            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
-                            return_value=False,
-                        ):
-                            with pytest.raises(
-                                RuntimeError, match="Failed to unmount"
-                            ):
-                                restore_imageusb_file(
-                                    mock_bin_file, "sda", progress_callback=progress_callback
-                                )
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
+            return_value=False,
+        ), pytest.raises(
+            RuntimeError, match="Failed to unmount"
+        ):
+            restore_imageusb_file(
+                mock_bin_file,
+                "sda",
+                progress_callback=progress_callback,
+            )
 
     @skip_windows
     def test_dd_not_found_raises(self, mock_bin_file):
         """Test that missing dd command raises RuntimeError."""
         device_info = {"name": "sda", "rm": "1"}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with patch(
-                            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
-                            return_value=True,
-                        ):
-                            with patch(
-                                "rpi_usb_cloner.storage.imageusb.restore.shutil.which",
-                                return_value=None,
-                            ):
-                                with pytest.raises(
-                                    RuntimeError, match="dd command not found"
-                                ):
-                                    restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
+            return_value=True,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.shutil.which",
+            return_value=None,
+        ), pytest.raises(
+            RuntimeError, match="dd command not found"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_successful_restore(self, mock_bin_file, mocker):
@@ -229,7 +208,9 @@ class TestRestoreImageUSBFile:
                 "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress"
             )
 
-            restore_imageusb_file(mock_bin_file, "sda", progress_callback=progress_callback)
+            restore_imageusb_file(
+                mock_bin_file, "sda", progress_callback=progress_callback
+            )
 
             mock_run.assert_called_once()
             call_args = mock_run.call_args
@@ -264,7 +245,9 @@ class TestRestoreImageUSBFile:
             )
             mocker.patch(
                 "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress",
-                side_effect=subprocess.CalledProcessError(1, ["dd"], stderr="dd failed"),
+                side_effect=subprocess.CalledProcessError(
+                    1, ["dd"], stderr="dd failed"
+                ),
             )
 
             with pytest.raises(RuntimeError, match="dd command failed"):
@@ -298,7 +281,7 @@ class TestRestoreImageUSBFile:
             )
             mocker.patch(
                 "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress",
-                side_effect=IOError("disk error"),
+                side_effect=OSError("disk error"),
             )
 
             with pytest.raises(RuntimeError, match="Restoration failed"):
@@ -307,73 +290,62 @@ class TestRestoreImageUSBFile:
     @skip_windows
     def test_cannot_read_file_size(self, tmp_path):
         """Test handling of OSError when reading file size."""
-        bin_path = tmp_path / "test.bin"
-        
+
         # Create a mock that raises OSError on stat()
         class MockPath:
             def stat(self):
                 raise OSError("Permission denied")
-        
+
         device_info = {"name": "sda", "rm": "1"}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with pytest.raises(RuntimeError, match="Cannot read file size"):
-                            restore_imageusb_file(MockPath(), "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), pytest.raises(
+            RuntimeError, match="Cannot read file size"
+        ):
+            restore_imageusb_file(MockPath(), "sda")
 
     @skip_windows
     def test_rm_value_none_defaults_to_not_removable(self, mock_bin_file):
         """Test that rm=None defaults to non-removable."""
         device_info = {"name": "sda", "rm": None}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="not removable"
-                        ):
-                            restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), pytest.raises(
+            RuntimeError, match="not removable"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
     @skip_windows
     def test_rm_value_invalid_string_defaults_to_not_removable(self, mock_bin_file):
         """Test that rm='invalid' defaults to non-removable."""
         device_info = {"name": "sda", "rm": "invalid"}
-        with patch("os.geteuid", return_value=0):
-            with patch(
-                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
-                return_value=None,
-            ):
-                with patch(
-                    "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
-                    return_value="/dev/sda",
-                ):
-                    with patch(
-                        "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
-                        return_value=device_info,
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="not removable"
-                        ):
-                            restore_imageusb_file(mock_bin_file, "sda")
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ), pytest.raises(
+            RuntimeError, match="not removable"
+        ):
+            restore_imageusb_file(mock_bin_file, "sda")
 
 
 class TestRestoreImageUSBFileSimple:
@@ -390,6 +362,4 @@ class TestRestoreImageUSBFileSimple:
 
         restore_imageusb_file_simple(bin_path, "sda")
 
-        mock_restore.assert_called_once_with(
-            bin_path, "sda", progress_callback=None
-        )
+        mock_restore.assert_called_once_with(bin_path, "sda", progress_callback=None)

@@ -309,9 +309,9 @@ class TestEraseSafety:
     @pytest.mark.skip(reason="Complex mocking required for cross-platform testing")
     def test_valid_erase_proceeds(self):
         """Test that valid erase operation proceeds.
-        
-        Note: This test is skipped due to complex platform-specific 
-        validation dependencies. The erase functionality is tested 
+
+        Note: This test is skipped due to complex platform-specific
+        validation dependencies. The erase functionality is tested
         through integration tests on actual hardware.
         """
         pytest.skip("Skipped - requires complex platform-specific mocking")

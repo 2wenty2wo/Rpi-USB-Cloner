@@ -184,6 +184,7 @@ class TestListWifiInterfaces:
 
     def test_iw_dev_not_found_fallback_to_nmcli(self, mocker):
         """Test fallback to nmcli when iw not found."""
+
         def fake_run(command, check=True, redactions=None):
             if command[0] == "iw":
                 raise FileNotFoundError("iw not found")
@@ -357,7 +358,7 @@ class TestDefaultRunner:
             "rpi_usb_cloner.services.wifi.subprocess.run",
             return_value=_completed_process(),
         )
-        result = wifi._default_runner(["echo", "test"], check=True)
+        wifi._default_runner(["echo", "test"], check=True)
         mock_run.assert_called_once_with(
             ["echo", "test"], check=True, text=True, capture_output=True
         )

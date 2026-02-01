@@ -63,6 +63,10 @@ def create_repo_drive(
         target = available_devices[-1]
 
     target_name = target.get("name")
+    if not isinstance(target_name, str) or not target_name:
+        display.display_lines(["CREATE REPO", "No drive name"])
+        time.sleep(1)
+        return
 
     # Confirmation
     if not _confirm_create_repo(state, target_name):

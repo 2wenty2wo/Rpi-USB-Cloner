@@ -4,9 +4,8 @@ This module tests the helper functions in rpi_usb_cloner.ui.menus,
 focusing on non-GPIO functions that can be unit tested.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.ui import menus
@@ -29,10 +28,7 @@ class TestMenuItem:
 
     def test_creation_with_line_widths(self):
         """Test creating MenuItem with line widths."""
-        item = menus.MenuItem(
-            lines=["Line 1", "Line 2"],
-            line_widths=[100, 150]
-        )
+        item = menus.MenuItem(lines=["Line 1", "Line 2"], line_widths=[100, 150])
 
         assert item.lines == ["Line 1", "Line 2"]
         assert item.line_widths == [100, 150]
@@ -343,6 +339,3 @@ class TestGetTransitionFrameDelay:
         result = menus._get_transition_frame_delay()
 
         assert result == 0.0
-
-
-

@@ -4,7 +4,7 @@ This module tests the action handlers in rpi_usb_cloner.actions.network_transfer
 which handle peer-to-peer image transfers over the network.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -26,8 +26,18 @@ def mock_disk_images(tmp_path):
     img2_path = tmp_path / "image2"
     img2_path.mkdir()
     return [
-        DiskImage(name="image1", path=img1_path, image_type=ImageType.CLONEZILLA_DIR, size_bytes=1000000),
-        DiskImage(name="image2", path=img2_path, image_type=ImageType.CLONEZILLA_DIR, size_bytes=2000000),
+        DiskImage(
+            name="image1",
+            path=img1_path,
+            image_type=ImageType.CLONEZILLA_DIR,
+            size_bytes=1000000,
+        ),
+        DiskImage(
+            name="image2",
+            path=img2_path,
+            image_type=ImageType.CLONEZILLA_DIR,
+            size_bytes=2000000,
+        ),
     ]
 
 
@@ -35,8 +45,20 @@ def mock_disk_images(tmp_path):
 def mock_peer_devices():
     """Fixture providing mock peer devices."""
     return [
-        discovery.PeerDevice(hostname="pi1", address="192.168.1.10", port=8080, device_id="dev1", txt_records={}),
-        discovery.PeerDevice(hostname="pi2", address="192.168.1.11", port=8080, device_id="dev2", txt_records={}),
+        discovery.PeerDevice(
+            hostname="pi1",
+            address="192.168.1.10",
+            port=8080,
+            device_id="dev1",
+            txt_records={},
+        ),
+        discovery.PeerDevice(
+            hostname="pi2",
+            address="192.168.1.11",
+            port=8080,
+            device_id="dev2",
+            txt_records={},
+        ),
     ]
 
 
@@ -48,8 +70,12 @@ def mock_peer_devices():
 class TestCopyImagesNetwork:
     """Test the main copy_images_network flow."""
 
-    @patch("rpi_usb_cloner.actions.network_transfer_actions.image_repo.find_image_repos")
-    @patch("rpi_usb_cloner.actions.network_transfer_actions.screens.render_error_screen")
+    @patch(
+        "rpi_usb_cloner.actions.network_transfer_actions.image_repo.find_image_repos"
+    )
+    @patch(
+        "rpi_usb_cloner.actions.network_transfer_actions.screens.render_error_screen"
+    )
     @patch("rpi_usb_cloner.actions.network_transfer_actions.time.sleep")
     def test_shows_error_when_no_repos(
         self, mock_sleep, mock_error_screen, mock_find_repos
@@ -62,9 +88,15 @@ class TestCopyImagesNetwork:
         mock_error_screen.assert_called_once()
         mock_sleep.assert_called_once_with(1.5)
 
-    @patch("rpi_usb_cloner.actions.network_transfer_actions.image_repo.find_image_repos")
-    @patch("rpi_usb_cloner.actions.network_transfer_actions.image_repo.list_clonezilla_images")
-    @patch("rpi_usb_cloner.actions.network_transfer_actions.screens.render_error_screen")
+    @patch(
+        "rpi_usb_cloner.actions.network_transfer_actions.image_repo.find_image_repos"
+    )
+    @patch(
+        "rpi_usb_cloner.actions.network_transfer_actions.image_repo.list_clonezilla_images"
+    )
+    @patch(
+        "rpi_usb_cloner.actions.network_transfer_actions.screens.render_error_screen"
+    )
     @patch("rpi_usb_cloner.actions.network_transfer_actions.time.sleep")
     def test_shows_error_when_no_images(
         self, mock_sleep, mock_error_screen, mock_list_images, mock_find_repos
@@ -107,7 +139,7 @@ class TestAsyncTransferBasics:
 
     def test_async_transfer_function_exists(self):
         """Test that the _async_transfer function exists."""
-        assert hasattr(network_transfer_actions, '_async_transfer')
+        assert hasattr(network_transfer_actions, "_async_transfer")
         assert callable(network_transfer_actions._async_transfer)
 
 

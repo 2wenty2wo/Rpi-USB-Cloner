@@ -49,6 +49,10 @@ def unmount_drive(
 
     device = devices_list[0]
     device_name = device.get("name")
+    if not isinstance(device_name, str) or not device_name:
+        display.display_lines(["DRIVE", "NOT FOUND"])
+        time.sleep(1)
+        return
 
     # Check for mounted partitions
     mountpoints = collect_mountpoints(device)
