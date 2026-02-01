@@ -1346,11 +1346,13 @@ def start_server(
             await site.start()
 
             # Start background broadcaster tasks for multiplexed WebSocket
+            asyncio.create_task(_screen_broadcaster(app))
             asyncio.create_task(_health_broadcaster(app))
             asyncio.create_task(_logs_broadcaster(app))
             asyncio.create_task(_devices_broadcaster(app))
             asyncio.create_task(_images_broadcaster(app))
-            # Screen broadcaster runs in separate thread via notifier
+            # Screen broadcaster listens for notifier updates, which are driven
+            # by the separate display update thread.
 
             return runner
 
