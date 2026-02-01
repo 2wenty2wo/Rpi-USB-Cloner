@@ -352,6 +352,52 @@ class TestCreateMetadataFiles:
         assert disk_file.exists()
         assert disk_file.read_text() == "sda\n"
 
+        # Verify 'blkdev.list' file
+        blkdev_file = tmp_path / "blkdev.list"
+        assert blkdev_file.exists()
+        assert blkdev_file.read_text() == "sda\n"
+
+        # dev-fs.list should not be created without partition_infos
+        dev_fs_file = tmp_path / "dev-fs.list"
+        assert not dev_fs_file.exists()
+
+    def test_create_metadata_files_with_partition_info(self, tmp_path):
+        """Test metadata file creation with filesystem details."""
+        partitions = ["sda1", "sda2", "sda3"]
+        partition_infos = [
+            backup.PartitionInfo(
+                name="sda1",
+                node="/dev/sda1",
+                fstype="vfat",
+                size_bytes=1073741824,
+                used_bytes=536870912,
+            ),
+            backup.PartitionInfo(
+                name="sda2",
+                node="/dev/sda2",
+                fstype="ext4",
+                size_bytes=15032385536,
+                used_bytes=7516192768,
+            ),
+            backup.PartitionInfo(
+                name="sda3",
+                node="/dev/sda3",
+                fstype=None,  # Test unknown filesystem
+                size_bytes=1073741824,
+                used_bytes=None,
+            ),
+        ]
+
+        backup.create_metadata_files("sda", partitions, tmp_path, partition_infos)
+
+        # Verify 'dev-fs.list' file
+        dev_fs_file = tmp_path / "dev-fs.list"
+        assert dev_fs_file.exists()
+        content = dev_fs_file.read_text()
+        assert "sda1 vfat" in content
+        assert "sda2 ext4" in content
+        assert "sda3 unknown" in content
+
 
 class TestProgressParsing:
     """Tests for progress parsing functions."""
