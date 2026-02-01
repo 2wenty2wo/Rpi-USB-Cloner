@@ -8,6 +8,7 @@ Covers:
 
 from __future__ import annotations
 
+from itertools import chain, repeat
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,15 +27,20 @@ class TestShowLogs:
         context.log_buffer = []
         return context
 
+    def _build_side_effect(self, values):
+        return chain(values, repeat(False))
+
     def test_show_logs_empty_buffer(self, mock_app_context):
         """Test showing logs with empty buffer."""
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
-                    mock_gpio.is_pressed.return_value = False
+                    mock_render.return_value = (1, 0)
                     # Simulate button A press to exit
-                    mock_gpio.is_pressed.side_effect = [True, False]
-                    
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [True, False, False, False, False, False]
+                    )
+
                     show_logs(mock_app_context)
 
         mock_render.assert_called()
@@ -52,9 +58,11 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
-                    mock_gpio.is_pressed.return_value = False
-                    mock_gpio.is_pressed.side_effect = [True, False]
-                    
+                    mock_render.return_value = (1, 0)
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [True, False, False, False, False, False]
+                    )
+
                     show_logs(mock_app_context)
 
         mock_render.assert_called()
@@ -66,9 +74,11 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
-                    mock_gpio.is_pressed.return_value = False
-                    mock_gpio.is_pressed.side_effect = [True, False]
-                    
+                    mock_render.return_value = (1, 0)
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [True, False, False, False, False, False]
+                    )
+
                     show_logs(mock_app_context)
 
         mock_render.assert_called()
@@ -80,16 +90,31 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
+                    mock_render.return_value = (1, 0)
                     # Press L then A to exit
                     mock_gpio.PIN_A = 1
                     mock_gpio.PIN_L = 2
-                    mock_gpio.is_pressed.side_effect = [
-                        True, True,   # Initial states
-                        False, True,  # L pressed
-                        False, False, # L released
-                        True, False,  # A pressed to exit
-                    ]
-                    
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [
+                            False,
+                            True,
+                            False,
+                            False,
+                            False,  # Initial states
+                            False,
+                            False,
+                            False,
+                            False,
+                            False,  # L released
+                            True,
+                            False,
+                            False,
+                            False,
+                            False,  # A pressed
+                            False,  # A released to exit
+                        ]
+                    )
+
                     show_logs(mock_app_context)
 
         mock_render.assert_called()
@@ -101,15 +126,30 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
+                    mock_render.return_value = (1, 0)
                     mock_gpio.PIN_A = 1
                     mock_gpio.PIN_R = 3
-                    mock_gpio.is_pressed.side_effect = [
-                        True, True,
-                        False, True,
-                        False, False,
-                        True, False,
-                    ]
-                    
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [
+                            False,
+                            False,
+                            True,
+                            False,
+                            False,  # Initial states
+                            False,
+                            False,
+                            False,
+                            False,
+                            False,  # R released
+                            True,
+                            False,
+                            False,
+                            False,
+                            False,  # A pressed
+                            False,  # A released to exit
+                        ]
+                    )
+
                     show_logs(mock_app_context)
 
         mock_render.assert_called()
@@ -119,9 +159,11 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
-                    mock_gpio.is_pressed.return_value = False
-                    mock_gpio.is_pressed.side_effect = [True, False]
-                    
+                    mock_render.return_value = (1, 0)
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [True, False, False, False, False, False]
+                    )
+
                     show_logs(mock_app_context, title="CUSTOM LOGS")
 
         mock_render.assert_called()
@@ -135,9 +177,11 @@ class TestShowLogs:
         with patch("rpi_usb_cloner.ui.screens.logs.render_info_screen") as mock_render:
             with patch("rpi_usb_cloner.ui.screens.logs.menus"):
                 with patch("rpi_usb_cloner.ui.screens.logs.gpio") as mock_gpio:
-                    mock_gpio.is_pressed.return_value = False
-                    mock_gpio.is_pressed.side_effect = [True, False]
-                    
+                    mock_render.return_value = (1, 0)
+                    mock_gpio.is_pressed.side_effect = self._build_side_effect(
+                        [True, False, False, False, False, False]
+                    )
+
                     show_logs(mock_app_context, max_lines=10)
 
         mock_render.assert_called()
