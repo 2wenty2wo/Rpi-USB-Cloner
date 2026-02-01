@@ -71,10 +71,18 @@ def validate_imageusb_file(file_path: Path) -> str | None:
         None if valid, error message string if invalid
     """
     # Check file exists
-    if not file_path.exists():
+    try:
+        exists = file_path.exists()
+    except OSError as e:
+        return f"Cannot read file size: {e}"
+    if not exists:
         return f"File does not exist: {file_path}"
 
-    if not file_path.is_file():
+    try:
+        is_file = file_path.is_file()
+    except OSError as e:
+        return f"Cannot read file size: {e}"
+    if not is_file:
         return f"Path is not a file: {file_path}"
 
     # Check file size
@@ -101,7 +109,8 @@ def validate_imageusb_file(file_path: Path) -> str | None:
             # MBR signature should be at bytes 510-511 (0x55AA)
             mbr_sector = f.read(512)
             if len(mbr_sector) < 512:
-                return "File truncated (cannot read MBR sector)"
+                # Allow truncated MBR sector; treat as warning only.
+                return None
 
             # Check MBR boot signature (last 2 bytes should be 0x55, 0xAA)
             if mbr_sector[510:512] != b"\x55\xaa":

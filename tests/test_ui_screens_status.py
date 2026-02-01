@@ -32,7 +32,7 @@ class TestRenderStatusScreen:
 
         mock_display.render_paginated_lines.assert_called_once()
         call_args = mock_display.render_paginated_lines.call_args
-        assert call_args.kwargs["title"] == "Success"
+        assert call_args.args[0] == "Success"
 
     def test_render_status_screen_with_progress(self):
         """Test status screen with progress line."""

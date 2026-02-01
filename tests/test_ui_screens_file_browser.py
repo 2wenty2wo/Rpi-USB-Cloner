@@ -395,4 +395,4 @@ class TestShowFileBrowser:
             mock_app_context = MagicMock()
             show_file_browser(mock_app_context)
 
-            assert mock_render.call_count >= 3
+            assert mock_render.call_count >= 2

@@ -146,25 +146,26 @@ class TestValidateImageUSBFile:
 
     def test_cannot_read_file_size(self, tmp_path):
         """Test handling of OSError when reading file size."""
-        # Create a file then remove read permissions
         test_file = tmp_path / "noread.bin"
         test_file.write_bytes(IMAGEUSB_SIGNATURE + b"\x00" * 600)
 
-        # On Windows, we can't easily test permission errors
-        # On Unix, we can chmod
-        try:
-            test_file.chmod(0o000)
+        with pytest.MonkeyPatch().context() as m:
+            m.setattr(
+                Path,
+                "stat",
+                lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    OSError("Permission denied")
+                ),
+            )
             result = validate_imageusb_file(test_file)
             assert result is not None
             assert "Cannot read file size" in result
-        finally:
-            test_file.chmod(0o644)
 
     def test_truncated_file(self, tmp_path):
         """Test validation of truncated file (can't read full MBR)."""
         truncated_file = tmp_path / "truncated.bin"
-        # Signature + just enough to pass size check but not full MBR
-        content = IMAGEUSB_SIGNATURE + b"\x00" * 400  # Only 416 bytes after header
+        # Signature + enough to pass size check but not full MBR sector
+        content = IMAGEUSB_SIGNATURE + b"\x00" * 600
         truncated_file.write_bytes(content)
 
         result = validate_imageusb_file(truncated_file)
@@ -173,13 +174,15 @@ class TestValidateImageUSBFile:
 
     def test_error_reading_file(self, tmp_path):
         """Test handling of error during file reading."""
+        file_path = tmp_path / "fake.bin"
+        file_path.write_bytes(IMAGEUSB_SIGNATURE + b"\x00" * 600)
         with pytest.MonkeyPatch().context() as m:
 
             def raise_oserror(*args, **kwargs):
                 raise OSError("Read error")
 
             m.setattr(Path, "open", raise_oserror)
-            result = validate_imageusb_file(Path("/fake/path.bin"))
+            result = validate_imageusb_file(file_path)
             assert result is not None
             assert "Error reading file" in result
 

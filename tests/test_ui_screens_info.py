@@ -26,7 +26,10 @@ class TestRenderInfoScreen:
 
     def test_render_info_screen_basic(self):
         """Test basic info screen rendering."""
-        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display:
+        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.info.menus.get_standard_content_top",
+            return_value=0,
+        ):
             mock_display.render_paginated_lines.return_value = (1, 0)
 
             result = render_info_screen("Info", ["Line 1", "Line 2"])
@@ -36,7 +39,10 @@ class TestRenderInfoScreen:
 
     def test_render_info_screen_with_icon(self):
         """Test info screen with title icon."""
-        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display:
+        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.info.menus.get_standard_content_top",
+            return_value=0,
+        ):
             mock_display.render_paginated_lines.return_value = (1, 0)
 
             render_info_screen("Info", ["Line 1"], title_icon="info")
@@ -46,7 +52,10 @@ class TestRenderInfoScreen:
 
     def test_render_info_screen_custom_page(self):
         """Test info screen with custom page index."""
-        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display:
+        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.info.menus.get_standard_content_top",
+            return_value=0,
+        ):
             mock_display.render_paginated_lines.return_value = (3, 2)
 
             render_info_screen("Info", ["Line 1"] * 100, page_index=2)
@@ -60,7 +69,10 @@ class TestRenderKeyValueScreen:
 
     def test_render_key_value_screen_basic(self):
         """Test basic key-value screen rendering."""
-        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display:
+        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.info.menus.get_standard_content_top",
+            return_value=0,
+        ):
             mock_display.render_paginated_key_value_lines.return_value = (1, 0)
 
             lines = [("Key1", "Value1"), ("Key2", "Value2")]
@@ -71,7 +83,10 @@ class TestRenderKeyValueScreen:
 
     def test_render_key_value_screen_with_icon(self):
         """Test key-value screen with icon."""
-        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display:
+        with patch("rpi_usb_cloner.ui.screens.info.display") as mock_display, patch(
+            "rpi_usb_cloner.ui.screens.info.menus.get_standard_content_top",
+            return_value=0,
+        ):
             mock_display.render_paginated_key_value_lines.return_value = (1, 0)
 
             lines = [("Key", "Value")]

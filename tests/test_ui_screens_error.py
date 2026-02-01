@@ -33,51 +33,94 @@ class TestRenderErrorScreen:
 
     def test_render_error_basic(self, mock_context):
         """Test basic error screen rendering."""
-        # Create a real image for the draw operations
         test_image = Image.new("1", (128, 64), 0)
+        mock_context.draw = MagicMock()
+        mock_context.image = test_image
+        mock_context.disp = MagicMock()
+        mock_context.width = 128
+        mock_context.height = 64
+        mock_context.top = 0
+        mock_context.x = 0
+        mock_context.fontdisks = MagicMock()
+        mock_context.fontdisks.getbbox.return_value = (0, 0, 10, 10)
+        mock_context.fonts = MagicMock()
+        mock_context.fonts.get.return_value = mock_context.fontdisks
 
+        layout = MagicMock()
+        layout.content_top = 0
         with patch(
-            "rpi_usb_cloner.ui.screens.error.Image.new", return_value=test_image
-        ), patch("rpi_usb_cloner.ui.screens.error.render_status_bar"):
+            "rpi_usb_cloner.ui.screens.error.display.get_display_context",
+            return_value=mock_context,
+        ), patch(
+            "rpi_usb_cloner.ui.screens.error.display.draw_title_with_icon",
+            return_value=layout,
+        ):
             render_error_screen(
-                mock_context,
                 title="Error",
                 message="Something went wrong",
             )
 
-        # Verify display was updated
-        mock_context.display.device.display.assert_called_once()
-        assert mock_context.current_screen_image is not None
+        mock_context.disp.display.assert_called_once()
 
     def test_render_error_with_exception(self, mock_context):
         """Test error screen rendering with exception details."""
         test_image = Image.new("1", (128, 64), 0)
-        exception = ValueError("Test exception")
+        mock_context.draw = MagicMock()
+        mock_context.image = test_image
+        mock_context.disp = MagicMock()
+        mock_context.width = 128
+        mock_context.height = 64
+        mock_context.top = 0
+        mock_context.x = 0
+        mock_context.fontdisks = MagicMock()
+        mock_context.fontdisks.getbbox.return_value = (0, 0, 10, 10)
+        mock_context.fonts = MagicMock()
+        mock_context.fonts.get.return_value = mock_context.fontdisks
 
+        layout = MagicMock()
+        layout.content_top = 0
         with patch(
-            "rpi_usb_cloner.ui.screens.error.Image.new", return_value=test_image
-        ), patch("rpi_usb_cloner.ui.screens.error.render_status_bar"):
+            "rpi_usb_cloner.ui.screens.error.display.get_display_context",
+            return_value=mock_context,
+        ), patch(
+            "rpi_usb_cloner.ui.screens.error.display.draw_title_with_icon",
+            return_value=layout,
+        ):
             render_error_screen(
-                mock_context,
                 title="Clone Failed",
                 message="Could not write to device",
-                exception=exception,
             )
 
-        mock_context.display.device.display.assert_called_once()
+        mock_context.disp.display.assert_called_once()
 
     def test_render_error_long_message(self, mock_context):
         """Test error screen with long message handling."""
         test_image = Image.new("1", (128, 64), 0)
         long_message = "This is a very long error message that might need special handling in the display"
+        mock_context.draw = MagicMock()
+        mock_context.image = test_image
+        mock_context.disp = MagicMock()
+        mock_context.width = 128
+        mock_context.height = 64
+        mock_context.top = 0
+        mock_context.x = 0
+        mock_context.fontdisks = MagicMock()
+        mock_context.fontdisks.getbbox.return_value = (0, 0, 10, 10)
+        mock_context.fonts = MagicMock()
+        mock_context.fonts.get.return_value = mock_context.fontdisks
 
+        layout = MagicMock()
+        layout.content_top = 0
         with patch(
-            "rpi_usb_cloner.ui.screens.error.Image.new", return_value=test_image
-        ), patch("rpi_usb_cloner.ui.screens.error.render_status_bar"):
+            "rpi_usb_cloner.ui.screens.error.display.get_display_context",
+            return_value=mock_context,
+        ), patch(
+            "rpi_usb_cloner.ui.screens.error.display.draw_title_with_icon",
+            return_value=layout,
+        ):
             render_error_screen(
-                mock_context,
                 title="Error",
                 message=long_message,
             )
 
-        mock_context.display.device.display.assert_called_once()
+        mock_context.disp.display.assert_called_once()
