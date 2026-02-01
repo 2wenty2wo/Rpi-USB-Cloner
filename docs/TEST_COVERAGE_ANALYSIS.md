@@ -112,12 +112,14 @@
 ✅ **Added Action Handler Tests** (+38 tests, +7.47% coverage):
 - `tests/test_actions_drive.py` - 17 tests covering drive action helpers
 - `tests/test_actions_image.py` - 10 tests covering image action helpers
-- `tests/test_actions_settings.py` - 1 placeholder test (functions need refactoring)
+- `tests/test_actions_settings.py` - 34 tests covering settings action helpers
 
 **Coverage improvements**:
 - `actions/drive_actions.py`: 0% → 20.16% (helper functions tested)
 - `actions/image_actions.py`: 0% → 8.94% (helper functions tested)
-- `actions/settings/*.py`: 0% → 5-16% (imports + small helpers tested)
+- `actions/settings/system_utils.py`: 14.81% → 44.97% (+30%)
+- `actions/settings/system_power.py`: 24.11% → 28.57% (+4%)
+- `actions/settings/update_manager.py`: 9.58% → 17.15% (+7%)
 
 **Key findings**: Many action functions have complex GPIO polling loops that are difficult to unit test. Functions would benefit from refactoring to separate business logic from UI/GPIO concerns.
 
@@ -227,13 +229,35 @@ These areas have excellent test coverage and should serve as models:
    - Create end-to-end tests with simulated GPIO sequences
    - Test full workflows (select → confirm → execute → verify)
 
-3. **Settings Actions** (`test_actions_settings.py`):
+3. **Settings Actions** (`test_actions_settings.py`) - 34 tests:
    ```python
-   - test_update_system_requires_confirmation()
-   - test_shutdown_requires_confirmation()
-   - test_reboot_requires_confirmation()
-   - test_wifi_configuration_validates_ssid()
-   - test_screensaver_settings_persistence()
+   # System Utils (pure logic)
+   - test_validate_command_args_* (3 tests)
+   - test_format_command_output_* (2 tests)
+   - test_is_git_repo_* (2 tests)
+   - test_is_dubious_ownership_error_* (2 tests)
+   - test_parse_git_progress_ratio_* (3 tests)
+   - test_get_app_version_* (3 tests)
+   
+   # Update Manager (pure logic)
+   - test_extract_error_hint_* (3 tests)
+   - test_truncate_oled_line_* (2 tests)
+   
+   # System Power (pure logic)
+   - test_build_power_action_prompt_* (1 test)
+   - test_confirm_power_action_* (1 test)
+   
+   # UI Actions (pure logic)
+   - test_ui_settings_persist_to_config (1 test)
+   - test_valid_restore_partition_modes_accepted (4 parametrized tests)
+   - test_invalid_restore_partition_mode_rejected (1 test)
+   - test_valid_transition_settings_accepted (3 parametrized tests)
+   - test_invalid_transition_settings_rejected (1 test)
+   
+   # Integration Tests
+   - test_updates_require_confirmation (1 test)
+   - test_restart_requires_confirmation (1 test)
+   - test_shutdown_requires_confirmation (1 test)
    ```
 
 **Estimated Impact**: +1,976 LOC covered (~18% overall coverage increase)
