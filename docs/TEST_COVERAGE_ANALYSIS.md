@@ -50,7 +50,7 @@
 - All tests now pass on Linux; Windows shows expected skips for POSIX features
 
 ✅ **Test Count Update**:
-- **1,281 tests passed**, 29 skipped (platform-specific), 3 failed (circular import)
+- **1,449 tests passed**, 29 skipped (platform-specific), 0 failed
 - Test inventory: **50 test modules** (7 new modules added)
 - Overall coverage: **45.20%** (+1.28% improvement from previous 43.92%)
 
@@ -601,7 +601,7 @@ def test_clone_handles_permission_denied(mocker):
 - **Overall Coverage**: ~47% (+1.8% from new tests)
 - **Branch Coverage**: Tracked (4,300 branches, ~2,000 covered, 350 partial)
 - **Test Files**: 55 modules
-- **Tests**: ~1,350 passed, 29 skipped (POSIX-only), 3 failed (circular import)
+- **Tests**: 1,449 passed, 29 skipped (POSIX-only), 0 failed
 
 ### Coverage Breakdown by Module
 
@@ -639,7 +639,7 @@ def test_clone_handles_permission_denied(mocker):
 - **New Test Files**: 3-5
 - **Estimated Lines to Cover**: +1,200
 - **Key Tasks**:
-  - Resolve circular import in actions modules (blocks 3 tests)
+  - ✅ Circular import in actions modules resolved
   - Add tests for `services/wifi.py` (currently 62.6%)
   - Add tests for `storage/image_repo.py` (currently 70.0%)
 
@@ -702,14 +702,14 @@ The codebase has **excellent foundational coverage** for core storage operations
 
 ### Remaining Challenges
 
-⚠️ **3 tests failing** due to circular import in `actions/image_actions.py` (code architecture issue)
+✅ **Circular import** in `actions/image_actions.py` resolved - all tests passing
 ⚠️ **Action handlers** at 3-22% coverage (needs refactoring for testability)
 ⚠️ **Main application loop** at 0% coverage (integration testing needed)
 ⚠️ **UI components** mostly below 20% coverage
 
 ### Next Steps
 
-1. **Immediate**: Fix circular import in `actions/image_actions.py` (blocks 3 tests)
+1. ✅ **Immediate**: Fix circular import in `actions/image_actions.py` (resolved - all tests passing)
 2. **Q1 2026**: Add tests for action handlers and improve coverage to 55%
 3. **Q2 2026**: Add UI rendering tests and improve coverage to 65%
 4. **Ongoing**: Track coverage in CI/CD pipeline, maintain >80% for core storage

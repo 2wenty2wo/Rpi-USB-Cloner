@@ -607,8 +607,8 @@ When contributing new code:
 | Metric | Value |
 |--------|-------|
 | **Total Test Files** | 50 |
-| **Tests Passed** | 1,281 |
-| **Tests Failed** | 3 (circular import issue) |
+| **Tests Passed** | 1,449 |
+| **Tests Failed** | 0 |
 | **Tests Skipped** | 29 (POSIX-only features on Windows) |
 | **Overall Coverage** | 45.20% |
 | **Total Statements** | 12,975 |
@@ -625,13 +625,12 @@ When contributing new code:
 | `os.statvfs()` | 7 tests | Linux/macOS only |
 | Symlink creation | 1 test | Windows (requires admin) |
 
-#### Code Architecture Issues (3 failing)
+#### Code Architecture Issues
 
 | Issue | Tests Affected | Status |
 |-------|----------------|--------|
-| Circular import in `actions/image_actions.py` | 3 tests | 🔴 Needs codebase refactoring |
+| Circular import in `actions/image_actions.py` | Previously 3 tests | ✅ Resolved |
 
 **Note**: 
-- All non-import tests pass on Linux (the target deployment platform)
-- The 3 failing tests are due to a circular import that requires codebase refactoring to resolve
+- All tests pass on Linux (the target deployment platform)
 - Windows test skips are expected for platform-specific functionality
