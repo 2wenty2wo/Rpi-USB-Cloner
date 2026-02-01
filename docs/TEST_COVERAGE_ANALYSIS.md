@@ -1,10 +1,30 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-02-01
-**Current Overall Coverage**: ~49.9% (pytest --cov=rpi_usb_cloner)
+**Current Overall Coverage**: ~51.6% (pytest --cov=rpi_usb_cloner)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 66 test modules
-**Test Results**: ~1,648 passed, 52 skipped (POSIX-only), 29 failed
+**Test Files**: 68 test modules
+**Test Results**: ~1,721 passed, 52 skipped (POSIX-only), 0 failed
+
+## Recent Updates (2026-02-01) - Coverage Improvements - Round 3
+
+✅ **Added Clonezilla Verification Tests** (+29 tests):
+- `tests/test_clonezilla_verification_extra.py` - Comprehensive verification tests
+  - `get_verify_hash_timeout()` - settings handling edge cases (6 tests)
+  - `compute_image_sha256()` - compressed images, gzip, zstd, timeouts (11 tests)
+  - `compute_partition_sha256()` - partition hash computation (9 tests)
+  - `verify_restored_image()` - edge cases and error handling (10 tests)
+  - Coverage: `storage/clonezilla/verification.py` 42.80% → 91.60% (+48.8%)
+
+✅ **Added UI Transitions Tests** (+16 tests):
+- `tests/test_ui_transitions.py` - Slide transition animation tests
+  - `render_slide_transition()` - blocking mode with timing (2 tests)
+  - `generate_slide_transition()` - generator-based transitions (14 tests)
+  - Coverage: `ui/transitions.py` 12.07% → 100.00% (+87.93%)
+
+**New Test Modules Added**:
+- `tests/test_clonezilla_verification_extra.py` (29 tests)
+- `tests/test_ui_transitions.py` (16 tests)
 
 ## Recent Updates (2026-02-01) - Coverage Improvements - Round 2
 
@@ -703,12 +723,12 @@ def test_clone_handles_permission_denied(mocker):
 ## Metrics & Goals
 
 ### Current State (2026-02-01)
-- **Total Statements**: 12,992
-- **Covered Statements**: ~6,500
-- **Overall Coverage**: ~49.9% (+2.5% from new tests)
-- **Branch Coverage**: Tracked (4,300 branches, ~2,400 covered, 424 partial)
-- **Test Files**: 66 modules
-- **Tests**: 1,648 passed, 52 skipped (POSIX-only), 29 failed
+- **Total Statements**: 13,016
+- **Covered Statements**: ~6,700
+- **Overall Coverage**: ~51.6% (+1.7% from new tests in Round 3)
+- **Branch Coverage**: Tracked (4,318 branches, ~2,400 covered, 426 partial)
+- **Test Files**: 68 modules
+- **Tests**: 1,721 passed, 52 skipped (POSIX-only), 0 failed
 
 ### Coverage Breakdown by Module
 
@@ -723,8 +743,9 @@ def test_clone_handles_permission_denied(mocker):
 | UI/Toggle | 93.2% | ✅ |
 | Clone Progress | 95.8% | ✅ |
 | Clone Verification | 92.4% | ✅ |
-| **Menu/Actions/Settings** | 100% | ✅ **NEW** |
-| **ImageUSB/Detection** | 89% | ✅ **IMPROVED** |
+| **Clonezilla/Verification** | 91.6% | ✅ **IMPROVED** |
+| **Menu/Actions/Settings** | 100% | ✅ |
+| **ImageUSB/Detection** | 89% | ✅ |
 | **App/Context** | ~95% | ✅ |
 | **Good (70-89%)** | | |
 | Clone Operations | 83.8% | ✅ |
@@ -733,16 +754,18 @@ def test_clone_handles_permission_denied(mocker):
 | **Services/Drives** | ~85% | ✅ |
 | **App/Menu Builders** | ~85% | ✅ |
 | **App/Drive Info** | ~90% | ✅ |
-| **Storage/Image_Repo** | ~77% | ✅ **IMPROVED** |
-| Services/WiFi | ~75% | ✅ **IMPROVED** |
+| **Storage/Image_Repo** | ~77% | ✅ |
+| Services/WiFi | ~75% | ✅ |
 | Clonezilla/Partition Table | 68.3% | ⚠️ |
+| **UI/File_Browser** | ~69% | ⚠️ |
+| **UI/Progress** | ~71% | ✅ |
 | **Needs Improvement (<50%)** | | |
 | Actions/* | 3-22% | ❌ |
-| **UI/File_Browser** | ~55% | ⚠️ **IMPROVED** |
-| **UI/Info** | ~40% | ⚠️ **IMPROVED** |
-| **UI/Logs** | ~31% | ⚠️ **IMPROVED** |
+| **UI/Info** | ~41% | ⚠️ |
+| **UI/Logs** | ~89% | ✅ |
+| **UI/Transitions** | 100% | ✅ **IMPROVED** |
 | UI/Menus | 8.5% | ❌ |
-| UI/Display | 17.9% | ❌ |
+| UI/Display | 18.0% | ❌ |
 | Web/Server | 26.5% | ❌ |
 | Main Loop | 0.0% | ❌ |
 

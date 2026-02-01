@@ -253,6 +253,7 @@ tests/
 ├── test_clonezilla_partition_table.py # Clonezilla partition table tests
 ├── test_clonezilla_restore.py    # Clonezilla restore tests
 ├── test_clonezilla_verification.py # Clonezilla verification tests
+├── test_clonezilla_verification_extra.py # Clonezilla verification extended tests (NEW)
 ├── test_command_runners.py       # Command runner tests
 ├── test_devices.py               # Device detection and management tests
 ├── test_discovery.py             # mDNS peer discovery tests
@@ -283,6 +284,7 @@ tests/
 ├── test_system_health.py         # System health monitoring tests
 ├── test_toggle.py                # Toggle switch UI tests
 ├── test_transfer.py              # Transfer operations tests
+├── test_ui_transitions.py        # UI slide transition tests (NEW)
 ├── test_transfer_services.py     # USB-to-USB transfer service tests
 ├── test_ui_confirmation.py       # Confirmation dialog tests
 ├── test_ui_display.py            # Display UI tests
@@ -623,14 +625,14 @@ When contributing new code:
 
 | Metric | Value |
 |--------|-------|
-| **Total Test Files** | 66 |
-| **Tests Passed** | ~1,648 |
-| **Tests Failed** | ~29 (Windows-specific issues) |
+| **Total Test Files** | 68 |
+| **Tests Passed** | ~1,721 |
+| **Tests Failed** | 0 |
 | **Tests Skipped** | ~52 (POSIX-only features on Windows) |
-| **Overall Coverage** | ~49.9% |
-| **Total Statements** | ~13,000 |
-| **Covered Statements** | ~6,500 |
-| **Branch Coverage** | 4,300 branches, ~57% covered |
+| **Overall Coverage** | ~51.6% |
+| **Total Statements** | ~13,016 |
+| **Covered Statements** | ~6,700 |
+| **Branch Coverage** | 4,318 branches, ~57% covered |
 
 ### Known Test Limitations
 
