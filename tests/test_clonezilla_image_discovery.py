@@ -397,12 +397,15 @@ class TestGetPartcloneTool:
         self, mock_access, mock_is_file, mock_which
     ):
         """Test fallback to standard paths when which fails."""
+        import os
         mock_which.return_value = None
         mock_is_file.return_value = True
         mock_access.return_value = True
 
         result = get_partclone_tool("ext4")
-        assert result == "/usr/sbin/partclone.ext4"
+        # Compare paths in platform-independent way
+        expected = os.path.normpath("/usr/sbin/partclone.ext4")
+        assert os.path.normpath(result) == expected
 
     @patch("shutil.which")
     def test_get_partclone_tool_not_found(self, mock_which):

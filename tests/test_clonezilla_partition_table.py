@@ -138,7 +138,7 @@ class TestReadDiskLayoutOp:
         """Test reading text-based layout file."""
         path = tmp_path / "sda-pt.sf"
         content = "label: gpt\n/dev/sda1 : start=2048"
-        path.write_text(content)
+        path.write_text(content, newline='')  # Preserve Unix line endings
 
         op = read_disk_layout_op("pt.sf", path)
         assert op.kind == "pt.sf"
