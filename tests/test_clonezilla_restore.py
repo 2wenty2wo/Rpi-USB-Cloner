@@ -14,9 +14,17 @@ This test suite covers:
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import os
+
 import pytest
 
 from rpi_usb_cloner.storage.clonezilla import restore
+
+# Skip POSIX-only tests on Windows
+posix_only = pytest.mark.skipif(
+    not hasattr(os, 'geteuid'),
+    reason="Requires POSIX features (os.geteuid)"
+)
 from rpi_usb_cloner.storage.clonezilla.models import (
     ClonezillaImage,
     DiskLayoutOp,
@@ -614,6 +622,7 @@ class TestRestoreClonezillaImage:
         # Should restore both partitions
         assert mock_restore_op.call_count == 2
 
+    @posix_only
     @patch("os.geteuid")
     def test_restore_requires_root(self, mock_geteuid, mock_restore_plan):
         """Test that restore requires root privileges."""
@@ -622,6 +631,7 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Run as root"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
+    @posix_only
     @patch("os.geteuid")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.unmount_device")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.devices.get_device_by_name")
@@ -643,6 +653,7 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Failed to unmount"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
+    @posix_only
     @patch("os.geteuid")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.estimate_required_size_bytes")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.get_device_size_bytes")
@@ -670,6 +681,7 @@ class TestRestoreClonezillaImage:
         with pytest.raises(RuntimeError, match="Target device too small"):
             restore.restore_clonezilla_image(mock_restore_plan, "sdb")
 
+    @posix_only
     @patch("os.geteuid")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.wait_for_partition_count")
     @patch("rpi_usb_cloner.storage.clonezilla.restore.build_partition_mode_layout_ops")

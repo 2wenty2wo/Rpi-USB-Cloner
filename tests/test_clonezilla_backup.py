@@ -530,8 +530,10 @@ class TestCreateClonezillaBackup:
             backup.create_clonezilla_backup("sda", tmp_path, compression="invalid")
 
     @patch("rpi_usb_cloner.storage.clonezilla.backup.devices.get_device_by_name")
-    def test_create_backup_device_not_found(self, mock_get_device, tmp_path):
+    @patch("rpi_usb_cloner.storage.clonezilla.backup.get_compression_tool")
+    def test_create_backup_device_not_found(self, mock_get_comp, mock_get_device, tmp_path):
         """Test error when device not found."""
+        mock_get_comp.return_value = ("/usr/bin/gzip", ["-c"])  # Mock compression tool
         mock_get_device.return_value = None
 
         with pytest.raises(RuntimeError, match="Device .* not found"):
