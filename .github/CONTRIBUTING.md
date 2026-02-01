@@ -19,11 +19,11 @@ Thanks for your interest in contributing! This document summarizes the existing 
 
 ## Running Tests
 
-Follow the full testing guide in `TESTING.md`, which covers pytest commands, markers, coverage reports, and troubleshooting.
+Follow the full testing guide in `docs/TESTING.md`, which covers pytest commands, markers, coverage reports, and troubleshooting.
 
 ## Code Style and Formatting
 
-Project guidance in `TESTING.md` recommends:
+Project guidance in `docs/TESTING.md` recommends:
 
 - Run **Black** before submitting changes:
   ```bash
