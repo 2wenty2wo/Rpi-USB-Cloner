@@ -847,6 +847,10 @@ def main(argv: Optional[list[str]] = None) -> None:
                         display.clear_display()
                         while not any_button_pressed():
                             time.sleep(input_poll_interval)
+                    # Wait for button release to prevent phantom presses
+                    menus.wait_for_buttons_release(
+                        [gpio.PIN_U, gpio.PIN_D, gpio.PIN_L, gpio.PIN_R, gpio.PIN_A, gpio.PIN_B, gpio.PIN_C]
+                    )
                     state.lcdstart = datetime.now()
                     state.run_once = 0
                     prev_states = {
