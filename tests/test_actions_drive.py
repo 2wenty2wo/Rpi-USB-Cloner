@@ -505,6 +505,11 @@ class TestEnsureRoot:
 
     def test_returns_true_when_running_as_root(self, mocker):
         """Test returns True when running as root (uid=0)."""
+        # Skip on non-POSIX systems (Windows doesn't have geteuid)
+        import os
+        if not hasattr(os, 'geteuid'):
+            pytest.skip("geteuid not available on this platform")
+        
         mocker.patch("os.geteuid", return_value=0)
 
         result = drive_utils.ensure_root()
@@ -512,6 +517,11 @@ class TestEnsureRoot:
 
     def test_returns_false_and_shows_error_when_not_root(self, mocker):
         """Test returns False and shows error when not running as root."""
+        # Skip on non-POSIX systems (Windows doesn't have geteuid)
+        import os
+        if not hasattr(os, 'geteuid'):
+            pytest.skip("geteuid not available on this platform")
+        
         mocker.patch("os.geteuid", return_value=1000)
         mocker.patch("time.sleep")
         mock_display = mocker.patch("rpi_usb_cloner.actions.drives._utils.display")

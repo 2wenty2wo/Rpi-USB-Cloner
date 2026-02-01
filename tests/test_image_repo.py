@@ -6,6 +6,8 @@ This module tests image repository discovery and management functions.
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from rpi_usb_cloner.domain import DiskImage, ImageRepo, ImageType
 
 
@@ -595,15 +597,21 @@ class TestSumTreeBytes:
 
     def test_sum_tree_bytes_skips_symlinks(self, mocker, tmp_path):
         """Test that symlinks are skipped."""
+        import os
         from rpi_usb_cloner.storage.image_repo import _sum_tree_bytes
+
+        # Skip on Windows where symlinks require special privileges
+        try:
+            (tmp_path / "real_file.txt").write_bytes(b"x" * 100)
+            (tmp_path / "symlink.txt").symlink_to(tmp_path / "real_file.txt")
+        except OSError:
+            pytest.skip("Symlink creation not supported on this platform")
 
         mocker.patch(
             "rpi_usb_cloner.storage.image_repo._is_temp_clonezilla_path",
             return_value=False,
         )
 
-        (tmp_path / "real_file.txt").write_bytes(b"x" * 100)
-        (tmp_path / "symlink.txt").symlink_to(tmp_path / "real_file.txt")
         # Only real_file.txt should be counted (symlink points to same data)
         assert _sum_tree_bytes(tmp_path) == 100
 
@@ -663,6 +671,10 @@ class TestGetRepoSpaceBytes:
 
     def test_get_repo_space_bytes_success(self, mocker, tmp_path):
         """Test getting repository space statistics."""
+        import os
+        if not hasattr(os, 'statvfs'):
+            pytest.skip("statvfs not available on this platform")
+        
         from rpi_usb_cloner.storage.image_repo import _get_repo_space_bytes
 
         # Use the actual tmp_path which exists
@@ -674,6 +686,10 @@ class TestGetRepoSpaceBytes:
 
     def test_get_repo_space_bytes_nonexistent(self):
         """Test getting space for non-existent path."""
+        import os
+        if not hasattr(os, 'statvfs'):
+            pytest.skip("statvfs not available on this platform")
+        
         from rpi_usb_cloner.storage.image_repo import _get_repo_space_bytes
 
         nonexistent = Path("/nonexistent/path/does/not/exist")
@@ -685,6 +701,13 @@ class TestGetRepoSpaceBytes:
 
 class TestGetRepoUsage:
     """Tests for get_repo_usage function."""
+
+    @pytest.fixture(autouse=True)
+    def check_platform(self):
+        """Skip tests on platforms without statvfs."""
+        import os
+        if not hasattr(os, 'statvfs'):
+            pytest.skip("statvfs not available on this platform")
 
     def test_get_repo_usage_empty_repo(self, mocker, tmp_path):
         """Test usage stats for empty repository."""
