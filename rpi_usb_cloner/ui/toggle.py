@@ -26,8 +26,8 @@ from PIL import Image
 
 # Asset paths
 ASSETS_PATH = Path(__file__).parent / "assets"
-TOGGLE_ON_PATH = ASSETS_PATH / "toggle-on.png"
-TOGGLE_OFF_PATH = ASSETS_PATH / "toggle-off.png"
+TOGGLE_ON_PATH = ASSETS_PATH / "icons" / "toggle-on.png"
+TOGGLE_OFF_PATH = ASSETS_PATH / "icons" / "toggle-off.png"
 
 # Toggle image dimensions
 TOGGLE_WIDTH = 12

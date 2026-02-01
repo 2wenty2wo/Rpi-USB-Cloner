@@ -28,10 +28,10 @@ if TYPE_CHECKING:
 ASSETS_PATH = Path(__file__).parent / "assets"
 
 # Icon paths (7px high icons for status bar)
-ICON_WIFI = ASSETS_PATH / "7px-wifi.png"
-ICON_BLUETOOTH = ASSETS_PATH / "7px-bluetooth.png"
-ICON_POINTER = ASSETS_PATH / "7px-pointer.png"
-ICON_GLOBE = ASSETS_PATH / "7px-globe.png"
+ICON_WIFI = ASSETS_PATH / "icons" / "7px-wifi.png"
+ICON_BLUETOOTH = ASSETS_PATH / "icons" / "7px-bluetooth.png"
+ICON_POINTER = ASSETS_PATH / "icons" / "7px-pointer.png"
+ICON_GLOBE = ASSETS_PATH / "icons" / "7px-globe.png"
 
 
 @dataclass(frozen=True)
