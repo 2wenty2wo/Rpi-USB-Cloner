@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
-from rpi_usb_cloner.actions import drive_actions
 from rpi_usb_cloner.ui import screens
 from rpi_usb_cloner.ui.icons import (
     ALERT_ICON,
@@ -14,6 +14,9 @@ from rpi_usb_cloner.ui.icons import (
 )
 
 from . import get_action_context
+
+if TYPE_CHECKING:
+    from rpi_usb_cloner.actions import drive_actions as DriveActionsModule
 
 
 def _ensure_drive_selected(title: str, title_icon: str) -> bool:
@@ -43,6 +46,8 @@ def _run_operation(action, *, allow_back_interrupt: bool = False) -> None:
 
 
 def copy_drive() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("COPY DRIVE", DRIVES_ICON):
         return
@@ -56,6 +61,8 @@ def copy_drive() -> None:
 
 
 def drive_info() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("DRIVE INFO", DRIVES_ICON):
         return
@@ -66,6 +73,8 @@ def drive_info() -> None:
 
 
 def format_drive() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("FORMAT DRIVE", SPARKLES_ICON):
         return
@@ -78,6 +87,8 @@ def format_drive() -> None:
 
 
 def unmount_drive() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("UNMOUNT DRIVE", DRIVES_ICON):
         return
@@ -88,6 +99,8 @@ def unmount_drive() -> None:
 
 
 def erase_drive() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("ERASE DRIVE", ALERT_ICON):
         return
@@ -100,6 +113,8 @@ def erase_drive() -> None:
 
 
 def create_repo_drive() -> None:
+    from rpi_usb_cloner.actions import drive_actions
+
     context = get_action_context()
     if not _ensure_drive_selected("CREATE REPO", FOLDER_ICON):
         return
