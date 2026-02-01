@@ -5,7 +5,7 @@ which handle backup/restore operations for Clonezilla images and other image for
 """
 
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from unittest.mock import Mock
 
 import pytest
@@ -189,7 +189,7 @@ class TestRepoDeviceFiltering:
 
     def test_detects_repo_devices(self, mock_usb_device):
         """Test repo device detection from mountpoints."""
-        repo = ImageRepo(path=Path("/media/usb/repo"), drive_name="sda")
+        repo = ImageRepo(path=PurePosixPath("/media/usb/repo"), drive_name="sda")
         device = mock_usb_device.copy()
         device["name"] = "sda"
         device["children"] = [
@@ -202,7 +202,7 @@ class TestRepoDeviceFiltering:
 
     def test_filters_non_repo_devices(self, mock_usb_device):
         """Test filtering returns only non-repo devices."""
-        repo = ImageRepo(path=Path("/media/usb/repo"), drive_name="sda")
+        repo = ImageRepo(path=PurePosixPath("/media/usb/repo"), drive_name="sda")
         repo_device = mock_usb_device.copy()
         repo_device["name"] = "sda"
         repo_device["children"] = [
@@ -226,7 +226,7 @@ class TestRepoDriveDetection:
 
     def test_detects_repo_drive_by_mountpoint(self, mock_usb_device):
         """Test repo drive detection when mountpoint matches repo path."""
-        repo_path = Path("/media/usb/repo")
+        repo_path = PurePosixPath("/media/usb/repo")
         device = mock_usb_device.copy()
         device["children"] = [
             {"name": "sda1", "mountpoint": "/media/usb"},
@@ -236,7 +236,7 @@ class TestRepoDriveDetection:
 
     def test_returns_false_for_non_repo_mountpoints(self, mock_usb_device):
         """Test repo drive detection returns False for unrelated mountpoints."""
-        repo_path = Path("/media/other/repo")
+        repo_path = PurePosixPath("/media/other/repo")
         device = mock_usb_device.copy()
         device["children"] = [
             {"name": "sda1", "mountpoint": "/media/usb"},
@@ -246,7 +246,7 @@ class TestRepoDriveDetection:
 
     def test_returns_false_when_unmounted(self, mock_usb_device):
         """Test repo drive detection returns False for unmounted devices."""
-        repo_path = Path("/media/usb/repo")
+        repo_path = PurePosixPath("/media/usb/repo")
         device = mock_usb_device.copy()
         device["mountpoint"] = None
         device["children"] = []
