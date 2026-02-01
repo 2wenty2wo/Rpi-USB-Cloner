@@ -126,6 +126,23 @@ _EXPORTS = {
         "rpi_usb_cloner.actions.settings.update_manager",
         "run_update_flow",
     ),
+    "switch_branch_flow": (
+        "rpi_usb_cloner.actions.settings.update_manager",
+        "switch_branch_flow",
+    ),
+    # Branch utilities
+    "get_current_branch": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "get_current_branch",
+    ),
+    "get_remote_branches": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "get_remote_branches",
+    ),
+    "checkout_branch": (
+        "rpi_usb_cloner.actions.settings.system_utils",
+        "checkout_branch",
+    ),
     # System power
     "restart_service": (
         "rpi_usb_cloner.actions.settings.system_power",

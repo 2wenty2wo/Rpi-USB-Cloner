@@ -221,7 +221,7 @@ def render_update_buttons_screen(
     )
     prompt_line_height = display._get_line_height(prompt_font)
     prompt_line_step = prompt_line_height + 2
-    button_labels = ("CHECK", "UPDATE")
+    button_labels = ("CHECK", "UPDATE", "BRANCH")
     max_label_width = 0
     max_text_height = 0
     for button_label in button_labels:
@@ -254,26 +254,27 @@ def render_update_buttons_screen(
         36,
         max_label_width + 16,
     )
-    button_gap = 18
-    block_width = button_width * 2 + button_gap
+    button_gap = 4
+    block_width = button_width * 3 + button_gap * 2
     available_width = context.width - 4
     min_button_gap = 2
     if block_width > available_width:
-        max_gap = max(min_button_gap, available_width - button_width * 2)
-        button_gap = min(button_gap, max_gap)
-        block_width = button_width * 2 + button_gap
+        max_gap = max(min_button_gap, available_width - button_width * 3)
+        button_gap = min(button_gap, max_gap // 2)
+        block_width = button_width * 3 + button_gap * 2
         if block_width > available_width:
-            max_button_width = max(1, int((available_width - button_gap) / 2))
+            max_button_width = max(1, int((available_width - button_gap * 2) / 3))
             button_width = min(button_width, max_button_width)
-            block_width = button_width * 2 + button_gap
+            block_width = button_width * 3 + button_gap * 2
     button_y = int(content_top + (context.height - content_top) * 0.65)
     prompt_area_height = max(0, button_y - content_top - 6)
     prompt_start_y = content_top + max(0, (prompt_area_height - prompt_height) // 2)
     prompt_bottom = prompt_start_y + prompt_height
     min_button_y = int(prompt_bottom + 2)
     button_y = max(min_button_y, min(button_y, max_button_y))
-    left_x = int((context.width - block_width) / 2)
-    right_x = left_x + button_width + button_gap
+    start_x = int((context.width - block_width) / 2)
+    middle_x = start_x + button_width + button_gap
+    right_x = middle_x + button_width + button_gap
 
     current_y = prompt_start_y
     for line in wrapped_prompt_lines:
@@ -282,7 +283,11 @@ def render_update_buttons_screen(
         draw.text((line_x, current_y), line, font=prompt_font, fill=255)
         current_y += prompt_line_step
 
-    buttons = [("CHECK", left_x), ("UPDATE", right_x)]
+    buttons = [
+        ("CHECK", start_x),
+        ("UPDATE", middle_x),
+        ("BRANCH", right_x),
+    ]
     for index, (label, x_pos) in enumerate(buttons):
         is_selected = index == selected_index
         rect = (x_pos, button_y, x_pos + button_width, button_y + button_height)
