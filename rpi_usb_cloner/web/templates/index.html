@@ -943,11 +943,12 @@
       appendLog(level, message, details, 'UI');
     }
 
-    function socketDetails(socket, url, extra = {}) {
+    function socketDetails(extra = {}) {
       return {
-        url,
+        url: wsUrl,
         readyState: socket ? socket.readyState : 'uninitialized',
         reconnectAttempts,
+        subscribedChannels: Array.from(subscribedChannels),
         ...extra
       };
     }
@@ -957,83 +958,27 @@
     ctx.imageSmoothingEnabled = false;
     const statusEl = document.getElementById('status');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const screenSocketUrl = `${protocol}//${window.location.host}/ws/screen`;
-    const controlSocketUrl = `${protocol}//${window.location.host}/ws/control`;
-    const logSocketUrl = `${protocol}//${window.location.host}/ws/logs`;
-    const healthSocketUrl = `${protocol}//${window.location.host}/ws/health`;
-    const devicesSocketUrl = `${protocol}//${window.location.host}/ws/devices`;
-    const imagesSocketUrl = `${protocol}//${window.location.host}/ws/images`;
 
-    let screenSocket = null;
-    let controlSocket = null;
-    let logSocket = null;
-    let healthSocket = null;
-    let devicesSocket = null;
-    let imagesSocket = null;
+    // Single multiplexed WebSocket replaces 6 separate connections
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    let socket = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
+    let reconnectDelay = 2000;
+    let subscribedChannels = new Set();
 
-    // Connect to screen WebSocket for display streaming
-    function connectScreenSocket() {
-      screenSocket = new WebSocket(screenSocketUrl);
-      screenSocket.binaryType = 'arraybuffer';
+    // Channel state tracking
+    const channelState = {
+      screen: { connected: false, lastFrame: null },
+      logs: { connected: false, lastSnapshot: [] },
+      health: { connected: false },
+      devices: { connected: false },
+      images: { connected: false },
+      control: { connected: false }
+    };
 
-      screenSocket.addEventListener('open', () => {
-        debugLog('log', 'Screen WebSocket connected', socketDetails(screenSocket, screenSocketUrl));
-        updateStatus();
-      });
-
-      screenSocket.addEventListener('message', async (event) => {
-        const blob = new Blob([event.data], { type: 'image/png' });
-        const bitmap = await createImageBitmap(blob);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        if (typeof bitmap.close === 'function') {
-          bitmap.close();
-        }
-      });
-
-      screenSocket.addEventListener('close', () => {
-        debugLog('warn', 'Screen WebSocket disconnected', socketDetails(screenSocket, screenSocketUrl));
-        updateStatus();
-        setTimeout(connectScreenSocket, 2000);
-      });
-
-      screenSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Screen WebSocket error', socketDetails(screenSocket, screenSocketUrl, {
-          error: err
-        }));
-      });
-    }
-
-    // Connect to control WebSocket for button presses
-    function connectControlSocket() {
-      controlSocket = new WebSocket(controlSocketUrl);
-
-      controlSocket.addEventListener('open', () => {
-        debugLog('log', 'Control WebSocket connected', socketDetails(controlSocket, controlSocketUrl));
-        reconnectAttempts = 0;
-        updateStatus();
-      });
-
-      controlSocket.addEventListener('close', () => {
-        debugLog('warn', 'Control WebSocket disconnected', socketDetails(controlSocket, controlSocketUrl, {
-          willReconnect: reconnectAttempts < maxReconnectAttempts
-        }));
-        updateStatus();
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          setTimeout(connectControlSocket, 2000);
-        }
-      });
-
-      controlSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Control WebSocket error', socketDetails(controlSocket, controlSocketUrl, {
-          error: err
-        }));
-      });
-    }
-
+    // Handle incoming log entries
     function handleLogEntries(entries) {
       if (!Array.isArray(entries)) {
         return;
@@ -1057,70 +1002,6 @@
             appendLog(level, message, details, source, timestamp, tags);
           }
         }
-      });
-    }
-
-    function connectLogSocket() {
-      logSocket = new WebSocket(logSocketUrl);
-
-      logSocket.addEventListener('open', () => {
-        debugLog('log', 'Log WebSocket connected', socketDetails(logSocket, logSocketUrl));
-      });
-
-      logSocket.addEventListener('message', (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'snapshot' || payload.type === 'append') {
-            if (payload.type === 'snapshot') {
-              clearAppLogEntries();
-            }
-            handleLogEntries(payload.entries);
-          } else if (payload.type === 'error') {
-            debugLog('warn', 'Log WebSocket error payload', payload);
-          }
-        } catch (error) {
-          debugLog('error', 'Failed to parse log payload', { error });
-        }
-      });
-
-      logSocket.addEventListener('close', () => {
-        debugLog('warn', 'Log WebSocket disconnected', socketDetails(logSocket, logSocketUrl));
-        setTimeout(connectLogSocket, 2000);
-      });
-
-      logSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Log WebSocket error', socketDetails(logSocket, logSocketUrl, {
-          error: err
-        }));
-      });
-    }
-
-    // Connect to health WebSocket for system metrics
-    function connectHealthSocket() {
-      healthSocket = new WebSocket(healthSocketUrl);
-
-      healthSocket.addEventListener('open', () => {
-        debugLog('log', 'Health WebSocket connected', socketDetails(healthSocket, healthSocketUrl));
-      });
-
-      healthSocket.addEventListener('message', (event) => {
-        try {
-          const health = JSON.parse(event.data);
-          updateHealthMetrics(health);
-        } catch (error) {
-          debugLog('error', 'Failed to parse health payload', { error });
-        }
-      });
-
-      healthSocket.addEventListener('close', () => {
-        debugLog('warn', 'Health WebSocket disconnected', socketDetails(healthSocket, healthSocketUrl));
-        setTimeout(connectHealthSocket, 2000);
-      });
-
-      healthSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Health WebSocket error', socketDetails(healthSocket, healthSocketUrl, {
-          error: err
-        }));
       });
     }
 
@@ -1408,96 +1289,141 @@
       container.innerHTML = `<div class="list-group list-group-flush">${imageItems}</div>`;
     }
 
-    // Connect to devices WebSocket for USB device updates
-    function connectDevicesSocket() {
-      devicesSocket = new WebSocket(devicesSocketUrl);
+    // Multiplexed WebSocket connection (replaces 6 separate connections)
+    function connectMultiplexedSocket() {
+      if (socket) {
+        try {
+          socket.close();
+        } catch (e) {
+          // Ignore errors closing old socket
+        }
+      }
 
-      devicesSocket.addEventListener('open', () => {
-        debugLog('log', 'Devices WebSocket connected', socketDetails(devicesSocket, devicesSocketUrl));
+      socket = new WebSocket(wsUrl);
+      socket.binaryType = 'arraybuffer';
+
+      socket.addEventListener('open', () => {
+        debugLog('log', 'WebSocket connected', { url: wsUrl, attempt: reconnectAttempts });
+        reconnectAttempts = 0;
+        reconnectDelay = 2000;
+        updateStatus();
+
+        // Subscribe to all channels
+        const channels = ['screen', 'logs', 'health', 'devices', 'images', 'control'];
+        socket.send(JSON.stringify({ action: 'subscribe', channels }));
+        subscribedChannels = new Set(channels);
       });
 
-      devicesSocket.addEventListener('message', (event) => {
+      socket.addEventListener('message', async (event) => {
+        // Handle binary messages (screen frames)
+        if (event.data instanceof ArrayBuffer) {
+          const blob = new Blob([event.data], { type: 'image/png' });
+          const bitmap = await createImageBitmap(blob);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          if (typeof bitmap.close === 'function') {
+            bitmap.close();
+          }
+          return;
+        }
+
+        // Handle JSON messages
         try {
           const data = JSON.parse(event.data);
-          updateDevicesList(data.devices);
+
+          switch (data.type) {
+            case 'subscribed':
+              debugLog('log', 'Subscribed to channels', { channels: data.channels });
+              break;
+
+            case 'health':
+              updateHealthMetrics(data);
+              break;
+
+            case 'logs':
+              if (data.update_type === 'snapshot') {
+                clearAppLogEntries();
+                handleLogEntries(data.entries);
+              } else if (data.update_type === 'append') {
+                handleLogEntries(data.entries);
+              }
+              break;
+
+            case 'devices':
+              updateDevicesList(data.devices);
+              break;
+
+            case 'images':
+              updateImageRepoList(data.images, data.repo_stats);
+              break;
+
+            case 'pong':
+              // Heartbeat response
+              break;
+
+            case 'error':
+              debugLog('warn', 'WebSocket error message', { message: data.message });
+              break;
+
+            default:
+              if (DEBUG_UI) {
+                debugLog('debug', 'Unknown message type', { type: data.type });
+              }
+          }
         } catch (error) {
-          debugLog('error', 'Failed to parse devices payload', { error });
+          debugLog('error', 'Failed to parse WebSocket message', { error: error.message });
         }
       });
 
-      devicesSocket.addEventListener('close', () => {
-        debugLog('warn', 'Devices WebSocket disconnected', socketDetails(devicesSocket, devicesSocketUrl));
-        setTimeout(connectDevicesSocket, 2000);
+      socket.addEventListener('close', (event) => {
+        debugLog('warn', 'WebSocket disconnected', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          willReconnect: reconnectAttempts < maxReconnectAttempts
+        });
+        updateStatus();
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(connectMultiplexedSocket, reconnectDelay);
+          // Exponential backoff with max 30 seconds
+          reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+        } else {
+          debugLog('error', 'Max reconnection attempts reached', { max: maxReconnectAttempts });
+        }
       });
 
-      devicesSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Devices WebSocket error', socketDetails(devicesSocket, devicesSocketUrl, {
-          error: err
-        }));
+      socket.addEventListener('error', (err) => {
+        debugLog('error', 'WebSocket error', { url: wsUrl, error: err });
       });
     }
 
-    function connectImagesSocket() {
-      imagesSocket = new WebSocket(imagesSocketUrl);
-
-      imagesSocket.addEventListener('open', () => {
-        debugLog('log', 'Images WebSocket connected', socketDetails(imagesSocket, imagesSocketUrl));
-      });
-
-      imagesSocket.addEventListener('message', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          updateImageRepoList(data.images, data.repo_stats);
-        } catch (error) {
-          debugLog('error', 'Failed to parse images payload', { error });
-        }
-      });
-
-      imagesSocket.addEventListener('close', () => {
-        debugLog('warn', 'Images WebSocket disconnected', socketDetails(imagesSocket, imagesSocketUrl));
-        setTimeout(connectImagesSocket, 2000);
-      });
-
-      imagesSocket.addEventListener('error', (err) => {
-        debugLog('error', 'Images WebSocket error', socketDetails(imagesSocket, imagesSocketUrl, {
-          error: err
-        }));
-      });
+    // Send button press via multiplexed socket
+    function sendButtonPress(button) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: 'control', button }));
+        debugLog('log', 'Button pressed', { button });
+      } else {
+        debugLog('warn', 'WebSocket not connected, button press dropped', { button });
+      }
     }
 
     function updateStatus() {
-      const screenConnected = screenSocket && screenSocket.readyState === WebSocket.OPEN;
-      const controlConnected = controlSocket && controlSocket.readyState === WebSocket.OPEN;
+      const isConnected = socket && socket.readyState === WebSocket.OPEN;
 
       statusEl.className = 'nav-link d-flex align-items-center small';
-      if (screenConnected && controlConnected) {
+      if (isConnected) {
         statusEl.innerHTML = '<span class="status status-green"><span class="status-dot status-dot-animated"></span>Connected</span>';
-      } else if (screenConnected || controlConnected) {
-        statusEl.innerHTML = '<span class="status status-yellow"><span class="status-dot"></span>Partially Connected</span>';
       } else {
         statusEl.innerHTML = '<span class="status status-red"><span class="status-dot"></span>Disconnected</span>';
       }
 
-      debugLog('debug', 'Status updated', {
-        screenReadyState: screenSocket ? screenSocket.readyState : 'uninitialized',
-        controlReadyState: controlSocket ? controlSocket.readyState : 'uninitialized',
-        screenConnected,
-        controlConnected
+      debugLog('debug', 'Connection status updated', {
+        readyState: socket ? socket.readyState : 'uninitialized',
+        connected: isConnected,
+        reconnectAttempts
       });
-    }
-
-    // Send button press to the server
-    function sendButtonPress(button) {
-      if (controlSocket && controlSocket.readyState === WebSocket.OPEN) {
-        controlSocket.send(JSON.stringify({ button: button }));
-        debugLog('log', 'Button pressed', socketDetails(controlSocket, controlSocketUrl, {
-          button
-        }));
-      } else {
-        debugLog('warn', 'Control socket not connected', socketDetails(controlSocket, controlSocketUrl, {
-          button
-        }));
-      }
     }
 
     // Add click handlers to all buttons
@@ -1558,13 +1484,15 @@
       });
     }, 30000);
 
-    // Initialize connections
-    connectScreenSocket();
-    connectControlSocket();
-    connectLogSocket();
-    connectHealthSocket();
-    connectDevicesSocket();
-    connectImagesSocket();
+    // Initialize single multiplexed WebSocket connection
+    connectMultiplexedSocket();
+
+    // Heartbeat to keep connection alive
+    setInterval(() => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: 'ping' }));
+      }
+    }, 30000);
   </script>
 </body>
 </html>

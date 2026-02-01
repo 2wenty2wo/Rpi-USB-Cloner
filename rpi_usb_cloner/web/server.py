@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import pkgutil
 import threading
 import time
@@ -36,6 +37,16 @@ REPO_STATS_REFRESH_SECONDS = 30.0
 
 
 @dataclass
+class ChannelSubscriber:
+    """Tracks which channels a client is subscribed to."""
+
+    websocket: web.WebSocketResponse
+    channels: set[str]
+    # For screen channel tracking
+    last_screen_update_id: int = 0
+
+
+@dataclass
 class ServerHandle:
     runner: web.AppRunner
     thread: threading.Thread
@@ -65,6 +76,10 @@ _current_handle: ServerHandle | None = None
 # WebSocket connection tracking keys
 WEBSOCKETS_KEY: web.AppKey[weakref.WeakSet[web.WebSocketResponse]] = web.AppKey(
     "websockets", cast(Any, weakref.WeakSet)
+)
+# Multiplexed WebSocket subscriber tracking
+MULTIPLEX_SUBSCRIBERS_KEY: web.AppKey[weakref.WeakSet[ChannelSubscriber]] = web.AppKey(
+    "multiplex_subscribers", cast(Any, weakref.WeakSet)
 )
 
 
@@ -268,6 +283,449 @@ async def handle_screen_png(request: web.Request) -> web.Response:
     return web.Response(
         body=png_bytes, content_type="image/png", headers=_build_headers()
     )
+
+
+# ============================================================================
+# Multiplexed WebSocket Handler (Single connection for all channels)
+# ============================================================================
+
+# Button mapping for control channel
+_BUTTON_MAP = {
+    "UP": gpio.PIN_U,
+    "DOWN": gpio.PIN_D,
+    "LEFT": gpio.PIN_L,
+    "RIGHT": gpio.PIN_R,
+    "BACK": gpio.PIN_A,
+    "OK": gpio.PIN_B,
+}
+
+# Available channels
+CHANNELS = frozenset(["screen", "logs", "health", "devices", "images", "control"])
+
+
+async def _send_to_subscribers(
+    app: web.Application,
+    channel: str,
+    data: bytes | dict | str,
+    exclude: web.WebSocketResponse | None = None,
+) -> None:
+    """Send data to all subscribers of a specific channel.
+
+    Args:
+        app: The aiohttp application
+        channel: The channel name to broadcast to
+        data: The data to send (bytes for binary, dict/str for JSON)
+        exclude: Optional WebSocket to exclude from broadcast
+    """
+    subscribers = app.get(MULTIPLEX_SUBSCRIBERS_KEY)
+    if not subscribers:
+        return
+
+    for sub in list(subscribers):
+        if sub.websocket.closed or sub.websocket == exclude:
+            continue
+        if channel not in sub.channels:
+            continue
+
+        try:
+            if isinstance(data, bytes):
+                await sub.websocket.send_bytes(data)
+            elif isinstance(data, dict):
+                await sub.websocket.send_json(data)
+            else:
+                await sub.websocket.send_str(str(data))
+        except Exception:
+            # Subscriber will be cleaned up by WeakSet when websocket closes
+            pass
+
+
+async def _screen_broadcaster(app: web.Application) -> None:
+    """Background task: Broadcast screen updates to subscribed clients."""
+    notifier = app.get(DISPLAY_NOTIFIER_KEY)
+    log = LoggerFactory.for_web()
+
+    while not app.get(DISPLAY_STOP_EVENT_KEY, threading.Event()).is_set():
+        try:
+            # Wait for display update with timeout
+            await asyncio.wait_for(
+                notifier._condition.wait(), timeout=FRAME_DELAY_SECONDS
+            )
+        except asyncio.TimeoutError:
+            continue
+
+        # Get all screen subscribers
+        subscribers = app.get(MULTIPLEX_SUBSCRIBERS_KEY)
+        if not subscribers:
+            continue
+
+        # Get current screen frame
+        png_bytes = display.get_display_png_bytes()
+
+        # Send to all screen subscribers
+        for sub in list(subscribers):
+            if sub.websocket.closed or "screen" not in sub.channels:
+                continue
+
+            try:
+                await sub.websocket.send_bytes(png_bytes)
+            except Exception:
+                pass
+
+        display.clear_dirty_flag()
+
+
+async def _health_broadcaster(app: web.Application) -> None:
+    """Background task: Broadcast health metrics every 2 seconds."""
+    stop_event = app.get(DISPLAY_STOP_EVENT_KEY, threading.Event())
+
+    while not stop_event.is_set():
+        health = get_system_health()
+        await _send_to_subscribers(
+            app, "health", {"type": "health", **(_build_health_payload(health))}
+        )
+        await asyncio.sleep(2.0)
+
+
+async def _logs_broadcaster(app: web.Application) -> None:
+    """Background task: Broadcast log updates to subscribed clients."""
+    app_context: AppContext | None = app.get(APP_CONTEXT_KEY)
+    if not app_context:
+        return
+
+    stop_event = app.get(DISPLAY_STOP_EVENT_KEY, threading.Event())
+    last_snapshot: list[LogEntryLike] = []
+
+    while not stop_event.is_set():
+        await asyncio.sleep(0.5)
+
+        current: list[LogEntryLike] = list(app_context.log_buffer)
+        new_entries, reset = _diff_log_buffer(last_snapshot, current)
+
+        if reset and current:
+            await _send_to_subscribers(
+                app,
+                "logs",
+                {
+                    "type": "logs",
+                    "update_type": "snapshot",
+                    "entries": _serialize_log_entries(current),
+                },
+            )
+        elif new_entries:
+            await _send_to_subscribers(
+                app,
+                "logs",
+                {
+                    "type": "logs",
+                    "update_type": "append",
+                    "entries": _serialize_log_entries(new_entries),
+                },
+            )
+
+        last_snapshot = current
+
+
+async def _devices_broadcaster(app: web.Application) -> None:
+    """Background task: Broadcast USB device info every 2 seconds."""
+    from rpi_usb_cloner.services.drives import list_usb_disks_filtered
+    from rpi_usb_cloner.storage.devices import get_children, human_size
+
+    stop_event = app.get(DISPLAY_STOP_EVENT_KEY, threading.Event())
+    cached_device_list: list[dict] = []
+
+    while not stop_event.is_set():
+        await asyncio.sleep(2.0)
+
+        # Skip if operation is active
+        if is_operation_active():
+            await _send_to_subscribers(
+                app,
+                "devices",
+                {"type": "devices", "devices": cached_device_list, "operation_active": True},
+            )
+            continue
+
+        devices = list_usb_disks_filtered()
+        device_list = []
+
+        for device in devices:
+            name = device.get("name", "")
+            size = device.get("size", 0)
+            vendor = device.get("vendor", "").strip()
+            model = device.get("model", "").strip()
+            tran = device.get("tran", "")
+            fstype = device.get("fstype", "")
+
+            mountpoints = []
+            if device.get("mountpoint"):
+                mountpoints.append(device.get("mountpoint"))
+            for child in get_children(device):
+                if child.get("mountpoint"):
+                    mountpoints.append(child.get("mountpoint"))
+
+            if mountpoints:
+                status = "mounted"
+            elif fstype:
+                status = "ready"
+            else:
+                status = "unformatted"
+
+            device_label = f"{vendor} {model}".strip() if vendor or model else "Unknown Device"
+
+            device_list.append(
+                {
+                    "name": name,
+                    "path": f"/dev/{name}",
+                    "size": size,
+                    "size_formatted": human_size(size),
+                    "vendor": vendor,
+                    "model": model,
+                    "label": device_label,
+                    "transport": tran,
+                    "fstype": fstype,
+                    "mountpoints": mountpoints,
+                    "status": status,
+                }
+            )
+
+        cached_device_list = device_list
+        await _send_to_subscribers(
+            app, "devices", {"type": "devices", "devices": device_list}
+        )
+
+
+async def _images_broadcaster(app: web.Application) -> None:
+    """Background task: Broadcast image repository info every 2 seconds."""
+    stop_event = app.get(DISPLAY_STOP_EVENT_KEY, threading.Event())
+    repo_stats: dict[str, dict[str, dict[str, int] | int]] = {}
+    next_repo_stats_refresh = 0.0
+    next_image_sizes_refresh = 0.0
+    image_sizes: dict[str, int | None] = {}
+
+    while not stop_event.is_set():
+        await asyncio.sleep(2.0)
+
+        # Skip if operation is active
+        if is_operation_active():
+            await _send_to_subscribers(
+                app,
+                "images",
+                {"type": "images", "images": [], "repo_stats": {}, "operation_active": True},
+            )
+            continue
+
+        repos = image_repo.find_image_repos()
+        image_list = []
+        repo_images: dict[Path, list[image_repo.DiskImage]] = {}
+        all_images: list[image_repo.DiskImage] = []
+
+        for repo in repos:
+            images = image_repo.list_clonezilla_images(repo.path)
+            repo_images[repo.path] = images
+            all_images.extend(images)
+
+        now = time.monotonic()
+        if now >= next_repo_stats_refresh:
+            try:
+                repo_stats = _build_repo_stats(repos)
+            except Exception:
+                pass
+            next_repo_stats_refresh = now + REPO_STATS_REFRESH_SECONDS
+
+        if now >= next_image_sizes_refresh:
+            try:
+                image_sizes = _build_image_sizes(all_images)
+            except Exception:
+                pass
+            next_image_sizes_refresh = now + REPO_STATS_REFRESH_SECONDS
+
+        for repo in repos:
+            for image in repo_images.get(repo.path, []):
+                size_bytes = image.size_bytes
+                if size_bytes is None:
+                    size_bytes = image_sizes.get(str(image.path))
+                image_list.append(
+                    {
+                        "name": image.name,
+                        "path": str(image.path),
+                        "type": image.image_type.value,
+                        "repo_label": str(repo.path),
+                        "size_bytes": size_bytes,
+                    }
+                )
+
+        await _send_to_subscribers(
+            app,
+            "images",
+            {"type": "images", "images": image_list, "repo_stats": repo_stats},
+        )
+
+
+async def handle_ws(request: web.Request) -> web.WebSocketResponse:
+    """Multiplexed WebSocket handler supporting multiple channels over one connection.
+
+    Protocol:
+    - Client sends JSON: {"action": "subscribe", "channels": ["screen", "logs", ...]}
+    - Client sends control commands: {"action": "control", "button": "UP|DOWN|..."}
+    - Server sends binary frames for screen images
+    - Server sends JSON for all other channels: {"type": "channel_name", ...data}
+
+    Available channels: screen, logs, health, devices, images, control
+    """
+    log = LoggerFactory.for_web()
+    ws = web.WebSocketResponse(autoping=True, heartbeat=30.0)
+    await ws.prepare(request)
+
+    # Register for tracking
+    _register_websocket(request.app, ws)
+    subscriber = ChannelSubscriber(websocket=ws, channels=set())
+    subscribers = request.app.get(MULTIPLEX_SUBSCRIBERS_KEY)
+    if subscribers is not None:
+        subscribers.add(subscriber)
+
+    connection_id = id(ws)
+    log.debug(
+        f"WebSocket connected from {request.remote} (id={connection_id})",
+        tags=["ws", "websocket", "connection", "multiplex"],
+        connection_id=connection_id,
+    )
+
+    try:
+        async for msg in ws:
+            if msg.type == web.WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                    action = data.get("action", "")
+
+                    if action == "subscribe":
+                        requested_channels = set(data.get("channels", []))
+                        valid_channels = requested_channels & CHANNELS
+                        invalid_channels = requested_channels - CHANNELS
+
+                        subscriber.channels.update(valid_channels)
+
+                        if invalid_channels:
+                            await ws.send_json(
+                                {
+                                    "type": "error",
+                                    "message": f"Invalid channels: {list(invalid_channels)}",
+                                }
+                            )
+
+                        await ws.send_json(
+                            {
+                                "type": "subscribed",
+                                "channels": list(subscriber.channels),
+                            }
+                        )
+
+                        # Send initial data for subscribed channels
+                        if "health" in valid_channels:
+                            health = get_system_health()
+                            await ws.send_json(
+                                {"type": "health", **(_build_health_payload(health))}
+                            )
+
+                        if "screen" in valid_channels:
+                            # Send initial screen frame
+                            png_bytes = display.get_display_png_bytes()
+                            await ws.send_bytes(png_bytes)
+
+                        if "logs" in valid_channels:
+                            app_context: AppContext | None = request.app.get(APP_CONTEXT_KEY)
+                            if app_context:
+                                snapshot = list(app_context.log_buffer)
+                                if snapshot:
+                                    await ws.send_json(
+                                        {
+                                            "type": "logs",
+                                            "update_type": "snapshot",
+                                            "entries": _serialize_log_entries(snapshot),
+                                        }
+                                    )
+
+                        log.debug(
+                            f"Client subscribed to channels: {list(valid_channels)}",
+                            tags=["ws", "websocket", "subscribe"],
+                            connection_id=connection_id,
+                            channels=list(valid_channels),
+                        )
+
+                    elif action == "unsubscribe":
+                        requested_channels = set(data.get("channels", []))
+                        subscriber.channels.difference_update(requested_channels)
+                        await ws.send_json(
+                            {
+                                "type": "unsubscribed",
+                                "channels": list(subscriber.channels),
+                            }
+                        )
+
+                    elif action == "control":
+                        if "control" not in subscriber.channels:
+                            await ws.send_json(
+                                {
+                                    "type": "error",
+                                    "message": "Not subscribed to control channel",
+                                }
+                            )
+                            continue
+
+                        button = data.get("button", "").upper()
+                        if button in _BUTTON_MAP:
+                            pin = _BUTTON_MAP[button]
+                            virtual_gpio.inject_button_press(pin)
+                            log.trace(
+                                f"Web UI button pressed: {button}",
+                                tags=["web", "input", "button"],
+                                connection_id=connection_id,
+                            )
+                        else:
+                            await ws.send_json(
+                                {"type": "error", "message": f"Unknown button: {button}"}
+                            )
+
+                    elif action == "ping":
+                        await ws.send_json({"type": "pong", "timestamp": time.time()})
+
+                    else:
+                        await ws.send_json(
+                            {"type": "error", "message": f"Unknown action: {action}"}
+                        )
+
+                except json.JSONDecodeError as e:
+                    await ws.send_json(
+                        {"type": "error", "message": f"Invalid JSON: {e}"}
+                    )
+
+            elif msg.type == web.WSMsgType.ERROR:
+                log.debug(
+                    f"WebSocket error: {ws.exception()}",
+                    tags=["ws", "websocket", "error"],
+                    connection_id=connection_id,
+                )
+
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        log.warning(
+            f"WebSocket error: {exc}",
+            tags=["ws", "websocket", "error"],
+            connection_id=connection_id,
+        )
+    finally:
+        _unregister_websocket(request.app, ws)
+        if subscribers is not None:
+            subscribers.discard(subscriber)
+        if not ws.closed:
+            await ws.close()
+        log.debug(
+            f"WebSocket disconnected from {request.remote} (id={connection_id})",
+            tags=["ws", "websocket", "connection"],
+            connection_id=connection_id,
+        )
+
+    return ws
 
 
 async def handle_health(request: web.Request) -> web.Response:
@@ -845,9 +1303,19 @@ def start_server(
         app[DISPLAY_NOTIFIER_KEY] = notifier
         app[DISPLAY_STOP_EVENT_KEY] = stop_event
         app[APP_CONTEXT_KEY] = app_context
+
+        # Initialize multiplexed WebSocket subscriber tracking
+        app[MULTIPLEX_SUBSCRIBERS_KEY] = weakref.WeakSet()
+
         app.router.add_get("/", handle_root)
         app.router.add_get("/health", handle_health)
         app.router.add_get("/screen.png", handle_screen_png)
+
+        # New multiplexed WebSocket endpoint (replaces 6 separate endpoints)
+        app.router.add_get("/ws", handle_ws)
+
+        # Legacy WebSocket endpoints (for backward compatibility)
+        # TODO: Remove these after client migration
         app.router.add_get("/ws/screen", handle_screen_ws)
         app.router.add_get("/ws/control", handle_control_ws)
         app.router.add_get("/ws/logs", handle_logs_ws)
@@ -876,6 +1344,16 @@ def start_server(
             await runner.setup()
             site = web.TCPSite(runner, host, port)
             await site.start()
+
+            # Start background broadcaster tasks for multiplexed WebSocket
+            asyncio.create_task(_screen_broadcaster(app))
+            asyncio.create_task(_health_broadcaster(app))
+            asyncio.create_task(_logs_broadcaster(app))
+            asyncio.create_task(_devices_broadcaster(app))
+            asyncio.create_task(_images_broadcaster(app))
+            # Screen broadcaster listens for notifier updates, which are driven
+            # by the separate display update thread.
+
             return runner
 
         runner: web.AppRunner | None = None
