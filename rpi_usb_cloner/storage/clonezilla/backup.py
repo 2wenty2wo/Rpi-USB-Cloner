@@ -320,14 +320,18 @@ def save_partition_tables(device_node: str, device_name: str, output_dir: Path) 
 
 
 def create_metadata_files(
-    device_name: str, partitions: list[str], output_dir: Path
+    device_name: str,
+    partitions: list[str],
+    output_dir: Path,
+    partition_infos: list[PartitionInfo] | None = None,
 ) -> None:
-    """Create Clonezilla metadata files (parts, disk).
+    """Create Clonezilla metadata files (parts, disk, dev-fs.list, blkdev.list).
 
     Args:
         device_name: Device name (e.g., "sda")
         partitions: List of partition names (e.g., ["sda1", "sda2"])
         output_dir: Output directory
+        partition_infos: Optional list of PartitionInfo for filesystem details
     """
     # Create 'parts' file - space-separated list of partitions
     parts_content = " ".join(partitions)
@@ -335,6 +339,20 @@ def create_metadata_files(
 
     # Create 'disk' file - just the device name
     (output_dir / "disk").write_text(device_name + "\n")
+
+    # Create 'blkdev.list' - lists block devices
+    # Format: device_name (e.g., "sda")
+    (output_dir / "blkdev.list").write_text(device_name + "\n")
+
+    # Create 'dev-fs.list' - maps partitions to filesystem types
+    # Format: partition_name filesystem_type (e.g., "sda1 vfat")
+    if partition_infos:
+        dev_fs_lines = []
+        for part_info in partition_infos:
+            fstype = part_info.fstype or "unknown"
+            dev_fs_lines.append(f"{part_info.name} {fstype}")
+        if dev_fs_lines:
+            (output_dir / "dev-fs.list").write_text("\n".join(dev_fs_lines) + "\n")
 
 
 def parse_partclone_progress(line: str) -> dict | None:
@@ -659,7 +677,9 @@ def create_clonezilla_backup(
 
         # Step 2: Create metadata files
         partition_names = [p.name for p in partitions_to_backup]
-        create_metadata_files(source_device, partition_names, output_dir)
+        create_metadata_files(
+            source_device, partition_names, output_dir, partitions_to_backup
+        )
 
         # Step 3: Backup each partition
         num_partitions = len(partitions_to_backup)
