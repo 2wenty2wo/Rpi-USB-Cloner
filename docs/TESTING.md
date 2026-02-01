@@ -93,6 +93,12 @@ pytest tests/test_integration_clone_workflows.py
 # Run web server/UI tests
 pytest tests/test_web_server.py
 pytest tests/test_ui_renderer.py tests/test_ui_progress.py tests/test_ui_confirmation.py
+
+# Run app module tests (new)
+pytest tests/test_app_context.py tests/test_app_drive_info.py tests/test_app_menu_builders.py
+
+# Run services tests
+pytest tests/test_services_drives.py tests/test_services_drives_extra.py
 ```
 
 ### Run Specific Test Classes or Methods

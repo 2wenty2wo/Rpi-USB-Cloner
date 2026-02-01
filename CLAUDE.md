@@ -285,12 +285,14 @@ Rpi-USB-Cloner/
 │   │
 │   └── __init__.py
 │
-├── tests/                          # Test suite (45 test files)
+├── tests/                          # Test suite (55 test files)
 │   ├── conftest.py                # Shared fixtures ⭐
+│   ├── test_app_*.py              # App module tests (3 files: context, drive_info, menu_builders)
 │   ├── test_devices.py            # Device detection tests
 │   ├── test_clone*.py             # Cloning tests (5 files)
 │   ├── test_clonezilla*.py        # Clonezilla tests (6 files)
 │   ├── test_actions_*.py          # Action handler tests (5 files)
+│   ├── test_services_*.py         # Service layer tests (drives, discovery, etc.)
 │   ├── test_settings.py           # Settings tests
 │   ├── test_mount_security.py     # Security tests
 │   ├── test_status_bar.py         # Status bar tests
@@ -879,8 +881,8 @@ Fixes #456
 
 **Framework**: pytest (≥7.4.0)
 **Coverage Target**: No enforced minimum (aim for >80% on critical paths)
-**Test Files**: 45 test modules with ~1000+ tests
-**Current Coverage**: ~34.57% overall (see TEST_COVERAGE_ANALYSIS.md for details)
+**Test Files**: 55 test modules with ~1,350+ tests
+**Current Coverage**: ~47% overall (see TEST_COVERAGE_ANALYSIS.md for details)
 
 **Coverage Strengths** (≥80%):
 - Config/Settings: 100%
