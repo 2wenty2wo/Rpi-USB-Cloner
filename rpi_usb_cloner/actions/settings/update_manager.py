@@ -14,8 +14,11 @@ from rpi_usb_cloner.ui import display, menus, screens
 
 from .system_power import confirm_action
 from .system_utils import (
+    checkout_branch,
     format_command_output,
     get_app_version,
+    get_current_branch,
+    get_remote_branches,
     has_dirty_working_tree,
     is_dubious_ownership_error,
     is_git_repo,
@@ -439,6 +442,216 @@ def run_update_flow(
     time.sleep(2)
 
 
+def switch_branch_flow(
+    title: str,
+    *,
+    title_icon: Optional[str] = None,
+) -> None:
+    """Execute the branch switching process."""
+    repo_root = Path(__file__).resolve().parents[3]
+
+    if not is_git_repo(repo_root):
+        screens.wait_for_paginated_input(
+            title,
+            ["Repo not found"],
+            title_icon=title_icon,
+        )
+        return
+
+    # Get current branch
+    current_branch = get_current_branch(repo_root)
+
+    # Get remote branches
+    branches = get_remote_branches(repo_root)
+    if not branches:
+        screens.wait_for_paginated_input(
+            title,
+            ["No remote branches", "found"],
+            title_icon=title_icon,
+        )
+        return
+
+    # Build display items with current branch marked
+    display_items = []
+    selected_index = 0
+    for i, branch in enumerate(branches):
+        if branch == current_branch:
+            display_items.append(f"{branch} (*)")
+            selected_index = i
+        else:
+            display_items.append(branch)
+
+    # Show branch selection menu
+    selected = menus.render_menu_list(
+        "SELECT BRANCH",
+        display_items,
+        selected_index=selected_index,
+        screen_id="branches",
+    )
+
+    if selected is None:
+        return  # User cancelled
+
+    selected_branch = branches[selected]
+
+    # Don't switch if already on this branch
+    if selected_branch == current_branch:
+        screens.wait_for_paginated_input(
+            title,
+            [f"Already on:", selected_branch],
+            title_icon=title_icon,
+        )
+        return
+
+    # Confirm branch switch
+    if not confirm_action(
+        "SWITCH BRANCH?",
+        f"Switch to {selected_branch}?",
+        title_icon=title_icon,
+    ):
+        return
+
+    # Check for dirty working tree
+    dirty_tree = has_dirty_working_tree(repo_root)
+    if dirty_tree:
+        if not confirm_action(
+            "WARNING",
+            "Local changes will be lost. Continue?",
+            title_icon=title_icon,
+        ):
+            return
+
+    def run_with_progress(
+        lines: list[str],
+        action: Callable[[Callable[[float], None]], subprocess.CompletedProcess[str]],
+        *,
+        running_ratio: Optional[float] = 0.5,
+    ):
+        done = threading.Event()
+        result_holder: dict[str, subprocess.CompletedProcess[str]] = {}
+        error_holder: dict[str, Exception] = {}
+        progress_lock = threading.Lock()
+        progress_ratio = 0.0
+
+        def update_progress(value: float) -> None:
+            nonlocal progress_ratio
+            clamped = max(0.0, min(1.0, float(value)))
+            with progress_lock:
+                progress_ratio = clamped
+
+        def current_progress() -> float:
+            with progress_lock:
+                return progress_ratio
+
+        def worker() -> None:
+            try:
+                if running_ratio is not None:
+                    update_progress(running_ratio)
+                result_holder["result"] = action(update_progress)
+            except Exception as exc:
+                error_holder["error"] = exc
+            finally:
+                update_progress(1.0)
+                done.set()
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        update_progress(0.0)
+        while not done.is_set():
+            screens.render_progress_screen(
+                title,
+                lines,
+                progress_ratio=current_progress(),
+                animate=False,
+                title_icon=title_icon,
+            )
+            time.sleep(0.1)
+        thread.join()
+        screens.render_progress_screen(
+            title,
+            lines,
+            progress_ratio=current_progress(),
+            animate=False,
+            title_icon=title_icon,
+        )
+        if "error" in error_holder:
+            raise error_holder["error"]
+        return result_holder["result"]
+
+    # Execute branch switch
+    checkout_result = run_with_progress(
+        ["Switching...", f"To {selected_branch}..."],
+        lambda update_progress: checkout_branch(
+            repo_root,
+            selected_branch,
+            progress_callback=update_progress,
+        ),
+        running_ratio=None,
+    )
+
+    output_lines = format_command_output(checkout_result.stdout, checkout_result.stderr)
+
+    if checkout_result.returncode != 0:
+        screens.render_progress_screen(
+            title,
+            ["Switch failed"],
+            progress_ratio=1.0,
+            animate=False,
+            title_icon=title_icon,
+        )
+        display.render_paginated_lines(
+            title,
+            ["Switch failed"] + output_lines,
+            page_index=0,
+            title_icon=title_icon,
+        )
+        time.sleep(2)
+        return
+
+    # Show success with output
+    screens.render_progress_screen(
+        title,
+        ["Switch complete"],
+        progress_ratio=1.0,
+        animate=False,
+        title_icon=title_icon,
+    )
+    if output_lines:
+        display.render_paginated_lines(
+            title,
+            [f"Switched to {selected_branch}"] + output_lines,
+            page_index=0,
+            title_icon=title_icon,
+        )
+    time.sleep(1)
+
+    # Restart if running under systemd
+    if is_running_under_systemd():
+        restart_result = run_with_progress(
+            ["Restarting...", "rpi-usb-cloner.service"],
+            lambda update_progress: restart_systemd_service(),
+        )
+        if restart_result.returncode != 0:
+            screens.render_progress_screen(
+                title,
+                ["Restart failed"],
+                progress_ratio=1.0,
+                animate=False,
+                title_icon=title_icon,
+            )
+            time.sleep(2)
+            return
+        sys.exit(0)
+
+    display.render_paginated_lines(
+        title,
+        ["Restart needed", "Please restart"],
+        page_index=0,
+        title_icon=title_icon,
+    )
+    time.sleep(2)
+
+
 def update_version() -> None:
     """Main update version interface."""
     title = "UPDATE"
@@ -455,7 +668,7 @@ def update_version() -> None:
     result_holder: dict[str, tuple[str, Optional[int], str, str]] = {}
     error_holder: dict[str, Exception] = {}
     header_lines: list[str] = []
-    selection = 0
+    selection = 0  # 0=Check, 1=Update, 2=Switch Branch
 
     def apply_check_results() -> tuple[str, Optional[int], Optional[str], str]:
         if "result" in result_holder:
@@ -533,20 +746,20 @@ def update_version() -> None:
         if refresh_update_menu():
             refresh_needed = True
         current_l = gpio.is_pressed(gpio.PIN_L)
-        if not prev_states["L"] and current_l and selection == 1:
-            selection = 0
+        if not prev_states["L"] and current_l and selection > 0:
+            selection -= 1
             refresh_needed = True
         current_r = gpio.is_pressed(gpio.PIN_R)
-        if not prev_states["R"] and current_r and selection == 0:
-            selection = 1
+        if not prev_states["R"] and current_r and selection < 2:
+            selection += 1
             refresh_needed = True
         current_u = gpio.is_pressed(gpio.PIN_U)
-        if not prev_states["U"] and current_u and selection == 1:
-            selection = 0
+        if not prev_states["U"] and current_u and selection > 0:
+            selection -= 1
             refresh_needed = True
         current_d = gpio.is_pressed(gpio.PIN_D)
-        if not prev_states["D"] and current_d and selection == 0:
-            selection = 1
+        if not prev_states["D"] and current_d and selection < 2:
+            selection += 1
             refresh_needed = True
         current_a = gpio.is_pressed(gpio.PIN_A)
         if not prev_states["A"] and current_a:
@@ -600,7 +813,7 @@ def update_version() -> None:
                     check_done.set()
                     results_applied = True
                 refresh_needed = True
-            if selection == 1:
+            elif selection == 1:
                 if not check_done.is_set():
                     status = "Waiting on check..."
                     update_header_lines()
@@ -615,6 +828,23 @@ def update_version() -> None:
                     apply_check_results_to_state()
                 with git_lock:
                     run_update_flow(title, title_icon=title_icon)
+                    status, behind_count, last_checked, error_hint = (
+                        check_update_status(repo_root)
+                    )
+                version = get_app_version()
+                result_holder["result"] = (
+                    status,
+                    behind_count,
+                    last_checked,
+                    error_hint,
+                )
+                check_done.set()
+                results_applied = True
+                refresh_needed = True
+            elif selection == 2:
+                # Switch Branch option
+                with git_lock:
+                    switch_branch_flow(title, title_icon=title_icon)
                     status, behind_count, last_checked, error_hint = (
                         check_update_status(repo_root)
                     )

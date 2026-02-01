@@ -260,3 +260,147 @@ def run_git_pull(
         stdout="".join(stdout_lines),
         stderr="".join(stderr_lines),
     )
+
+
+def get_current_branch(repo_root: Path) -> Optional[str]:
+    """Get the current git branch name."""
+    result = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root)
+    if result.returncode == 0:
+        branch = result.stdout.strip()
+        if branch:
+            return branch
+    return None
+
+
+def get_remote_branches(repo_root: Path) -> list[str]:
+    """Get list of remote branch names (origin/*), sorted with main/master first."""
+    result = run_command(
+        ["git", "branch", "-r", "--format=%(refname:short)"],
+        cwd=repo_root,
+    )
+    if result.returncode != 0:
+        log.debug(
+            f"Failed to get remote branches: {result.stderr.strip()}",
+            component="system",
+        )
+        return []
+
+    branches = []
+    for line in result.stdout.strip().split("\n"):
+        line = line.strip()
+        # Filter out origin/HEAD -> origin/xxx lines and empty lines
+        if not line or "HEAD" in line:
+            continue
+        # Remove "origin/" prefix
+        if line.startswith("origin/"):
+            branch_name = line[7:]  # Remove "origin/"
+            branches.append(branch_name)
+
+    # Sort with main/master first, then alphabetical
+    priority_branches = ["main", "master"]
+    priority = []
+    others = []
+    for branch in branches:
+        if branch in priority_branches:
+            priority.append(branch)
+        else:
+            others.append(branch)
+
+    # Sort priority: main first, then master
+    priority.sort(key=lambda x: priority_branches.index(x))
+    others.sort()
+
+    return priority + others
+
+
+def checkout_branch(
+    repo_root: Path,
+    branch: str,
+    *,
+    progress_callback: Optional[Callable[[float], None]] = None,
+) -> subprocess.CompletedProcess[str]:
+    """Checkout a remote branch, creating a local tracking branch if needed."""
+    if progress_callback:
+        progress_callback(0.1)
+
+    # First fetch the specific branch to ensure we have it
+    fetch_result = run_command(
+        ["git", "fetch", "origin", branch],
+        cwd=repo_root,
+    )
+    if progress_callback:
+        progress_callback(0.4)
+
+    if fetch_result.returncode != 0:
+        return subprocess.CompletedProcess(
+            ["git", "fetch", "origin", branch],
+            fetch_result.returncode,
+            fetch_result.stdout,
+            fetch_result.stderr,
+        )
+
+    # Check if local branch exists
+    local_check = run_command(
+        ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+        cwd=repo_root,
+    )
+
+    if progress_callback:
+        progress_callback(0.6)
+
+    if local_check.returncode == 0:
+        # Local branch exists, just checkout
+        checkout_result = run_command(
+            ["git", "checkout", branch],
+            cwd=repo_root,
+        )
+    else:
+        # Create tracking branch
+        checkout_result = run_command(
+            ["git", "checkout", "-b", branch, f"origin/{branch}"],
+            cwd=repo_root,
+        )
+
+    if progress_callback:
+        progress_callback(0.8)
+
+    # Pull latest changes
+    pull_result = run_command(["git", "pull"], cwd=repo_root)
+
+    if progress_callback:
+        progress_callback(1.0)
+
+    # Combine results
+    stderr = "\n".join(
+        filter(
+            None,
+            [
+                fetch_result.stderr,
+                checkout_result.stderr,
+                pull_result.stderr,
+            ],
+        )
+    )
+    stdout = "\n".join(
+        filter(
+            None,
+            [
+                fetch_result.stdout,
+                checkout_result.stdout,
+                pull_result.stdout,
+            ],
+        )
+    )
+
+    return_code = max(
+        fetch_result.returncode,
+        checkout_result.returncode,
+        pull_result.returncode,
+    )
+
+    return subprocess.CompletedProcess(
+        ["git", "checkout", branch],
+        return_code,
+        stdout,
+        stderr,
+    )
