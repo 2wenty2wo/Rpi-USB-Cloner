@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Raspberry Pi USB Cloner - Web Interface for managing USB drive cloning operations">
   <title>Rpi USB Cloner</title>
 
   <!-- Theme-aware SVG icons (modern browsers) -->
@@ -34,59 +35,29 @@
     .lucide-icon::before {
       display: inline-block;
     }
-    .lucide-icon-tv::before {
-      content: "\e203";
-    }
-    .lucide-icon-logs::before {
-      content: "\e5f4";
-    }
-    .lucide-icon-copy-plus::before {
-      content: "\e3fd";
-    }
-    .lucide-icon-activity::before {
-      content: "\e038";
-    }
-    .lucide-icon-cpu::before {
-      content: "\e0a9";
-    }
-    .lucide-icon-memory-stick::before {
-      content: "\e445";
-    }
-    .lucide-icon-hard-drive::before {
-      content: "\e0ed";
-    }
-    .lucide-icon-thermometer::before {
-      content: "\e186";
-    }
-    .lucide-icon-github::before {
-      content: "\e0e6";
-    }
-    .lucide-icon-sun::before {
-      content: "\e178";
-    }
-    .lucide-icon-moon::before {
-      content: "\e11e";
-    }
-    .lucide-icon-usb::before {
-      content: "\e356";
-    }
-    .lucide-icon-check-circle::before {
-      content: "\e088";
-    }
-    .lucide-icon-alert-circle::before {
-      content: "\e045";
-    }
-    .lucide-icon-disc::before {
-      content: "\e0cb";
-    }
-    .lucide-icon-folder::before {
-      content: "\e0d7";
-    }
+    .lucide-icon-tv::before { content: "\e203"; }
+    .lucide-icon-logs::before { content: "\e5f4"; }
+    .lucide-icon-copy-plus::before { content: "\e3fd"; }
+    .lucide-icon-activity::before { content: "\e038"; }
+    .lucide-icon-cpu::before { content: "\e0a9"; }
+    .lucide-icon-memory-stick::before { content: "\e445"; }
+    .lucide-icon-hard-drive::before { content: "\e0ed"; }
+    .lucide-icon-thermometer::before { content: "\e186"; }
+    .lucide-icon-github::before { content: "\e0e6"; }
+    .lucide-icon-sun::before { content: "\e178"; }
+    .lucide-icon-moon::before { content: "\e11e"; }
+    .lucide-icon-usb::before { content: "\e356"; }
+    .lucide-icon-check-circle::before { content: "\e088"; }
+    .lucide-icon-alert-circle::before { content: "\e045"; }
+    .lucide-icon-disc::before { content: "\e0cb"; }
+    .lucide-icon-folder::before { content: "\e0d7"; }
+
     /* Dark mode logo styling */
     [data-bs-theme="dark"] .navbar-brand img {
       filter: invert(1) brightness(1.2);
     }
-    /* D-pad on the left */
+
+    /* D-pad styling */
     .dpad-container {
       position: relative;
       width: 180px;
@@ -97,25 +68,15 @@
       height: 100%;
       display: block;
     }
-    .dpad-cross {
-      fill: #000;
-    }
+    .dpad-cross { fill: #000; }
     .dpad-arrow {
       fill: #fff;
       transition: fill 0.15s ease;
     }
-    .dpad-container:has(.dpad-up:hover) .dpad-arrow-up {
-      fill: #ff4d4f;
-    }
-    .dpad-container:has(.dpad-down:hover) .dpad-arrow-down {
-      fill: #ff4d4f;
-    }
-    .dpad-container:has(.dpad-left:hover) .dpad-arrow-left {
-      fill: #ff4d4f;
-    }
-    .dpad-container:has(.dpad-right:hover) .dpad-arrow-right {
-      fill: #ff4d4f;
-    }
+    .dpad-container:has(.dpad-up:hover) .dpad-arrow-up { fill: #ff4d4f; }
+    .dpad-container:has(.dpad-down:hover) .dpad-arrow-down { fill: #ff4d4f; }
+    .dpad-container:has(.dpad-left:hover) .dpad-arrow-left { fill: #ff4d4f; }
+    .dpad-container:has(.dpad-right:hover) .dpad-arrow-right { fill: #ff4d4f; }
     .dpad-btn {
       position: absolute;
       background: transparent;
@@ -127,46 +88,20 @@
       justify-content: center;
       user-select: none;
     }
-    .dpad-up {
-      width: 60px;
-      height: 70px;
-      left: 60px;
-      top: 0;
-    }
-    .dpad-down {
-      width: 60px;
-      height: 70px;
-      left: 60px;
-      bottom: 0;
-    }
-    .dpad-left {
-      width: 70px;
-      height: 60px;
-      left: 0;
-      top: 60px;
-    }
-    .dpad-right {
-      width: 70px;
-      height: 60px;
-      right: 0;
-      top: 60px;
-    }
-    /* Action buttons on the right */
+    .dpad-btn:active { background: rgba(255, 77, 79, 0.2) !important; }
+    .dpad-up { width: 60px; height: 70px; left: 60px; top: 0; }
+    .dpad-down { width: 60px; height: 70px; left: 60px; bottom: 0; }
+    .dpad-left { width: 70px; height: 60px; left: 0; top: 60px; }
+    .dpad-right { width: 70px; height: 60px; right: 0; top: 60px; }
+
+    /* Action buttons */
     .action-buttons {
       position: relative;
       width: 180px;
       height: 180px;
     }
-    .btn-ok {
-      position: absolute;
-      top: 0;
-      right: 0;
-    }
-    .btn-back {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-    }
+    .btn-ok { position: absolute; top: 0; right: 0; }
+    .btn-back { position: absolute; bottom: 0; left: 0; }
     .action-btn {
       width: 90px;
       height: 90px;
@@ -183,11 +118,7 @@
       padding: 0;
       background: transparent;
     }
-    .action-btn svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+    .action-btn svg { width: 100%; height: 100%; display: block; }
     .action-btn circle {
       fill: #000;
       transition: fill 0.15s ease, filter 0.15s ease;
@@ -200,39 +131,32 @@
       letter-spacing: 0.5px;
       transition: fill 0.15s ease;
     }
-    .action-btn:hover circle {
-      fill: #000;
-    }
-    .action-btn:hover text {
-      fill: #ff4d4f;
-    }
-    .action-btn:active circle {
-      fill: #000;
-    }
+    .action-btn:hover circle { fill: #000; }
+    .action-btn:hover text { fill: #ff4d4f; }
+    .action-btn:active circle { fill: #ff4d4f !important; }
+
+    /* Responsive adjustments */
     @media (max-width: 575.98px) {
-      .preview-controls {
-        flex-wrap: nowrap;
-        gap: 0.75rem;
-      }
+      .preview-controls { flex-wrap: nowrap; gap: 0.75rem; }
       .preview-controls .dpad-container,
-      .preview-controls .action-buttons {
-        width: 150px;
-        height: 150px;
-      }
-      .preview-controls .action-btn {
-        width: 75px;
-        height: 75px;
-      }
+      .preview-controls .action-buttons { width: 150px; height: 150px; }
+      .preview-controls .action-btn { width: 75px; height: 75px; }
     }
+
+    /* Canvas styling */
     #screen {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       border: 10px solid black;
     }
+
+    /* Scrollable areas */
+    .scrollable { overflow-y: auto; }
   </style>
 </head>
 <body>
   <div class="page">
+    <!-- Navbar -->
     <header class="navbar navbar-expand-md d-print-none">
       <div class="container-xl">
         <a class="navbar-brand d-flex align-items-center gap-2" href="#" aria-label="Rpi USB Cloner">
@@ -258,9 +182,12 @@
         </div>
       </div>
     </header>
+
+    <!-- Main content -->
     <div class="page-wrapper">
       <div class="page-body">
         <div class="container-xl">
+          
           <!-- System Health Card -->
           <div class="row row-cards mb-3">
             <div class="col-12">
@@ -273,7 +200,7 @@
                 </div>
                 <div class="card-body">
                   <div class="row g-3">
-                    <!-- CPU Usage -->
+                    <!-- CPU -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
                         <small class="text-muted d-flex align-items-center gap-1">
@@ -286,7 +213,7 @@
                         <div id="cpu-bar" class="progress-bar w-0" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                       </div>
                     </div>
-                    <!-- Memory Usage -->
+                    <!-- Memory -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
                         <small class="text-muted d-flex align-items-center gap-1">
@@ -300,7 +227,7 @@
                       </div>
                       <small id="memory-detail" class="text-secondary">-- / -- MB</small>
                     </div>
-                    <!-- Disk Usage -->
+                    <!-- Disk -->
                     <div class="col-12 col-sm-6 col-lg-3">
                       <div class="mb-1 d-flex align-items-center justify-content-between">
                         <small class="text-muted d-flex align-items-center gap-1">
@@ -333,8 +260,10 @@
               </div>
             </div>
           </div>
-          <!-- Preview and Logs Cards -->
+
+          <!-- Preview and Logs -->
           <div class="row row-cards mb-3">
+            <!-- Preview Card -->
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
@@ -348,6 +277,7 @@
                     <canvas id="screen" class="w-100 h-100 d-block" width="128" height="64"></canvas>
                   </div>
                   <div class="row g-4 align-items-center justify-content-between preview-controls">
+                    <!-- D-pad -->
                     <div class="col-6 col-md-6 d-flex justify-content-center">
                       <div class="dpad-container">
                         <svg class="dpad-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
@@ -357,21 +287,22 @@
                           <path class="dpad-arrow dpad-arrow-left" d="M38 100l20-12v24z" />
                           <path class="dpad-arrow dpad-arrow-right" d="M162 100l-20 12V88z" />
                         </svg>
-                        <button class="dpad-btn dpad-up" data-button="UP"></button>
-                        <button class="dpad-btn dpad-down" data-button="DOWN"></button>
-                        <button class="dpad-btn dpad-left" data-button="LEFT"></button>
-                        <button class="dpad-btn dpad-right" data-button="RIGHT"></button>
+                        <button class="dpad-btn dpad-up" data-button="UP" aria-label="Up"></button>
+                        <button class="dpad-btn dpad-down" data-button="DOWN" aria-label="Down"></button>
+                        <button class="dpad-btn dpad-left" data-button="LEFT" aria-label="Left"></button>
+                        <button class="dpad-btn dpad-right" data-button="RIGHT" aria-label="Right"></button>
                       </div>
                     </div>
+                    <!-- Action buttons -->
                     <div class="col-6 col-md-6 d-flex justify-content-center">
                       <div class="action-buttons">
-                        <button class="action-btn btn btn-circle btn-dark btn-back" data-button="BACK">
+                        <button class="action-btn btn btn-circle btn-dark btn-back" data-button="BACK" aria-label="Back">
                           <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
                             <circle cx="50" cy="50" r="46" />
                             <text x="50" y="56" text-anchor="middle">BACK</text>
                           </svg>
                         </button>
-                        <button class="action-btn btn btn-circle btn-dark btn-ok" data-button="OK">
+                        <button class="action-btn btn btn-circle btn-dark btn-ok" data-button="OK" aria-label="OK">
                           <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
                             <circle cx="50" cy="50" r="46" />
                             <text x="50" y="56" text-anchor="middle">OK</text>
@@ -380,9 +311,17 @@
                       </div>
                     </div>
                   </div>
+                  <!-- Keyboard hint -->
+                  <div class="text-center text-muted small mt-3">
+                    <span class="me-2">↑↓←→ Navigate</span>
+                    <span class="me-2">Enter/OK Confirm</span>
+                    <span>Esc/Back</span>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Logs Card -->
             <div class="col-12 col-lg-6">
               <div class="card h-100 d-flex flex-column">
                 <div class="card-header">
@@ -399,7 +338,6 @@
                 <!-- Log Filters -->
                 <div class="card-body pt-2 pb-1 border-bottom flex-grow-0 flex-shrink-0">
                   <div class="row g-2">
-                    <!-- Level Filter -->
                     <div class="col-auto">
                       <select class="form-select form-select-sm" id="log-level-filter" title="Filter by log level">
                         <option value="all">All Levels</option>
@@ -412,7 +350,6 @@
                         <option value="critical">CRITICAL</option>
                       </select>
                     </div>
-                    <!-- Source Filter -->
                     <div class="col-auto">
                       <select class="form-select form-select-sm" id="log-source-filter" title="Filter by source">
                         <option value="all">All Sources</option>
@@ -423,24 +360,20 @@
                         <option value="gpio">GPIO</option>
                         <option value="menu">Menu</option>
                         <option value="clonezilla">Clonezilla</option>
-                        <option value="APP">APP</option>
-                        <option value="UI">UI</option>
+                        <option value="app">APP</option>
+                        <option value="ui">UI</option>
                       </select>
                     </div>
-                    <!-- Search Input -->
                     <div class="col">
                       <input type="text" class="form-control form-control-sm" id="log-search-input" placeholder="Search logs..." title="Search in log messages">
                     </div>
                   </div>
-                  <!-- Active Tags (shown dynamically) -->
-                  <div id="active-log-tags" class="mt-2 d-none">
-                    <small class="text-muted me-2">Filter by tags:</small>
-                    <div id="active-log-tags-list" class="d-inline-flex gap-1 flex-wrap"></div>
-                  </div>
                 </div>
+                <!-- Log entries -->
                 <div class="card-body p-0 d-flex" style="height: 18rem;">
                   <div id="debug-log" class="list-group list-group-flush w-100 h-100 scrollable"></div>
                 </div>
+                <!-- Footer -->
                 <div class="card-footer d-flex align-items-center pt-4 mt-auto">
                   <label class="form-check form-switch m-0">
                     <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
@@ -451,8 +384,10 @@
               </div>
             </div>
           </div>
-          <!-- USB Devices Card -->
+
+          <!-- USB Devices and Image Repo -->
           <div class="row row-cards mb-3">
+            <!-- USB Devices -->
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
@@ -475,6 +410,8 @@
                 </div>
               </div>
             </div>
+
+            <!-- Image Repo -->
             <div class="col-12 col-lg-6">
               <div class="card">
                 <div class="card-header">
@@ -487,6 +424,7 @@
                   </div>
                 </div>
                 <div class="card-body">
+                  <!-- Storage chart -->
                   <div id="image-repo-chart" class="px-3 pt-3 pb-2 d-none">
                     <div class="progress progress-stacked" style="height: 0.75rem;">
                       <div class="progress-bar bg-primary" role="progressbar" style="width: 0%;" aria-label="Clonezilla usage" data-repo-segment="clonezilla"></div>
@@ -498,6 +436,7 @@
                     <div id="image-repo-chart-legend" class="d-flex flex-wrap gap-2 mt-3"></div>
                     <div id="image-repo-divider" class="hr my-3 d-none"></div>
                   </div>
+                  <!-- Image list -->
                   <div id="image-repo-container">
                     <div class="text-center text-muted py-4">
                       <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
@@ -509,990 +448,21 @@
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Scripts -->
   <script src="/static/apexcharts/apexcharts.min.js"></script>
   <script src="/static/tabler/tabler.min.js"></script>
-  <script>
-    // Theme toggle functionality
-    (function() {
-      const themeToggle = document.getElementById('theme-toggle');
-      const themeIcon = document.getElementById('theme-icon');
-      const htmlElement = document.documentElement;
-
-      // Get theme from localStorage or default to light
-      function getStoredTheme() {
-        return localStorage.getItem('theme') || 'light';
-      }
-
-      // Save theme to localStorage
-      function setStoredTheme(theme) {
-        localStorage.setItem('theme', theme);
-      }
-
-      // Apply theme to the document
-      function applyTheme(theme) {
-        htmlElement.setAttribute('data-bs-theme', theme);
-        updateIcon(theme);
-      }
-
-      // Update the icon based on current theme
-      function updateIcon(theme) {
-        if (theme === 'dark') {
-          themeIcon.className = 'lucide-icon lucide-icon-moon';
-        } else {
-          themeIcon.className = 'lucide-icon lucide-icon-sun';
-        }
-      }
-
-      // Toggle between light and dark themes
-      function toggleTheme() {
-        const currentTheme = htmlElement.getAttribute('data-bs-theme') || 'light';
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        applyTheme(newTheme);
-        setStoredTheme(newTheme);
-      }
-
-      // Initialize theme on page load
-      const initialTheme = getStoredTheme();
-      applyTheme(initialTheme);
-
-      // Add click event listener to toggle button
-      if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-      }
-    })();
-  </script>
-  <script>
-    const DEBUG_UI = true;
-
-    const logFrame = document.getElementById('debug-log');
-    const autoScrollToggle = document.getElementById('auto-scroll-toggle');
-    const logLevelFilter = document.getElementById('log-level-filter');
-    const logSourceFilter = document.getElementById('log-source-filter');
-    const logSearchInput = document.getElementById('log-search-input');
-    const clearLogsBtn = document.getElementById('clear-logs-btn');
-    const logCountDisplay = document.getElementById('log-count-display');
-    const activeLogTags = document.getElementById('active-log-tags');
-    const activeLogTagsList = document.getElementById('active-log-tags-list');
-
-    let autoScrollEnabled = true;
-    let activeTagFilters = new Set();
-
-    // Loguru-compatible badge colors with Tabler classes
-    const levelBadgeClasses = {
-      // Loguru levels
-      trace: 'bg-secondary-lt text-secondary',
-      debug: 'bg-primary-lt text-primary',
-      info: 'bg-info text-white',
-      success: 'bg-success text-white',
-      warning: 'bg-warning text-dark',
-      error: 'bg-danger text-white',
-      critical: 'bg-red-darken text-white',
-      // Legacy levels (for compatibility)
-      warn: 'bg-warning text-dark',
-      log: 'bg-secondary-lt text-secondary'
-    };
-
-    // Filter logs based on level, source, tags, and search query
-    function filterLogs() {
-      const levelFilter = logLevelFilter.value.toLowerCase();
-      const sourceFilter = logSourceFilter.value.toLowerCase();
-      const searchQuery = logSearchInput.value.toLowerCase();
-
-      const entries = logFrame.querySelectorAll('.list-group-item');
-      let visibleCount = 0;
-
-      entries.forEach(entry => {
-        const entryLevel = entry.dataset.level?.toLowerCase() || '';
-        const entrySource = entry.dataset.source?.toLowerCase() || '';
-        const entryTags = entry.dataset.tags ? entry.dataset.tags.split(',') : [];
-        const entryText = entry.textContent.toLowerCase();
-
-        // Level filter
-        const levelMatch = levelFilter === 'all' || entryLevel === levelFilter;
-
-        // Source filter
-        const sourceMatch = sourceFilter === 'all' || entrySource === sourceFilter;
-
-        // Tag filter (if any tags are selected)
-        const tagMatch = activeTagFilters.size === 0 ||
-          [...activeTagFilters].some(tag => entryTags.includes(tag));
-
-        // Search filter
-        const searchMatch = !searchQuery || entryText.includes(searchQuery);
-
-        // Show/hide entry
-        if (levelMatch && sourceMatch && tagMatch && searchMatch) {
-          entry.classList.remove('d-none');
-          visibleCount++;
-        } else {
-          entry.classList.add('d-none');
-        }
-      });
-
-      // Update count display
-      const totalCount = entries.length;
-      if (visibleCount === totalCount) {
-        logCountDisplay.textContent = `${totalCount} logs`;
-      } else {
-        logCountDisplay.textContent = `${visibleCount} / ${totalCount} logs`;
-      }
-
-      // Auto-scroll if enabled
-      if (autoScrollEnabled && logFrame) {
-        logFrame.scrollTop = logFrame.scrollHeight;
-      }
-    }
-
-    // Toggle tag filter
-    function toggleTagFilter(tag) {
-      if (activeTagFilters.has(tag)) {
-        activeTagFilters.delete(tag);
-      } else {
-        activeTagFilters.add(tag);
-      }
-      updateActiveTagsDisplay();
-      filterLogs();
-    }
-
-    // Update active tags display
-    function updateActiveTagsDisplay() {
-      if (activeTagFilters.size === 0) {
-        activeLogTags.classList.add('d-none');
-        return;
-      }
-
-      activeLogTags.classList.remove('d-none');
-      activeLogTagsList.innerHTML = '';
-
-      activeTagFilters.forEach(tag => {
-        const tagBadge = document.createElement('span');
-        tagBadge.className = 'badge bg-azure text-white';
-        tagBadge.innerHTML = `${tag} <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.65rem; padding: 0.15rem;" aria-label="Remove filter"></button>`;
-        tagBadge.style.cursor = 'pointer';
-        tagBadge.onclick = () => toggleTagFilter(tag);
-        activeLogTagsList.appendChild(tagBadge);
-      });
-    }
-
-    // Clear all logs
-    function clearAllLogs() {
-      if (logFrame) {
-        logFrame.innerHTML = '';
-        logCountDisplay.textContent = '0 logs';
-        activeTagFilters.clear();
-        updateActiveTagsDisplay();
-      }
-    }
-
-    // Setup event listeners
-    if (logLevelFilter) {
-      logLevelFilter.addEventListener('change', filterLogs);
-    }
-
-    if (logSourceFilter) {
-      logSourceFilter.addEventListener('change', filterLogs);
-    }
-
-    if (logSearchInput) {
-      logSearchInput.addEventListener('input', filterLogs);
-    }
-
-    if (clearLogsBtn) {
-      clearLogsBtn.addEventListener('click', clearAllLogs);
-    }
-
-    // Format timestamp as relative time (e.g., "2 minutes ago")
-    function formatRelativeTime(timestamp) {
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffSec = Math.floor(diffMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHr = Math.floor(diffMin / 60);
-      const diffDay = Math.floor(diffHr / 24);
-
-      if (diffSec < 5) return 'just now';
-      if (diffSec < 60) return `${diffSec}s ago`;
-      if (diffMin < 60) return `${diffMin}m ago`;
-      if (diffHr < 24) return `${diffHr}h ago`;
-      if (diffDay === 1) return 'yesterday';
-      if (diffDay < 7) return `${diffDay}d ago`;
-
-      // For older logs, show date and time
-      return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-
-    // Parse and format message to be more human-readable
-    function formatLogMessage(message, details, source) {
-      // Try to parse JSON from message if present
-      let parsedDetails = details || {};
-
-      // Check if message is about button press (with details.button)
-      if (message === 'Button pressed' && parsedDetails.button) {
-        const button = parsedDetails.button;
-        const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
-                     button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
-                     button === 'SELECT' || button === 'OK' ? '✓' :
-                     button === 'BACK' ? '◀️' : '🔘';
-        return {
-          formatted: `${icon} Button: ${button}`,
-          details: null,
-          tags: []
-        };
-      }
-
-      // Check if message contains button press info (e.g., "Button pressed: UP")
-      const buttonMatch = message.match(/Button pressed:\s*(\w+)/);
-      if (buttonMatch) {
-        const button = buttonMatch[1];
-        const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
-                     button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
-                     button === 'SELECT' || button === 'OK' ? '✓' :
-                     button === 'BACK' ? '◀️' : '🔘';
-        return {
-          formatted: `${icon} Button: ${button}`,
-          details: null,
-          tags: []
-        };
-      }
-
-      // Check if message contains button press info with JSON
-      const buttonJsonMatch = message.match(/Button pressed\s*({.*})/);
-      if (buttonJsonMatch) {
-        try {
-          const buttonData = JSON.parse(buttonJsonMatch[1]);
-          const button = buttonData.button || 'unknown';
-          const icon = button === 'UP' ? '⬆️' : button === 'DOWN' ? '⬇️' :
-                       button === 'LEFT' ? '⬅️' : button === 'RIGHT' ? '➡️' :
-                       button === 'SELECT' || button === 'OK' ? '✓' :
-                       button === 'BACK' ? '◀️' : '🔘';
-          return {
-            formatted: `${icon} Button: ${button}`,
-            details: null,
-            tags: []
-          };
-        } catch (e) {
-          // Fall through to default formatting
-        }
-      }
-
-      // Check if message contains screen change info
-      const screenMatch = message.match(/Screen changed:\s*(\w+)\s*->\s*(\w+)/);
-      if (screenMatch) {
-        const [, from, to] = screenMatch;
-        return {
-          formatted: `Screen: ${from} → ${to}`,
-          details: null,
-          tags: ['NAVIGATION']
-        };
-      }
-
-      // Check for WebSocket connection messages
-      const wsMatch = message.match(/(Log|Screen|Control|Health)\s+WebSocket\s+(connected|disconnected|error)/i);
-      if (wsMatch) {
-        const [, wsType, status] = wsMatch;
-        const icon = status === 'connected' ? '🟢' : status === 'disconnected' ? '🔴' : '⚠️';
-        return {
-          formatted: `${icon} ${wsType} WebSocket ${status}`,
-          details: null,
-          tags: ['WEBSOCKET']
-        };
-      }
-
-      // Check for socket not connected warnings
-      if (message.includes('socket not connected')) {
-        return {
-          formatted: `⚠️ ${message}`,
-          details: parsedDetails.button ? { button: parsedDetails.button } : null,
-          tags: ['WARNING']
-        };
-      }
-
-      // Default: return message as-is
-      return {
-        formatted: message,
-        details: parsedDetails,
-        tags: []
-      };
-    }
-
-    function appendLog(level, message, details = {}, source = 'UI', timestamp = null, tags = null) {
-      if (!logFrame) {
-        return;
-      }
-
-      const entry = document.createElement('div');
-      entry.className = 'list-group-item d-flex align-items-start gap-2 py-2';
-      entry.dataset.source = source;
-      entry.dataset.level = level.toLowerCase();
-
-      const timestampValue = timestamp ?? new Date().toISOString();
-      const formattedMsg = formatLogMessage(message, details, source);
-
-      // Collect all tags
-      const allTags = [...formattedMsg.tags, ...(Array.isArray(tags) ? tags : [])];
-      entry.dataset.tags = allTags.join(',');
-
-      // Level badge - larger and more readable
-      const badge = document.createElement('span');
-      const badgeClass = levelBadgeClasses[level.toLowerCase()] || 'bg-secondary';
-      badge.className = `badge badge-sm ${badgeClass} text-uppercase fw-bold text-center px-2`;
-      badge.textContent = level.toUpperCase();
-
-      // Content wrapper
-      const content = document.createElement('div');
-      content.className = 'flex-grow-1';
-
-      // Timestamp - relative time with tooltip showing exact time
-      const timestampEl = document.createElement('span');
-      timestampEl.className = 'text-secondary fs-7 lh-sm me-2';
-      timestampEl.textContent = formatRelativeTime(timestampValue);
-      timestampEl.dataset.timestamp = timestampValue;
-      timestampEl.title = new Date(timestampValue).toLocaleString();
-
-      // Source badge
-      const sourceBadge = document.createElement('span');
-      sourceBadge.className = 'badge badge-sm bg-secondary-lt text-secondary me-2';
-      sourceBadge.textContent = source;
-
-      // Message
-      const messageEl = document.createElement('span');
-      messageEl.className = 'fs-6';
-      messageEl.textContent = formattedMsg.formatted;
-
-      // First row: timestamp, source, message
-      const firstRow = document.createElement('div');
-      firstRow.className = 'd-flex align-items-center flex-wrap gap-1';
-      firstRow.append(timestampEl, sourceBadge, messageEl);
-      content.appendChild(firstRow);
-
-      // Tags - clickable for filtering
-      if (allTags.length > 0) {
-        const tagList = document.createElement('div');
-        tagList.className = 'mt-1 d-flex gap-1';
-        allTags.forEach((tag) => {
-          const tagBadge = document.createElement('span');
-          tagBadge.className = 'badge badge-sm bg-azure-lt text-azure';
-          tagBadge.style.cursor = 'pointer';
-          tagBadge.textContent = String(tag);
-          tagBadge.title = `Click to filter by ${tag}`;
-          tagBadge.onclick = () => toggleTagFilter(String(tag));
-          tagList.appendChild(tagBadge);
-        });
-        content.appendChild(tagList);
-      }
-
-      // Details - only show if not already parsed
-      if (formattedMsg.details && Object.keys(formattedMsg.details).length > 0) {
-        const detailsEl = document.createElement('div');
-        detailsEl.className = 'mt-1 text-secondary fs-7 lh-sm font-monospace';
-
-        // Format details in a more readable way
-        const detailParts = [];
-        for (const [key, value] of Object.entries(formattedMsg.details)) {
-          if (key === 'url' || key === 'readyState' || key === 'reconnectAttempts') {
-            continue; // Skip technical details already shown
-          }
-          detailParts.push(`${key}: ${JSON.stringify(value)}`);
-        }
-        if (detailParts.length > 0) {
-          detailsEl.textContent = detailParts.join(', ');
-          content.appendChild(detailsEl);
-        }
-      }
-
-      entry.append(badge, content);
-
-      if (logFrame.childNodes.length === 1 && logFrame.textContent.includes('disabled')) {
-        logFrame.textContent = '';
-      }
-      logFrame.appendChild(entry);
-
-      // Apply filters to new entry and update count
-      filterLogs();
-
-      if (autoScrollEnabled) {
-        logFrame.scrollTop = logFrame.scrollHeight;
-      }
-    }
-
-    function clearAppLogEntries() {
-      if (!logFrame) {
-        return;
-      }
-      logFrame.querySelectorAll('[data-source="APP"]').forEach((entry) => {
-        entry.remove();
-      });
-    }
-
-    function debugLog(level, message, details = {}) {
-      const logger = console[level] || console.log;
-      logger(message, {
-        timestamp: new Date().toISOString(),
-        ...details
-      });
-      appendLog(level, message, details, 'UI');
-    }
-
-    function socketDetails(extra = {}) {
-      return {
-        url: wsUrl,
-        readyState: socket ? socket.readyState : 'uninitialized',
-        reconnectAttempts,
-        subscribedChannels: Array.from(subscribedChannels),
-        ...extra
-      };
-    }
-
-    const canvas = document.getElementById('screen');
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    const statusEl = document.getElementById('status');
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-    // Single multiplexed WebSocket replaces 6 separate connections
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-    let socket = null;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    let reconnectDelay = 2000;
-    let subscribedChannels = new Set();
-
-    // Channel state tracking
-    const channelState = {
-      screen: { connected: false, lastFrame: null },
-      logs: { connected: false, lastSnapshot: [] },
-      health: { connected: false },
-      devices: { connected: false },
-      images: { connected: false },
-      control: { connected: false }
-    };
-
-    // Handle incoming log entries
-    function handleLogEntries(entries) {
-      if (!Array.isArray(entries)) {
-        return;
-      }
-      entries.forEach((entry) => {
-        if (typeof entry === 'string') {
-          const trimmed = entry.trim();
-          if (trimmed.length > 0) {
-            appendLog('log', trimmed, {}, 'APP');
-          }
-          return;
-        }
-        if (entry && typeof entry === 'object') {
-          const message = typeof entry.message === 'string' ? entry.message : JSON.stringify(entry);
-          const level = entry.level || 'log';
-          const tags = Array.isArray(entry.tags) ? entry.tags : [];
-          const source = entry.source || 'APP';
-          const timestamp = entry.timestamp || null;
-          const details = entry.details && typeof entry.details === 'object' ? entry.details : {};
-          if (message.trim().length > 0) {
-            appendLog(level, message, details, source, timestamp, tags);
-          }
-        }
-      });
-    }
-
-    // Update health metrics in the UI
-    function updateHealthMetrics(health) {
-      // Update CPU
-      if (health.cpu) {
-        document.getElementById('cpu-percent').textContent = `${health.cpu.percent}%`;
-        document.getElementById('cpu-bar').style.width = `${health.cpu.percent}%`;
-        document.getElementById('cpu-bar').className = `progress-bar bg-${health.cpu.status}`;
-      }
-
-      // Update Memory
-      if (health.memory) {
-        document.getElementById('memory-percent').textContent = `${health.memory.percent}%`;
-        document.getElementById('memory-bar').style.width = `${health.memory.percent}%`;
-        document.getElementById('memory-bar').className = `progress-bar bg-${health.memory.status}`;
-        document.getElementById('memory-detail').textContent = `${health.memory.used_mb} / ${health.memory.total_mb} MB`;
-      }
-
-      // Update Disk
-      if (health.disk) {
-        document.getElementById('disk-percent').textContent = `${health.disk.percent}%`;
-        document.getElementById('disk-bar').style.width = `${health.disk.percent}%`;
-        document.getElementById('disk-bar').className = `progress-bar bg-${health.disk.status}`;
-        document.getElementById('disk-detail').textContent = `${health.disk.used_gb} / ${health.disk.total_gb} GB`;
-      }
-
-      // Update Temperature
-      if (health.temperature && health.temperature.celsius !== null) {
-        document.getElementById('temp-value').textContent = `${health.temperature.celsius}°C`;
-        // Scale temperature: 0°C = 0%, 100°C = 100%
-        const tempPercent = Math.min(100, Math.max(0, health.temperature.celsius));
-        document.getElementById('temp-bar').style.width = `${tempPercent}%`;
-        document.getElementById('temp-bar').className = `progress-bar bg-${health.temperature.status}`;
-      } else {
-        document.getElementById('temp-value').textContent = 'N/A';
-        document.getElementById('temp-bar').style.width = '0%';
-        document.getElementById('temp-detail').textContent = 'Not available';
-      }
-    }
-
-    // Update USB devices list in the UI
-    function escapeHtml(value) {
-      if (value === null || value === undefined) {
-        return '';
-      }
-
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function updateDevicesList(devices) {
-      const container = document.getElementById('usb-devices-container');
-      const countBadge = document.getElementById('device-count');
-
-      if (!devices || devices.length === 0) {
-        // Show empty state
-        container.innerHTML = `
-          <div class="text-center text-muted py-4">
-            <span class="lucide-icon lucide-icon-usb" style="font-size: 2rem;" aria-hidden="true"></span>
-            <p class="mt-2">No USB devices detected</p>
-            <p class="text-secondary small">Connect a USB drive to get started</p>
-          </div>
-        `;
-        countBadge.textContent = '0 devices';
-        countBadge.className = 'badge bg-secondary text-white';
-        return;
-      }
-
-      // Update count badge
-      const deviceText = devices.length === 1 ? 'device' : 'devices';
-      countBadge.textContent = `${devices.length} ${deviceText}`;
-      countBadge.className = 'badge bg-primary text-white';
-
-      // Build device list
-      const deviceItems = devices.map(device => {
-        // Determine status badge color and icon
-        let statusColor = 'secondary';
-        let statusIcon = 'disc';
-        let statusText = escapeHtml(device.status);
-
-        if (device.status === 'ready') {
-          statusColor = 'success';
-          statusIcon = 'check-circle';
-          statusText = 'Ready';
-        } else if (device.status === 'mounted') {
-          statusColor = 'info';
-          statusIcon = 'disc';
-          statusText = 'Mounted';
-        } else if (device.status === 'unformatted') {
-          statusColor = 'warning';
-          statusIcon = 'alert-circle';
-          statusText = 'Unformatted';
-        }
-
-        // Build mountpoint list
-        let mountpointHtml = '';
-        if (device.mountpoints && device.mountpoints.length > 0) {
-          const mountsList = device.mountpoints.map(mp => `<code class="text-secondary">${escapeHtml(mp)}</code>`).join(', ');
-          mountpointHtml = `<div class="text-secondary small mt-1">Mounted: ${mountsList}</div>`;
-        }
-
-        const label = escapeHtml(device.label);
-        const path = escapeHtml(device.path);
-        const sizeFormatted = escapeHtml(device.size_formatted);
-        const fstype = escapeHtml(device.fstype);
-
-        const statusTextColor = statusColor === 'warning' ? 'text-dark' : 'text-white';
-
-        return `
-          <div class="list-group-item">
-            <div class="row align-items-center">
-              <div class="col-auto">
-                <span class="lucide-icon lucide-icon-hard-drive text-primary" style="font-size: 1.5rem;"></span>
-              </div>
-              <div class="col">
-                <div class="fw-semibold">${label}</div>
-                <div class="text-secondary small">
-                  ${path} • ${sizeFormatted}
-                  ${fstype ? `• ${fstype}` : ''}
-                </div>
-                ${mountpointHtml}
-              </div>
-              <div class="col-auto">
-                <span class="badge bg-${statusColor} ${statusTextColor} d-flex align-items-center gap-1">
-                  <span class="lucide-icon lucide-icon-${statusIcon}"></span>
-                  ${statusText}
-                </span>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      container.innerHTML = `<div class="list-group list-group-flush">${deviceItems}</div>`;
-    }
-
-    function formatBytes(bytes) {
-      if (!Number.isFinite(bytes) || bytes <= 0) {
-        return '0 B';
-      }
-      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-      const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-      const value = bytes / Math.pow(1024, exponent);
-      const formatted = value >= 10 ? value.toFixed(1) : value.toFixed(2);
-      return `${formatted} ${units[exponent]}`;
-    }
-
-    // Image repo chart uses stacked progress bars; ApexCharts is loaded for future use.
-    function updateImageRepoList(images, repoStats) {
-      const container = document.getElementById('image-repo-container');
-      const countBadge = document.getElementById('image-count');
-      const chartContainer = document.getElementById('image-repo-chart');
-      const chartLegend = document.getElementById('image-repo-chart-legend');
-      const chartDivider = document.getElementById('image-repo-divider');
-      const chartSegments = chartContainer.querySelectorAll('[data-repo-segment]');
-
-      const repoEntries = repoStats ? Object.values(repoStats) : [];
-      const imageCount = images ? images.length : 0;
-      const hasRepos = repoEntries.length > 0 || imageCount > 0;
-
-      if (!hasRepos) {
-        chartContainer.classList.add('d-none');
-        chartDivider.classList.add('d-none');
-        chartLegend.innerHTML = '';
-        chartSegments.forEach((segment) => {
-          segment.style.width = '0%';
-        });
-      }
-
-      if (!hasRepos) {
-        container.innerHTML = `
-          <div class="text-center text-muted py-4">
-            <span class="lucide-icon lucide-icon-folder" style="font-size: 2rem;" aria-hidden="true"></span>
-            <p class="mt-2">No image repos detected</p>
-            <p class="text-secondary small">Connect a repo drive to browse available images</p>
-          </div>
-        `;
-        countBadge.textContent = '0 images';
-        countBadge.className = 'badge bg-secondary text-white';
-        return;
-      }
-
-      const imageText = imageCount === 1 ? 'image' : 'images';
-      countBadge.textContent = `${imageCount} ${imageText}`;
-      countBadge.className = 'badge bg-primary text-white';
-
-      const repoTotals = repoEntries.reduce(
-        (accumulator, entry) => {
-          const typeBytes = entry.type_bytes || {};
-          accumulator.clonezilla += typeBytes.clonezilla || 0;
-          accumulator.iso += typeBytes.iso || 0;
-          accumulator.imageusb += typeBytes.imageusb || 0;
-          accumulator.other += typeBytes.other || 0;
-          return accumulator;
-        },
-        {
-          clonezilla: 0,
-          iso: 0,
-          imageusb: 0,
-          other: 0
-        }
-      );
-
-      const capacityTotals = repoEntries.reduce(
-        (accumulator, entry) => {
-          accumulator.total += entry.total_bytes || 0;
-          accumulator.free += entry.free_bytes || 0;
-          return accumulator;
-        },
-        {
-          total: 0,
-          free: 0
-        }
-      );
-
-      const totalCapacity = capacityTotals.total;
-      const segmentData = [
-        { key: 'clonezilla', label: 'Clonezilla', color: 'primary', bytes: repoTotals.clonezilla, textClass: 'text-white' },
-        { key: 'iso', label: 'ISO', color: 'info', bytes: repoTotals.iso, textClass: 'text-white' },
-        { key: 'imageusb', label: 'BIN', color: 'warning', bytes: repoTotals.imageusb, textClass: 'text-white' },
-        { key: 'other', label: 'Other', color: 'secondary', bytes: repoTotals.other, textClass: 'text-white' },
-        { key: 'free', label: 'Free', color: 'secondary', bytes: capacityTotals.free, textClass: 'text-white' }
-      ];
-
-      if (totalCapacity > 0) {
-        chartContainer.classList.remove('d-none');
-        chartDivider.classList.remove('d-none');
-        chartSegments.forEach((segment) => {
-          const segmentKey = segment.dataset.repoSegment;
-          const entry = segmentData.find((item) => item.key === segmentKey);
-          const widthPercent = entry ? (entry.bytes / totalCapacity) * 100 : 0;
-          segment.style.width = `${widthPercent.toFixed(1)}%`;
-        });
-
-        chartLegend.innerHTML = segmentData.map((entry) => `
-          <span class="badge bg-${entry.color} ${entry.textClass}">
-            ${entry.label}: ${formatBytes(entry.bytes)}
-          </span>
-        `).join('');
-      } else {
-        chartContainer.classList.add('d-none');
-        chartDivider.classList.add('d-none');
-        chartLegend.innerHTML = '';
-        chartSegments.forEach((segment) => {
-          segment.style.width = '0%';
-        });
-      }
-
-      const imageItems = (images || []).map((image) => {
-        const name = escapeHtml(image.name);
-        const repoLabel = escapeHtml(image.repo_label);
-        const sizeFormatted = image.size_bytes ? formatBytes(image.size_bytes) : '—';
-        const type = image.type === 'iso' ? 'ISO' : 'Clonezilla';
-        const typeColor = image.type === 'iso' ? 'info' : 'primary';
-        const typeIcon = image.type === 'iso' ? 'disc' : 'folder';
-
-        return `
-          <div class="list-group-item">
-            <div class="row align-items-center">
-              <div class="col-auto">
-                <span class="lucide-icon lucide-icon-${typeIcon} text-primary" style="font-size: 1.5rem;"></span>
-              </div>
-              <div class="col">
-                <div class="fw-semibold">${name}</div>
-                <div class="text-secondary small">${sizeFormatted}</div>
-                <div class="text-secondary small mt-1">Repo: <code class="text-secondary">${repoLabel}</code></div>
-              </div>
-              <div class="col-auto">
-                <span class="badge bg-${typeColor} text-white d-flex align-items-center gap-1">
-                  <span class="lucide-icon lucide-icon-${typeIcon}"></span>
-                  ${type}
-                </span>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      container.innerHTML = `<div class="list-group list-group-flush">${imageItems}</div>`;
-    }
-
-    // Multiplexed WebSocket connection (replaces 6 separate connections)
-    function connectMultiplexedSocket() {
-      if (socket) {
-        try {
-          socket.close();
-        } catch (e) {
-          // Ignore errors closing old socket
-        }
-      }
-
-      socket = new WebSocket(wsUrl);
-      socket.binaryType = 'arraybuffer';
-
-      socket.addEventListener('open', () => {
-        debugLog('log', 'WebSocket connected', { url: wsUrl, attempt: reconnectAttempts });
-        reconnectAttempts = 0;
-        reconnectDelay = 2000;
-        updateStatus();
-
-        // Subscribe to all channels
-        const channels = ['screen', 'logs', 'health', 'devices', 'images', 'control'];
-        socket.send(JSON.stringify({ action: 'subscribe', channels }));
-        subscribedChannels = new Set(channels);
-      });
-
-      socket.addEventListener('message', async (event) => {
-        // Handle binary messages (screen frames)
-        if (event.data instanceof ArrayBuffer) {
-          const blob = new Blob([event.data], { type: 'image/png' });
-          const bitmap = await createImageBitmap(blob);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          if (typeof bitmap.close === 'function') {
-            bitmap.close();
-          }
-          return;
-        }
-
-        // Handle JSON messages
-        try {
-          const data = JSON.parse(event.data);
-
-          switch (data.type) {
-            case 'subscribed':
-              debugLog('log', 'Subscribed to channels', { channels: data.channels });
-              break;
-
-            case 'health':
-              updateHealthMetrics(data);
-              break;
-
-            case 'logs':
-              if (data.update_type === 'snapshot') {
-                clearAppLogEntries();
-                handleLogEntries(data.entries);
-              } else if (data.update_type === 'append') {
-                handleLogEntries(data.entries);
-              }
-              break;
-
-            case 'devices':
-              updateDevicesList(data.devices);
-              break;
-
-            case 'images':
-              updateImageRepoList(data.images, data.repo_stats);
-              break;
-
-            case 'pong':
-              // Heartbeat response
-              break;
-
-            case 'error':
-              debugLog('warn', 'WebSocket error message', { message: data.message });
-              break;
-
-            default:
-              if (DEBUG_UI) {
-                debugLog('debug', 'Unknown message type', { type: data.type });
-              }
-          }
-        } catch (error) {
-          debugLog('error', 'Failed to parse WebSocket message', { error: error.message });
-        }
-      });
-
-      socket.addEventListener('close', (event) => {
-        debugLog('warn', 'WebSocket disconnected', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-          willReconnect: reconnectAttempts < maxReconnectAttempts
-        });
-        updateStatus();
-
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          setTimeout(connectMultiplexedSocket, reconnectDelay);
-          // Exponential backoff with max 30 seconds
-          reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
-        } else {
-          debugLog('error', 'Max reconnection attempts reached', { max: maxReconnectAttempts });
-        }
-      });
-
-      socket.addEventListener('error', (err) => {
-        debugLog('error', 'WebSocket error', { url: wsUrl, error: err });
-      });
-    }
-
-    // Send button press via multiplexed socket
-    function sendButtonPress(button) {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ action: 'control', button }));
-        debugLog('log', 'Button pressed', { button });
-      } else {
-        debugLog('warn', 'WebSocket not connected, button press dropped', { button });
-      }
-    }
-
-    function updateStatus() {
-      const isConnected = socket && socket.readyState === WebSocket.OPEN;
-
-      statusEl.className = 'nav-link d-flex align-items-center small';
-      if (isConnected) {
-        statusEl.innerHTML = '<span class="status status-green"><span class="status-dot status-dot-animated"></span>Connected</span>';
-      } else {
-        statusEl.innerHTML = '<span class="status status-red"><span class="status-dot"></span>Disconnected</span>';
-      }
-
-      debugLog('debug', 'Connection status updated', {
-        readyState: socket ? socket.readyState : 'uninitialized',
-        connected: isConnected,
-        reconnectAttempts
-      });
-    }
-
-    // Add click handlers to all buttons
-    document.querySelectorAll('[data-button]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const button = btn.getAttribute('data-button');
-        sendButtonPress(button);
-      });
-
-      // Prevent text selection on touch devices
-      btn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const button = btn.getAttribute('data-button');
-        sendButtonPress(button);
-      });
-    });
-
-    document.addEventListener('keydown', (event) => {
-      const target = event.target;
-      if (target) {
-        const tagName = target.tagName;
-        if (target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
-          return;
-        }
-      }
-
-      const keyMap = {
-        ArrowUp: 'UP',
-        ArrowDown: 'DOWN',
-        ArrowLeft: 'LEFT',
-        ArrowRight: 'RIGHT',
-        Enter: 'OK',
-        Escape: 'BACK'
-      };
-
-      const button = keyMap[event.key];
-      if (!button) return;
-
-      event.preventDefault();
-      sendButtonPress(button);
-    });
-
-    if (autoScrollToggle) {
-      autoScrollToggle.addEventListener('change', (event) => {
-        autoScrollEnabled = event.target.checked;
-      });
-    }
-
-    // Update relative timestamps every 30 seconds
-    setInterval(() => {
-      if (!logFrame) return;
-      logFrame.querySelectorAll('.list-group-item').forEach((entry) => {
-        const timestampEl = entry.querySelector('.text-muted[title]');
-        if (timestampEl && timestampEl.dataset.timestamp) {
-          timestampEl.textContent = formatRelativeTime(timestampEl.dataset.timestamp);
-        }
-      });
-    }, 30000);
-
-    // Initialize single multiplexed WebSocket connection
-    connectMultiplexedSocket();
-
-    // Heartbeat to keep connection alive
-    setInterval(() => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ action: 'ping' }));
-      }
-    }, 30000);
-  </script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/websocket.js"></script>
+  <script src="/static/js/logs.js"></script>
+  <script src="/static/js/health.js"></script>
+  <script src="/static/js/devices.js"></script>
+  <script src="/static/js/screen.js"></script>
+  <script src="/static/js/app.js"></script>
 </body>
 </html>
