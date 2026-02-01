@@ -259,7 +259,7 @@ Our tests measure branch coverage automatically!
 ## 📚 Resources
 
 - [Coverage.py Documentation](https://coverage.readthedocs.io/)
-- [Testing Guide](../TESTING.md)
+- [Testing Guide](../docs/TESTING.md)
 - [Pytest Coverage Plugin](https://pytest-cov.readthedocs.io/)
 
 ---

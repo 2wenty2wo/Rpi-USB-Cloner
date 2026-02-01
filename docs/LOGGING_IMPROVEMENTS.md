@@ -471,7 +471,7 @@ python3 test_logging_demo.py --trace
 - **Tabler UI:** https://tabler.io/
 - **Project README:** [README.md](README.md)
 - **Testing Guide:** [TESTING.md](TESTING.md)
-- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Contributing:** [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 ---
 

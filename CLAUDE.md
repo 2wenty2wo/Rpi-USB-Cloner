@@ -302,16 +302,18 @@ Rpi-USB-Cloner/
 ├── requirements-dev.txt           # Development dependencies
 ├── .pre-commit-config.yaml        # Pre-commit hooks (Black, Ruff, mypy)
 ├── README.md                      # Installation & usage guide
-├── TESTING.md                     # Testing guide
-├── CONTRIBUTING.md                # Contribution guidelines
 ├── TODO.md                        # Feature roadmap & known issues
 ├── CLAUDE.md                      # AI assistant guide (this file)
 ├── AGENTS.md                      # Agent-specific documentation
-├── LOGGING_IMPROVEMENTS.md        # Logging architecture guide
-├── TEST_COVERAGE_ANALYSIS.md      # Test coverage analysis & improvement plan
 ├── LICENSE                        # MIT License
+├── docs/
+│   ├── screenshots/               # UI screenshots
+│   ├── TESTING.md                 # Testing guide
+│   ├── TEST_COVERAGE_ANALYSIS.md  # Test coverage analysis & improvement plan
+│   └── LOGGING_IMPROVEMENTS.md    # Logging architecture guide
 └── .github/
     ├── workflows/tests.yml        # CI/CD workflow
+    ├── CONTRIBUTING.md            # Contribution guidelines
     ├── COVERAGE-GUIDE.md          # Coverage reporting guide
     └── CI-CD-GUIDE.md             # CI/CD documentation
 ```
@@ -1865,13 +1867,13 @@ def clone_device(source: str, destination: str) -> None:
 | File | Purpose |
 |------|---------|
 | `README.md` | Installation, usage, quickstart |
-| `TESTING.md` | Comprehensive testing guide |
-| `CONTRIBUTING.md` | Contribution guidelines |
 | `TODO.md` | Feature roadmap, known issues |
 | `CLAUDE.md` | This file (AI assistant guide) |
 | `AGENTS.md` | Agent-specific documentation |
-| `LOGGING_IMPROVEMENTS.md` | Logging architecture and improvements |
-| `TEST_COVERAGE_ANALYSIS.md` | Test coverage analysis & improvement plan |
+| `docs/TESTING.md` | Comprehensive testing guide |
+| `docs/LOGGING_IMPROVEMENTS.md` | Logging architecture and improvements |
+| `docs/TEST_COVERAGE_ANALYSIS.md` | Test coverage analysis & improvement plan |
+| `.github/CONTRIBUTING.md` | Contribution guidelines |
 | `.github/COVERAGE-GUIDE.md` | Code coverage reporting guide |
 | `.github/CI-CD-GUIDE.md` | Continuous integration documentation |
 
@@ -2159,7 +2161,7 @@ sudo journalctl -u rpi-usb-cloner.service -f
 If you have questions or suggestions for improving this guide:
 
 1. **Open an issue**: https://github.com/2wenty2wo/Rpi-USB-Cloner/issues
-2. **Review documentation**: `README.md`, `TESTING.md`, `CONTRIBUTING.md`
+2. **Review documentation**: `README.md`, `docs/TESTING.md`, `.github/CONTRIBUTING.md`
 3. **Check TODO**: `TODO.md` for known issues and planned features
 
 ---
