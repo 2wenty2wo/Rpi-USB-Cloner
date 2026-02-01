@@ -319,7 +319,7 @@ def show_about_credits() -> None:
     It displays the credits.png image on the OLED screen and waits
     for the user to press back or OK button to return to the menu.
 
-    Image path: rpi_usb_cloner/ui/assets/credits.png
+    Image path: rpi_usb_cloner/ui/assets/images/credits.png
 
     Flow:
     1. Settings menu -> ABOUT option
@@ -330,7 +330,7 @@ def show_about_credits() -> None:
     """
     context = display.get_display_context()
     assets_dir = Path(__file__).resolve().parent.parent.parent / "ui" / "assets"
-    credits_path = assets_dir / "credits.png"
+    credits_path = assets_dir / "images" / "credits.png"
 
     if not credits_path.exists():
         screens.render_status_template("ABOUT", "Credits not found")

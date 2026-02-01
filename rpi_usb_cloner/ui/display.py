@@ -266,7 +266,7 @@ def init_display() -> DisplayContext:
     width = disp.width
     height = disp.height
 
-    splash = Image.open(ASSETS_DIR / "splash.png").convert("1")
+    splash = Image.open(ASSETS_DIR / "images" / "splash.png").convert("1")
     if splash.size != (width, height):
         splash = splash.resize((width, height))
     disp.display(splash)
