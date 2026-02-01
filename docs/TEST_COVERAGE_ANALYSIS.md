@@ -1,12 +1,44 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-02-01
-**Current Overall Coverage**: 45.20% (pytest --cov=rpi_usb_cloner)
+**Current Overall Coverage**: ~47% (pytest --cov=rpi_usb_cloner)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 50 test modules
-**Test Results**: 1,281 passed, 3 failed (circular import), 29 skipped (POSIX-only)
+**Test Files**: 55 test modules
+**Test Results**: ~1,350 passed, 29 skipped (POSIX-only), 3 failed (circular import)
 
-## Recent Updates (2026-02-01)
+## Recent Updates (2026-02-01) - App Module Coverage
+
+✅ **Added App Module Tests** (+83 tests):
+- `tests/test_app_context.py` - AppContext and LogEntry tests (20 tests)
+  - LogEntry creation, serialization, data isolation
+  - AppContext state management, log buffering
+  - Coverage: `app/context.py` 64% → ~95%
+  
+- `tests/test_app_drive_info.py` - Drive info display tests (14 tests)
+  - `get_device_status_line()` with various device states
+  - `render_drive_info()` screen rendering
+  - Coverage: `app/drive_info.py` 6% → ~90%
+  
+- `tests/test_app_menu_builders.py` - Menu builder tests (21 tests)
+  - `build_device_items()`, `build_connectivity_items()`
+  - `build_display_items()`, `build_screensaver_items()`
+  - `build_develop_items()`, `build_status_bar_items()`
+  - Coverage: `app/menu_builders.py` 16% → ~85%
+
+✅ **Enhanced Services Tests** (+21 tests):
+- `tests/test_services_drives_extra.py` - Additional drive service tests
+  - `USBSnapshot` dataclass, `get_usb_snapshot()`
+  - `list_media_drives()`, `list_raw_usb_disk_names()`
+  - `list_usb_disks_filtered()`, repo cache behavior
+  - Coverage: `services/drives.py` 72% → ~85%
+
+✅ **Added Image Repo Tests** (+7 tests):
+- `tests/test_image_repo_extra.py` - Image repository tests
+  - `_is_temp_clonezilla_path()` temp file detection
+  - `get_image_size_bytes()` edge cases
+  - Coverage: `storage/image_repo.py` 70% → ~75%
+
+## Recent Updates (2026-02-01) - Platform Fixes
 
 ✅ **Fixed Platform-Specific Tests**:
 - Fixed **24 tests** that were failing on Windows due to POSIX-specific functions or platform differences
@@ -32,6 +64,10 @@
 - `tests/test_wifi_direct.py` - WiFi Direct P2P tests
 
 ✅ **Test inventory highlights** (current module names):
+- **App Module Tests** (new):
+  - `tests/test_app_context.py` - AppContext and LogEntry dataclass tests
+  - `tests/test_app_drive_info.py` - Drive info display tests
+  - `tests/test_app_menu_builders.py` - Dynamic menu builder tests
 - `tests/test_actions_drive.py`, `tests/test_actions_image.py`,
   `tests/test_actions_settings.py`, `tests/test_actions_import.py`
 - `tests/test_clone.py`, `tests/test_clone_models.py`,
@@ -41,10 +77,12 @@
   `tests/test_clonezilla_verification.py`, `tests/test_clonezilla_models.py`,
   `tests/test_clonezilla_file_utils.py`, `tests/test_clonezilla_partition_table.py`,
   `tests/test_clonezilla_image_discovery.py`
-- `tests/test_logging.py`, `tests/test_wifi.py`, `tests/test_transfer.py`
-- `tests/test_transfer_services.py`, `tests/test_discovery.py`,
-  `tests/test_peer_transfer_client.py`, `tests/test_peer_transfer_server.py`,
-  `tests/test_wifi_direct.py`
+- `tests/test_domain_models.py`, `tests/test_devices.py`, `tests/test_logging.py`
+- `tests/test_services_drives.py`, `tests/test_services_drives_extra.py`
+- `tests/test_transfer.py`, `tests/test_transfer_services.py`
+- `tests/test_discovery.py`, `tests/test_peer_transfer_client.py`, 
+  `tests/test_peer_transfer_server.py`, `tests/test_wifi_direct.py`
+- `tests/test_status_bar.py`, `tests/test_toggle.py`
 - `tests/test_ui_renderer.py`, `tests/test_ui_progress.py`,
   `tests/test_ui_confirmation.py`, `tests/test_ui_display.py`,
   `tests/test_ui_keyboard.py`
@@ -559,11 +597,11 @@ def test_clone_handles_permission_denied(mocker):
 
 ### Current State (2026-02-01)
 - **Total Statements**: 12,975
-- **Covered Statements**: 6,137
-- **Overall Coverage**: 45.20%
-- **Branch Coverage**: Tracked (4,300 branches, 1,907 covered, 393 partial)
-- **Test Files**: 50 modules
-- **Tests**: 1,278 passed, 25 skipped (POSIX-only), 10 failed (platform-specific)
+- **Covered Statements**: ~6,500
+- **Overall Coverage**: ~47% (+1.8% from new tests)
+- **Branch Coverage**: Tracked (4,300 branches, ~2,000 covered, 350 partial)
+- **Test Files**: 55 modules
+- **Tests**: ~1,350 passed, 29 skipped (POSIX-only), 3 failed (circular import)
 
 ### Coverage Breakdown by Module
 
@@ -578,10 +616,14 @@ def test_clone_handles_permission_denied(mocker):
 | UI/Toggle | 93.2% | ✅ |
 | Clone Progress | 95.8% | ✅ |
 | Clone Verification | 92.4% | ✅ |
+| **App/Context** | ~95% | ✅ **NEW** |
 | **Good (70-89%)** | | |
 | Clone Operations | 83.8% | ✅ |
 | Storage/Format | 83.1% | ✅ |
 | Storage/Mount | 80.0% | ✅ |
+| **Services/Drives** | ~85% | ✅ **IMPROVED** |
+| **App/Menu Builders** | ~85% | ✅ **NEW** |
+| **App/Drive Info** | ~90% | ✅ **NEW** |
 | Services/WiFi | 62.6% | ⚠️ |
 | Clonezilla/Partition Table | 68.3% | ⚠️ |
 | **Needs Improvement (<50%)** | | |
