@@ -1,10 +1,93 @@
 # Test Coverage Analysis & Improvement Plan
 
 **Date**: 2026-02-01
-**Current Overall Coverage**: ~47% (pytest --cov=rpi_usb_cloner)
+**Current Overall Coverage**: ~49.9% (pytest --cov=rpi_usb_cloner)
 **Files Analyzed**: 93 Python files in `rpi_usb_cloner/`
-**Test Files**: 55 test modules
-**Test Results**: ~1,350 passed, 29 skipped (POSIX-only), 3 failed (circular import)
+**Test Files**: 66 test modules
+**Test Results**: ~1,648 passed, 52 skipped (POSIX-only), 29 failed
+
+## Recent Updates (2026-02-01) - Coverage Improvements - Round 2
+
+✅ **Added UI Logs Screen Tests** (+7 tests):
+- `tests/test_ui_screens_logs.py` - Logs screen rendering tests
+  - `show_logs()` - log buffer handling, pagination, button navigation
+  - Coverage: `ui/screens/logs.py` 12% → 30%
+
+✅ **Added UI Info Screen Tests** (+16 tests):
+- `tests/test_ui_screens_info.py` - Info and paginated screen tests
+  - `render_info_screen()` - basic rendering, icons, custom pages
+  - `render_key_value_screen()` - key-value display
+  - `wait_for_paginated_input()` - button navigation
+  - `wait_for_scrollable_key_value_input()` - scrolling navigation
+  - Coverage: `ui/screens/info.py` 4% → 40%
+
+✅ **Added File Browser Tests** (+12 tests):
+- `tests/test_ui_screens_file_browser.py` - File browser screen tests
+  - `FileItem` class - file/directory representation
+  - `_get_line_height()` - font height calculation
+  - `_get_available_locations()` - USB and repo discovery
+  - `_list_directory()` - directory listing with filtering
+  - `_render_browser_screen()` - screen rendering
+  - `show_file_browser()` - navigation and interaction
+  - Coverage: `ui/screens/file_browser.py` 7% → 55%
+
+✅ **Added ImageUSB Detection Tests** (+18 tests):
+- `tests/test_imageusb_detection.py` - ImageUSB file validation tests
+  - `is_imageusb_file()` - signature detection
+  - `validate_imageusb_file()` - full validation
+  - `get_imageusb_metadata()` - metadata extraction
+  - Coverage: `storage/imageusb/detection.py` 81% → 89%
+
+✅ **Added Menu Settings Actions Tests** (+32 tests):
+- `tests/test_menu_actions_settings.py` - Settings menu action tests
+  - `_run_operation()` - operation flag management
+  - All 32 settings action wrappers tested
+  - Coverage: `menu/actions/settings.py` 47% → 100%
+
+## Previous Updates (2026-02-01) - Coverage Improvements - Round 1
+
+✅ **Added ISO Image Tests** (+13 tests):
+- `tests/test_iso.py` - ISO image writing tests
+  - `restore_iso_image()` - root checks, file validation, device size checks
+  - `_get_blockdev_size_bytes()` - device size retrieval
+  - `_get_device_size_bytes()` - size calculation with fallbacks
+  - Coverage: `storage/iso.py` 16% → 37%
+
+✅ **Added ImageUSB Restore Tests** (+15 tests):
+- `tests/test_imageusb_restore.py` - ImageUSB .BIN restoration tests
+  - `restore_imageusb_file()` - validation, permission checks, device checks
+  - `restore_imageusb_file_simple()` - simple API wrapper
+  - Error handling for various failure modes
+  - Coverage: New comprehensive test coverage for ImageUSB restore
+
+✅ **Added WiFi Service Tests** (+22 tests):
+- `tests/test_wifi_extra.py` - Additional WiFi service tests
+  - `_format_command()` - command formatting with redactions
+  - `_nmcli_unescape()` - nmcli output parsing
+  - `_is_valid_ssid()` - SSID validation
+  - `_split_nmcli_line()` - line splitting with escapes
+  - `list_wifi_interfaces()` - interface detection
+  - `get_ip_address()` - IP address retrieval
+  - Coverage: `services/wifi.py` 63% → 75%
+
+✅ **Added Image Repository Tests** (+23 tests):
+- `tests/test_image_repo_more.py` - Extended image repo tests
+  - `_iter_partitions()` - partition iteration
+  - `_resolve_mountpoint()` - mountpoint resolution
+  - `find_image_repos()` - repository discovery
+  - `list_clonezilla_images()` - image listing
+  - `_sum_tree_bytes()` - directory size calculation
+  - `get_repo_usage()` - repository usage statistics
+  - Coverage: `storage/image_repo.py` 70% → 77%
+
+✅ **Added UI Screen Tests** (+11 tests):
+- `tests/test_ui_screens_error.py` - Error screen rendering tests
+- `tests/test_ui_screens_status.py` - Status screen rendering tests
+  - `render_error_screen()` - error display
+  - `render_status_screen()` - status display
+  - `show_coming_soon()` - coming soon screen
+  - `wait_for_ack()` - button acknowledgment
+  - Coverage: `ui/screens/status.py` 28% → 100%
 
 ## Recent Updates (2026-02-01) - App Module Coverage
 
@@ -620,12 +703,12 @@ def test_clone_handles_permission_denied(mocker):
 ## Metrics & Goals
 
 ### Current State (2026-02-01)
-- **Total Statements**: 12,975
+- **Total Statements**: 12,992
 - **Covered Statements**: ~6,500
-- **Overall Coverage**: ~47% (+1.8% from new tests)
-- **Branch Coverage**: Tracked (4,300 branches, ~2,000 covered, 350 partial)
-- **Test Files**: 55 modules
-- **Tests**: 1,449 passed, 29 skipped (POSIX-only), 0 failed
+- **Overall Coverage**: ~49.9% (+2.5% from new tests)
+- **Branch Coverage**: Tracked (4,300 branches, ~2,400 covered, 424 partial)
+- **Test Files**: 66 modules
+- **Tests**: 1,648 passed, 52 skipped (POSIX-only), 29 failed
 
 ### Coverage Breakdown by Module
 
@@ -640,18 +723,24 @@ def test_clone_handles_permission_denied(mocker):
 | UI/Toggle | 93.2% | ✅ |
 | Clone Progress | 95.8% | ✅ |
 | Clone Verification | 92.4% | ✅ |
-| **App/Context** | ~95% | ✅ **NEW** |
+| **Menu/Actions/Settings** | 100% | ✅ **NEW** |
+| **ImageUSB/Detection** | 89% | ✅ **IMPROVED** |
+| **App/Context** | ~95% | ✅ |
 | **Good (70-89%)** | | |
 | Clone Operations | 83.8% | ✅ |
 | Storage/Format | 83.1% | ✅ |
 | Storage/Mount | 80.0% | ✅ |
-| **Services/Drives** | ~85% | ✅ **IMPROVED** |
-| **App/Menu Builders** | ~85% | ✅ **NEW** |
-| **App/Drive Info** | ~90% | ✅ **NEW** |
-| Services/WiFi | 62.6% | ⚠️ |
+| **Services/Drives** | ~85% | ✅ |
+| **App/Menu Builders** | ~85% | ✅ |
+| **App/Drive Info** | ~90% | ✅ |
+| **Storage/Image_Repo** | ~77% | ✅ **IMPROVED** |
+| Services/WiFi | ~75% | ✅ **IMPROVED** |
 | Clonezilla/Partition Table | 68.3% | ⚠️ |
 | **Needs Improvement (<50%)** | | |
 | Actions/* | 3-22% | ❌ |
+| **UI/File_Browser** | ~55% | ⚠️ **IMPROVED** |
+| **UI/Info** | ~40% | ⚠️ **IMPROVED** |
+| **UI/Logs** | ~31% | ⚠️ **IMPROVED** |
 | UI/Menus | 8.5% | ❌ |
 | UI/Display | 17.9% | ❌ |
 | Web/Server | 26.5% | ❌ |
