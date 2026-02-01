@@ -607,12 +607,12 @@ When contributing new code:
 | Metric | Value |
 |--------|-------|
 | **Total Test Files** | 50 |
-| **Tests Passed** | 1,449 |
+| **Tests Passed** | 1,477 |
 | **Tests Failed** | 0 |
 | **Tests Skipped** | 29 (POSIX-only features on Windows) |
-| **Overall Coverage** | 45.20% |
-| **Total Statements** | 12,975 |
-| **Covered Statements** | 6,137 |
+| **Overall Coverage** | ~46% |
+| **Total Statements** | ~13,000 |
+| **Covered Statements** | ~6,000 |
 | **Branch Coverage** | 4,300 branches, ~55% covered |
 
 ### Known Test Limitations

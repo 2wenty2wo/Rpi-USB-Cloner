@@ -83,12 +83,14 @@ def copy_drive(
     clone_mode: str,
     get_selected_usb_name: Callable[[], str | None],
     confirm_prompt: Callable[..., bool] | None = None,
-    select_clone_mode: Callable[[str], str | None] = menus.select_clone_mode,
+    select_clone_mode: Callable[[str], str | None] = None,
     execute_clone_job: Callable[..., tuple[bool, str]] | None = None,
 ) -> None:
     """Copy one drive to another."""
     if confirm_prompt is None:
         confirm_prompt = _confirm_copy_prompt
+    if select_clone_mode is None:
+        select_clone_mode = menus.select_clone_mode
     if execute_clone_job is None:
         execute_clone_job = _execute_clone_job
 
