@@ -36,6 +36,7 @@ def render_error_screen(
 
     # Draw title with icon
     if title:
+        display.set_animated_icon(title_icon)
         layout = display.draw_title_with_icon(
             title,
             title_font=title_font,

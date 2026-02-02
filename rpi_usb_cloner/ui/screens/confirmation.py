@@ -30,6 +30,7 @@ def render_confirmation_screen(
         button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
+    display.set_animated_icon(title_icon)
     layout = display.draw_title_with_icon(
         title,
         title_font=title_font,
@@ -204,6 +205,7 @@ def render_update_buttons_screen(
         button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
+    display.set_animated_icon(title_icon)
     layout = display.draw_title_with_icon(
         title,
         title_font=title_font,
@@ -321,6 +323,7 @@ def render_verify_finish_buttons_screen(
         button_font = ImageFont.truetype(str(confirmation_font_path), 14)
     except OSError:
         button_font = context.fontcopy
+    display.set_animated_icon(title_icon)
     layout = display.draw_title_with_icon(
         title,
         title_font=title_font,

@@ -245,6 +245,7 @@ def _render_keyboard(
     if resolved_title_icon and resolved_title_icon_font is None:
         resolved_title_icon_font = icon_font
     if title:
+        display.set_animated_icon(resolved_title_icon)
         layout_info = display.draw_title_with_icon(
             title,
             title_font=title_font,

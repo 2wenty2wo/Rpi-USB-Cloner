@@ -161,6 +161,122 @@ class TitleLayout:
     icon_height: int
 
 
+class AnimatedIcon:
+    """Manages an animated GIF icon with frame cycling.
+
+    This class handles loading GIF frames, tracking timing, and returning
+    the current frame for rendering. It's used for animated title icons.
+    """
+
+    def __init__(self, gif_path: Path, default_frame_duration_ms: int = 100):
+        self.frames: list[Image.Image] = []
+        self.frame_durations: list[float] = []  # in seconds
+        self.current_frame = 0
+        self.next_frame_time = 0.0
+        self.gif_path = gif_path
+        self.default_frame_duration = default_frame_duration_ms / 1000.0
+        self._load_gif()
+
+    def _load_gif(self) -> None:
+        """Load all frames from the GIF file."""
+        from PIL import ImageSequence
+
+        try:
+            with Image.open(self.gif_path) as img:
+                for frame in ImageSequence.Iterator(img):
+                    # Convert to 1-bit monochrome for display
+                    if frame.mode != "1":
+                        frame = frame.convert("1")
+                    self.frames.append(frame.copy())
+                    # Get frame duration
+                    duration_ms = frame.info.get("duration", 100)
+                    if not isinstance(duration_ms, (int, float)) or duration_ms <= 0:
+                        duration_ms = 100
+                    self.frame_durations.append(duration_ms / 1000.0)
+        except (OSError, FileNotFoundError) as e:
+            log.error(f"Failed to load animated icon from {self.gif_path}: {e}")
+            self.frames = []
+            self.frame_durations = []
+
+    def get_current_frame(self) -> Optional[Image.Image]:
+        """Get the current frame to display."""
+        if not self.frames:
+            return None
+        return self.frames[self.current_frame]
+
+    def update(self, now: float) -> bool:
+        """Update the animation frame if needed.
+
+        Args:
+            now: Current monotonic time
+
+        Returns:
+            True if the frame changed and a redraw is needed
+        """
+        if not self.frames or len(self.frames) <= 1:
+            return False
+
+        if now >= self.next_frame_time:
+            self.current_frame = (self.current_frame + 1) % len(self.frames)
+            duration = self.frame_durations[self.current_frame] if self.current_frame < len(self.frame_durations) else self.default_frame_duration
+            self.next_frame_time = now + duration
+            return True
+        return False
+
+    def reset(self) -> None:
+        """Reset animation to first frame."""
+        self.current_frame = 0
+        self.next_frame_time = 0.0
+
+
+# Global animated icon state
+_animated_icon: Optional[AnimatedIcon] = None
+_animated_icon_path: Optional[str] = None
+
+
+def set_animated_icon(icon_path: Optional[str]) -> None:
+    """Set the current animated icon.
+
+    Args:
+        icon_path: Path to the GIF file, or None to disable animation
+    """
+    global _animated_icon, _animated_icon_path
+
+    if icon_path == _animated_icon_path:
+        return  # No change
+
+    _animated_icon_path = icon_path
+    if icon_path and icon_path.endswith(".gif"):
+        full_path = Path(icon_path) if Path(icon_path).is_absolute() else ASSETS_DIR / icon_path
+        _animated_icon = AnimatedIcon(full_path)
+        _animated_icon.reset()
+    else:
+        _animated_icon = None
+
+
+def get_animated_icon() -> Optional[AnimatedIcon]:
+    """Get the current animated icon state."""
+    return _animated_icon
+
+
+def update_animated_icon(now: Optional[float] = None) -> bool:
+    """Update the animated icon frame.
+
+    Args:
+        now: Current monotonic time (defaults to time.monotonic())
+
+    Returns:
+        True if the frame changed and a redraw is needed
+    """
+    if _animated_icon is None:
+        return False
+
+    if now is None:
+        now = time.monotonic()
+
+    return _animated_icon.update(now)
+
+
 def set_display_context(context: DisplayContext) -> None:
     global _context
     _context = context
@@ -476,17 +592,32 @@ def draw_title_with_icon(
     icon_image = None
 
     if icon:
-        # Check if icon is a file path to a PNG image
-        if icon.endswith(".png"):
+        # Check if icon is a file path to an image (PNG or GIF)
+        if icon.endswith(".png") or icon.endswith(".gif"):
             is_image_icon = True
             try:
                 icon_path = (
                     Path(icon) if Path(icon).is_absolute() else ASSETS_DIR / icon
                 )
-                icon_image = Image.open(icon_path).convert("1")
-                icon_width = icon_image.width
-                icon_ascent = icon_image.height
-                icon_descent = 0
+                # Check if there's an animated icon with the current frame
+                if icon.endswith(".gif") and _animated_icon is not None and _animated_icon_path == icon:
+                    animated_frame = _animated_icon.get_current_frame()
+                    if animated_frame is not None:
+                        icon_image = animated_frame
+                        icon_width = icon_image.width
+                        icon_ascent = icon_image.height
+                        icon_descent = 0
+                    else:
+                        # Fall back to static load if animation not ready
+                        icon_image = Image.open(icon_path).convert("1")
+                        icon_width = icon_image.width
+                        icon_ascent = icon_image.height
+                        icon_descent = 0
+                else:
+                    icon_image = Image.open(icon_path).convert("1")
+                    icon_width = icon_image.width
+                    icon_ascent = icon_image.height
+                    icon_descent = 0
             except (OSError, FileNotFoundError):
                 # Fall back to no icon if image can't be loaded
                 is_image_icon = False
@@ -573,6 +704,8 @@ def render_paginated_lines(
     title_icon_font: Optional[Font] = None,
     content_top: Optional[int] = None,
 ):
+    # Set up animated icon if applicable
+    set_animated_icon(title_icon)
     context = get_display_context()
     draw = context.draw
     with _display_lock:
@@ -642,6 +775,8 @@ def render_paginated_key_value_lines(
     content_top: Optional[int] = None,
     label_gap: int = 2,
 ):
+    # Set up animated icon if applicable
+    set_animated_icon(title_icon)
     context = get_display_context()
     draw = context.draw
     with _display_lock:

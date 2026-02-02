@@ -83,6 +83,7 @@ def render_progress_screen(
         draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
         if title:
             if title_icon:
+                display.set_animated_icon(title_icon)
                 display.draw_title_with_icon(
                     title,
                     title_font=title_font,

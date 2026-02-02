@@ -140,6 +140,7 @@ def _render_browser_screen(
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
     # Draw title with icon
+    display.set_animated_icon(title_icon)
     layout = display.draw_title_with_icon(title, icon=title_icon)
     content_top = layout.content_top
     if not isinstance(content_top, int):

@@ -210,6 +210,7 @@ def _render_menu(
     extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
+        display.set_animated_icon(title_icon)
         layout = display.draw_title_with_icon(
             title,
             title_font=header_font,

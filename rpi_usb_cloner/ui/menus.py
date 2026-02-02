@@ -261,6 +261,7 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     if menu.title:
         title_font = menu.title_font or fonts["title"]
         title_icon = menu.title_icon or get_screen_icon(menu.screen_id)
+        display.set_animated_icon(title_icon)
         layout = display.draw_title_with_icon(
             menu.title,
             title_font=title_font,
