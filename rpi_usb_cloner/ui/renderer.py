@@ -6,6 +6,7 @@ from typing import Iterable
 from PIL import Image, ImageDraw
 
 from rpi_usb_cloner.ui import display
+from rpi_usb_cloner.ui.animated_icons import AnimatedIconRef
 from rpi_usb_cloner.ui.toggle import (
     TOGGLE_HEIGHT,
     TOGGLE_WIDTH,
@@ -181,7 +182,7 @@ def _render_menu(
     status_line: str | None,
     visible_rows: int,
     title_font=None,
-    title_icon: str | None = None,
+    title_icon: str | AnimatedIconRef | None = None,
     title_icon_font=None,
     items_font=None,
     status_font=None,
@@ -615,7 +616,7 @@ def render_menu_screen(
     status_line: str | None = None,
     visible_rows: int = DEFAULT_VISIBLE_ROWS,
     title_font=None,
-    title_icon: str | None = None,
+    title_icon: str | AnimatedIconRef | None = None,
     title_icon_font=None,
     items_font=None,
     status_font=None,
@@ -684,7 +685,7 @@ def render_menu_image(
     status_line: str | None = None,
     visible_rows: int = DEFAULT_VISIBLE_ROWS,
     title_font=None,
-    title_icon: str | None = None,
+    title_icon: str | AnimatedIconRef | None = None,
     title_icon_font=None,
     items_font=None,
     status_font=None,
@@ -744,7 +745,7 @@ def render_menu_image(
 
 def calculate_visible_rows(
     title: str,
-    title_icon: str | None = None,
+    title_icon: str | AnimatedIconRef | None = None,
     status_line: str | None = None,
     title_font=None,
     items_font=None,

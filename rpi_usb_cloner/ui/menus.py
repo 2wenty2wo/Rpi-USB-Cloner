@@ -21,6 +21,10 @@ from rpi_usb_cloner.hardware.gpio import (
     is_pressed,
 )
 from rpi_usb_cloner.menu.model import get_screen_icon
+from rpi_usb_cloner.ui.animated_icons import (
+    AnimatedIconRef,
+    is_animated_icon_path,
+)
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
 from rpi_usb_cloner.ui import display, renderer, transitions
@@ -81,7 +85,7 @@ def get_standard_content_top(
     title: str,
     *,
     title_font: Optional[display.Font] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     title_icon_font: Optional[display.Font] = None,
     extra_gap: int = 2,
 ) -> int:
@@ -110,7 +114,7 @@ def _render_header_lines_image(
     title: str,
     header_lines: List[str],
     title_font: Optional[display.Font] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     items_font: Optional[display.Font] = None,
     content_top: Optional[int] = None,
 ) -> None:
@@ -173,7 +177,7 @@ def _render_menu_list_image(
     scroll_offset: int,
     visible_rows: int,
     title_font: Optional[display.Font] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     items_font: Optional[display.Font] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
@@ -392,7 +396,7 @@ def select_list(
     items: List[str],
     *,
     screen_id: Optional[str] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     title_font: Optional[display.Font] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
@@ -435,7 +439,13 @@ def select_list(
     selected_index = max(0, min(selected_index, len(items) - 1))
     enable_scroll = enable_horizontal_scroll or (scroll_mode == "horizontal")
     scroll_offset = 0
-
+    
+    # Check if icon is animated and determine refresh interval
+    has_animated_icon = isinstance(title_icon, AnimatedIconRef) or (
+        isinstance(title_icon, str) and is_animated_icon_path(title_icon)
+    )
+    animation_refresh_interval = 0.05  # 20fps default for animations
+    
     def clamp_scroll_offset(selected: int, offset: int) -> int:
         if selected < offset:
             offset = selected
@@ -540,6 +550,7 @@ def select_list(
     last_rendered_index = selected_index
     last_refresh_time = time.monotonic()
     last_scroll_render = time.monotonic()
+    last_animation_render = time.monotonic()
     wait_for_buttons_release([PIN_U, PIN_D, PIN_L, PIN_R, PIN_A, PIN_B, PIN_C])
     prev_states = {
         "U": is_pressed(PIN_U),
@@ -563,6 +574,13 @@ def select_list(
         ):
             refresh_needed = True
             last_scroll_render = now
+        # Animation refresh for animated icons
+        if (
+            has_animated_icon
+            and now - last_animation_render >= animation_refresh_interval
+        ):
+            refresh_needed = True
+            last_animation_render = now
         if refresh_callback and now - last_refresh_time >= refresh_interval:
             new_items = refresh_callback()
             last_refresh_time = now
@@ -691,7 +709,7 @@ def render_menu_list(
     items: List[str],
     *,
     screen_id: Optional[str] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     title_font: Optional[display.Font] = None,
     footer: Optional[List[str]] = None,
     footer_positions: Optional[List[int]] = None,
@@ -737,7 +755,7 @@ def select_menu_screen_list(
     *,
     screen_id: Optional[str] = None,
     status_line: Optional[str] = None,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     title_font: Optional[display.Font] = None,
     items_font: Optional[display.Font] = None,
     selected_index: int = 0,
@@ -895,7 +913,7 @@ def select_usb_drive(
     title: str,
     devices_list: List[dict],
     *,
-    title_icon: Optional[str] = None,
+    title_icon: Optional[str | AnimatedIconRef] = None,
     footer: Optional[List[str]] = None,
     selected_name: Optional[str] = None,
     header_lines: Optional[List[str]] = None,

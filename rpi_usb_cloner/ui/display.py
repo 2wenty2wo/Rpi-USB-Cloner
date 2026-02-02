@@ -97,6 +97,11 @@ from PIL import Image, ImageDraw, ImageFont
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
 from rpi_usb_cloner.logging import LoggerFactory
+from rpi_usb_cloner.ui.animated_icons import (
+    AnimatedIconRef,
+    get_animated_icon_by_path,
+    is_animated_icon_path,
+)
 
 
 # Module logger
@@ -451,7 +456,7 @@ def draw_title_with_icon(
     title: str,
     *,
     title_font: Optional[Font] = None,
-    icon: Optional[str] = None,
+    icon: Optional[str | AnimatedIconRef] = None,
     icon_font: Optional[Font] = None,
     extra_gap: int = 2,
     left_margin: Optional[int] = None,
@@ -474,10 +479,41 @@ def draw_title_with_icon(
     icon_ascent = icon_descent = 0
     is_image_icon = False
     icon_image = None
+    is_animated_icon = False
 
     if icon:
+        # Check if icon is an AnimatedIconRef
+        if isinstance(icon, AnimatedIconRef):
+            is_animated_icon = True
+            try:
+                animated = icon.resolve()
+                icon_image = animated.get_frame(time.monotonic())
+                icon_width = icon_image.width
+                icon_ascent = icon_image.height
+                icon_descent = 0
+            except (OSError, FileNotFoundError):
+                # Fall back to no icon if animation can't be loaded
+                is_animated_icon = False
+                icon_image = None
+                icon_width = 0
+                icon = None
+        # Check if icon is an animated GIF file path
+        elif isinstance(icon, str) and is_animated_icon_path(icon):
+            is_animated_icon = True
+            try:
+                animated = get_animated_icon_by_path(icon, size=(12, 12))
+                icon_image = animated.get_frame(time.monotonic())
+                icon_width = icon_image.width
+                icon_ascent = icon_image.height
+                icon_descent = 0
+            except (OSError, FileNotFoundError):
+                # Fall back to no icon if animation can't be loaded
+                is_animated_icon = False
+                icon_image = None
+                icon_width = 0
+                icon = None
         # Check if icon is a file path to a PNG image
-        if icon.endswith(".png"):
+        elif isinstance(icon, str) and icon.endswith(".png"):
             is_image_icon = True
             try:
                 icon_path = (
@@ -493,7 +529,7 @@ def draw_title_with_icon(
                 icon_image = None
                 icon_width = 0
                 icon = None
-        else:
+        elif isinstance(icon, str):
             # Lucide icon (Unicode character)
             icon_font = icon_font or _get_lucide_font()
             icon_width = _measure_text_width(draw, icon, icon_font)
@@ -543,8 +579,8 @@ def draw_title_with_icon(
 
         # Position icon at consistent Y coordinate
         if icon:
-            if is_image_icon and icon_image:
-                # Use PIL Image.paste to draw the image icon
+            if (is_image_icon or is_animated_icon) and icon_image:
+                # Use PIL Image.paste to draw the image/animated icon
                 icon_y = 0
                 image.paste(icon_image, (left_margin, icon_y))
             else:

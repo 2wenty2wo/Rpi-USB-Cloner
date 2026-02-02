@@ -1,8 +1,10 @@
-"""Centralized Lucide icon definitions for UI rendering.
+"""Centralized icon definitions for UI rendering.
 
-This module provides a single source of truth for all Lucide icon assignments
-used throughout the application. Icons are stored as Unicode characters using
-their decimal codepoints from the Lucide font.
+This module provides a single source of truth for all icon assignments
+used throughout the application. Icons can be:
+- Lucide font characters (Unicode codepoints)
+- PNG image paths
+- Animated GIF references (AnimatedIconRef)
 
 Usage:
     from rpi_usb_cloner.ui.icons import DRIVES_ICON, ALERT_ICON
@@ -14,13 +16,15 @@ Usage:
     )
 """
 
+from rpi_usb_cloner.ui.animated_icons import AnimatedIconRef
+
 # Screen-level icons (used in menu navigation)
 MAIN_ICON = "logos/logo12x12-backbg.png"  # custom logo - main menu
 SETTINGS_ICON = chr(57925)  # settings icon
 TOOLS_ICON = chr(57580)  # tools icon
 FILE_BROWSER_ICON = chr(58175)  # folders icon
 IMAGES_ICON = chr(57559)  # folder icon
-DRIVES_ICON = chr(57581)  # hard-drive icon
+DRIVES_ICON = AnimatedIconRef("icons/12px-usb-ani.gif", size=(12, 12))  # animated USB icon
 CLONE_ICON = chr(58365)  # copy-plus
 ICONS_DEMO_ICON = chr(57922)  # icons icon
 SCREENS_ICON = chr(57629)  # screens icon
