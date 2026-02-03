@@ -136,6 +136,7 @@ from rpi_usb_cloner.ui import (
     screensaver,
     transitions,
 )
+from rpi_usb_cloner.ui.animated_icon import get_animation_manager
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     INITIAL_REPEAT_DELAY,
@@ -574,6 +575,8 @@ def main(argv: Optional[list[str]] = None) -> None:
                 f"Screen changed: {last_screen_id['value']} -> {current_screen.screen_id}"
             )
             last_screen_id["value"] = current_screen.screen_id
+            # Stop any animated icons from the previous screen
+            get_animation_manager().stop_all()
         if current_screen.screen_id == definitions.DRIVE_LIST_MENU.screen_id:
             state.usb_list_index = menu_navigator.current_state().selected_index
             app_context.active_drive = drives.select_active_drive(
@@ -745,6 +748,11 @@ def main(argv: Optional[list[str]] = None) -> None:
                     time.sleep(0.001)
                     continue
 
+            # Handle animated icon frames (runs independently of screen rendering)
+            animation_manager = get_animation_manager()
+            if animation_manager.has_active_animations():
+                animation_manager.tick(context)
+
             render_requested = False
             force_render = False
             now = time.monotonic()
@@ -829,6 +837,8 @@ def main(argv: Optional[list[str]] = None) -> None:
                 idle_seconds = (datetime.now() - state.lcdstart).total_seconds()
                 if idle_seconds >= app_state.SCREENSAVER_TIMEOUT:
                     screensaver_active = True
+                    # Stop animated icons during screensaver
+                    get_animation_manager().stop_all()
                     screensaver_mode = settings_store.get_setting(
                         "screensaver_mode", "random"
                     )
