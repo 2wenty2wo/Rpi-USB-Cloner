@@ -207,9 +207,12 @@ class AnimationManager:
         icon = self.get_or_load(icon_path)
         key = key or str(icon_path)
 
-        # Stop any existing animation with this key
+        # Avoid restarting if the same icon is already active at this position
         if key in self._active:
-            self._active[key].stop()
+            active_icon = self._active[key]
+            if active_icon.active and active_icon.position == position:
+                return active_icon
+            active_icon.stop()
 
         icon.start(position)
         self._active[key] = icon
