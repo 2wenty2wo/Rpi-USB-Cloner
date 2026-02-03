@@ -126,6 +126,11 @@ def render_confirmation_screen(
     context.disp.display(context.image)
     display.mark_display_dirty()
 
+    # Tick animated icons (allows title icon animation during operations)
+    from rpi_usb_cloner.ui.animated_icon import get_animation_manager
+
+    get_animation_manager().tick(context)
+
 
 def render_confirmation(
     app_ctx,

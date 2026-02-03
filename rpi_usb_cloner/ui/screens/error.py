@@ -99,3 +99,8 @@ def render_error_screen(
 
     # Display to screen
     context.disp.display(context.image)
+
+    # Tick animated icons (allows title icon animation during operations)
+    from rpi_usb_cloner.ui.animated_icon import get_animation_manager
+
+    get_animation_manager().tick(context)

@@ -652,6 +652,12 @@ def render_paginated_lines(
             )
         context.disp.display(context.image)
         mark_display_dirty()
+
+        # Tick animated icons (allows title icon animation during operations)
+        from rpi_usb_cloner.ui.animated_icon import get_animation_manager
+
+        get_animation_manager().tick(context)
+
         return total_pages, page_index
 
 
@@ -754,6 +760,12 @@ def render_paginated_key_value_lines(
             )
         context.disp.display(context.image)
         mark_display_dirty()
+
+        # Tick animated icons (allows title icon animation during operations)
+        from rpi_usb_cloner.ui.animated_icon import get_animation_manager
+
+        get_animation_manager().tick(context)
+
         return total_pages, page_index
 
 
