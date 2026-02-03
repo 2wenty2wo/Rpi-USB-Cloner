@@ -1,37 +1,34 @@
 """Animated GIF icon support for OLED display.
 
-This module provides smooth, non-blocking animated icon rendering that integrates
-with the main event loop. Animations continue fluidly regardless of other screen
-activity.
+This module provides smooth, independent animated icon rendering using a
+background thread. Animations run fluidly regardless of what else is
+happening on screen - blocking operations, user input waits, etc.
 
 Architecture:
     - AnimatedIcon: Manages a single GIF's frames, timing, and state
-    - AnimationManager: Coordinates all active animated icons
-    - Integration: Main loop calls manager.tick() at 20ms intervals
+    - AnimationManager: Coordinates all active animated icons with background thread
+    - Background thread: Ticks animations every 20ms independently
 
 Usage:
     from rpi_usb_cloner.ui.animated_icon import get_animation_manager
 
-    # In draw_title_with_icon or similar:
+    # Start an animation (background thread auto-starts)
     manager = get_animation_manager()
     manager.start_icon("icons/12px-usb-ani.gif", position=(0, 0))
 
-    # In main loop:
-    if manager.tick(display_context):
-        # Frame was updated, display already refreshed
-        pass
-
-    # On screen change:
+    # Stop all animations (background thread auto-stops when idle)
     manager.stop_all()
 
 Performance:
     - Frames are pre-loaded and converted to 1-bit on first use
     - Only the icon region (~12x12 pixels) is updated per frame
-    - Non-blocking: yields control between frames
+    - Background thread sleeps efficiently between frames
+    - Thread-safe with display lock coordination
 """
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -45,6 +42,9 @@ if TYPE_CHECKING:
 
 # Default frame duration if GIF doesn't specify (100ms)
 DEFAULT_FRAME_DURATION_MS = 100
+
+# Background thread tick interval (20ms = 50fps max)
+TICK_INTERVAL = 0.020
 
 # Assets directory for resolving relative paths
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -156,21 +156,26 @@ class AnimatedIcon:
 
 
 class AnimationManager:
-    """Coordinates all animated icons on the display.
+    """Coordinates all animated icons on the display with background thread.
 
     This manager handles:
     - Loading and caching animated icons
     - Tracking active animations and their positions
-    - Rendering frame updates at the right times
+    - Running a background thread for smooth, independent animation
     - Stopping animations when screens change
 
-    The manager uses a cache to avoid reloading GIFs when the same icon
-    is used multiple times.
+    The background thread ensures animations run fluidly regardless of
+    what else is happening in the application (blocking operations,
+    user input waits, etc).
     """
 
     def __init__(self) -> None:
         self._cache: dict[Path, AnimatedIcon] = {}
         self._active: dict[str, AnimatedIcon] = {}  # key -> icon mapping
+        self._lock = threading.RLock()  # Protects _active and _cache
+        self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._context: DisplayContext | None = None
 
     def get_or_load(self, icon_path: str | Path) -> AnimatedIcon:
         """Get an animated icon, loading from cache or disk.
@@ -185,15 +190,17 @@ class AnimationManager:
         if not path.is_absolute():
             path = ASSETS_DIR / path
 
-        if path not in self._cache:
-            self._cache[path] = AnimatedIcon.load(path)
-
-        return self._cache[path]
+        with self._lock:
+            if path not in self._cache:
+                self._cache[path] = AnimatedIcon.load(path)
+            return self._cache[path]
 
     def start_icon(
         self, icon_path: str | Path, position: tuple[int, int], key: str | None = None
     ) -> AnimatedIcon:
         """Start an animated icon at the given position.
+
+        Automatically starts the background animation thread if not running.
 
         Args:
             icon_path: Path to the GIF file.
@@ -207,15 +214,20 @@ class AnimationManager:
         icon = self.get_or_load(icon_path)
         key = key or str(icon_path)
 
-        # Avoid restarting if the same icon is already active at this position
-        if key in self._active:
-            active_icon = self._active[key]
-            if active_icon.active and active_icon.position == position:
-                return active_icon
-            active_icon.stop()
+        with self._lock:
+            # Avoid restarting if same icon already active at same position
+            if key in self._active:
+                existing = self._active[key]
+                if existing.active and existing.position == position:
+                    return existing
+                existing.stop()
 
-        icon.start(position)
-        self._active[key] = icon
+            icon.start(position)
+            self._active[key] = icon
+
+            # Start background thread if needed
+            self._ensure_thread_running()
+
         return icon
 
     def stop_icon(self, key: str) -> None:
@@ -224,49 +236,71 @@ class AnimationManager:
         Args:
             key: The key used when starting the icon.
         """
-        if key in self._active:
-            self._active[key].stop()
-            del self._active[key]
+        with self._lock:
+            if key in self._active:
+                self._active[key].stop()
+                del self._active[key]
 
     def stop_all(self) -> None:
         """Stop all active animations.
 
         Call this when changing screens to ensure clean transitions.
+        The background thread will automatically stop when idle.
         """
-        for icon in self._active.values():
-            icon.stop()
-        self._active.clear()
+        with self._lock:
+            for icon in self._active.values():
+                icon.stop()
+            self._active.clear()
 
-    def tick(self, context: DisplayContext) -> bool:
-        """Process animation frames that are due for update.
+    def set_context(self, context: DisplayContext) -> None:
+        """Set the display context for rendering.
 
-        This should be called from the main event loop at regular intervals
-        (e.g., every 20ms). It checks all active animations and renders
-        any frames that are due.
+        Must be called before animations can render. Usually called
+        once during application startup.
 
         Args:
-            context: The display context for rendering.
+            context: The display context.
+        """
+        self._context = context
+
+    def tick(self, context: DisplayContext | None = None) -> bool:
+        """Process animation frames that are due for update.
+
+        This is called automatically by the background thread, but can
+        also be called manually for immediate updates.
+
+        Args:
+            context: Optional display context (uses stored context if None).
 
         Returns:
             True if any frame was updated (display was refreshed).
         """
-        if not self._active:
+        ctx = context or self._context
+        if ctx is None:
             return False
 
-        now = time.monotonic()
-        updated = False
+        # Store context for background thread
+        if context is not None:
+            self._context = context
 
-        for icon in self._active.values():
-            if not icon.active or icon.position is None:
-                continue
+        with self._lock:
+            if not self._active:
+                return False
 
-            if now >= icon.next_frame_time:
-                # Time to advance this icon's frame
-                icon.advance_frame()
-                self._render_icon_frame(context, icon)
-                updated = True
+            now = time.monotonic()
+            updated = False
 
-        return updated
+            for icon in list(self._active.values()):
+                if not icon.active or icon.position is None:
+                    continue
+
+                if now >= icon.next_frame_time:
+                    # Time to advance this icon's frame
+                    icon.advance_frame()
+                    self._render_icon_frame(ctx, icon)
+                    updated = True
+
+            return updated
 
     def _render_icon_frame(self, context: DisplayContext, icon: AnimatedIcon) -> None:
         """Render a single icon frame to the display.
@@ -293,13 +327,48 @@ class AnimationManager:
             context.disp.display(context.image)
             display.mark_display_dirty()
 
+    def _ensure_thread_running(self) -> None:
+        """Start the background animation thread if not already running."""
+        if self._thread is not None and self._thread.is_alive():
+            return
+
+        self._stop_event.clear()
+        self._thread = threading.Thread(
+            target=self._animation_loop,
+            name="AnimatedIconThread",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _animation_loop(self) -> None:
+        """Background thread loop that ticks animations."""
+        while not self._stop_event.is_set():
+            # Check if we have active animations
+            with self._lock:
+                has_active = any(
+                    icon.active and icon.position is not None
+                    for icon in self._active.values()
+                )
+
+            if not has_active:
+                # No active animations, stop the thread
+                break
+
+            # Tick animations
+            if self._context is not None:
+                self.tick()
+
+            # Sleep until next tick
+            time.sleep(TICK_INTERVAL)
+
     def has_active_animations(self) -> bool:
         """Check if there are any active animations.
 
         Returns:
             True if at least one animation is active.
         """
-        return any(icon.active for icon in self._active.values())
+        with self._lock:
+            return any(icon.active for icon in self._active.values())
 
     def get_next_frame_time(self) -> float | None:
         """Get the earliest next frame time across all active animations.
@@ -307,12 +376,13 @@ class AnimationManager:
         Returns:
             Monotonic timestamp, or None if no animations are active.
         """
-        times = [
-            icon.next_frame_time
-            for icon in self._active.values()
-            if icon.active and icon.position is not None
-        ]
-        return min(times) if times else None
+        with self._lock:
+            times = [
+                icon.next_frame_time
+                for icon in self._active.values()
+                if icon.active and icon.position is not None
+            ]
+            return min(times) if times else None
 
 
 # Module-level singleton
@@ -338,6 +408,7 @@ def reset_animation_manager() -> None:
     """
     global _animation_manager
     if _animation_manager is not None:
+        _animation_manager._stop_event.set()
         _animation_manager.stop_all()
         _animation_manager._cache.clear()
     _animation_manager = None
