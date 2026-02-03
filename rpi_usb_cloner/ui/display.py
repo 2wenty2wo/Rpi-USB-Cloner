@@ -476,7 +476,7 @@ def draw_title_with_icon(
     icon_image = None
 
     if icon:
-        # Check if icon is a file path to an image (PNG or animated GIF)
+        # Check if icon is a file path to a PNG image
         if icon.endswith(".png"):
             is_image_icon = True
             try:
@@ -489,25 +489,6 @@ def draw_title_with_icon(
                 icon_descent = 0
             except (OSError, FileNotFoundError):
                 # Fall back to no icon if image can't be loaded
-                is_image_icon = False
-                icon_image = None
-                icon_width = 0
-                icon = None
-        elif icon.endswith(".gif"):
-            # Animated GIF icon - register with animation manager
-            is_image_icon = True
-            try:
-                from rpi_usb_cloner.ui.animated_icon import get_animation_manager
-
-                anim_manager = get_animation_manager()
-                anim_icon = anim_manager.get_or_load(icon)
-                icon_width = anim_icon.width
-                icon_ascent = anim_icon.height
-                icon_descent = 0
-                # Store for later use when we know the position
-                icon_image = anim_icon.get_current_frame()
-            except (OSError, FileNotFoundError, ValueError):
-                # Fall back to no icon if GIF can't be loaded
                 is_image_icon = False
                 icon_image = None
                 icon_width = 0
@@ -566,12 +547,6 @@ def draw_title_with_icon(
                 # Use PIL Image.paste to draw the image icon
                 icon_y = 0
                 image.paste(icon_image, (left_margin, icon_y))
-                # If this is an animated GIF, start the animation
-                if icon.endswith(".gif"):
-                    from rpi_usb_cloner.ui.animated_icon import get_animation_manager
-
-                    anim_manager = get_animation_manager()
-                    anim_manager.start_icon(icon, position=(left_margin, icon_y))
             else:
                 # Use fixed Y position to keep all icons at same height
                 # Positioned slightly above screen edge to align with title text
