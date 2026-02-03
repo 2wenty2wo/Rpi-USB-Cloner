@@ -5,7 +5,7 @@ from typing import Iterable
 
 from PIL import Image, ImageDraw
 
-from rpi_usb_cloner.ui import display, header
+from rpi_usb_cloner.ui import display
 from rpi_usb_cloner.ui.toggle import (
     TOGGLE_HEIGHT,
     TOGGLE_WIDTH,
@@ -210,8 +210,8 @@ def _render_menu(
     extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        layout = header.render_header(
-            title=title,
+        layout = display.draw_title_with_icon(
+            title,
             title_font=header_font,
             icon=title_icon,
             icon_font=title_icon_font,
@@ -760,15 +760,12 @@ def calculate_visible_rows(
     extra_gap = 1
     header_font = title_font or context.fonts.get("title", context.fontdisks)
     if title:
-        header_layout = header.render_header(
-            title=title,
-            title_font=header_font,
-            icon=title_icon,
-            icon_font=title_icon_font,
-            extra_gap=extra_gap,
-            render=False,
-        )
-        current_y = header_layout.content_top
+        icon_height = 0
+        if title_icon:
+            icon_font = title_icon_font or display._get_lucide_font()
+            icon_height = _get_line_height(icon_font)
+        title_height = max(_get_line_height(header_font), icon_height)
+        current_y += title_height + display.TITLE_PADDING + extra_gap
 
     list_font = items_font or context.fonts.get("items", context.fontdisks)
     row_height = _get_line_height(list_font) + 1

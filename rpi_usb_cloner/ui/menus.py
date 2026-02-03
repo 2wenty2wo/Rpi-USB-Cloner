@@ -23,7 +23,7 @@ from rpi_usb_cloner.hardware.gpio import (
 from rpi_usb_cloner.menu.model import get_screen_icon
 from rpi_usb_cloner.storage.clone import normalize_clone_mode
 from rpi_usb_cloner.storage.devices import format_device_label
-from rpi_usb_cloner.ui import display, header, renderer, transitions
+from rpi_usb_cloner.ui import display, renderer, transitions
 from rpi_usb_cloner.ui.constants import (
     BUTTON_POLL_DELAY,
     DEFAULT_SCROLL_CYCLE_SECONDS,
@@ -89,15 +89,14 @@ def get_standard_content_top(
     context = display.get_display_context()
     if not title:
         return context.top
-    layout = header.render_header(
-        title=title,
-        title_font=title_font,
-        icon=title_icon,
-        icon_font=title_icon_font,
-        extra_gap=extra_gap,
-        render=False,
-    )
-    return layout.content_top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    title_height = _get_text_height(context.draw, title, header_font)
+    icon_height = 0
+    if title_icon:
+        icon_font = title_icon_font or display._get_lucide_font()
+        icon_height = _get_line_height(icon_font)
+    line_height = max(title_height, icon_height)
+    return context.top + line_height + display.TITLE_PADDING + extra_gap
 
 
 def _get_default_footer_positions(width: int, footer: List[str]) -> List[int]:
@@ -114,22 +113,56 @@ def _render_header_lines_image(
     title_icon: Optional[str] = None,
     items_font: Optional[display.Font] = None,
     content_top: Optional[int] = None,
-) -> header.HeaderLayout:
+) -> None:
     context = display.get_display_context()
     draw = ImageDraw.Draw(image)
     draw.rectangle((0, 0, context.width, context.height), outline=0, fill=0)
-    return header.render_header(
-        title=title,
-        header_lines=header_lines,
-        title_font=title_font,
-        header_lines_font=items_font,
-        icon=title_icon,
-        extra_gap=2,
-        left_margin=context.x - 11,
-        content_top=content_top,
-        draw=draw,
-        image=image,
+    current_y = context.top
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
+    if title:
+        layout = display.draw_title_with_icon(
+            title,
+            title_font=header_font,
+            icon=title_icon,
+            extra_gap=2,
+            left_margin=context.x - 11,
+            draw=draw,
+            image=image,
+        )
+        current_y = layout.content_top
+    if content_top is not None:
+        current_y = max(current_y, content_top)
+    items_font = items_font or context.fontdisks
+    left_margin = context.x - 11
+    available_width = max(0, context.width - left_margin)
+    wrapped_lines = display._wrap_lines_to_width(
+        header_lines,
+        items_font,
+        available_width,
     )
+    line_height = _get_line_height(items_font)
+    line_step = line_height + 2
+    available_height = context.height - current_y - 2
+    lines_per_page = max(1, available_height // line_step)
+    total_pages = max(1, (len(wrapped_lines) + lines_per_page - 1) // lines_per_page)
+    page_lines = wrapped_lines[:lines_per_page]
+    for line in page_lines:
+        draw.text((context.x - 11, current_y), line, font=items_font, fill=255)
+        current_y += line_step
+    if total_pages > 1:
+        indicator = f"1/{total_pages}>"
+        indicator_bbox = draw.textbbox((0, 0), indicator, font=items_font)
+        indicator_width = indicator_bbox[2] - indicator_bbox[0]
+        indicator_height = indicator_bbox[3] - indicator_bbox[1]
+        draw.text(
+            (
+                context.width - indicator_width - 2,
+                context.height - indicator_height - 2,
+            ),
+            indicator,
+            font=items_font,
+            fill=255,
+        )
 
 
 def _render_menu_list_image(
@@ -156,7 +189,7 @@ def _render_menu_list_image(
     context = display.get_display_context()
     image = Image.new("1", (context.width, context.height), 0)
     if header_lines:
-        header_layout = _render_header_lines_image(
+        _render_header_lines_image(
             image,
             title=title,
             header_lines=header_lines,
@@ -165,10 +198,6 @@ def _render_menu_list_image(
             items_font=items_font,
             content_top=content_top,
         )
-        if content_top is None:
-            content_top = header_layout.content_top
-        else:
-            content_top = max(content_top, header_layout.content_top)
     draw = ImageDraw.Draw(image)
     renderer._render_menu(
         draw=draw,
@@ -232,8 +261,8 @@ def render_menu(menu, draw, width, height, fonts, *, clear: bool = True):
     if menu.title:
         title_font = menu.title_font or fonts["title"]
         title_icon = menu.title_icon or get_screen_icon(menu.screen_id)
-        layout = header.render_header(
-            title=menu.title,
+        layout = display.draw_title_with_icon(
+            menu.title,
             title_font=title_font,
             icon=title_icon,
             extra_gap=1,
@@ -389,19 +418,13 @@ def select_list(
     title_font = title_font or context.fonts.get("title", context.fontdisks)
     if title_icon is None and screen_id:
         title_icon = get_screen_icon(screen_id)
-    header_layout = header.render_header(
-        title=title,
-        header_lines=header_lines,
-        title_font=title_font,
-        header_lines_font=items_font,
-        icon=title_icon,
-        extra_gap=2,
-        render=False,
+    content_top = (
+        content_top
+        if content_top is not None
+        else get_standard_content_top(
+            title, title_font=title_font, title_icon=title_icon
+        )
     )
-    if content_top is None:
-        content_top = header_layout.content_top
-    else:
-        content_top = max(content_top, header_layout.content_top)
     visible_rows = renderer.calculate_visible_rows(
         title=title,
         title_icon=title_icon,
@@ -426,20 +449,19 @@ def select_list(
     ) -> int:
         offset = clamp_scroll_offset(selected, offset)
         if header_lines:
-            context.draw.rectangle(
-                (0, 0, context.width, context.height),
-                outline=0,
-                fill=0,
-            )
-            header.render_header(
-                title=title,
-                header_lines=header_lines,
+            header_content_top = get_standard_content_top(
+                title,
                 title_font=title_font,
-                header_lines_font=items_font,
-                icon=title_icon,
-                extra_gap=2,
-                draw=context.draw,
-                image=context.image,
+                title_icon=title_icon,
+            )
+            display.render_paginated_lines(
+                title,
+                header_lines,
+                page_index=0,
+                content_top=header_content_top,
+                title_font=title_font,
+                items_font=items_font,
+                title_icon=title_icon,
             )
         renderer.render_menu_screen(
             title="" if header_lines else title,
