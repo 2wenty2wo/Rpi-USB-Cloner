@@ -42,8 +42,8 @@ USB_ICON = chr(57516)  # usb drive icon - USB selection
 KEYBOARD_ICON = chr(57618)  # keyboard icon - text input
 INFO_ICON = chr(57487)  # info icon - information displays
 ACTIVITY_ICON = chr(57400)  # activity icon - system status displays
-COPY_DRIVE_ICON = chr(58611)  # send-to-back - drive copy flow
-BACKUP_IMAGE_ICON = chr(58598)  # hard-drive-upload - image backup flow
+COPY_DRIVE_ICON = "icons/12px-drive-to-drive-ani.gif"  # animated drive-to-drive icon
+BACKUP_IMAGE_ICON = "icons/12px-drive-to-image-ani.gif"  # animated drive-to-image icon
 WRITE_IMAGE_ICON = chr(58597)  # hard-drive-download - image write flow
 VERIFY_CLONE_ICON = chr(57681)  # search - clone verification flow
 
