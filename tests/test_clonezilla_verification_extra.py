@@ -7,6 +7,7 @@ Tests for coverage gaps in:
 - verify_restored_image() - edge cases, unmount failures, missing partitions
 """
 
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -19,50 +20,38 @@ class TestGetVerifyHashTimeout:
 
     def test_returns_none_when_setting_none(self):
         """Test returns None when setting value is None."""
-        with patch.object(verification.settings, "get_setting", return_value=None):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value=None):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result is None
 
     def test_returns_float_when_setting_valid(self):
         """Test returns float when setting value is valid."""
-        with patch.object(verification.settings, "get_setting", return_value="300"):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value="300"):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result == 300.0
 
     def test_returns_none_when_setting_zero(self):
         """Test returns None when setting value is zero."""
-        with patch.object(verification.settings, "get_setting", return_value="0"):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value="0"):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result is None
 
     def test_returns_none_when_setting_negative(self):
         """Test returns None when setting value is negative."""
-        with patch.object(verification.settings, "get_setting", return_value="-10"):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value="-10"):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result is None
 
     def test_returns_none_when_setting_invalid_string(self):
         """Test returns None when setting value is not a number."""
-        with patch.object(verification.settings, "get_setting", return_value="invalid"):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value="invalid"):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result is None
 
     def test_returns_none_when_setting_empty_string(self):
         """Test returns None when setting value is empty string."""
-        with patch.object(verification.settings, "get_setting", return_value=""):
-            result = verification.get_verify_hash_timeout(
-                "verify_image_hash_timeout_seconds"
-            )
+        with patch.object(verification.settings, 'get_setting', return_value=""):
+            result = verification.get_verify_hash_timeout("verify_image_hash_timeout_seconds")
             assert result is None
 
 
@@ -222,9 +211,7 @@ class TestComputeImageSha256Compressed:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.get_compression_type")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
-    def test_gzip_raises_when_not_found(
-        self, mock_which, mock_popen, mock_get_compression, tmp_path
-    ):
+    def test_gzip_raises_when_not_found(self, mock_which, mock_popen, mock_get_compression, tmp_path):
         """Test raises RuntimeError when gzip/pigz not found."""
         mock_get_compression.return_value = "gzip"
         mock_which.side_effect = lambda x: {
@@ -288,9 +275,7 @@ class TestComputeImageSha256Compressed:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.get_compression_type")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
-    def test_zstd_raises_when_not_found(
-        self, mock_which, mock_popen, mock_get_compression, tmp_path
-    ):
+    def test_zstd_raises_when_not_found(self, mock_which, mock_popen, mock_get_compression, tmp_path):
         """Test raises RuntimeError when zstd/pzstd not found."""
         mock_get_compression.return_value = "zstd"
         mock_which.side_effect = lambda x: {
@@ -335,7 +320,6 @@ class TestComputeImageSha256Timeout:
 
         sha_proc = Mock()
         from subprocess import TimeoutExpired
-
         sha_proc.communicate.side_effect = TimeoutExpired("sha256sum", 30.0)
 
         mock_popen.side_effect = [cat_proc, sha_proc]
@@ -404,7 +388,9 @@ class TestComputePartitionSha256:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.get_verify_hash_timeout")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.subprocess.Popen")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
-    def test_partition_hash_timeout(self, mock_which, mock_popen, mock_get_timeout):
+    def test_partition_hash_timeout(
+        self, mock_which, mock_popen, mock_get_timeout
+    ):
         """Test raises RuntimeError when partition hash times out."""
         mock_which.side_effect = lambda x: {
             "dd": "/usr/bin/dd",
@@ -419,7 +405,6 @@ class TestComputePartitionSha256:
 
         sha_proc = Mock()
         from subprocess import TimeoutExpired
-
         sha_proc.communicate.side_effect = TimeoutExpired("sha256sum", 60.0)
 
         mock_popen.side_effect = [dd_proc, sha_proc]
@@ -573,12 +558,7 @@ class TestVerifyRestoredImageEdgeCases:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.devices.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
     def test_returns_false_when_partition_not_found(
-        self,
-        mock_which,
-        mock_get_device,
-        mock_unmount,
-        mock_get_children,
-        mock_image_hash,
+        self, mock_which, mock_get_device, mock_unmount, mock_get_children, mock_image_hash
     ):
         """Test returns False when target partition not found."""
         mock_which.return_value = "/usr/bin/sha256sum"
@@ -607,9 +587,7 @@ class TestVerifyRestoredImageEdgeCases:
         )
 
         assert result is False
-        assert any(
-            "Partition missing" in " ".join(lines) for lines, _ in progress_updates
-        )
+        assert any("Partition missing" in " ".join(lines) for lines, _ in progress_updates)
 
     @patch("rpi_usb_cloner.storage.clonezilla.verification.compute_partition_sha256")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.compute_image_sha256")
@@ -618,13 +596,8 @@ class TestVerifyRestoredImageEdgeCases:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.devices.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
     def test_returns_false_when_target_hash_fails(
-        self,
-        mock_which,
-        mock_get_device,
-        mock_unmount,
-        mock_get_children,
-        mock_image_hash,
-        mock_partition_hash,
+        self, mock_which, mock_get_device, mock_unmount, mock_get_children,
+        mock_image_hash, mock_partition_hash
     ):
         """Test returns False when target partition hash computation fails."""
         mock_which.return_value = "/usr/bin/sha256sum"
@@ -653,9 +626,7 @@ class TestVerifyRestoredImageEdgeCases:
         )
 
         assert result is False
-        assert any(
-            "Target hash error" in " ".join(lines) for lines, _ in progress_updates
-        )
+        assert any("Target hash error" in " ".join(lines) for lines, _ in progress_updates)
 
     @patch("rpi_usb_cloner.storage.clonezilla.verification.compute_image_sha256")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.devices.get_children")
@@ -663,12 +634,7 @@ class TestVerifyRestoredImageEdgeCases:
     @patch("rpi_usb_cloner.storage.clonezilla.verification.devices.get_device_by_name")
     @patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which")
     def test_returns_false_when_invalid_partition_number(
-        self,
-        mock_which,
-        mock_get_device,
-        mock_unmount,
-        mock_get_children,
-        mock_image_hash,
+        self, mock_which, mock_get_device, mock_unmount, mock_get_children, mock_image_hash
     ):
         """Test returns False when partition number cannot be determined."""
         mock_which.return_value = "/usr/bin/sha256sum"
@@ -695,21 +661,13 @@ class TestVerifyRestoredImageEdgeCases:
         )
 
         assert result is False
-        assert any(
-            "Invalid partition" in " ".join(lines) for lines, _ in progress_updates
-        )
+        assert any("Invalid partition" in " ".join(lines) for lines, _ in progress_updates)
 
     def test_works_without_progress_callback(self):
         """Test verification works when progress_callback is None."""
-        with patch(
-            "rpi_usb_cloner.storage.clonezilla.verification.shutil.which"
-        ) as mock_which:
-            mock_which.return_value = (
-                None  # sha256sum not found to trigger early return
-            )
+        with patch("rpi_usb_cloner.storage.clonezilla.verification.shutil.which") as mock_which:
+            mock_which.return_value = None  # sha256sum not found to trigger early return
 
             # Should not raise even without progress_callback
-            result = verification.verify_restored_image(
-                Mock(), "sdb", progress_callback=None
-            )
+            result = verification.verify_restored_image(Mock(), "sdb", progress_callback=None)
             assert result is False

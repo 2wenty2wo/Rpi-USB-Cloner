@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import pkgutil
 import threading
@@ -343,8 +342,7 @@ async def _send_to_subscribers(
 async def _screen_broadcaster(app: web.Application) -> None:
     """Background task: Broadcast screen updates to subscribed clients."""
     notifier = app.get(DISPLAY_NOTIFIER_KEY)
-    if notifier is None:
-        return
+    log = LoggerFactory.for_web()
 
     while not app.get(DISPLAY_STOP_EVENT_KEY, threading.Event()).is_set():
         try:
@@ -368,8 +366,10 @@ async def _screen_broadcaster(app: web.Application) -> None:
             if sub.websocket.closed or "screen" not in sub.channels:
                 continue
 
-            with contextlib.suppress(Exception):
+            try:
                 await sub.websocket.send_bytes(png_bytes)
+            except Exception:
+                pass
 
         display.clear_dirty_flag()
 
@@ -441,11 +441,7 @@ async def _devices_broadcaster(app: web.Application) -> None:
             await _send_to_subscribers(
                 app,
                 "devices",
-                {
-                    "type": "devices",
-                    "devices": cached_device_list,
-                    "operation_active": True,
-                },
+                {"type": "devices", "devices": cached_device_list, "operation_active": True},
             )
             continue
 
@@ -474,9 +470,7 @@ async def _devices_broadcaster(app: web.Application) -> None:
             else:
                 status = "unformatted"
 
-            device_label = (
-                f"{vendor} {model}".strip() if vendor or model else "Unknown Device"
-            )
+            device_label = f"{vendor} {model}".strip() if vendor or model else "Unknown Device"
 
             device_list.append(
                 {
@@ -516,12 +510,7 @@ async def _images_broadcaster(app: web.Application) -> None:
             await _send_to_subscribers(
                 app,
                 "images",
-                {
-                    "type": "images",
-                    "images": [],
-                    "repo_stats": {},
-                    "operation_active": True,
-                },
+                {"type": "images", "images": [], "repo_stats": {}, "operation_active": True},
             )
             continue
 
@@ -537,13 +526,17 @@ async def _images_broadcaster(app: web.Application) -> None:
 
         now = time.monotonic()
         if now >= next_repo_stats_refresh:
-            with contextlib.suppress(Exception):
+            try:
                 repo_stats = _build_repo_stats(repos)
+            except Exception:
+                pass
             next_repo_stats_refresh = now + REPO_STATS_REFRESH_SECONDS
 
         if now >= next_image_sizes_refresh:
-            with contextlib.suppress(Exception):
+            try:
                 image_sizes = _build_image_sizes(all_images)
+            except Exception:
+                pass
             next_image_sizes_refresh = now + REPO_STATS_REFRESH_SECONDS
 
         for repo in repos:
@@ -639,9 +632,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                             await ws.send_bytes(png_bytes)
 
                         if "logs" in valid_channels:
-                            app_context: AppContext | None = request.app.get(
-                                APP_CONTEXT_KEY
-                            )
+                            app_context: AppContext | None = request.app.get(APP_CONTEXT_KEY)
                             if app_context:
                                 snapshot = list(app_context.log_buffer)
                                 if snapshot:
@@ -691,10 +682,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
                             )
                         else:
                             await ws.send_json(
-                                {
-                                    "type": "error",
-                                    "message": f"Unknown button: {button}",
-                                }
+                                {"type": "error", "message": f"Unknown button: {button}"}
                             )
 
                     elif action == "ping":

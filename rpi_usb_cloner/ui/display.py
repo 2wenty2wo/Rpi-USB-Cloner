@@ -88,7 +88,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
@@ -97,10 +97,6 @@ from PIL import Image, ImageDraw, ImageFont
 from rpi_usb_cloner.app import state as app_state
 from rpi_usb_cloner.config.settings import get_setting
 from rpi_usb_cloner.logging import LoggerFactory
-
-
-if TYPE_CHECKING:
-    from rpi_usb_cloner.ui.header import HeaderLayout
 
 
 # Module logger
@@ -154,6 +150,15 @@ LUCIDE_PREVIEW_FONT_SIZE = 24
 ICON_BASELINE_ADJUST = -1
 _lucide_font: Optional[Font] = None
 _lucide_font_cache: dict[int, Font] = {}
+
+
+@dataclass(frozen=True)
+class TitleLayout:
+    content_top: int
+    title_x: int
+    max_title_width: int
+    icon_width: int
+    icon_height: int
 
 
 def set_display_context(context: DisplayContext) -> None:
@@ -453,19 +458,108 @@ def draw_title_with_icon(
     max_width: Optional[int] = None,
     draw: Optional[ImageDraw.ImageDraw] = None,
     image: Optional[Image.Image] = None,
-) -> "HeaderLayout":
-    from rpi_usb_cloner.ui import header
+) -> TitleLayout:
+    context = get_display_context()
+    draw = draw or context.draw
+    image = image or context.image
+    left_margin = context.x - 11 if left_margin is None else left_margin
+    header_font = title_font or context.fonts.get("title", context.fontdisks)
 
-    return header.render_header(
-        title=title,
-        title_font=title_font,
-        icon=icon,
-        icon_font=icon_font,
-        extra_gap=extra_gap,
-        left_margin=left_margin,
-        max_width=max_width,
-        draw=draw,
-        image=image,
+    # Calculate dimensions and baseline info
+    icon_width = 0
+    icon_bbox = None
+    title_bbox = None
+    title_text = ""
+    title_ascent = title_descent = 0
+    icon_ascent = icon_descent = 0
+    is_image_icon = False
+    icon_image = None
+
+    if icon:
+        # Check if icon is a file path to a PNG image
+        if icon.endswith(".png"):
+            is_image_icon = True
+            try:
+                icon_path = (
+                    Path(icon) if Path(icon).is_absolute() else ASSETS_DIR / icon
+                )
+                icon_image = Image.open(icon_path).convert("1")
+                icon_width = icon_image.width
+                icon_ascent = icon_image.height
+                icon_descent = 0
+            except (OSError, FileNotFoundError):
+                # Fall back to no icon if image can't be loaded
+                is_image_icon = False
+                icon_image = None
+                icon_width = 0
+                icon = None
+        else:
+            # Lucide icon (Unicode character)
+            icon_font = icon_font or _get_lucide_font()
+            icon_width = _measure_text_width(draw, icon, icon_font)
+            icon_bbox = icon_font.getbbox(icon)
+            getmetrics = getattr(icon_font, "getmetrics", None)
+            if callable(getmetrics):
+                icon_ascent, icon_descent = getmetrics()
+            else:
+                icon_ascent = max(0, icon_bbox[3] - icon_bbox[1])
+                icon_descent = 0
+
+    title_x = left_margin + (icon_width + TITLE_ICON_PADDING if icon_width else 0)
+    if title:
+        available_width = (
+            max_width if max_width is not None else max(0, context.width - title_x - 1)
+        )
+        title_text = _truncate_text(draw, title, header_font, available_width)
+        if title_text:
+            title_bbox = draw.textbbox((0, 0), title_text, font=header_font)
+            getmetrics = getattr(header_font, "getmetrics", None)
+            if callable(getmetrics):
+                title_ascent, title_descent = getmetrics()
+            else:
+                title_ascent = max(0, title_bbox[3] - title_bbox[1])
+                title_descent = 0
+    else:
+        available_width = 0
+
+    if not title_text:
+        return TitleLayout(
+            content_top=context.top,
+            title_x=title_x,
+            max_title_width=available_width,
+            icon_width=icon_width,
+            icon_height=0,
+        )
+
+    # Calculate line height based on font metrics for consistent spacing
+    title_line_height = title_ascent + title_descent
+    icon_line_height = icon_ascent + icon_descent
+    line_height = max(title_line_height, icon_line_height)
+
+    # Draw title at fixed position for consistency
+    if title_text:
+        title_y = context.top + TITLE_TEXT_Y_OFFSET
+        draw.text((title_x, title_y), title_text, font=header_font, fill=255)
+
+        # Position icon at consistent Y coordinate
+        if icon:
+            if is_image_icon and icon_image:
+                # Use PIL Image.paste to draw the image icon
+                icon_y = 0
+                image.paste(icon_image, (left_margin, icon_y))
+            else:
+                # Use fixed Y position to keep all icons at same height
+                # Positioned slightly above screen edge to align with title text
+                icon_y = -1
+                draw.text((left_margin, icon_y), icon, font=icon_font, fill=255)
+
+    content_top = context.top + line_height + TITLE_PADDING + extra_gap
+    return TitleLayout(
+        content_top=content_top,
+        title_x=title_x,
+        max_title_width=available_width,
+        icon_width=icon_width,
+        icon_height=icon_line_height,
     )
 
 
