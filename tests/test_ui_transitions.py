@@ -71,7 +71,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_forward_direction_slides_from_right(self, mock_get_context, mock_lock, mock_display_context):
+    def test_forward_direction_slides_from_right(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test forward direction slides new image in from right."""
         mock_get_context.return_value = mock_display_context
 
@@ -94,7 +96,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_back_direction_slides_from_left(self, mock_get_context, mock_lock, mock_display_context):
+    def test_back_direction_slides_from_left(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test back direction slides new image in from left."""
         mock_get_context.return_value = mock_display_context
 
@@ -110,7 +114,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_invalid_direction_defaults_to_forward(self, mock_get_context, mock_lock, mock_display_context):
+    def test_invalid_direction_defaults_to_forward(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test invalid direction defaults to forward."""
         mock_get_context.return_value = mock_display_context
 
@@ -126,7 +132,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_zero_frame_count_defaults_to_one(self, mock_get_context, mock_lock, mock_display_context):
+    def test_zero_frame_count_defaults_to_one(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test zero frame_count defaults to 1."""
         mock_get_context.return_value = mock_display_context
 
@@ -142,7 +150,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_negative_frame_count_defaults_to_one(self, mock_get_context, mock_lock, mock_display_context):
+    def test_negative_frame_count_defaults_to_one(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test negative frame_count defaults to 1."""
         mock_get_context.return_value = mock_display_context
 
@@ -158,7 +168,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_raises_when_image_size_mismatches(self, mock_get_context, mock_lock, mock_display_context):
+    def test_raises_when_image_size_mismatches(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test raises ValueError when image sizes don't match display."""
         mock_get_context.return_value = mock_display_context
 
@@ -174,7 +186,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_raises_when_from_image_wrong_size(self, mock_get_context, mock_lock, mock_display_context):
+    def test_raises_when_from_image_wrong_size(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test raises ValueError when from_image has wrong size."""
         mock_get_context.return_value = mock_display_context
 
@@ -189,7 +203,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_raises_when_to_image_wrong_size(self, mock_get_context, mock_lock, mock_display_context):
+    def test_raises_when_to_image_wrong_size(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test raises ValueError when to_image has wrong size."""
         mock_get_context.return_value = mock_display_context
 
@@ -204,7 +220,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_uses_dirty_region_when_provided(self, mock_get_context, mock_lock, mock_display_context):
+    def test_uses_dirty_region_when_provided(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test uses dirty region bounding box when provided."""
         mock_get_context.return_value = mock_display_context
 
@@ -214,8 +232,12 @@ class TestGenerateSlideTransition:
         dirty_region = (10, 10, 118, 54)  # Custom dirty region
 
         gen = transitions.generate_slide_transition(
-            from_image, to_image, "forward", frame_count=2,
-            dirty_region=dirty_region, frame_delay=0.01
+            from_image,
+            to_image,
+            "forward",
+            frame_count=2,
+            dirty_region=dirty_region,
+            frame_delay=0.01,
         )
 
         list(gen)  # Consume all frames
@@ -246,7 +268,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_updates_display_context_image(self, mock_get_context, mock_lock, mock_display_context):
+    def test_updates_display_context_image(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test updates the display context image after each frame."""
         mock_get_context.return_value = mock_display_context
 
@@ -266,7 +290,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_default_frame_delay(self, mock_get_context, mock_lock, mock_display_context):
+    def test_default_frame_delay(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test default frame delay is 0.04 seconds."""
         mock_get_context.return_value = mock_display_context
 
@@ -274,7 +300,10 @@ class TestGenerateSlideTransition:
         to_image = Image.new("1", (128, 64), 1)
 
         gen = transitions.generate_slide_transition(
-            from_image, to_image, "forward", frame_count=2
+            from_image,
+            to_image,
+            "forward",
+            frame_count=2,
             # No frame_delay specified
         )
 
@@ -285,7 +314,9 @@ class TestGenerateSlideTransition:
 
     @patch("rpi_usb_cloner.ui.transitions.display._display_lock")
     @patch("rpi_usb_cloner.ui.transitions.display.get_display_context")
-    def test_direction_case_insensitive(self, mock_get_context, mock_lock, mock_display_context):
+    def test_direction_case_insensitive(
+        self, mock_get_context, mock_lock, mock_display_context
+    ):
         """Test direction parameter is case insensitive."""
         mock_get_context.return_value = mock_display_context
 
