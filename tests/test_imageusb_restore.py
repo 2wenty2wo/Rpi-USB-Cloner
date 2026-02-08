@@ -347,6 +347,71 @@ class TestRestoreImageUSBFile:
         ):
             restore_imageusb_file(mock_bin_file, "sda")
 
+    @skip_windows
+    def test_image_too_large_for_device_raises(self, tmp_path):
+        """Test that image larger than target device raises RuntimeError without unmounting."""
+        # Create a 2000-byte image (512 header + 1488 data)
+        bin_path = tmp_path / "large.bin"
+        bin_path.write_bytes(b"IMGUSB" + b"\x00" * 506 + b"\xaa" * 1488)
+
+        # Device reports only 1000 bytes capacity (smaller than 1488 data bytes)
+        device_info = {"name": "sda", "rm": "1", "size": "1000"}
+        with patch("os.geteuid", return_value=0), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+            return_value=None,
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+            return_value="/dev/sda",
+        ), patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+            return_value=device_info,
+        ) as _, patch(
+            "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
+        ) as mock_unmount, pytest.raises(
+            RuntimeError, match="Image too large for target device"
+        ):
+            restore_imageusb_file(bin_path, "sda")
+
+        # Unmount should NOT have been called - we fail before that
+        mock_unmount.assert_not_called()
+
+    @skip_windows
+    def test_image_fits_device_passes_size_check(self, tmp_path, mocker):
+        """Test that image smaller than target device passes size check."""
+        # Create a 1012-byte image (512 header + 500 data)
+        bin_path = tmp_path / "small.bin"
+        bin_path.write_bytes(b"IMGUSB" + b"\x00" * 506 + b"\xbb" * 500)
+
+        # Device reports 8GB capacity (plenty of room)
+        device_info = {"name": "sda", "rm": "1", "size": "8000000000"}
+        with patch("os.geteuid", return_value=0):
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.validate_imageusb_file",
+                return_value=None,
+            )
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.resolve_device_node",
+                return_value="/dev/sda",
+            )
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.devices.get_device_by_name",
+                return_value=device_info,
+            )
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.devices.unmount_device",
+                return_value=True,
+            )
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.shutil.which",
+                return_value="/bin/dd",
+            )
+            mocker.patch(
+                "rpi_usb_cloner.storage.imageusb.restore.run_checked_with_streaming_progress",
+            )
+
+            # Should not raise - image fits the device
+            restore_imageusb_file(bin_path, "sda")
+
 
 class TestRestoreImageUSBFileSimple:
     """Test restore_imageusb_file_simple function."""

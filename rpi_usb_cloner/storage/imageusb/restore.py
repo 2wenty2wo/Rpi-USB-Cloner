@@ -73,6 +73,25 @@ def restore_imageusb_file(
             f"Target device {target_name} is not removable - refusing to restore"
         )
 
+    # Get file size for progress calculation and size validation
+    try:
+        file_size = image_path.stat().st_size
+        # Data size is file size minus header
+        data_size = file_size - IMAGEUSB_HEADER_SIZE
+    except OSError as e:
+        raise RuntimeError(f"Cannot read file size: {e}") from e
+
+    # Check target device has enough capacity (fail fast before unmounting)
+    target_size_value = target_info.get("size")
+    if target_size_value is not None:
+        target_size = int(target_size_value)
+        if data_size > target_size:
+            raise RuntimeError(
+                f"Image too large for target device "
+                f"({devices.human_size(data_size)} > "
+                f"{devices.human_size(target_size)})"
+            )
+
     # Unmount all partitions on target device
     log.info("Unmounting target device: %s", target_name)
     if progress_callback:
@@ -80,14 +99,6 @@ def restore_imageusb_file(
 
     if not devices.unmount_device(target_info, raise_on_failure=False):
         raise RuntimeError(f"Failed to unmount target device: {target_name}")
-
-    # Get file size for progress calculation
-    try:
-        file_size = image_path.stat().st_size
-        # Data size is file size minus header
-        data_size = file_size - IMAGEUSB_HEADER_SIZE
-    except OSError as e:
-        raise RuntimeError(f"Cannot read file size: {e}") from e
 
     # Find dd command
     dd_path = shutil.which("dd")
